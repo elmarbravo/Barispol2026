@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Deixe o contacto e ligamos — Centro Médico Barispol, Camama</title>
+<meta name="description" content="Deixe o nome, o telefone e o serviço que precisa. A equipa do Centro Médico Barispol liga de volta para marcar. Análises, consulta, pediatria e ecografias em Camama, Luanda.">
+<link rel="canonical" href="https://barispol.com/contacto.html">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#002060">
+
+<meta property="og:type" content="website">
+<meta property="og:locale" content="pt_PT">
+<meta property="og:site_name" content="Centro Médico Barispol">
+<meta property="og:title" content="Deixe o contacto e ligamos — Centro Médico Barispol">
+<meta property="og:description" content="Nome, telefone e o serviço que precisa. Ligamos de volta para marcar. Camama, Luanda.">
+<meta property="og:url" content="https://barispol.com/contacto.html">
+<meta property="og:image" content="https://barispol.com/assets/facility.jpg">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="assets/logo-barispol.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@300;400;600;700&display=swap">
+
+<style>
+:root{
+  --navy:#002060; --navy-d:#001340; --accent:#00A3E0; --accent-d:#0078A6;
+  --wa:#25D366; --wa-d:#1FA855;
+  --bg:#FFFFFF; --bg2:#F3F6FB; --border:#DFE6F0;
+  --t1:#0F172A; --t2:#4A566B; --t3:#8A97AC;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t1);font-family:"Titillium Web",system-ui,sans-serif;font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+img{max-width:100%;display:block}
+h1,h2,h3{margin:0;text-wrap:balance;letter-spacing:-.015em}
+.wrap{max-width:940px;margin:0 auto;padding:0 24px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;border:none;cursor:pointer;font-family:inherit;
+  font-weight:700;font-size:15px;padding:14px 26px;border-radius:999px;text-decoration:none;transition:transform .15s,background .15s}
+.btn:hover{transform:translateY(-2px)}
+.btn:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.btn-wa{background:var(--wa);color:#fff;box-shadow:0 6px 18px rgba(37,211,102,.3)}
+.btn-wa:hover{background:var(--wa-d)}
+
+/* formulário próprio */
+.campo{margin-bottom:16px}
+.campo label{display:block;font-size:12.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--t3);margin-bottom:6px}
+.campo input,.campo select{width:100%;font-family:inherit;font-size:16px;color:var(--t1);background:#fff;
+  border:1.5px solid var(--border);border-radius:11px;padding:13px 14px;outline:none;transition:border-color .15s,box-shadow .15s}
+.campo select{appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%234A566B' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center}
+.campo input:focus,.campo select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,163,224,.16)}
+.campo input[aria-invalid="true"]{border-color:#A9491A;box-shadow:0 0 0 3px rgba(169,73,26,.13)}
+.campo .erro{display:none;font-size:13px;color:#A9491A;margin-top:6px;font-weight:600}
+.campo input[aria-invalid="true"] ~ .erro{display:block}
+.dois{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:560px){.dois{grid-template-columns:1fr}}
+.formpad{padding:22px}
+.formpad h2{font-size:19px;margin-bottom:4px}
+.formpad p.hint{font-size:14px;color:var(--t2);margin:0 0 20px}
+.enviar{width:100%;font-size:16px;padding:16px 24px}
+.rodape-form{font-size:13px;color:var(--t3);text-align:center;margin:14px 0 0;line-height:1.5}
+.alt{border-top:1px solid var(--border);margin-top:20px;padding-top:18px;text-align:center;font-size:14px;color:var(--t2)}
+.alt a{color:var(--accent-d);font-weight:700;text-decoration:none}
+.alt a:hover{text-decoration:underline}
+.feito{display:none;padding:34px 22px;text-align:center}
+.feito .tick{width:56px;height:56px;border-radius:50%;background:rgba(37,211,102,.15);color:#1FA855;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+.feito h2{font-size:21px}
+.feito p{font-size:15px;color:var(--t2);margin:10px auto 20px;max-width:42ch}
+.formbox.pronto .formpad{display:none}
+.formbox.pronto .feito{display:block}
+
+nav.bar{border-bottom:1px solid var(--border);background:#fff}
+nav.bar .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:12px;padding-bottom:12px}
+.brand{display:inline-flex;align-items:center;gap:11px;text-decoration:none}
+.brand img{width:42px;height:42px;object-fit:contain}
+.brand b{display:block;font-size:16px;font-weight:700;letter-spacing:.1em;color:var(--navy);line-height:1}
+.brand small{display:block;font-size:8.5px;font-weight:600;letter-spacing:.22em;color:var(--accent-d);margin-top:3px}
+nav.bar a.back{font-size:14px;font-weight:600;color:var(--t2);text-decoration:none}
+nav.bar a.back:hover{color:var(--navy)}
+
+.top{background:linear-gradient(160deg,#00194D,#002060 50%,#0A3A8A);color:#fff;padding:52px 0 44px;position:relative;overflow:hidden}
+.top::after{content:"";position:absolute;right:-130px;top:-130px;width:420px;height:420px;border-radius:50%;
+  background:radial-gradient(circle,rgba(0,163,224,.28),transparent 68%)}
+.top .wrap{position:relative}
+.top h1{font-size:clamp(28px,4.6vw,42px);font-weight:700;line-height:1.12;max-width:18ch}
+.top p{font-size:17.5px;color:rgba(255,255,255,.8);margin:14px 0 0;max-width:54ch;font-weight:300}
+.pills{display:flex;flex-wrap:wrap;gap:9px;margin-top:24px}
+.pills span{font-size:13px;font-weight:600;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);padding:7px 14px;border-radius:999px}
+
+main{padding:48px 0 20px}
+.lead{display:grid;grid-template-columns:1.35fr 1fr;gap:32px;align-items:start}
+@media(max-width:880px){.lead{grid-template-columns:1fr}}
+.formbox{border:1px solid var(--border);border-radius:18px;overflow:hidden;background:#fff;box-shadow:0 8px 26px rgba(0,32,96,.07)}
+
+aside .card{border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:16px}
+aside h3{font-size:16.5px}
+aside ul{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
+aside li{font-size:14.5px;color:var(--t2);padding-left:24px;position:relative;line-height:1.45}
+aside li::before{content:"";position:absolute;left:0;top:6px;width:13px;height:13px;border-radius:50%;background:rgba(0,163,224,.16);
+  box-shadow:inset 0 0 0 3px var(--accent)}
+aside .wacard{background:var(--bg2);text-align:center}
+aside .wacard p{font-size:14px;color:var(--t2);margin:8px 0 16px}
+
+.privacidade{margin-top:34px;border-left:2px solid var(--accent);padding:6px 0 6px 18px;font-size:14px;color:var(--t2);max-width:70ch}
+
+footer{background:var(--navy-d);color:rgba(255,255,255,.6);padding:34px 0;font-size:13.5px;margin-top:46px}
+footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px}
+footer a{color:rgba(255,255,255,.78);text-decoration:none}
+footer a:hover{color:#fff}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<nav class="bar">
+  <div class="wrap">
+    <a class="brand" href="index.html">
+      <img src="assets/logo-barispol.png" alt="Centro Médico Barispol" width="42" height="42">
+      <span><b>BARISPOL</b><small>CENTRO MÉDICO</small></span>
+    </a>
+    <a class="back" href="index.html">← Voltar ao site</a>
+  </div>
+</nav>
+
+<header class="top">
+  <div class="wrap">
+    <h1>Deixe o contacto. Ligamos de volta.</h1>
+    <p>Menos de um minuto a preencher. A recepção liga para confirmar o dia, a hora e o que precisa de trazer.</p>
+    <div class="pills">
+      <span>Aberto todos os dias · 07:30–22:00</span>
+      <span>Resultados no mesmo dia</span>
+      <span>Principais seguros aceites</span>
+      <span>Camama, Luanda</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap lead">
+
+    <div class="formbox" id="caixa">
+      <form class="formpad" id="formlead" novalidate>
+        <h2>Deixe os seus dados</h2>
+        <p class="hint">Quatro campos. Ao enviar, abre o WhatsApp com o pedido já escrito — só tem de carregar em enviar.</p>
+
+        <div class="campo">
+          <label for="nome">Nome completo</label>
+          <input type="text" id="nome" name="nome" autocomplete="name" placeholder="Como se chama" required>
+          <span class="erro">Escreva o seu nome.</span>
+        </div>
+
+        <div class="campo">
+          <label for="tel">Telefone</label>
+          <input type="tel" id="tel" name="tel" autocomplete="tel" inputmode="tel" placeholder="9XX XXX XXX" required>
+          <span class="erro">Escreva um número angolano com nove dígitos, a começar por 9.</span>
+        </div>
+
+        <div class="dois">
+          <div class="campo">
+            <label for="servico">O que precisa</label>
+            <select id="servico" name="servico">
+              <option>Análises clínicas</option>
+              <option>Consulta de clínica geral</option>
+              <option>Pediatria</option>
+              <option>Ginecologia e obstetrícia</option>
+              <option>Ecografia ou raio-X</option>
+              <option>Ainda não sei</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label for="seguro">Seguro de saúde</label>
+            <select id="seguro" name="seguro">
+              <option>Não tenho</option>
+              <option>Fidelidade Angola</option>
+              <option>ENSA Seguros</option>
+              <option>Nossa Seguros</option>
+              <option>Sanlam Angola</option>
+              <option>Aliança Seguros</option>
+              <option>ADV Angola</option>
+              <option>Outro</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-wa enviar">Enviar pelo WhatsApp</button>
+        <p class="rodape-form">Não guardamos nada nesta página. O pedido segue para o WhatsApp da recepção.</p>
+
+        <div class="alt" id="alternativa" hidden>
+          Prefere preencher um formulário em vez do WhatsApp? <a href="#" id="linkforms" target="_blank" rel="noopener">Abrir formulário</a>
+        </div>
+      </form>
+
+      <div class="feito" id="feito">
+        <div class="tick"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m20 6-11 11-5-5"/></svg></div>
+        <h2>Pedido pronto a enviar</h2>
+        <p>Abrimos o WhatsApp com a mensagem escrita. Se não abriu, use o botão abaixo.</p>
+        <a class="btn btn-wa" id="reabrir" href="#" target="_blank" rel="noopener">Abrir o WhatsApp</a>
+        <p style="margin-top:18px"><a href="#" id="outro" style="color:var(--accent-d);font-weight:700;text-decoration:none">Fazer outro pedido</a></p>
+      </div>
+    </div>
+
+    <aside>
+      <div class="card">
+        <h3>O que acontece a seguir</h3>
+        <ul>
+          <li>Recebemos o seu pedido e a recepção liga no horário que indicar.</li>
+          <li>Confirmamos o serviço, o preço e a cobertura do seu seguro.</li>
+          <li>Fica com dia e hora marcados, sem espera no balcão.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Também tratamos por aqui</h3>
+        <ul>
+          <li>Grupos de análises: grávidas, pré-operatório, check-up, febre e admissão.</li>
+          <li>Consulta de clínica geral, pediatria e ginecologia.</li>
+          <li>Ecografias e raio-X com marcação prévia.</li>
+        </ul>
+      </div>
+      <div class="card wacard">
+        <h3>Prefere falar já?</h3>
+        <p>A recepção responde em minutos durante o horário de funcionamento.</p>
+        <a class="btn btn-wa" href="https://wa.me/244946373631?text=Ol%C3%A1%2C%20gostaria%20de%20ser%20contactado%20para%20marcar." target="_blank" rel="noopener">WhatsApp +244 946 373 631</a>
+      </div>
+    </aside>
+  </div>
+
+  <div class="wrap">
+    <p class="privacidade">Pedimos apenas o nome, o telefone, o serviço e o seguro. Não peça nem escreva sintomas, diagnósticos ou resultados de exames neste formulário — esses assuntos são tratados na consulta, com o médico.</p>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Centro Médico Barispol · Bairro Bom Sossego, Casa 186, Camama, Luanda</span>
+    <span><a href="tel:+244946373631">+244 946 373 631</a> · <a href="mailto:geral@barispol.com">geral@barispol.com</a></span>
+  </div>
+</footer>
+
+<script>
+/* ─────────────────────────────────────────────────────────────
+   CAPTAÇÃO DE CONTACTOS
+
+   Como funciona: o visitante preenche quatro campos e o pedido segue
+   para o WhatsApp da recepção, já escrito e organizado. Não é preciso
+   ligar nada — funciona assim que o site estiver publicado.
+
+   Ligações para os patrocínios nas redes:
+       https://barispol.com/contacto.html?origem=instagram
+       https://barispol.com/contacto.html?origem=facebook
+       https://barispol.com/contacto.html?origem=tiktok
+   A origem entra na mensagem do WhatsApp, para saber que rede trouxe
+   cada contacto.
+
+   OPCIONAL — se quiser também a lista em Excel, crie um formulário no
+   Microsoft Forms e cole aqui o identificador que vem a seguir a «/r/».
+   Aparece então uma segunda opção por baixo do botão do WhatsApp.
+   ───────────────────────────────────────────────────────────── */
+var WHATSAPP = '244946373631';
+var LEAD_FORM_ID = '';
+
+(function () {
+  var form = document.getElementById('formlead');
+  var caixa = document.getElementById('caixa');
+  var nome = document.getElementById('nome');
+  var tel = document.getElementById('tel');
+  var origem = new URLSearchParams(window.location.search).get('origem') || '';
+
+  if (LEAD_FORM_ID) {
+    var alt = document.getElementById('alternativa');
+    var link = document.getElementById('linkforms');
+    link.href = 'https://forms.office.com/r/' + encodeURIComponent(LEAD_FORM_ID) +
+                (origem ? '?origem=' + encodeURIComponent(origem) : '');
+    alt.hidden = false;
+  }
+
+  function telValido(v) {
+    var d = (v || '').replace(/\D/g, '').replace(/^244/, '');
+    return d.length === 9 && d.charAt(0) === '9';
+  }
+  function marca(campo, ok) { campo.setAttribute('aria-invalid', ok ? 'false' : 'true'); return ok; }
+
+  [nome, tel].forEach(function (c) {
+    c.addEventListener('input', function () { c.setAttribute('aria-invalid', 'false'); });
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var okNome = marca(nome, nome.value.trim().length >= 3);
+    var okTel = marca(tel, telValido(tel.value));
+    if (!okNome) { nome.focus(); return; }
+    if (!okTel) { tel.focus(); return; }
+
+    var linhas = [
+      'Pedido de contacto pelo site do Barispol.',
+      '',
+      'Nome: ' + nome.value.trim(),
+      'Telefone: ' + tel.value.trim(),
+      'Precisa de: ' + document.getElementById('servico').value,
+      'Seguro: ' + document.getElementById('seguro').value
+    ];
+    if (origem) linhas.push('Veio de: ' + origem);
+    linhas.push('', 'Agradeço que me liguem para marcar.');
+
+    var url = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(linhas.join('\n'));
+    document.getElementById('reabrir').href = url;
+    window.open(url, '_blank', 'noopener');
+    caixa.classList.add('pronto');
+    caixa.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+
+  document.getElementById('outro').addEventListener('click', function (e) {
+    e.preventDefault();
+    form.reset();
+    caixa.classList.remove('pronto');
+    nome.focus();
+  });
+})();
+</script>
+
+</body>
+</html>

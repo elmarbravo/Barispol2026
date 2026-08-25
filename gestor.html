@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gestor de Ficheiros — Centro Médico Barispol</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="assets/logo-barispol.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@300;400;600;700&display=swap">
+<style>
+:root{
+  --navy:#002060; --navy-d:#001340; --accent:#00A3E0; --accent-d:#0078A6;
+  --ok:#137A5B; --warn:#A9491A;
+  --bg:#F3F6FB; --surface:#FFFFFF; --border:#DCE4F0;
+  --t1:#0F172A; --t2:#4A566B; --t3:#8A97AC;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t1);font-family:"Titillium Web",system-ui,sans-serif;font-size:15px;line-height:1.55}
+img{max-width:100%;display:block}
+h1,h2,h3{margin:0;letter-spacing:-.015em}
+.wrap{max-width:1080px;margin:0 auto;padding:0 22px}
+
+header{background:var(--navy-d);color:#fff;padding:22px 0}
+header .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+header .brand{display:flex;align-items:center;gap:12px}
+header img{width:40px;height:40px;background:#fff;border-radius:50%;padding:4px}
+header h1{font-size:19px;font-weight:700}
+header small{display:block;font-size:12px;color:rgba(255,255,255,.6);font-weight:400;letter-spacing:.04em}
+header a{color:rgba(255,255,255,.8);font-size:13.5px;text-decoration:none}
+header a:hover{color:#fff}
+
+main{padding:26px 0 70px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;margin-bottom:18px}
+.panel > h2{font-size:17px;margin-bottom:4px}
+.panel > p.sub{font-size:13.5px;color:var(--t2);margin:0 0 18px}
+
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+@media(max-width:820px){.steps{grid-template-columns:repeat(2,1fr)}}
+.stepbox{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}
+.stepbox b{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;font-size:13px;margin-bottom:9px}
+.stepbox strong{display:block;font-size:14px}
+.stepbox span{display:block;font-size:12.5px;color:var(--t2);margin-top:3px}
+
+label{display:block;font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--t3);margin-bottom:5px}
+input[type=text],select,textarea{width:100%;font-family:inherit;font-size:14.5px;color:var(--t1);background:#fff;
+  border:1.5px solid var(--border);border-radius:9px;padding:10px 12px;outline:none}
+input[type=text]:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,163,224,.15)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+@media(max-width:700px){.row{grid-template-columns:1fr}}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;cursor:pointer;font-family:inherit;
+  font-weight:700;font-size:14px;padding:11px 20px;border-radius:999px;text-decoration:none;transition:background .15s,transform .12s}
+.btn:hover{transform:translateY(-1px)}
+.btn:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btn-navy{background:var(--navy);color:#fff}
+.btn-accent{background:var(--accent);color:#fff}
+.btn-ghost{background:#fff;color:var(--navy);border:1.5px solid var(--border)}
+.btn-ghost:hover{border-color:var(--navy)}
+.btn-sm{padding:7px 14px;font-size:13px}
+.btn[disabled]{opacity:.45;cursor:not-allowed;transform:none}
+
+.drop{border:2px dashed var(--border);border-radius:14px;padding:28px;text-align:center;background:#fff;transition:border-color .15s,background .15s}
+.drop.over{border-color:var(--accent);background:rgba(0,163,224,.05)}
+.drop p{margin:8px 0 14px;font-size:14px;color:var(--t2)}
+
+.list{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.item{display:grid;grid-template-columns:96px 1fr auto;gap:14px;align-items:center;background:#fff;border:1px solid var(--border);border-radius:12px;padding:11px}
+@media(max-width:640px){.item{grid-template-columns:70px 1fr;gap:10px}.item .acts{grid-column:1/-1;justify-content:flex-end}}
+.thumb{width:96px;height:66px;border-radius:8px;object-fit:cover;background:var(--bg)}
+.thumb.ph{display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--navy);letter-spacing:.06em}
+.item .meta strong{display:block;font-size:14.5px}
+.item .meta span{display:block;font-size:12.5px;color:var(--t2);word-break:break-all}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:5px;margin-right:6px}
+.tag-foto{background:rgba(0,163,224,.14);color:var(--accent-d)}
+.tag-video{background:rgba(0,32,96,.1);color:var(--navy)}
+.acts{display:flex;gap:6px;align-items:center}
+.ico{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--t2);cursor:pointer;
+  font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:inherit}
+.ico:hover{border-color:var(--navy);color:var(--navy)}
+.ico.danger:hover{border-color:var(--warn);color:var(--warn);background:#FEF4EF}
+
+.saida{background:var(--navy-d);color:#D6E2F5;border-radius:12px;padding:16px;font-family:ui-monospace,"SF Mono",Menlo,monospace;
+  font-size:12.5px;line-height:1.5;max-height:280px;overflow:auto;white-space:pre;margin-top:14px}
+.aviso{border-left:3px solid var(--accent);background:rgba(0,163,224,.06);padding:12px 16px;border-radius:0 8px 8px 0;font-size:13.5px;color:var(--t2);margin-top:14px}
+.aviso b{color:var(--t1)}
+.estado{font-size:13px;font-weight:600;color:var(--ok);margin-left:10px}
+.vazio{text-align:center;padding:26px;color:var(--t3);font-size:14px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="brand">
+      <img src="assets/logo-barispol.png" alt="">
+      <div><h1>Gestor de Ficheiros<small>Fotografias e vídeos do site · uso interno</small></h1></div>
+    </div>
+    <a href="index.html">← Ver o site</a>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+
+  <div class="steps">
+    <div class="stepbox"><b>1</b><strong>Escolha os ficheiros</strong><span>Fotos do telemóvel ou do computador, ou o endereço de um vídeo do YouTube.</span></div>
+    <div class="stepbox"><b>2</b><strong>Escreva a legenda</strong><span>Uma frase curta por ficheiro. É o que aparece por baixo no site.</span></div>
+    <div class="stepbox"><b>3</b><strong>Descarregue os dois</strong><span>Os ficheiros com o nome corrigido e o índice <code>galeria.json</code>.</span></div>
+    <div class="stepbox"><b>4</b><strong>Carregue no GitHub</strong><span>Ficheiros na pasta <code>media/</code>, índice em <code>media/galeria.json</code>.</span></div>
+  </div>
+
+  <div class="panel">
+    <h2>Acrescentar fotografias ou vídeos</h2>
+    <p class="sub">Aceita JPG, PNG, WEBP e MP4. Nomes com acentos, espaços ou maiúsculas são corrigidos automaticamente — descarregue depois a cópia com o nome novo.</p>
+    <div class="drop" id="drop">
+      <p>Arraste os ficheiros para aqui, ou</p>
+      <input type="file" id="ficheiros" accept="image/*,video/mp4" multiple hidden>
+      <button class="btn btn-navy" id="escolher">Escolher ficheiros</button>
+    </div>
+
+    <div style="margin-top:22px;padding-top:20px;border-top:1px solid var(--border)">
+      <h3 style="font-size:15px;margin-bottom:12px">Ou acrescentar um vídeo do YouTube</h3>
+      <div class="row">
+        <div><label for="yt">Endereço ou identificador</label><input type="text" id="yt" placeholder="https://www.youtube.com/watch?v=..."></div>
+        <div><label for="ytleg">Legenda</label><input type="text" id="ytleg" placeholder="Visita às instalações"></div>
+      </div>
+      <button class="btn btn-ghost" id="addyt">Acrescentar vídeo</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Galeria <span class="estado" id="estado"></span></h2>
+    <p class="sub">A ordem aqui é a ordem no site. As primeiras doze aparecem na página.</p>
+    <div class="list" id="lista"></div>
+    <div class="vazio" id="vazio">Ainda não há nada na galeria.</div>
+  </div>
+
+  <div class="panel">
+    <h2>Publicar</h2>
+    <p class="sub">Descarregue o índice, junte-o aos ficheiros e carregue tudo no repositório do site.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-accent" id="baixarjson">Descarregar galeria.json</button>
+      <button class="btn btn-ghost" id="baixarficheiros">Descarregar ficheiros renomeados</button>
+      <button class="btn btn-ghost" id="copiar">Copiar índice</button>
+      <button class="btn btn-ghost" id="limpar">Limpar tudo</button>
+    </div>
+    <div class="aviso">
+      <b>Onde colocar:</b> os ficheiros vão para a pasta <code>media/</code> do repositório e o índice para <code>media/galeria.json</code>, substituindo o que lá estiver. A secção «As nossas instalações» aparece no site assim que houver pelo menos uma entrada; com o índice vazio, desaparece sozinha.
+    </div>
+    <div class="saida" id="saida">[]</div>
+  </div>
+
+</div>
+</main>
+
+<script>
+(function () {
+  var itens = [];
+  var blobs = {};          // nome final -> File, para descarregar renomeado
+  var lista = document.getElementById('lista');
+  var vazio = document.getElementById('vazio');
+  var saida = document.getElementById('saida');
+  var estado = document.getElementById('estado');
+
+  function limpaNome(n) {
+    var p = n.lastIndexOf('.');
+    var base = p > 0 ? n.slice(0, p) : n;
+    var ext = p > 0 ? n.slice(p).toLowerCase() : '';
+    base = base.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+               .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    if (!base) base = 'ficheiro';
+    return base + ext;
+  }
+  function nomeLivre(n) {
+    var f = limpaNome(n), i = 2;
+    while (itens.some(function (x) { return x.ficheiro === f; })) {
+      var p = f.lastIndexOf('.');
+      f = (p > 0 ? f.slice(0, p) : f).replace(/-\d+$/, '') + '-' + i + (p > 0 ? f.slice(p) : '');
+      i++;
+    }
+    return f;
+  }
+  function idYoutube(v) {
+    v = (v || '').trim();
+    var m = v.match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([A-Za-z0-9_-]{6,})/);
+    if (m) return m[1];
+    return /^[A-Za-z0-9_-]{6,}$/.test(v) ? v : '';
+  }
+
+  function acrescentaFicheiros(files) {
+    Array.prototype.forEach.call(files, function (f) {
+      var video = f.type.indexOf('video') === 0;
+      var nome = nomeLivre(f.name);
+      blobs[nome] = f;
+      itens.push({
+        tipo: video ? 'video' : 'foto',
+        ficheiro: nome,
+        legenda: '',
+        _url: URL.createObjectURL(f),
+        _orig: f.name,
+        _tam: f.size
+      });
+    });
+    desenha();
+  }
+
+  function desenha() {
+    lista.innerHTML = '';
+    vazio.style.display = itens.length ? 'none' : 'block';
+    estado.textContent = itens.length ? itens.length + (itens.length === 1 ? ' entrada' : ' entradas') : '';
+    itens.forEach(function (it, i) {
+      var row = document.createElement('div');
+      row.className = 'item';
+
+      if (it.tipo === 'foto' && it._url) {
+        var img = document.createElement('img');
+        img.className = 'thumb'; img.src = it._url; img.alt = '';
+        row.appendChild(img);
+      } else {
+        var ph = document.createElement('div');
+        ph.className = 'thumb ph';
+        ph.textContent = it.tipo === 'youtube' ? 'YOUTUBE' : (it.tipo === 'video' ? 'VÍDEO' : 'FOTO');
+        row.appendChild(ph);
+      }
+
+      var meta = document.createElement('div');
+      meta.className = 'meta';
+      var tag = document.createElement('span');
+      tag.className = 'tag ' + (it.tipo === 'foto' ? 'tag-foto' : 'tag-video');
+      tag.textContent = it.tipo === 'foto' ? 'Fotografia' : (it.tipo === 'youtube' ? 'YouTube' : 'Vídeo');
+      var nome = document.createElement('strong');
+      nome.textContent = it.ficheiro || ('youtube: ' + it.id);
+      var leg = document.createElement('input');
+      leg.type = 'text'; leg.placeholder = 'Legenda que aparece no site'; leg.value = it.legenda || '';
+      leg.style.marginTop = '6px';
+      leg.addEventListener('input', function () { itens[i].legenda = leg.value; escreve(); });
+      meta.appendChild(tag); meta.appendChild(nome);
+      if (it._orig && it._orig !== it.ficheiro) {
+        var orig = document.createElement('span');
+        orig.textContent = 'nome original: ' + it._orig;
+        meta.appendChild(orig);
+      }
+      meta.appendChild(leg);
+      row.appendChild(meta);
+
+      var acts = document.createElement('div');
+      acts.className = 'acts';
+      [['↑', 'Subir', function () { if (i > 0) { var t = itens[i - 1]; itens[i - 1] = itens[i]; itens[i] = t; desenha(); } }],
+       ['↓', 'Descer', function () { if (i < itens.length - 1) { var t = itens[i + 1]; itens[i + 1] = itens[i]; itens[i] = t; desenha(); } }],
+       ['×', 'Remover', function () { delete blobs[itens[i].ficheiro]; itens.splice(i, 1); desenha(); }]
+      ].forEach(function (b, k) {
+        var btn = document.createElement('button');
+        btn.className = 'ico' + (k === 2 ? ' danger' : '');
+        btn.textContent = b[0]; btn.title = b[1]; btn.setAttribute('aria-label', b[1]);
+        btn.addEventListener('click', b[2]);
+        acts.appendChild(btn);
+      });
+      row.appendChild(acts);
+      lista.appendChild(row);
+    });
+    escreve();
+  }
+
+  function limpo() {
+    return itens.map(function (it) {
+      var o = { tipo: it.tipo, legenda: it.legenda || '' };
+      if (it.tipo === 'youtube') o.id = it.id; else o.ficheiro = it.ficheiro;
+      return o;
+    });
+  }
+  function escreve() { saida.textContent = JSON.stringify(limpo(), null, 2); }
+
+  function descarrega(nome, blob) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = nome;
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  }
+
+  document.getElementById('escolher').addEventListener('click', function () {
+    document.getElementById('ficheiros').click();
+  });
+  document.getElementById('ficheiros').addEventListener('change', function (e) {
+    acrescentaFicheiros(e.target.files); e.target.value = '';
+  });
+
+  var drop = document.getElementById('drop');
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('over'); });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('over'); });
+  });
+  drop.addEventListener('drop', function (e) {
+    if (e.dataTransfer && e.dataTransfer.files) acrescentaFicheiros(e.dataTransfer.files);
+  });
+
+  document.getElementById('addyt').addEventListener('click', function () {
+    var campo = document.getElementById('yt');
+    var id = idYoutube(campo.value);
+    if (!id) { campo.focus(); campo.style.borderColor = '#A9491A'; return; }
+    campo.style.borderColor = '';
+    itens.push({ tipo: 'youtube', id: id, legenda: document.getElementById('ytleg').value || '' });
+    campo.value = ''; document.getElementById('ytleg').value = '';
+    desenha();
+  });
+
+  document.getElementById('baixarjson').addEventListener('click', function () {
+    descarrega('galeria.json', new Blob([JSON.stringify(limpo(), null, 2)], { type: 'application/json' }));
+  });
+  document.getElementById('baixarficheiros').addEventListener('click', function () {
+    var n = 0;
+    itens.forEach(function (it, i) {
+      if (it.ficheiro && blobs[it.ficheiro]) {
+        n++;
+        setTimeout(function () { descarrega(it.ficheiro, blobs[it.ficheiro]); }, i * 400);
+      }
+    });
+    if (!n) alert('Não há ficheiros escolhidos nesta sessão para descarregar.');
+  });
+  document.getElementById('copiar').addEventListener('click', function () {
+    var t = JSON.stringify(limpo(), null, 2);
+    if (navigator.clipboard) navigator.clipboard.writeText(t);
+    var b = this; var o = b.textContent; b.textContent = 'Copiado'; setTimeout(function () { b.textContent = o; }, 1500);
+  });
+  document.getElementById('limpar').addEventListener('click', function () {
+    if (!itens.length || confirm('Remover todas as entradas desta sessão?')) { itens = []; blobs = {}; desenha(); }
+  });
+
+  /* Carrega o índice já publicado, para acrescentar em vez de recomeçar */
+  fetch('media/galeria.json', { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : []; })
+    .then(function (j) {
+      if (Array.isArray(j) && j.length) {
+        j.forEach(function (m) {
+          itens.push({
+            tipo: m.tipo || 'foto',
+            ficheiro: m.ficheiro,
+            id: m.id,
+            legenda: m.legenda || '',
+            _url: m.ficheiro && m.tipo === 'foto' ? 'media/' + m.ficheiro : ''
+          });
+        });
+        desenha();
+      } else { desenha(); }
+    })
+    .catch(desenha);
+})();
+</script>
+
+</body>
+</html>
