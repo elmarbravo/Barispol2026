@@ -1,6 +1,7 @@
 User-agent: *
 Allow: /
 Disallow: /gestor.html
+Disallow: /supabase-configuracao.sql
 Disallow: /workspace.html
 
 Sitemap: https://barispol.com/sitemap.xml
