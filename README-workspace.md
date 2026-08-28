@@ -35,6 +35,29 @@ O arranque deixa de esperar pela compilação: a página abre de imediato.
 
 ---
 
+## Camadas de acesso
+
+Quatro níveis. O nível de cada pessoa define-se em **Admin → Utilizadores**, no campo «Acesso».
+
+| Camada | Quem | Canais que vê | Administração |
+|---|---|---|---|
+| **Direcção** | Director Geral | Todos | Tudo, incluindo a ligação ao servidor |
+| **Coordenação** | Coordenação, RH, apoio à direcção | Todos | Gere utilizadores; não mexe no servidor |
+| **Clínica** | Médicos, enfermagem, laboratório | geral, avisos, clínica, enfermagem, escalas, farmácia | Nenhuma |
+| **Operações** | Recepção, motorista, apoio geral | geral, avisos, recepção, escalas | Nenhuma |
+
+O separador **Permissões**, no Admin, deixou de ser decorativo: mostra as quatro camadas reais e conta quantas pessoas estão em cada uma.
+
+### O que esta filtragem é, e o que não é
+
+É **organização**: cada pessoa vê o que lhe diz respeito e a Direcção deixa de ter a caixa cheia de conversas de recepção.
+
+Não é ainda uma barreira de base de dados. Qualquer pessoa com sessão iniciada continua tecnicamente a poder ler as tabelas se souber como. Enquanto assim for, a regra prática mantém-se: **não coloque no Workspace nada que não possa ser visto por qualquer colaborador com conta** — mapas de pagamento aos médicos, dados de utentes ou documentos de pessoal ficam fora.
+
+A camada seguinte, que fecha isso na própria base de dados, exige regras por canal no Supabase e é o passo natural depois desta.
+
+---
+
 ## Instalação
 
 O guia passo a passo, escrito para quem nunca usou o Supabase, está no documento que acompanha esta entrega. Resumo:

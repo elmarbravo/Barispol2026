@@ -844,168 +844,234 @@ Object.assign(window, {
 });
 const USERS = [{
   id: 'u1',
-  name: "Elmar Bravo",
+  name: "Elmar Francisco Pereira Bravo",
   short: 'EB',
   role: "Director Geral",
-  dept: "Administração",
+  dept: "Direcção",
   email: "elmar.bravo@barispol.com",
   phone: '',
-  status: 'online',
-  accessLevel: 'Super Admin',
+  status: 'offline',
+  accessLevel: 'Direcção',
   bio: ''
 }, {
   id: 'u2',
   name: "Arlete Tatiana Tchinguli",
   short: 'AT',
-  role: "Colaboradora",
-  dept: "",
+  role: "RH e assistente administrativa",
+  dept: "Administração",
   email: "arlete.tatiana@barispol.com",
   phone: '',
-  status: 'online',
-  accessLevel: 'Membro',
+  status: 'offline',
+  accessLevel: 'Coordenação',
   bio: ''
 }, {
   id: 'u3',
-  name: "Paulo Antonio Cambambe Manuel",
-  short: 'PM',
-  role: "Colaborador",
-  dept: "",
-  email: "",
+  name: "Nicolau Castigo",
+  short: 'NC',
+  role: "Analista de laboratório",
+  dept: "Laboratório",
+  email: "nicolau.castigo@barispol.com",
   phone: '',
   status: 'offline',
-  accessLevel: 'Membro',
+  accessLevel: 'Clínica',
   bio: ''
 }, {
   id: 'u4',
-  name: "Nicolau Mateus Simao Castigo",
-  short: 'NC',
-  role: "Colaborador",
-  dept: "",
-  email: "",
+  name: "Maria Henriqueta da Silva Carvalho",
+  short: 'MC',
+  role: "Médica",
+  dept: "Clínica",
+  email: "henriqueta.carvalho.m@gmail.com",
   phone: '',
   status: 'offline',
-  accessLevel: 'Membro',
+  accessLevel: 'Clínica',
   bio: ''
 }, {
   id: 'u5',
-  name: "Domingos Jose Henriques",
-  short: 'DH',
-  role: "Colaborador",
-  dept: "",
-  email: "",
+  name: "Creusa Matos Barreira",
+  short: 'CB',
+  role: "Médica",
+  dept: "Clínica",
+  email: "creusabarreira16@gmail.com",
   phone: '',
   status: 'offline',
-  accessLevel: 'Membro',
+  accessLevel: 'Clínica',
   bio: ''
 }, {
   id: 'u6',
-  name: "Filomena Manuel Da Silva",
-  short: 'FS',
-  role: "Colaboradora",
-  dept: "",
-  email: "",
+  name: "Luidmila Verónica Chitata Muquepe",
+  short: 'LM',
+  role: "Médica",
+  dept: "Clínica",
+  email: "luidmilamuquepe07@gmail.com",
   phone: '',
   status: 'offline',
-  accessLevel: 'Membro',
+  accessLevel: 'Clínica',
   bio: ''
 }, {
   id: 'u7',
-  name: "Dalia Nuria Da Silva Contreiras",
-  short: 'DC',
-  role: "Colaboradora",
-  dept: "",
-  email: "",
+  name: "Arlete Siomara Pires Mafuta Lombo",
+  short: 'AL',
+  role: "Médica",
+  dept: "Clínica",
+  email: "siomaradali@hotmail.com",
   phone: '',
   status: 'offline',
-  accessLevel: 'Membro',
+  accessLevel: 'Clínica',
   bio: ''
 }, {
   id: 'u8',
-  name: "Emmanuel Delio Feijo Domingos",
-  short: 'ED',
-  role: "Colaborador",
+  name: "Joaquina Joice Vicente da Silva",
+  short: 'JS',
+  role: "",
   dept: "",
-  email: "",
+  email: "joaquina.silva@barispol.com",
   phone: '',
   status: 'offline',
-  accessLevel: 'Membro',
+  accessLevel: 'Operações',
   bio: ''
 }, {
   id: 'u9',
-  name: "Juliana Nsamu Makela Lourenco",
-  short: 'JL',
-  role: "Colaboradora",
+  name: "Filomena Silva",
+  short: 'FS',
+  role: "",
   dept: "",
-  email: "",
+  email: "filomena.silva@barispol.com",
   phone: '',
   status: 'offline',
-  accessLevel: 'Membro',
+  accessLevel: 'Operações',
   bio: ''
 }, {
   id: 'u10',
-  name: "Gizela Cristina Kacuamba Joaquim",
-  short: 'GJ',
-  role: "Colaboradora",
-  dept: "",
-  email: "",
+  name: "Domingos Henriques",
+  short: 'DH',
+  role: "Enfermeiro",
+  dept: "Enfermagem",
+  email: "domingos.henriques@barispol.com",
   phone: '',
   status: 'offline',
-  accessLevel: 'Membro',
+  accessLevel: 'Clínica',
   bio: ''
 }, {
   id: 'u11',
-  name: "Eva De Jesus Teixeira Antonio",
-  short: 'EA',
-  role: "Colaboradora",
+  name: "Paulo Manuel",
+  short: 'PM',
+  role: "",
   dept: "",
-  email: "",
+  email: "paulo.manuel@barispol.com",
   phone: '',
   status: 'offline',
-  accessLevel: 'Membro',
+  accessLevel: 'Operações',
   bio: ''
 }, {
   id: 'u12',
-  name: "Dericka Tatiana Soares Domingos",
-  short: 'DD',
-  role: "Colaboradora",
+  name: "Juliana Lourenço",
+  short: 'JL',
+  role: "",
   dept: "",
-  email: "",
+  email: "juliana.lourenco@barispol.com",
   phone: '',
   status: 'offline',
-  accessLevel: 'Membro',
+  accessLevel: 'Operações',
   bio: ''
 }, {
   id: 'u13',
-  name: "Ines Maria Nicolau",
-  short: 'IN',
-  role: "Colaboradora",
+  name: "Rosa Queirós",
+  short: 'RQ',
+  role: "",
   dept: "",
-  email: "",
+  email: "r.queiros@barispol.com",
   phone: '',
   status: 'offline',
-  accessLevel: 'Membro',
+  accessLevel: 'Operações',
   bio: ''
 }, {
   id: 'u14',
-  name: "Solange Benvinda Pinto Orlando",
-  short: 'SO',
-  role: "Colaboradora",
+  name: "Osvaldo Pacheco",
+  short: 'OP',
+  role: "",
   dept: "",
-  email: "",
+  email: "osvaldo.pacheco@barispol.com",
   phone: '',
   status: 'offline',
-  accessLevel: 'Membro',
+  accessLevel: 'Operações',
   bio: ''
 }, {
   id: 'u15',
-  name: "Angelina Rosa Kingalo",
-  short: 'AK',
-  role: "Colaboradora",
-  dept: "",
-  email: "",
+  name: "Déricka Domingos",
+  short: 'DD',
+  role: "Recepção",
+  dept: "Recepção",
+  email: "d.domingos@barispol.com",
   phone: '',
   status: 'offline',
-  accessLevel: 'Membro',
+  accessLevel: 'Operações',
+  bio: ''
+}, {
+  id: 'u16',
+  name: "Rosa Simão Ndongo Salvador",
+  short: 'RS',
+  role: "",
+  dept: "",
+  email: "rosa.salvador@barispol.com",
+  phone: '',
+  status: 'offline',
+  accessLevel: 'Operações',
+  bio: ''
+}, {
+  id: 'u17',
+  name: "Solange Orlando",
+  short: 'SO',
+  role: "",
+  dept: "",
+  email: "solange.orlando@barispol.com",
+  phone: '',
+  status: 'offline',
+  accessLevel: 'Operações',
+  bio: ''
+}, {
+  id: 'u18',
+  name: "Gizela Joaquim",
+  short: 'GJ',
+  role: "",
+  dept: "",
+  email: "gizela.joaquim@barispol.com",
+  phone: '',
+  status: 'offline',
+  accessLevel: 'Operações',
+  bio: ''
+}, {
+  id: 'u19',
+  name: "Cassia Peixoto",
+  short: 'CP',
+  role: "",
+  dept: "",
+  email: "c.peixoto@barispol.com",
+  phone: '',
+  status: 'offline',
+  accessLevel: 'Operações',
+  bio: ''
+}, {
+  id: 'u20',
+  name: "Catarina Ndundu Baptista",
+  short: 'CB',
+  role: "",
+  dept: "",
+  email: "catarinabaptista439@gmail.com",
+  phone: '',
+  status: 'offline',
+  accessLevel: 'Operações',
+  bio: ''
+}, {
+  id: 'u22',
+  name: "Emmanuel Domingos",
+  short: 'ED',
+  role: "Motorista e Relações Públicas",
+  dept: "Operações",
+  email: "e.domingos@barispol.com",
+  phone: '',
+  status: 'offline',
+  accessLevel: 'Operações',
   bio: ''
 }];
 const CURRENT_USER_ID = 'u1';
@@ -1034,6 +1100,53 @@ const DEPARTMENTS = [{
   name: 'Marketing',
   color: '#DB2777'
 }];
+/* CAMADAS DE ACESSO — quatro níveis.
+   O nível de cada pessoa fica no campo accessLevel, editável em Admin.
+   canais: '*' vê todos; senão, a lista de departamentos que alcança.
+   null é o departamento dos canais abertos a toda a unidade. */
+const CAMADAS = {
+  'Direcção': {
+    ordem: 1,
+    desc: 'Vê tudo e administra o sistema. Gere utilizadores, camadas e a ligação ao servidor.',
+    canais: '*', admin: 'total',
+    podeGerirUtilizadores: true, podeVerSistema: true
+  },
+  'Coordenação': {
+    ordem: 2,
+    desc: 'Coordenação, recursos humanos e apoio à direcção. Vê todos os canais e gere pessoas e tarefas, sem mexer na configuração do servidor.',
+    canais: '*', admin: 'sem-sistema',
+    podeGerirUtilizadores: true, podeVerSistema: false
+  },
+  'Clínica': {
+    ordem: 3,
+    desc: 'Médicos, enfermagem e laboratório. Canais clínicos, escalas, farmácia, tarefas e calendário.',
+    canais: [null, 'clinica', 'enfermagem', 'farmacia', 'escalas'], admin: null,
+    podeGerirUtilizadores: false, podeVerSistema: false
+  },
+  'Operações': {
+    ordem: 4,
+    desc: 'Recepção, motorista e apoio geral. Canais de recepção e escalas, tarefas e calendário.',
+    canais: [null, 'rececao', 'escalas'], admin: null,
+    podeGerirUtilizadores: false, podeVerSistema: false
+  }
+};
+/* Níveis da versão anterior, para não deixar ninguém de fora ao actualizar */
+const CAMADAS_ANTIGAS = {
+  'Super Admin': 'Direcção', 'Admin': 'Coordenação', 'Manager': 'Coordenação',
+  'Membro': 'Operações', 'Convidado': 'Operações'
+};
+function bspCamadaNome(u){
+  const n = u && u.accessLevel;
+  if (CAMADAS[n]) return n;
+  return CAMADAS_ANTIGAS[n] || 'Operações';
+}
+function bspCamada(u){ return CAMADAS[bspCamadaNome(u)] || CAMADAS['Operações']; }
+function bspVeCanal(u, canal){
+  const c = bspCamada(u);
+  if (!c || c.canais === '*') return true;
+  return c.canais.indexOf(canal && canal.dept ? canal.dept : null) !== -1;
+}
+
 const CHANNELS = [{
   id: 'c-geral',
   name: 'geral',
@@ -1081,7 +1194,7 @@ const CHANNELS = [{
   members: 1,
   public: true,
   unread: 0,
-  dept: 'clinica'
+  dept: 'escalas'
 }, {
   id: 'c-farmacia',
   name: 'farmácia',
@@ -2278,7 +2391,7 @@ function Sidebar({
       gap: 1
     }
   }, NAV_ITEMS.map(item => {
-    if (item.adminOnly && currentUser.accessLevel !== 'Super Admin' && currentUser.accessLevel !== 'Admin') return null;
+    if (item.adminOnly && !bspCamada(currentUser).podeGerirUtilizadores) return null;
     const active = current === item.id;
     const IconComp = I[item.icon];
     return React.createElement("button", {
@@ -2463,7 +2576,7 @@ function Topbar({
       fontSize: 12.5,
       color: 'var(--text-3)'
     }
-  }, current === 'dashboard' && 'Bom dia, ' + currentUser.name.split(' ')[0], current === 'chat' && CHANNELS.length + ' canais', current === 'meetings' && 'Reuniões da equipa', current === 'feed' && 'Mural de avisos', current === 'drive' && 'Ficheiros partilhados', current === 'calendar' && 'O seu calendário', current === 'tasks' && 'Quadro de tarefas', current === 'admin' && 'Visão geral · permissões totais')), React.createElement("div", {
+  }, current === 'dashboard' && 'Bom dia, ' + currentUser.name.split(' ')[0], current === 'chat' && CHANNELS.filter(c => bspVeCanal(currentUser, c)).length + ' canais', current === 'meetings' && 'Reuniões da equipa', current === 'feed' && 'Mural de avisos', current === 'drive' && 'Ficheiros partilhados', current === 'calendar' && 'O seu calendário', current === 'tasks' && 'Quadro de tarefas', current === 'admin' && ('Camada: ' + bspCamadaNome(currentUser)))), React.createElement("div", {
     style: {
       flex: 1,
       display: 'flex',
@@ -2809,7 +2922,7 @@ function bspResolveUser(email, users) {
     email: email,
     phone: '',
     status: 'online',
-    accessLevel: 'Membro',
+    accessLevel: 'Operações',
     bio: ''
   };
 }
@@ -3415,7 +3528,7 @@ function StoreProvider({
         bio: '',
         ...user
       }]
-    }, CURRENT_USER_ID, 'convidou utilizador', user.name + ' · ' + (user.accessLevel || 'Membro'))),
+    }, CURRENT_USER_ID, 'convidou utilizador', user.name + ' · ' + bspCamadaNome(user))),
     updateUser: (userId, patch) => setState(s => ({
       ...s,
       users: s.users.map(u => u.id === userId ? {
@@ -4753,7 +4866,7 @@ function ChatScreen({
   }, React.createElement(ChannelList, {
     title: "Canais",
     actionIcon: "Plus",
-    items: CHANNELS,
+    items: CHANNELS.filter(c => bspVeCanal(currentUser, c)),
     renderItem: c => {
       const active = channelId === c.id;
       return React.createElement("button", {
@@ -5066,7 +5179,7 @@ function ChatScreen({
         flex: 1,
         minWidth: 0
       }
-    }, renderText(m.text)), (isOwn || currentUser.accessLevel === 'Super Admin') && React.createElement("button", {
+    }, renderText(m.text)), (isOwn || bspCamada(currentUser).podeGerirUtilizadores) && React.createElement("button", {
       className: "bsp-msg-del",
       title: "Apagar mensagem",
       onClick: () => {
@@ -6487,7 +6600,7 @@ function FeedPost({
   const comments = state.channelMessages[pk] || [];
   const [showComments, setShowComments] = React.useState(false);
   const [cDraft, setCDraft] = React.useState('');
-  const canDelete = post.userId === window.CURRENT_USER_ID || me && me.accessLevel === 'Super Admin';
+  const canDelete = post.userId === window.CURRENT_USER_ID || (me && bspCamada(me).podeGerirUtilizadores);
   function sendComment() {
     const txt = cDraft.trim();
     if (!txt) return;
@@ -9323,9 +9436,9 @@ function DirectoryScreen() {
     tone: "outline",
     size: "xs"
   }, u.dept), React.createElement(Badge, {
-    tone: u.accessLevel === 'Super Admin' ? 'navy' : u.accessLevel === 'Admin' ? 'accent' : u.accessLevel === 'Manager' ? 'amber' : 'default',
+    tone: bspCamadaNome(u) === 'Direcção' ? 'navy' : bspCamadaNome(u) === 'Coordenação' ? 'accent' : bspCamadaNome(u) === 'Clínica' ? 'amber' : 'default',
     size: "xs"
-  }, u.accessLevel)), React.createElement("div", {
+  }, bspCamadaNome(u))), React.createElement("div", {
     style: {
       fontSize: 11.5,
       color: 'var(--text-2)',
@@ -10515,7 +10628,7 @@ function AdminUserModal({
   const [pass, setPass] = React.useState('');
   const [cargo, setCargo] = React.useState('');
   const [dept, setDept] = React.useState('');
-  const [acesso, setAcesso] = React.useState('Membro');
+  const [acesso, setAcesso] = React.useState('Operações');
   const [bday, setBday] = React.useState('');
   React.useEffect(() => {
     if (open) {
@@ -10524,13 +10637,13 @@ function AdminUserModal({
       setPass('');
       setCargo(user && user.role || '');
       setDept(user && user.dept || '');
-      setAcesso(user && user.accessLevel || 'Membro');
+      setAcesso(user && bspCamadaNome(user) || 'Operações');
       setBday(user && user.birthday || '');
     }
   }, [open, user]);
   function save() {
     if (!nome.trim()) return;
-    if (!isEdit && (!email.trim() || !pass.trim())) return;
+    if (!isEdit && !email.trim()) return;
     const m = {
       id: isEdit ? user.id : 'u' + Date.now(),
       name: nome.trim(),
@@ -10544,14 +10657,13 @@ function AdminUserModal({
       status: user && user.status || 'offline',
       bio: user && user.bio || ''
     };
-    if (pass.trim()) m.pass = pass.trim();else if (user && user.pass) m.pass = user.pass;
     onSave(m);
     onClose();
   }
   return React.createElement(Modal, {
     open: open,
     onClose: onClose,
-    title: isEdit ? 'Editar utilizador' : 'Convidar utilizador',
+    title: isEdit ? 'Editar utilizador' : 'Acrescentar ao directório',
     width: 520,
     footer: React.createElement(React.Fragment, null, React.createElement(Button, {
       variant: "ghost",
@@ -10594,18 +10706,23 @@ function AdminUserModal({
       gap: 12
     }
   }, React.createElement(FormField, {
-    label: isEdit ? 'Nova palavra-passe (vazio = manter)' : 'Palavra-passe'
-  }, React.createElement(TextInput, {
-    value: pass,
-    onChange: setPass,
-    placeholder: isEdit ? '••••••••' : 'Defina a palavra-passe'
-  })), React.createElement(FormField, {
     label: "Cargo"
   }, React.createElement(TextInput, {
     value: cargo,
     onChange: setCargo,
     placeholder: "Ex.: Enfermeira"
-  }))), React.createElement("div", {
+  })), React.createElement("div", {
+    style: {
+      alignSelf: 'end',
+      fontSize: 12.5,
+      lineHeight: 1.45,
+      color: 'var(--text-3)',
+      background: 'var(--surface-2)',
+      border: '1px solid var(--border)',
+      borderRadius: 9,
+      padding: '9px 12px'
+    }
+  }, "A palavra-passe não se define aqui. A conta de entrada cria-se no Supabase, em Authentication → Users.")), React.createElement("div", {
     style: {
       display: 'grid',
       gridTemplateColumns: '1fr 1fr 1fr',
@@ -10628,13 +10745,10 @@ function AdminUserModal({
   }, React.createElement(Select, {
     value: acesso,
     onChange: setAcesso,
-    options: [{
-      value: 'Membro',
-      label: 'Membro'
-    }, {
-      value: 'Admin',
-      label: 'Admin'
-    }]
+    options: Object.keys(CAMADAS).sort((x, y) => CAMADAS[x].ordem - CAMADAS[y].ordem).map(n => ({
+      value: n,
+      label: n
+    }))
   })), React.createElement(FormField, {
     label: "Aniversário (DD/MM)"
   }, React.createElement(TextInput, {
@@ -10672,8 +10786,8 @@ function AdminUsers() {
     a.remove();
   }
   function remove(u) {
-    if (u.id === 'u1' || u.accessLevel === 'Super Admin') {
-      toast('O Super Admin não pode ser removido.');
+    if (u.id === 'u1' || bspCamadaNome(u) === 'Direcção') {
+      toast('A conta da Direcção não pode ser removida aqui.');
       return;
     }
     if (u.id === meId) {
@@ -10729,7 +10843,7 @@ function AdminUsers() {
       size: 13
     }),
     onClick: () => setModal({})
-  }, "Convidar utilizador"))), React.createElement("div", {
+  }, "Acrescentar pessoa"))), React.createElement("div", {
     className: "bsp-hide-mobile",
     style: {
       display: 'grid',
@@ -10797,9 +10911,9 @@ function AdminUsers() {
       color: 'var(--text-3)'
     }
   }, "—")), React.createElement("div", null, React.createElement(Badge, {
-    tone: u.accessLevel === 'Super Admin' ? 'navy' : u.accessLevel === 'Admin' ? 'accent' : 'default',
+    tone: bspCamadaNome(u) === 'Direcção' ? 'navy' : bspCamadaNome(u) === 'Coordenação' ? 'accent' : 'default',
     size: "xs"
-  }, u.accessLevel || 'Membro')), React.createElement("div", {
+  }, bspCamadaNome(u))), React.createElement("div", {
     style: {
       fontSize: 12,
       color: 'var(--text-2)'
@@ -10837,32 +10951,27 @@ function AdminUsers() {
   }))))));
 }
 function AdminRoles() {
-  const roles = [{
-    name: 'Super Admin',
-    desc: 'Acesso total. Criar/remover utilizadores, ver todos os módulos, configurações do sistema.',
-    members: 2,
-    perms: ['Tudo']
-  }, {
-    name: 'Admin',
-    desc: 'Gestão de utilizadores do seu departamento. Acesso a relatórios.',
-    members: 1,
-    perms: ['Gerir utilizadores do departamento', 'Relatórios', 'Aprovar documentos']
-  }, {
-    name: 'Manager',
-    desc: 'Gestão de canais e equipas. Aprovação de documentos.',
-    members: 4,
-    perms: ['Gerir canais', 'Aprovar documentos', 'Criar projectos']
-  }, {
-    name: 'Membro',
-    desc: 'Acesso a chat, feed, calendário e drive pessoal.',
-    members: 32,
-    perms: ['Chat', 'Feed', 'Calendário', 'Drive pessoal']
-  }, {
-    name: 'Convidado',
-    desc: 'Acesso limitado a canais específicos (fornecedores, contabilidade externa).',
-    members: 3,
-    perms: ['Canais específicos']
-  }];
+  /* Camadas reais, com a contagem tirada da própria equipa. */
+  const { state } = useStore();
+  const equipa = (state.team && state.team.length) ? state.team : USERS;
+  const nomesCanais = camada => {
+    if (!camada || camada.canais === '*') return ['Todos os canais'];
+    return CHANNELS.filter(c => camada.canais.indexOf(c.dept || null) !== -1).map(c => '#' + c.name);
+  };
+  const roles = Object.keys(CAMADAS)
+    .sort((a, b) => CAMADAS[a].ordem - CAMADAS[b].ordem)
+    .map(nome => {
+      const c = CAMADAS[nome];
+      const perms = nomesCanais(c).slice();
+      if (c.podeGerirUtilizadores) perms.push('Gerir utilizadores');
+      if (c.podeVerSistema) perms.push('Configurar servidor');
+      return {
+        name: nome,
+        desc: c.desc,
+        members: equipa.filter(u => bspCamadaNome(u) === nome).length,
+        perms: perms
+      };
+    });
   return React.createElement("div", {
     style: {
       display: 'grid',
@@ -10886,7 +10995,7 @@ function AdminRoles() {
       color: 'var(--text-1)'
     }
   }, r.name), React.createElement(Badge, {
-    tone: r.name === 'Super Admin' ? 'navy' : r.name === 'Admin' ? 'accent' : r.name === 'Manager' ? 'amber' : 'default'
+    tone: r.name === 'Direcção' ? 'navy' : r.name === 'Coordenação' ? 'accent' : r.name === 'Clínica' ? 'amber' : 'default'
   }, r.members, " membros")), React.createElement("p", {
     style: {
       fontSize: 12.5,
@@ -11910,7 +12019,7 @@ function App() {
       setTweak: setTweak
     }));
   }
-  const isAdmin = currentUser && (currentUser.accessLevel === 'Super Admin' || currentUser.role === 'Director Geral');
+  const isAdmin = currentUser && bspCamada(currentUser).podeGerirUtilizadores;
   return React.createElement("div", {
     style: {
       display: 'flex',
