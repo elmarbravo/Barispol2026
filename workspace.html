@@ -3829,6 +3829,26 @@ function LoginScreen({
   const [info, setInfo] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const hasServer = !!bspGetCfg();
+  const cfgGuardada = bspGetCfg() || {};
+  const [mostrarLigacao, setMostrarLigacao] = React.useState(!hasServer);
+  const [srvUrl, setSrvUrl] = React.useState(cfgGuardada.url || '');
+  const [srvKey, setSrvKey] = React.useState(cfgGuardada.key || '');
+  const [srvErro, setSrvErro] = React.useState('');
+  const ligarServidor = () => {
+    const u = srvUrl.trim().replace(/\/+$/, '');
+    const k = srvKey.trim();
+    if (!/^https:\/\/.+\.supabase\.co$/.test(u)) {
+      setSrvErro('O endereço deve ser parecido com https://xxxxxxxx.supabase.co, sem barra no fim.');
+      return;
+    }
+    if (k.indexOf('eyJ') !== 0) {
+      setSrvErro('A chave deve ser a anon public, que começa por eyJ. Não use a service_role.');
+      return;
+    }
+    setSrvErro('');
+    try { localStorage.setItem('bsp_supabase_cfg', JSON.stringify({ url: u, key: k })); } catch (e) {}
+    window.location.reload();
+  };
   const fail = () => {
     setErr('E-mail ou palavra-passe incorretos.');
     setShake(true);
@@ -4307,7 +4327,43 @@ function LoginScreen({
     }
   }, React.createElement(I.Shield, {
     size: 13
-  }), " ", hasServer ? 'Ligação segura ao servidor · sessão encriptada' : 'Servidor por ligar neste dispositivo · fale com o administrador'))));
+  }), " ", hasServer ? 'Ligação segura ao servidor · sessão encriptada' : 'Servidor por ligar neste dispositivo'),
+  React.createElement("div", {
+    style: { marginTop: 10, textAlign: 'center' }
+  }, React.createElement("button", {
+    type: "button",
+    onClick: () => setMostrarLigacao(v => !v),
+    style: {
+      background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+      fontSize: 12.5, fontWeight: 600, color: 'var(--accent-d)', textDecoration: 'underline', padding: 4
+    }
+  }, mostrarLigacao ? 'Fechar' : (hasServer ? 'Mudar o servidor' : 'Ligar o servidor a este dispositivo'))),
+  mostrarLigacao && React.createElement("div", {
+    style: {
+      marginTop: 12, padding: 16, borderRadius: 12,
+      background: 'var(--surface-2)', border: '1px solid var(--border)', textAlign: 'left'
+    }
+  },
+    React.createElement("div", {
+      style: { fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.5, marginBottom: 12 }
+    }, "Peça ao administrador o endereço do projecto e a chave anónima. No Supabase estão em Project Settings → API. Só é preciso fazer isto uma vez em cada dispositivo."),
+    React.createElement(FormField, { label: "Endereço do projecto" },
+      React.createElement(TextInput, {
+        value: srvUrl, onChange: setSrvUrl, placeholder: "https://xxxxxxxx.supabase.co"
+      })),
+    React.createElement("div", { style: { height: 10 } }),
+    React.createElement(FormField, { label: "Chave anónima (anon public)" },
+      React.createElement(TextInput, {
+        value: srvKey, onChange: setSrvKey, placeholder: "eyJ…"
+      })),
+    srvErro && React.createElement("div", {
+      style: { marginTop: 10, fontSize: 12.5, fontWeight: 600, color: '#B91C1C', lineHeight: 1.45 }
+    }, srvErro),
+    React.createElement("div", { style: { height: 14 } }),
+    React.createElement(Button, {
+      variant: "navy", full: true, onClick: ligarServidor
+    }, "Guardar e ligar")
+  ))));
 }
 function DashboardScreen({
   currentUser,
