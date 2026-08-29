@@ -15,6 +15,7 @@ create table if not exists shared_state (
   updated_at timestamptz default now());
 alter table shared_state add column if not exists drive jsonb;
 alter table shared_state add column if not exists team jsonb;
+alter table shared_state add column if not exists channels jsonb;
 insert into shared_state (id) values (1) on conflict (id) do nothing;
 
 -- 2. TRANCAR AS TABELAS
