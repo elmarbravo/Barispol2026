@@ -1142,9 +1142,18 @@ function bspCamadaNome(u){
 }
 function bspCamada(u){ return CAMADAS[bspCamadaNome(u)] || CAMADAS['Operações']; }
 function bspVeCanal(u, canal){
+  if (!u || !canal) return false;
+  /* Grupos privados: só os membros escolhidos. A Direcção vê tudo. */
+  if (canal.membros && canal.membros.length) {
+    if (bspCamadaNome(u) === 'Direcção') return true;
+    return canal.membros.indexOf(u.id) !== -1;
+  }
+  /* Ajustes por pessoa feitos no Admin: retirar ganha a dar, e ambos ganham à camada. */
+  if (u.semCanais && u.semCanais.indexOf(canal.id) !== -1) return false;
+  if (u.extraCanais && u.extraCanais.indexOf(canal.id) !== -1) return true;
   const c = bspCamada(u);
   if (!c || c.canais === '*') return true;
-  return c.canais.indexOf(canal && canal.dept ? canal.dept : null) !== -1;
+  return c.canais.indexOf(canal.dept ? canal.dept : null) !== -1;
 }
 
 const CHANNELS = [{
@@ -1204,6 +1213,8 @@ const CHANNELS = [{
   unread: 0,
   dept: 'farmacia'
 }];
+/* Cópia fixa: os grupos criados na plataforma juntam-se a esta base em cada desenho. */
+const CHANNELS_BASE = CHANNELS.slice();
 const DM_CONVERSATIONS = [];
 const INITIAL_CHANNEL_MESSAGES = {};
 const FEED_POSTS = [];
@@ -2726,6 +2737,7 @@ function loadInitial() {
         if (!parsed.team || !parsed.team.length) parsed.team = USERS.map(u => ({
           ...u
         }));
+        if (!parsed.extraChannels) parsed.extraChannels = [];
         return parsed;
       }
     }
@@ -2745,6 +2757,7 @@ function loadInitial() {
     })),
     activityLog: ACTIVITY_LOG,
     pinnedMessages: {},
+    extraChannels: [],
     seq: 100
   };
 }
@@ -3072,6 +3085,7 @@ function StoreProvider({
         const events = row.events || s.todayEvents;
         const drive = row.drive || s.driveFiles;
         const team = row.team && row.team.length ? row.team : s.team;
+        const canais = row.channels || s.extraChannels || [];
         try {
           const flat = b => [].concat(...Object.values(b || {}));
           const oldIds = new Set(flat(s.tasks).map(x => x.id));
@@ -3088,14 +3102,16 @@ function StoreProvider({
           tasks,
           events,
           drive,
-          team
+          team,
+          channels: canais
         });
         return {
           ...s,
           tasks,
           todayEvents: events,
           driveFiles: drive,
-          team
+          team,
+          extraChannels: canais
         };
       });
     };
@@ -3202,7 +3218,8 @@ function StoreProvider({
       tasks: state.tasks,
       events: state.todayEvents,
       drive: state.driveFiles,
-      team: state.team
+      team: state.team,
+      channels: state.extraChannels || []
     });
     if (payload === lastPushedRef.current) return;
     lastPushedRef.current = payload;
@@ -3213,19 +3230,29 @@ function StoreProvider({
         events: state.todayEvents,
         drive: state.driveFiles,
         team: state.team,
+        channels: state.extraChannels || [],
         updated_at: new Date().toISOString()
       };
       cl.from('shared_state').upsert(row).then(res => {
         if (res && res.error) {
+          /* Servidores sem a coluna channels: tenta sem ela; depois sem team. */
           const r2 = {
             ...row
           };
-          delete r2.team;
-          cl.from('shared_state').upsert(r2).then(() => {}, () => {});
+          delete r2.channels;
+          cl.from('shared_state').upsert(r2).then(res2 => {
+            if (res2 && res2.error) {
+              const r3 = {
+                ...r2
+              };
+              delete r3.team;
+              cl.from('shared_state').upsert(r3).then(() => {}, () => {});
+            }
+          }, () => {});
         }
       }, () => {});
     } catch (e) {}
-  }, [state.tasks, state.todayEvents, state.driveFiles, state.team, sync.status]);
+  }, [state.tasks, state.todayEvents, state.driveFiles, state.team, state.extraChannels, sync.status]);
   React.useEffect(() => {
     const team = state.team;
     if (!team || !team.length) return;
@@ -3564,6 +3591,14 @@ function StoreProvider({
         disabled: true
       } : u)
     })),
+    criarCanal: canal => setState(s => pushActivity({
+      ...s,
+      extraChannels: [...(s.extraChannels || []), canal]
+    }, CURRENT_USER_ID, 'criou o canal', '#' + canal.name)),
+    apagarCanal: canalId => setState(s => pushActivity({
+      ...s,
+      extraChannels: (s.extraChannels || []).filter(c => c.id !== canalId)
+    }, CURRENT_USER_ID, 'apagou um canal', '')),
     resetAll: () => {
       try {
         localStorage.removeItem(STORAGE_KEY);
@@ -3571,6 +3606,12 @@ function StoreProvider({
       window.location.reload();
     }
   }), []);
+  /* Os grupos criados na plataforma juntam-se à lista fixa antes de cada desenho. */
+  CHANNELS.length = 0;
+  CHANNELS_BASE.forEach(c => CHANNELS.push(c));
+  (state.extraChannels || []).forEach(c => {
+    if (!CHANNELS.some(x => x.id === c.id)) CHANNELS.push(c);
+  });
   return React.createElement(StoreContext.Provider, {
     value: {
       state,
@@ -4780,6 +4821,158 @@ Object.assign(window, {
   LoginScreen,
   DashboardScreen
 });
+function NovoGrupoModal({
+  open,
+  onClose,
+  currentUser,
+  onCreate
+}) {
+  const gestor = bspCamada(currentUser).podeGerirUtilizadores;
+  const [nome, setNome] = React.useState('');
+  const [desc, setDesc] = React.useState('');
+  const [tipo, setTipo] = React.useState('privado');
+  const [dept, setDept] = React.useState('clinica');
+  const [membros, setMembros] = React.useState([]);
+  React.useEffect(() => {
+    if (open) {
+      setNome('');
+      setDesc('');
+      setTipo('privado');
+      setDept('clinica');
+      setMembros([]);
+    }
+  }, [open]);
+  function alternar(id) {
+    setMembros(l => l.indexOf(id) !== -1 ? l.filter(x => x !== id) : [...l, id]);
+  }
+  function criar() {
+    const nm = nome.trim().toLowerCase().replace(/\s+/g, '-');
+    if (!nm) return;
+    const canal = {
+      id: 'g-' + Date.now(),
+      name: nm,
+      desc: desc.trim() || (tipo === 'privado' ? 'Grupo privado' : 'Canal da equipa'),
+      members: tipo === 'privado' ? membros.length + 1 : USERS.length,
+      public: tipo !== 'privado',
+      unread: 0,
+      dept: tipo === 'dept' ? dept : null,
+      membros: tipo === 'privado' ? Array.from(new Set([...membros, currentUser.id])) : null,
+      criadoPor: currentUser.id
+    };
+    onCreate(canal);
+    onClose();
+  }
+  const tipos = [{
+    value: 'privado',
+    label: 'Grupo privado — só quem eu escolher'
+  }, {
+    value: 'aberto',
+    label: 'Aberto a toda a equipa'
+  }];
+  if (gestor) tipos.push({
+    value: 'dept',
+    label: 'Por departamento (segue as camadas)'
+  });
+  return React.createElement(Modal, {
+    open: open,
+    onClose: onClose,
+    title: "Criar grupo",
+    width: 480,
+    footer: React.createElement(React.Fragment, null, React.createElement(Button, {
+      variant: "ghost",
+      size: "sm",
+      onClick: onClose
+    }, "Cancelar"), React.createElement(Button, {
+      variant: "primary",
+      size: "sm",
+      onClick: criar
+    }, "Criar grupo"))
+  }, React.createElement("div", {
+    style: {
+      padding: 20,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 14
+    }
+  }, React.createElement(FormField, {
+    label: "Nome do grupo"
+  }, React.createElement(TextInput, {
+    value: nome,
+    onChange: setNome,
+    placeholder: "ex.: laboratório-urgências"
+  })), React.createElement(FormField, {
+    label: "Descrição (opcional)"
+  }, React.createElement(TextInput, {
+    value: desc,
+    onChange: setDesc,
+    placeholder: "Para que serve este grupo"
+  })), React.createElement(FormField, {
+    label: "Quem participa"
+  }, React.createElement(Select, {
+    value: tipo,
+    onChange: setTipo,
+    options: tipos
+  })), tipo === 'dept' && React.createElement(FormField, {
+    label: "Departamento"
+  }, React.createElement(Select, {
+    value: dept,
+    onChange: setDept,
+    options: [{
+      value: 'clinica',
+      label: 'Clínica'
+    }, {
+      value: 'enfermagem',
+      label: 'Enfermagem'
+    }, {
+      value: 'farmacia',
+      label: 'Farmácia'
+    }, {
+      value: 'rececao',
+      label: 'Recepção'
+    }, {
+      value: 'escalas',
+      label: 'Escalas'
+    }]
+  })), tipo === 'privado' && React.createElement(FormField, {
+    label: "Membros"
+  }, React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 4,
+      maxHeight: 190,
+      overflow: 'auto',
+      border: '1px solid var(--border)',
+      borderRadius: 9,
+      padding: '8px 10px'
+    }
+  }, USERS.filter(u => u.id !== currentUser.id && !u.disabled).map(u => React.createElement("label", {
+    key: u.id,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      fontSize: 13,
+      color: 'var(--text-1)',
+      cursor: 'pointer'
+    }
+  }, React.createElement("input", {
+    type: "checkbox",
+    checked: membros.indexOf(u.id) !== -1,
+    onChange: () => alternar(u.id)
+  }), u.name, React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: 'var(--text-3)'
+    }
+  }, u.role || ''))))), React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      color: 'var(--text-3)',
+      lineHeight: 1.5
+    }
+  }, "O grupo fica disponível para toda a equipa assim que o servidor sincronizar. A Direcção vê todos os grupos.")));
+}
 function ChatScreen({
   currentUser
 }) {
@@ -4795,6 +4988,8 @@ function ChatScreen({
   const messagesByChan = state.channelMessages;
   const [draft, setDraft] = React.useState('');
   const [typing, setTyping] = React.useState(false);
+  const [drawer, setDrawer] = React.useState(false);
+  const [grupoModal, setGrupoModal] = React.useState(false);
   const [winW, setWinW] = React.useState(typeof window !== 'undefined' ? window.innerWidth : 1400);
   React.useEffect(() => {
     const fn = () => setWinW(window.innerWidth);
@@ -4806,7 +5001,7 @@ function ChatScreen({
   const listRef = React.useRef(null);
   const typingTimer = React.useRef(null);
   const isDM = !!dmId;
-  const activeChannel = !isDM ? CHANNELS.find(c => c.id === channelId) : null;
+  const activeChannel = !isDM ? CHANNELS.find(c => c.id === channelId) || CHANNELS[0] : null;
   const dmList = USERS.filter(u => u.id !== currentUser.id).map(u => ({
     id: [currentUser.id, u.id].sort().join('_'),
     userId: u.id
@@ -4879,10 +5074,27 @@ function ChatScreen({
   function selectChannel(id) {
     setChannelId(id);
     setDmId(null);
+    setDrawer(false);
   }
   function selectDm(id) {
     setDmId(id);
     setChannelId(null);
+    setDrawer(false);
+  }
+  function iniciarChamada() {
+    const sala = 'Barispol-' + String(convKey).replace(/[^A-Za-z0-9]/g, '') + '-' + Math.random().toString(36).slice(2, 7);
+    const link = 'https://meet.jit.si/' + sala;
+    actions.sendMessage(convKey, {
+      userId: currentUser.id,
+      text: '**Chamada iniciada** — entre por aqui: ' + link
+    });
+    window.open(link, '_blank', 'noopener');
+  }
+  function apagarCanalActual() {
+    if (!activeChannel || !activeChannel.criadoPor) return;
+    if (!window.confirm('Apagar o grupo #' + activeChannel.name + ' para toda a equipa?')) return;
+    actions.apagarCanal(activeChannel.id);
+    selectChannel('c-geral');
   }
   return React.createElement("div", {
     style: {
@@ -4894,12 +5106,42 @@ function ChatScreen({
       border: '1px solid var(--border)',
       borderRadius: 14
     }
-  }, showChannelList && React.createElement("div", {
+  }, React.createElement(NovoGrupoModal, {
+    open: grupoModal,
+    onClose: () => setGrupoModal(false),
+    currentUser: currentUser,
+    onCreate: canal => {
+      actions.criarCanal(canal);
+      selectChannel(canal.id);
+    }
+  }), !showChannelList && drawer && React.createElement("div", {
+    onClick: () => setDrawer(false),
     style: {
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(0,0,0,.4)',
+      zIndex: 55
+    }
+  }), (showChannelList || drawer) && React.createElement("div", {
+    style: showChannelList ? {
       borderRight: '1px solid var(--border)',
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden'
+    } : {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      bottom: 0,
+      width: '84%',
+      maxWidth: 330,
+      zIndex: 60,
+      background: 'var(--surface)',
+      borderRight: '1px solid var(--border)',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      boxShadow: '0 0 48px rgba(0,0,0,.4)'
     }
   }, React.createElement("div", {
     style: {
@@ -4942,6 +5184,8 @@ function ChatScreen({
   }, React.createElement(ChannelList, {
     title: "Canais",
     actionIcon: "Plus",
+    actionTitle: "Criar grupo",
+    onAction: () => setGrupoModal(true),
     items: CHANNELS.filter(c => bspVeCanal(currentUser, c)),
     renderItem: c => {
       const active = channelId === c.id;
@@ -5080,7 +5324,25 @@ function ChatScreen({
       gap: 12,
       minWidth: 0
     }
-  }, !isDM ? React.createElement(React.Fragment, null, React.createElement("span", {
+  }, !showChannelList && React.createElement("button", {
+    onClick: () => setDrawer(true),
+    title: "Canais e conversas",
+    style: {
+      width: 34,
+      height: 34,
+      flex: 'none',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 9,
+      border: '1px solid var(--border)',
+      background: 'var(--surface-2)',
+      color: 'var(--text-2)',
+      cursor: 'pointer'
+    }
+  }, React.createElement(I.List, {
+    size: 17
+  })), !isDM ? React.createElement(React.Fragment, null, React.createElement("span", {
     style: {
       width: 36,
       height: 36,
@@ -5138,11 +5400,46 @@ function ChatScreen({
       gap: 4
     }
   }, React.createElement("span", {
+    className: "bsp-hide-mobile",
     style: {
       fontSize: 11.5,
       color: 'var(--text-3)'
     }
-  }, messages.length, " ", messages.length === 1 ? 'mensagem' : 'mensagens'))), React.createElement("div", {
+  }, messages.length, " ", messages.length === 1 ? 'mensagem' : 'mensagens'), React.createElement("button", {
+    onClick: iniciarChamada,
+    title: "Iniciar chamada de voz/vídeo",
+    style: {
+      width: 34,
+      height: 34,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 9,
+      border: '1px solid var(--border)',
+      background: 'var(--surface-2)',
+      color: 'var(--accent-d)',
+      cursor: 'pointer'
+    }
+  }, React.createElement(I.Phone, {
+    size: 16
+  })), !isDM && activeChannel && activeChannel.criadoPor && (currentUser.id === activeChannel.criadoPor || bspCamada(currentUser).podeGerirUtilizadores) && React.createElement("button", {
+    onClick: apagarCanalActual,
+    title: "Apagar este grupo",
+    style: {
+      width: 34,
+      height: 34,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 9,
+      border: '1px solid var(--border)',
+      background: 'var(--surface-2)',
+      color: 'var(--danger, #d33)',
+      cursor: 'pointer'
+    }
+  }, React.createElement(I.Trash, {
+    size: 15
+  })))), React.createElement("div", {
     ref: listRef,
     style: {
       flex: 1,
@@ -5563,7 +5860,9 @@ function ChannelList({
   title,
   actionIcon,
   items,
-  renderItem
+  renderItem,
+  onAction,
+  actionTitle
 }) {
   const Ic = I[actionIcon];
   return React.createElement("div", {
@@ -5586,7 +5885,24 @@ function ChannelList({
       letterSpacing: '.08em',
       textTransform: 'uppercase'
     }
-  }, title)), items.map(renderItem));
+  }, title), onAction && Ic && React.createElement("button", {
+    onClick: onAction,
+    title: actionTitle || 'Criar',
+    style: {
+      width: 22,
+      height: 22,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 6,
+      border: '1px solid var(--border)',
+      background: 'var(--surface-2)',
+      color: 'var(--text-2)',
+      cursor: 'pointer'
+    }
+  }, React.createElement(Ic, {
+    size: 13
+  }))), items.map(renderItem));
 }
 function ChannelInfo({
   channel
@@ -5845,10 +6161,21 @@ function FileMini({
   }, f.size, " · ", f.modified)));
 }
 function renderText(text) {
-  const rx = /(\*\*[^*]+\*\*|_[^_]+_|~[^~]+~|`[^`]+`|@[A-Za-zÀ-ÿ]+(?:\s[A-Z][a-zÀ-ÿ]+)?)/g;
+  const rx = /(https?:\/\/[^\s]+|\*\*[^*]+\*\*|_[^_]+_|~[^~]+~|`[^`]+`|@[A-Za-zÀ-ÿ]+(?:\s[A-Z][a-zÀ-ÿ]+)?)/g;
   const parts = String(text).split(rx);
   return parts.map((p, i) => {
     if (!p) return null;
+    if (/^https?:\/\//.test(p)) return React.createElement("a", {
+      key: i,
+      href: p,
+      target: "_blank",
+      rel: "noopener noreferrer",
+      style: {
+        color: 'var(--accent-d)',
+        textDecoration: 'underline',
+        wordBreak: 'break-all'
+      }
+    }, p);
     if (p.startsWith('**') && p.endsWith('**') && p.length > 4) return React.createElement("strong", {
       key: i
     }, p.slice(2, -2));
@@ -10706,6 +11033,8 @@ function AdminUserModal({
   const [dept, setDept] = React.useState('');
   const [acesso, setAcesso] = React.useState('Operações');
   const [bday, setBday] = React.useState('');
+  const [extraCanais, setExtraCanais] = React.useState([]);
+  const [semCanais, setSemCanais] = React.useState([]);
   React.useEffect(() => {
     if (open) {
       setNome(user && user.name || '');
@@ -10715,6 +11044,8 @@ function AdminUserModal({
       setDept(user && user.dept || '');
       setAcesso(user && bspCamadaNome(user) || 'Operações');
       setBday(user && user.birthday || '');
+      setExtraCanais(user && user.extraCanais || []);
+      setSemCanais(user && user.semCanais || []);
     }
   }, [open, user]);
   function save() {
@@ -10729,6 +11060,8 @@ function AdminUserModal({
       dept: dept,
       accessLevel: acesso,
       birthday: bday.trim(),
+      extraCanais: extraCanais,
+      semCanais: semCanais,
       phone: user && user.phone || '',
       status: user && user.status || 'offline',
       bio: user && user.bio || ''
@@ -10831,7 +11164,67 @@ function AdminUserModal({
     value: bday,
     onChange: setBday,
     placeholder: "ex.: 14/03"
-  }))), React.createElement("div", {
+  }))), React.createElement(FormField, {
+    label: "Acesso aos canais — ajuste só para esta pessoa"
+  }, React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 6,
+      maxHeight: 180,
+      overflow: 'auto',
+      border: '1px solid var(--border)',
+      borderRadius: 9,
+      padding: '8px 10px'
+    }
+  }, CHANNELS.filter(c => !c.membros).map(c => {
+    const modo = semCanais.indexOf(c.id) !== -1 ? 'retirar' : extraCanais.indexOf(c.id) !== -1 ? 'dar' : 'camada';
+    return React.createElement("div", {
+      key: c.id,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 8,
+        fontSize: 12.5
+      }
+    }, React.createElement("span", {
+      style: {
+        color: 'var(--text-2)',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }, "#" + c.name), React.createElement("select", {
+      value: modo,
+      onChange: e => {
+        const v = e.target.value;
+        setExtraCanais(l => v === 'dar' ? Array.from(new Set([...l, c.id])) : l.filter(x => x !== c.id));
+        setSemCanais(l => v === 'retirar' ? Array.from(new Set([...l, c.id])) : l.filter(x => x !== c.id));
+      },
+      style: {
+        fontSize: 12,
+        padding: '3px 6px',
+        borderRadius: 6,
+        border: '1px solid var(--border)',
+        background: 'var(--surface-1, var(--surface))',
+        color: 'var(--text-1)',
+        fontFamily: 'inherit'
+      }
+    }, React.createElement("option", {
+      value: "camada"
+    }, "Pela camada"), React.createElement("option", {
+      value: "dar"
+    }, "Dar acesso"), React.createElement("option", {
+      value: "retirar"
+    }, "Retirar acesso")));
+  })), React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: 'var(--text-3)',
+      marginTop: 4
+    }
+  }, "\u00ABPela camada\u00BB segue a regra do n\u00EDvel de acesso. \u00ABDar\u00BB e \u00ABRetirar\u00BB valem s\u00F3 para esta pessoa e ganham \u00E0 camada.")), React.createElement("div", {
     style: {
       fontSize: 11.5,
       color: 'var(--text-3)',
