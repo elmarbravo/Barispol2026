@@ -3440,6 +3440,26 @@ function StoreProvider({
           }).then(() => {}, () => {});
         } catch (e) {}
       }
+      /* Aviso por e-mail nas mensagens directas: quem recebe fica a saber,
+         mesmo sem o Workspace aberto. Canais não enviam e-mail de propósito —
+         um canal movimentado encheria a caixa de toda a gente. */
+      try {
+        if (String(convKey).indexOf('dm-') === 0 && msg && msg.text) {
+          /* a chave é dm-<idA>_<idB>; o destinatário é o id que não é o remetente */
+          const par = String(convKey).slice(3).split('_');
+          const paraId = par.find(x => x && x !== msg.userId);
+          const dest = (USERS || []).find(x => x.id === paraId);
+          const rem = (USERS || []).find(x => x.id === msg.userId);
+          if (dest && dest.email && rem && dest.id !== rem.id) {
+            const nome = (rem.name || 'Um colega').split(' ')[0];
+            const previa = String(msg.text).slice(0, 200);
+            bspSendEmail(dest.email,
+              '[Workspace] Nova mensagem de ' + nome,
+              bspEmailWrap('Mensagem de ' + (rem.name || nome),
+                previa.replace(/</g, '&lt;') + (msg.text.length > 200 ? '…' : '')));
+          }
+        }
+      } catch (e) {}
     },
     deleteMessage: (convKey, msgId) => setState(s => {
       const arr = s.channelMessages[convKey] || [];
