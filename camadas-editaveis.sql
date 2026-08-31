@@ -17,14 +17,32 @@ alter table shared_state add column if not exists camadas jsonb;
 
 -- 2. Semear com as quatro originais, para nenhuma instalacao existente
 --    ficar sem gestores entre correr isto e a aplicacao gravar pela
---    primeira vez. So preenche se estiver vazia.
+--    primeira vez.
+--
+--    O campo "canais" TEM de vir aqui. Uma versao anterior deste ficheiro
+--    gravava so a ordem e as permissoes, e a aplicacao fazia
+--    canais.indexOf() sobre um valor inexistente — o ecra do Chat ficava
+--    em branco. A aplicacao passou a tolerar isso, mas os dados devem
+--    estar certos na origem.
+--
+--    O "where" apanha tambem as instalacoes ja semeadas pela versao com o
+--    defeito: se faltar o canais a qualquer camada, reescreve.
 update shared_state set camadas = '{
-  "Direcção":    {"ordem":1,"podeGerirUtilizadores":true, "podeVerSistema":true},
-  "Coordenação": {"ordem":2,"podeGerirUtilizadores":true, "podeVerSistema":false},
-  "Clínica":     {"ordem":3,"podeGerirUtilizadores":false,"podeVerSistema":false},
-  "Operações":   {"ordem":4,"podeGerirUtilizadores":false,"podeVerSistema":false}
+  "Direcção":    {"ordem":1,"canais":"*","desc":"Vê tudo e administra o sistema.","podeGerirUtilizadores":true, "podeVerSistema":true, "podeVerTarefasPessoais":true},
+  "Coordenação": {"ordem":2,"canais":"*","desc":"Coordenação, recursos humanos e apoio à direcção.","podeGerirUtilizadores":true, "podeVerSistema":false,"podeVerTarefasPessoais":false},
+  "Clínica":     {"ordem":3,"canais":[null,"clinica","enfermagem","farmacia","escalas"],"desc":"Médicos, enfermagem e laboratório.","podeGerirUtilizadores":false,"podeVerSistema":false,"podeVerTarefasPessoais":false},
+  "Operações":   {"ordem":4,"canais":[null,"rececao","escalas"],"desc":"Recepção, motorista e apoio geral.","podeGerirUtilizadores":false,"podeVerSistema":false,"podeVerTarefasPessoais":false}
 }'::jsonb
-where id = 1 and (camadas is null or camadas = '{}'::jsonb);
+where id = 1
+  and (
+    camadas is null
+    or camadas = '{}'::jsonb
+    -- alguma camada gravada sem o campo canais
+    or exists (
+      select 1 from jsonb_each(camadas) c
+      where not (c.value ? 'canais')
+    )
+  );
 
 -- 3. Sou gestor? Agora pela permissao da camada, nao pelo nome dela.
 create or replace function bsp_e_gestor() returns boolean

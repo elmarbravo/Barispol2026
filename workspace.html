@@ -1244,7 +1244,25 @@ const BSP_CAMADA_NULA = {
 };
 function bspCamada(u){
   const cs = bspCamadas();
-  return cs[bspCamadaNome(u)] || cs[bspCamadaBase()] || BSP_CAMADA_NULA;
+  let nome = bspCamadaNome(u);
+  if (!cs[nome]) nome = bspCamadaBase();
+  const viva = cs[nome];
+  if (!viva) return BSP_CAMADA_NULA;
+  /* A camada gravada pode vir incompleta — foi o que aconteceu com a
+     semente do camadas-editaveis.sql, que gravou as permissoes e a ordem
+     mas nao o campo canais. Sem isto, o c.canais.indexOf() rebentava e o
+     ecra do Chat ficava em branco.
+
+     O que faltar vem da definicao de origem com o mesmo nome. */
+  const c = Object.assign({}, CAMADAS[nome] || {}, viva);
+  /* Ultima rede: canais tem de ser '*' ou uma lista. Qualquer outra coisa
+     sao dados estragados, e nunca pode nem rebentar o ecra nem abrir
+     acessos — na duvida, so os canais gerais. */
+  if (c.canais !== '*' && !Array.isArray(c.canais)) {
+    const origem = (CAMADAS[nome] || {}).canais;
+    c.canais = (origem === '*' || Array.isArray(origem)) ? origem : [null];
+  }
+  return c;
 }
 function bspVeCanal(u, canal){
   if (!u || !canal) return false;
