@@ -2533,13 +2533,23 @@ function MenuConta({
   sFg
 }) {
   const [aberto, setAberto] = React.useState(false);
-  function sair() {
+  async function sair() {
+    /* Esperar pela revogação do testemunho antes de recarregar: sem await, o
+       reload podia matar o pedido e deixar a sessão viva do lado do servidor. */
     try {
       const c = bspGetClient();
-      if (c) c.auth.signOut();
+      if (c) await c.auth.signOut();
+    } catch (e) {}
+    /* Limpar o estado guardado neste posto. Sem isto, o bsp-workspace-v1 mantém
+       as mensagens directas, o feed e o directório, e o loadInitial() devolve
+       tudo à pessoa seguinte que entrar — num posto partilhado, é uma fuga.
+       A ligação ao servidor (bsp_supabase_cfg) e as preferências do aparelho
+       ficam, porque são do dispositivo e não de quem o usa. */
+    try {
+      localStorage.removeItem(STORAGE_KEY);
     } catch (e) {}
     try {
-      setTimeout(() => window.location.reload(), 250);
+      window.location.reload();
     } catch (e) {}
   }
   return React.createElement("span", {
@@ -12944,28 +12954,75 @@ function BackupCard() {
     }
     setBusy(true);
     try {
+      /* Os tectos ficam em constantes para que a deteccao de truncagem abaixo
+         nao possa divergir das consultas. Ordem descendente: se houver mais
+         linhas do que o tecto, o que se perde e o material antigo e nao o
+         recente, que e o que interessa recuperar. */
+      const TECTO_MSG = 10000;
+      const TECTO_POSTS = 5000;
       const [a, b, c] = await Promise.all([cl.from('messages').select('*').order('id', {
-        ascending: true
-      }).limit(10000), cl.from('posts').select('*').order('id', {
-        ascending: true
-      }).limit(5000), cl.from('shared_state').select('*').eq('id', 1).maybeSingle()]);
+        ascending: false
+      }).limit(TECTO_MSG), cl.from('posts').select('*').order('id', {
+        ascending: false
+      }).limit(TECTO_POSTS), cl.from('shared_state').select('*').eq('id', 1).maybeSingle()]);
+      /* O supabase-js nao lanca excepcao quando a consulta e recusada: resolve
+         com { data: null, error }. Sem esta verificacao, uma negacao de RLS ou
+         uma sessao expirada davam um ficheiro vazio, descarregado em silencio,
+         com o utilizador convencido de que estava protegido. */
+      const falhas = [['mensagens', a], ['feed', b], ['tarefas, calendario e equipa', c]].filter(par => par[1] && par[1].error).map(par => par[0] + ' (' + (par[1].error.message || 'erro desconhecido') + ')');
+      if (falhas.length) {
+        window.alert('A c\u00f3pia N\u00c3O foi criada, para n\u00e3o lhe dar um ficheiro incompleto.\n\nN\u00e3o foi poss\u00edvel ler: ' + falhas.join('; ') + '.\n\nVerifique a liga\u00e7\u00e3o ao servidor e se a sess\u00e3o ainda est\u00e1 v\u00e1lida, e tente de novo.');
+        setBusy(false);
+        return;
+      }
+      /* Trazidas por ordem descendente para nao perder o recente, mas gravadas
+         por ordem crescente, para o ficheiro continuar cronologico como antes. */
+      const porId = (x, y) => (x.id || 0) - (y.id || 0);
+      const msgs = (a && a.data || []).slice().sort(porId);
+      const posts = (b && b.data || []).slice().sort(porId);
+      /* Ao bater exactamente no tecto, ha quase de certeza mais linhas por
+         trazer. Dizer antes de gravar, em vez de truncar sem avisar. */
+      const truncado = [];
+      if (msgs.length >= TECTO_MSG) truncado.push('mensagens (' + TECTO_MSG + ')');
+      if (posts.length >= TECTO_POSTS) truncado.push('feed (' + TECTO_POSTS + ')');
+      if (truncado.length && !window.confirm('Aten\u00e7\u00e3o: esta c\u00f3pia atingiu o limite de ' + truncado.join(' e ') + ' e pode n\u00e3o levar tudo. Leva o material mais recente; o mais antigo pode ficar de fora.\n\nQuer descarregar mesmo assim?')) {
+        setBusy(false);
+        return;
+      }
       const pacote = {
         exportado_em: new Date().toISOString(),
-        messages: a && a.data || [],
-        posts: b && b.data || [],
+        /* Contagens no proprio ficheiro, para que a truncagem e o efeito do RLS
+           sejam verificaveis sem abrir o JSON todo. A c\u00f3pia so contem o que a
+           conta que a criou pode ver. */
+        resumo: {
+          messages: msgs.length,
+          posts: posts.length,
+          possivelmente_truncado: truncado.length > 0,
+          exportado_por: window.CURRENT_USER_ID || null,
+          nota: 'Cont\u00e9m apenas o que esta conta tem permiss\u00e3o para ler.'
+        },
+        messages: msgs,
+        posts: posts,
         shared_state: c && c.data || null
       };
       const blob = new Blob([JSON.stringify(pacote, null, 1)], {
         type: 'application/json'
       });
+      const url = URL.createObjectURL(blob);
       const el = document.createElement('a');
-      el.href = URL.createObjectURL(blob);
+      el.href = url;
       el.download = 'barispol-backup-' + new Date().toISOString().slice(0, 10) + '.json';
       document.body.appendChild(el);
       el.click();
       el.remove();
+      /* Libertar o blob; sem isto ficava retido ate a pagina ser fechada. */
+      setTimeout(() => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (e) {}
+      }, 30000);
     } catch (e) {
-      window.alert('N\u00e3o foi poss\u00edvel exportar.');
+      window.alert('N\u00e3o foi poss\u00edvel exportar: ' + (e && e.message || 'erro inesperado') + '\n\nA c\u00f3pia n\u00e3o foi criada.');
     }
     setBusy(false);
   }
