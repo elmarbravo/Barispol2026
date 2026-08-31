@@ -5293,111 +5293,10 @@ function TopicoPanel({
     onClick: enviar
   }, "Enviar")));
 }
-function ChamadaModal({
-  open,
-  sala,
-  comVideo,
-  nome,
-  onClose
-}) {
-  const boxRef = React.useRef(null);
-  const apiRef = React.useRef(null);
-  React.useEffect(() => {
-    if (!open || !sala) return;
-    let cancel = false;
-    function arrancar() {
-      if (cancel || !boxRef.current || apiRef.current) return;
-      try {
-        apiRef.current = new window.JitsiMeetExternalAPI('meet.jit.si', {
-          roomName: sala,
-          parentNode: boxRef.current,
-          width: '100%',
-          height: '100%',
-          userInfo: {
-            displayName: nome || 'Barispol'
-          },
-          configOverwrite: {
-            prejoinConfig: {
-              enabled: false
-            },
-            disableDeepLinking: true,
-            startWithVideoMuted: !comVideo
-          },
-          interfaceConfigOverwrite: {
-            MOBILE_APP_PROMO: false,
-            SHOW_JITSI_WATERMARK: false
-          }
-        });
-        apiRef.current.on('readyToClose', onClose);
-      } catch (e) {}
-    }
-    if (window.JitsiMeetExternalAPI) arrancar();
-    else {
-      const s = document.createElement('script');
-      s.src = 'https://meet.jit.si/external_api.js';
-      s.onload = arrancar;
-      s.onerror = () => {
-        /* Sem acesso ao script, abre no navegador na mesma. */
-        if (!cancel) window.open('https://meet.jit.si/' + sala + '#config.disableDeepLinking=true', '_blank', 'noopener');
-      };
-      document.head.appendChild(s);
-    }
-    return () => {
-      cancel = true;
-      try {
-        apiRef.current && apiRef.current.dispose();
-      } catch (e) {}
-      apiRef.current = null;
-    };
-  }, [open, sala]);
-  if (!open) return null;
-  return React.createElement("div", {
-    style: {
-      position: 'fixed',
-      inset: 0,
-      zIndex: 120,
-      background: '#0b1220',
-      display: 'flex',
-      flexDirection: 'column'
-    }
-  }, React.createElement("div", {
-    style: {
-      height: 52,
-      flex: 'none',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '0 16px',
-      color: '#fff',
-      background: '#002060'
-    }
-  }, React.createElement("strong", {
-    style: {
-      fontSize: 14,
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap'
-    }
-  }, comVideo ? 'Videochamada' : 'Chamada', " \u00b7 Barispol"), React.createElement("button", {
-    onClick: onClose,
-    style: {
-      border: '1px solid rgba(255,255,255,.35)',
-      background: 'transparent',
-      color: '#fff',
-      borderRadius: 8,
-      padding: '6px 14px',
-      cursor: 'pointer',
-      fontFamily: 'inherit',
-      fontSize: 13
-    }
-  }, "Sair da chamada")), React.createElement("div", {
-    ref: boxRef,
-    style: {
-      flex: 1,
-      minHeight: 0
-    }
-  }));
-}
+/* O ChamadaModal (Jitsi embebido) foi removido: o meet.jit.si passou a
+   exigir login de moderador para iniciar uma sala, e o nome da sala
+   revelava a conversa de origem. As chamadas directas são agora
+   nativas — ver ChamadasProvider, mais abaixo. */
 function NovoGrupoModal({
   open,
   onClose,
@@ -5567,7 +5466,8 @@ function ChatScreen({
   const [typing, setTyping] = React.useState(false);
   const [drawer, setDrawer] = React.useState(false);
   const [grupoModal, setGrupoModal] = React.useState(false);
-  const [call, setCall] = React.useState(null);
+  const chamadas = useChamadas();
+  const toast = useToast();
   const [thread, setThread] = React.useState(null);
   const [busca, setBusca] = React.useState(null);
   const [winW, setWinW] = React.useState(typeof window !== 'undefined' ? window.innerWidth : 1400);
@@ -5707,17 +5607,16 @@ function ChatScreen({
     setThread(null);
   }
   function iniciarChamada(comVideo) {
-    const sala = 'Barispol-' + String(convKey).replace(/[^A-Za-z0-9]/g, '') + '-' + Math.random().toString(36).slice(2, 7);
-    /* O sufixo desliga o ecrã «Join in app»: quem toca na ligação entra logo pelo navegador. */
-    const link = 'https://meet.jit.si/' + sala + '#config.disableDeepLinking=true';
-    actions.sendMessage(convKey, {
-      userId: currentUser.id,
-      text: '**' + (comVideo ? 'Videochamada' : 'Chamada') + ' iniciada** — toque para entrar: ' + link
-    });
-    setCall({
-      sala: sala,
-      video: !!comVideo
-    });
+    /* Numa conversa directa a chamada é nativa: acontece dentro do
+       workspace, sem sair da aplicação e sem contas em lado nenhum. */
+    if (isDM && dmUser) {
+      chamadas.chamar(dmUser.id, !!comVideo);
+      return;
+    }
+    /* Em canais, uma chamada de grupo precisa de um servidor de média,
+       que ainda não existe. Dizê-lo, em vez de mandar a equipa para um
+       site externo que lhes vai pedir uma conta. */
+    toast('As chamadas de grupo ainda não estão disponíveis. Por agora, ligue directamente à pessoa pela conversa dela.');
   }
   function apagarCanalActual() {
     if (!activeChannel || !activeChannel.criadoPor) return;
@@ -5819,13 +5718,7 @@ function ChatScreen({
         whiteSpace: 'nowrap'
       }
     }, String(r.mm.text).slice(0, 120)));
-  })))), React.createElement(ChamadaModal, {
-    open: !!call,
-    sala: call && call.sala,
-    comVideo: call && call.video,
-    nome: currentUser.name,
-    onClose: () => setCall(null)
-  }), React.createElement(NovoGrupoModal, {
+  })))), React.createElement(NovoGrupoModal, {
     open: grupoModal,
     onClose: () => setGrupoModal(false),
     currentUser: currentUser,
@@ -12942,7 +12835,7 @@ function AdminServer() {
       overflow: 'auto',
       whiteSpace: 'pre-wrap'
     }
-  }, SQL) : null, React.createElement(BackupCard, null));
+  }, SQL) : null, React.createElement(BackupCard, null), React.createElement(TurnCard, null));
 }
 function BackupCard() {
   const [busy, setBusy] = React.useState(false);
@@ -13055,6 +12948,101 @@ function BackupCard() {
     onClick: exportar,
     disabled: busy
   }, busy ? 'A preparar...' : 'Descarregar c\u00f3pia de seguran\u00e7a'));
+}
+/* Servidor TURN opcional. Sem ele, duas pessoas atras de redes moveis
+   fechadas podem nao conseguir ligacao directa; o TURN reencaminha o
+   trafego nesses casos. Fica em localStorage para nao exigir codigo novo. */
+function TurnCard() {
+  const toast = useToast();
+  const guardado = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('bsp_turn') || 'null') || {};
+    } catch (e) {
+      return {};
+    }
+  })();
+  const [urls, setUrls] = React.useState(guardado.urls ? [].concat(guardado.urls).join(', ') : '');
+  const [utilizador, setUtilizador] = React.useState(guardado.username || '');
+  const [senha, setSenha] = React.useState(guardado.credential || '');
+  const guardar = () => {
+    const lista = urls.split(',').map(x => x.trim()).filter(Boolean);
+    if (!lista.length) {
+      try {
+        localStorage.removeItem('bsp_turn');
+      } catch (e) {}
+      toast('Servidor TURN removido. As chamadas passam a usar só ligação directa.');
+      return;
+    }
+    const mau = lista.filter(u => !/^turns?:/i.test(u));
+    if (mau.length) {
+      toast('O endereço deve começar por turn: ou turns: — por exemplo turn:servidor.com:3478');
+      return;
+    }
+    try {
+      localStorage.setItem('bsp_turn', JSON.stringify({
+        urls: lista,
+        username: utilizador.trim(),
+        credential: senha.trim()
+      }));
+      toast('Servidor TURN guardado. Vale para as próximas chamadas.');
+    } catch (e) {
+      toast('Não foi possível guardar.');
+    }
+  };
+  const inp = {
+    width: '100%',
+    height: 36,
+    padding: '0 11px',
+    borderRadius: 9,
+    border: '1px solid var(--border)',
+    background: 'var(--surface-2)',
+    color: 'var(--text-1)',
+    fontSize: 13,
+    outline: 'none',
+    fontFamily: 'inherit',
+    marginBottom: 9
+  };
+  return React.createElement(Card, {
+    pad: 20,
+    style: {
+      marginTop: 14
+    }
+  }, React.createElement("h3", {
+    style: {
+      fontSize: 15,
+      fontWeight: 700,
+      margin: 0,
+      color: 'var(--text-1)'
+    }
+  }, "Servidor TURN (chamadas)"), React.createElement("p", {
+    style: {
+      fontSize: 12.5,
+      color: 'var(--text-2)',
+      margin: '6px 0 12px',
+      lineHeight: 1.5,
+      maxWidth: 560
+    }
+  }, "As chamadas ligam directamente entre as duas pessoas e não precisam de nada disto na maioria dos casos. Quando ambas estão em redes móveis fechadas, a ligação directa pode falhar — é aí que entra um servidor TURN, que reencaminha o tráfego. Deixe vazio se não tiver."), React.createElement("input", {
+    style: inp,
+    placeholder: "turn:servidor.exemplo.com:3478",
+    value: urls,
+    onChange: e => setUrls(e.target.value)
+  }), React.createElement("input", {
+    style: inp,
+    placeholder: "Utilizador (se o servidor pedir)",
+    value: utilizador,
+    onChange: e => setUtilizador(e.target.value)
+  }), React.createElement("input", {
+    style: inp,
+    type: "password",
+    placeholder: "Senha (se o servidor pedir)",
+    value: senha,
+    onChange: e => setSenha(e.target.value)
+  }), React.createElement(Button, {
+    variant: "primary",
+    size: "sm",
+    onClick: guardar
+  }, "Guardar"));
 }
 function AdminSystem() {
   return React.createElement("div", null, React.createElement(AdminServer, null), React.createElement("div", {
@@ -13555,6 +13543,720 @@ function MobileMore({
     size: 14
   }), " Terminar sessão")));
 }
+/* ═══ Chamadas nativas, 1 para 1 (WebRTC) ═══════════════════════════════
+   Acontece tudo dentro do workspace: sem Jitsi, sem site externo, sem
+   contas e sem instalar nada. A sinalizacao — quem chama quem, e como os
+   dois lados se encontram — viaja pelo mesmo canal de tempo real do
+   Supabase que ja transporta as mensagens.
+
+   Os servidores STUN abaixo servem so para cada lado descobrir o seu
+   proprio endereco publico. Nenhum audio ou video passa por la: a
+   ligacao e directa entre os dois telemoveis ou computadores.
+
+   Quando ambos os lados estao atras de redes moveis fechadas, a ligacao
+   directa pode nao se estabelecer. Nesse caso e preciso um servidor TURN,
+   que se acrescenta em Admin -> Sistema sem mexer neste codigo. */
+
+const BSP_STUN = [{
+  urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302']
+}];
+function bspIceServers() {
+  try {
+    const t = JSON.parse(localStorage.getItem('bsp_turn') || 'null');
+    if (t && t.urls) return BSP_STUN.concat([t]);
+  } catch (e) {}
+  return BSP_STUN;
+}
+function bspSuportaChamadas() {
+  return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.RTCPeerConnection);
+}
+
+const ChamadasContext = React.createContext(null);
+function useChamadas() {
+  return React.useContext(ChamadasContext);
+}
+
+function ChamadasProvider({
+  children
+}) {
+  /* fase: livre | a-chamar | a-tocar | a-ligar | ligado */
+  const [ch, setCh] = React.useState({
+    fase: 'livre'
+  });
+  /* Quem sou eu. O window.CURRENT_USER_ID so fica com o valor definitivo
+     depois de a sessao resolver, e este provider monta antes disso — por
+     isso a App anuncia-se aqui, e a subscricao refaz-se quando mudar. */
+  const [eu, setEu] = React.useState(null);
+  const [erro, setErro] = React.useState('');
+  const [semSom, setSemSom] = React.useState(false);
+  const [semImagem, setSemImagem] = React.useState(false);
+  const pc = React.useRef(null);
+  const local = React.useRef(null);
+  const remoto = React.useRef(null);
+  const canal = React.useRef(null);
+  const pendentes = React.useRef([]);
+  const ofertaRef = React.useRef(null);
+  const chRef = React.useRef({
+    fase: 'livre'
+  });
+  chRef.current = ch;
+  const euRef = React.useRef(null);
+  euRef.current = eu;
+
+  const enviar = React.useCallback((tipo, para, dados) => {
+    const c = canal.current;
+    if (!c) return;
+    try {
+      c.send({
+        type: 'broadcast',
+        event: 'sinal',
+        payload: Object.assign({
+          tipo: tipo,
+          de: euRef.current,
+          para: para
+        }, dados || {})
+      });
+    } catch (e) {}
+  }, []);
+
+  const limpar = React.useCallback(() => {
+    try {
+      pc.current && pc.current.close();
+    } catch (e) {}
+    pc.current = null;
+    [local, remoto].forEach(r => {
+      try {
+        r.current && r.current.getTracks().forEach(t => t.stop());
+      } catch (e) {}
+      r.current = null;
+    });
+    pendentes.current = [];
+    ofertaRef.current = null;
+    setSemSom(false);
+    setSemImagem(false);
+    setCh({
+      fase: 'livre'
+    });
+  }, []);
+
+  const criarPC = React.useCallback((outroId, id) => {
+    const p = new RTCPeerConnection({
+      iceServers: bspIceServers()
+    });
+    p.onicecandidate = ev => {
+      if (ev.candidate) enviar('ice', outroId, {
+        id: id,
+        candidato: ev.candidate.toJSON ? ev.candidate.toJSON() : ev.candidate
+      });
+    };
+    p.ontrack = ev => {
+      if (!remoto.current) remoto.current = new MediaStream();
+      remoto.current.addTrack(ev.track);
+      setCh(c => c.fase === 'livre' ? c : Object.assign({}, c, {
+        fase: 'ligado'
+      }));
+    };
+    p.onconnectionstatechange = () => {
+      const e = p.connectionState;
+      if (e === 'connected') setCh(c => c.fase === 'livre' ? c : Object.assign({}, c, {
+        fase: 'ligado'
+      }));
+      if (e === 'failed') {
+        setErro('Não foi possível estabelecer a ligação directa. Se isto acontecer muitas vezes, é preciso configurar um servidor TURN em Admin → Sistema.');
+        limpar();
+      }
+      /* 'disconnected' e muitas vezes passageiro e o ICE recupera sozinho;
+         so 'closed' e definitivo. Limpar fora do updater do setState. */
+      if (e === 'closed' && chRef.current.fase !== 'livre') limpar();
+    };
+    pc.current = p;
+    return p;
+  }, [enviar, limpar]);
+
+  const pedirMedia = React.useCallback(async comVideo => {
+    const s = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: comVideo ? {
+        width: {
+          ideal: 1280
+        },
+        height: {
+          ideal: 720
+        }
+      } : false
+    });
+    local.current = s;
+    return s;
+  }, []);
+
+  const chamar = React.useCallback(async (outroId, comVideo) => {
+    setErro('');
+    if (!bspSuportaChamadas()) {
+      setErro('Este navegador não suporta chamadas. Experimente o Chrome ou o Safari actualizados.');
+      return;
+    }
+    if (!canal.current) {
+      setErro('Sem ligação ao servidor — as chamadas precisam do tempo real activo.');
+      return;
+    }
+    const id = 'ch-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+    setCh({
+      fase: 'a-chamar',
+      outroId: outroId,
+      comVideo: !!comVideo,
+      id: id,
+      euChamei: true
+    });
+    try {
+      const s = await pedirMedia(!!comVideo);
+      const p = criarPC(outroId, id);
+      s.getTracks().forEach(t => p.addTrack(t, s));
+      const oferta = await p.createOffer();
+      await p.setLocalDescription(oferta);
+      enviar('convite', outroId, {
+        id: id,
+        comVideo: !!comVideo,
+        oferta: {
+          type: oferta.type,
+          sdp: oferta.sdp
+        }
+      });
+    } catch (e) {
+      setErro(e && e.name === 'NotAllowedError' ? 'Precisa de autorizar o microfone' + (comVideo ? ' e a câmara' : '') + ' no navegador.' : 'Não foi possível iniciar a chamada.');
+      limpar();
+    }
+  }, [criarPC, enviar, limpar, pedirMedia]);
+
+  const atender = React.useCallback(async () => {
+    const c = chRef.current;
+    if (c.fase !== 'a-tocar' || !ofertaRef.current) return;
+    setCh(x => Object.assign({}, x, {
+      fase: 'a-ligar'
+    }));
+    try {
+      const s = await pedirMedia(!!c.comVideo);
+      const p = criarPC(c.outroId, c.id);
+      s.getTracks().forEach(t => p.addTrack(t, s));
+      await p.setRemoteDescription(new RTCSessionDescription(ofertaRef.current));
+      pendentes.current.forEach(cand => {
+        try {
+          p.addIceCandidate(new RTCIceCandidate(cand));
+        } catch (e) {}
+      });
+      pendentes.current = [];
+      const resp = await p.createAnswer();
+      await p.setLocalDescription(resp);
+      enviar('resposta', c.outroId, {
+        id: c.id,
+        resposta: {
+          type: resp.type,
+          sdp: resp.sdp
+        }
+      });
+    } catch (e) {
+      setErro(e && e.name === 'NotAllowedError' ? 'Precisa de autorizar o microfone' + (c.comVideo ? ' e a câmara' : '') + ' no navegador.' : 'Não foi possível atender.');
+      enviar('fim', c.outroId, {
+        id: c.id
+      });
+      limpar();
+    }
+  }, [criarPC, enviar, limpar, pedirMedia]);
+
+  const desligar = React.useCallback(() => {
+    const c = chRef.current;
+    if (c.fase !== 'livre' && c.outroId) enviar(c.fase === 'a-tocar' ? 'recusa' : 'fim', c.outroId, {
+      id: c.id
+    });
+    limpar();
+  }, [enviar, limpar]);
+
+  const alternarSom = React.useCallback(() => {
+    const s = local.current;
+    if (!s) return;
+    const t = s.getAudioTracks()[0];
+    if (!t) return;
+    t.enabled = !t.enabled;
+    setSemSom(!t.enabled);
+  }, []);
+
+  const alternarImagem = React.useCallback(() => {
+    const s = local.current;
+    if (!s) return;
+    const t = s.getVideoTracks()[0];
+    if (!t) return;
+    t.enabled = !t.enabled;
+    setSemImagem(!t.enabled);
+  }, []);
+
+  /* Canal de sinalizacao. Vive enquanto a sessao estiver aberta, para que
+     uma chamada possa chegar esteja o utilizador em que ecra estiver. */
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl || !eu) return;
+    let vivo = true;
+    const c = cl.channel('bsp-chamadas', {
+      config: {
+        broadcast: {
+          self: false
+        }
+      }
+    });
+    c.on('broadcast', {
+      event: 'sinal'
+    }, msg => {
+      const d = msg && msg.payload;
+      if (!vivo || !d || d.para !== eu) return;
+      const actual = chRef.current;
+      if (d.tipo === 'convite') {
+        /* Ja em chamada: recusar sem incomodar quem esta a falar. */
+        if (actual.fase !== 'livre') {
+          enviar('ocupado', d.de, {
+            id: d.id
+          });
+          return;
+        }
+        ofertaRef.current = d.oferta;
+        pendentes.current = [];
+        setCh({
+          fase: 'a-tocar',
+          outroId: d.de,
+          comVideo: !!d.comVideo,
+          id: d.id,
+          euChamei: false
+        });
+        try {
+          bspPlayChime();
+        } catch (e) {}
+        return;
+      }
+      if (d.id && actual.id && d.id !== actual.id) return;
+      if (d.tipo === 'resposta') {
+        const p = pc.current;
+        if (!p || !d.resposta) return;
+        p.setRemoteDescription(new RTCSessionDescription(d.resposta)).then(() => {
+          pendentes.current.forEach(cand => {
+            try {
+              p.addIceCandidate(new RTCIceCandidate(cand));
+            } catch (e) {}
+          });
+          pendentes.current = [];
+          setCh(x => x.fase === 'livre' ? x : Object.assign({}, x, {
+            fase: 'a-ligar'
+          }));
+        }, () => {});
+        return;
+      }
+      if (d.tipo === 'ice' && d.candidato) {
+        const p = pc.current;
+        /* Candidatos podem chegar antes da descricao remota estar posta. */
+        if (p && p.remoteDescription && p.remoteDescription.type) {
+          try {
+            p.addIceCandidate(new RTCIceCandidate(d.candidato));
+          } catch (e) {}
+        } else pendentes.current.push(d.candidato);
+        return;
+      }
+      if (d.tipo === 'fim' || d.tipo === 'recusa' || d.tipo === 'ocupado') {
+        if (d.tipo === 'recusa') setErro('A chamada não foi atendida.');
+        if (d.tipo === 'ocupado') setErro('A pessoa está noutra chamada.');
+        limpar();
+      }
+    }).subscribe();
+    canal.current = c;
+    return () => {
+      vivo = false;
+      canal.current = null;
+      try {
+        cl.removeChannel(c);
+      } catch (e) {}
+    };
+  }, [eu, enviar, limpar]);
+
+  /* Fechar a janela a meio de uma chamada avisa o outro lado. */
+  React.useEffect(() => {
+    const f = () => {
+      const c = chRef.current;
+      if (c.fase !== 'livre' && c.outroId) enviar('fim', c.outroId, {
+        id: c.id
+      });
+    };
+    window.addEventListener('pagehide', f);
+    return () => window.removeEventListener('pagehide', f);
+  }, [enviar]);
+
+  const valor = {
+    ch: ch,
+    erro: erro,
+    limparErro: () => setErro(''),
+    chamar: chamar,
+    atender: atender,
+    desligar: desligar,
+    alternarSom: alternarSom,
+    alternarImagem: alternarImagem,
+    semSom: semSom,
+    semImagem: semImagem,
+    local: local,
+    remoto: remoto,
+    definirEu: setEu,
+    suportado: bspSuportaChamadas()
+  };
+  return React.createElement(ChamadasContext.Provider, {
+    value: valor
+  }, children);
+}
+
+/* Elemento de video ligado a um MediaStream guardado numa ref. */
+function VideoFluxo({
+  fluxoRef,
+  mudo,
+  espelho,
+  style
+}) {
+  const el = React.useRef(null);
+  React.useEffect(() => {
+    const v = el.current;
+    if (!v) return;
+    let parado = false;
+    /* O fluxo nasce de forma assincrona e vive numa ref, que nao provoca
+       nova renderizacao. Esperamos por ele e paramos assim que estiver
+       ligado, para nao deixar um ciclo a correr durante a chamada toda. */
+    const ligar = () => {
+      if (parado) return;
+      const s = fluxoRef.current;
+      if (s) {
+        v.srcObject = s;
+        v.play && v.play().catch(() => {});
+        return;
+      }
+      window.requestAnimationFrame(ligar);
+    };
+    ligar();
+    return () => {
+      parado = true;
+    };
+  }, [fluxoRef]);
+  return React.createElement("video", {
+    ref: el,
+    autoPlay: true,
+    playsInline: true,
+    muted: !!mudo,
+    style: Object.assign({
+      width: '100%',
+      height: '100%',
+      objectFit: 'cover',
+      background: '#0b1220',
+      transform: espelho ? 'scaleX(-1)' : 'none'
+    }, style || {})
+  });
+}
+
+/* Nao ha glifo de "desligar" no conjunto: o Phone rodado e o simbolo habitual. */
+function IconeDesligar() {
+  return React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      transform: 'rotate(135deg)'
+    }
+  }, React.createElement(I.Phone, {
+    size: 21
+  }));
+}
+
+/* Botao redondo da barra da chamada. */
+function BotaoChamada({
+  onClick,
+  activo,
+  perigo,
+  titulo,
+  children
+}) {
+  return React.createElement("button", {
+    onClick: onClick,
+    title: titulo,
+    "aria-label": titulo,
+    style: {
+      width: 54,
+      height: 54,
+      borderRadius: '50%',
+      border: 'none',
+      cursor: 'pointer',
+      display: 'grid',
+      placeItems: 'center',
+      color: '#fff',
+      background: perigo ? '#DC2626' : activo ? 'rgba(255,255,255,.30)' : 'rgba(255,255,255,.14)',
+      transition: 'background .15s'
+    }
+  }, children);
+}
+
+/* Ecra da chamada a decorrer, dentro do workspace. */
+function ChamadaView() {
+  const c = useChamadas();
+  const {
+    ch
+  } = c;
+  const outro = ch.outroId ? window.userById(ch.outroId) : null;
+  const nome = outro ? outro.name : 'Colega';
+  const [seg, setSeg] = React.useState(0);
+  React.useEffect(() => {
+    if (ch.fase !== 'ligado') {
+      setSeg(0);
+      return;
+    }
+    const t = setInterval(() => setSeg(s => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [ch.fase]);
+  if (ch.fase === 'livre' || ch.fase === 'a-tocar') return null;
+  const mmss = String(Math.floor(seg / 60)).padStart(2, '0') + ':' + String(seg % 60).padStart(2, '0');
+  const estado = ch.fase === 'a-chamar' ? 'A chamar…' : ch.fase === 'a-ligar' ? 'A ligar…' : mmss;
+  return React.createElement("div", {
+    style: {
+      position: 'fixed',
+      inset: 0,
+      zIndex: 130,
+      background: '#0b1220',
+      display: 'flex',
+      flexDirection: 'column'
+    }
+  },
+  /* cabeçalho */
+  React.createElement("div", {
+    style: {
+      flex: 'none',
+      height: 56,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '0 18px',
+      background: '#002060',
+      color: '#fff'
+    }
+  }, React.createElement("strong", {
+    style: {
+      fontSize: 14.5,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, nome), React.createElement("span", {
+    style: {
+      fontSize: 12.5,
+      opacity: .85,
+      fontVariantNumeric: 'tabular-nums'
+    }
+  }, estado)),
+  /* palco */
+  React.createElement("div", {
+    style: {
+      flex: 1,
+      position: 'relative',
+      minHeight: 0
+    }
+  }, ch.comVideo ? React.createElement(VideoFluxo, {
+    fluxoRef: c.remoto,
+    mudo: false
+  }) : React.createElement("div", {
+    style: {
+      width: '100%',
+      height: '100%',
+      display: 'grid',
+      placeItems: 'center'
+    }
+  }, React.createElement("div", {
+    style: {
+      textAlign: 'center',
+      color: '#fff'
+    }
+  }, React.createElement(Avatar, {
+    user: outro,
+    size: 96
+  }), React.createElement("div", {
+    style: {
+      marginTop: 14,
+      fontSize: 17,
+      fontWeight: 700
+    }
+  }, nome), React.createElement("div", {
+    style: {
+      marginTop: 4,
+      fontSize: 13,
+      opacity: .7
+    }
+  }, 'Chamada de voz'))),
+  /* a minha imagem, ao canto */
+  ch.comVideo && React.createElement("div", {
+    style: {
+      position: 'absolute',
+      right: 14,
+      bottom: 14,
+      width: 116,
+      height: 158,
+      borderRadius: 12,
+      overflow: 'hidden',
+      border: '2px solid rgba(255,255,255,.5)',
+      boxShadow: '0 6px 20px rgba(0,0,0,.45)'
+    }
+  }, React.createElement(VideoFluxo, {
+    fluxoRef: c.local,
+    mudo: true,
+    espelho: true
+  })),
+  /* som apenas: continuar a captar sem mostrar */
+  !ch.comVideo && React.createElement("div", {
+    style: {
+      display: 'none'
+    }
+  }, React.createElement(VideoFluxo, {
+    fluxoRef: c.local,
+    mudo: true
+  }))),
+  /* barra de controlos */
+  React.createElement("div", {
+    style: {
+      flex: 'none',
+      padding: '18px 0 26px',
+      display: 'flex',
+      justifyContent: 'center',
+      gap: 16,
+      background: 'linear-gradient(180deg, rgba(11,18,32,0) 0%, rgba(11,18,32,.9) 40%)'
+    }
+  }, React.createElement(BotaoChamada, {
+    onClick: c.alternarSom,
+    activo: c.semSom,
+    titulo: c.semSom ? 'Ligar o microfone' : 'Desligar o microfone'
+  }, React.createElement(c.semSom ? I.MicOff : I.Mic, {
+    size: 21
+  })), ch.comVideo && React.createElement(BotaoChamada, {
+    onClick: c.alternarImagem,
+    activo: c.semImagem,
+    titulo: c.semImagem ? 'Ligar a câmara' : 'Desligar a câmara'
+  }, React.createElement(c.semImagem ? I.CamOff : I.Cam, {
+    size: 21
+  })), React.createElement(BotaoChamada, {
+    onClick: c.desligar,
+    perigo: true,
+    titulo: 'Desligar'
+  }, React.createElement(IconeDesligar, null))));
+}
+
+/* Aviso de chamada a entrar — aparece em qualquer ecra da aplicacao. */
+function ChamadaRecebida() {
+  const c = useChamadas();
+  const {
+    ch
+  } = c;
+  React.useEffect(() => {
+    if (ch.fase !== 'a-tocar') return;
+    const t = setInterval(() => {
+      try {
+        bspPlayChime();
+      } catch (e) {}
+    }, 2600);
+    return () => clearInterval(t);
+  }, [ch.fase]);
+  if (ch.fase !== 'a-tocar') return null;
+  const outro = ch.outroId ? window.userById(ch.outroId) : null;
+  const nome = outro ? outro.name : 'Colega';
+  return React.createElement("div", {
+    style: {
+      position: 'fixed',
+      inset: 0,
+      zIndex: 140,
+      background: 'rgba(6,10,20,.72)',
+      display: 'grid',
+      placeItems: 'center',
+      padding: 18
+    }
+  }, React.createElement("div", {
+    style: {
+      width: '100%',
+      maxWidth: 340,
+      background: 'var(--surface)',
+      border: '1px solid var(--border)',
+      borderRadius: 18,
+      padding: '28px 22px 22px',
+      textAlign: 'center',
+      boxShadow: '0 24px 64px rgba(0,0,0,.4)'
+    }
+  }, React.createElement(Avatar, {
+    user: outro,
+    size: 76
+  }), React.createElement("div", {
+    style: {
+      marginTop: 14,
+      fontSize: 17,
+      fontWeight: 700,
+      color: 'var(--text-1)'
+    }
+  }, nome), React.createElement("div", {
+    style: {
+      marginTop: 5,
+      fontSize: 13,
+      color: 'var(--text-2)'
+    }
+  }, ch.comVideo ? 'Videochamada a entrar' : 'Chamada a entrar'), React.createElement("div", {
+    style: {
+      marginTop: 24,
+      display: 'flex',
+      gap: 14,
+      justifyContent: 'center'
+    }
+  }, React.createElement(BotaoChamada, {
+    onClick: c.desligar,
+    perigo: true,
+    titulo: 'Recusar'
+  }, React.createElement(IconeDesligar, null)), React.createElement("button", {
+    onClick: c.atender,
+    title: "Atender",
+    "aria-label": "Atender",
+    style: {
+      width: 54,
+      height: 54,
+      borderRadius: '50%',
+      border: 'none',
+      cursor: 'pointer',
+      display: 'grid',
+      placeItems: 'center',
+      color: '#fff',
+      background: '#16A34A'
+    }
+  }, React.createElement(I.Phone, {
+    size: 21
+  })))));
+}
+
+/* Erros de chamada, discretos e dispensaveis. */
+function ChamadaErro() {
+  const c = useChamadas();
+  React.useEffect(() => {
+    if (!c.erro) return;
+    const t = setTimeout(c.limparErro, 7000);
+    return () => clearTimeout(t);
+  }, [c.erro]);
+  if (!c.erro) return null;
+  return React.createElement("div", {
+    onClick: c.limparErro,
+    style: {
+      position: 'fixed',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      bottom: 24,
+      zIndex: 150,
+      maxWidth: 460,
+      cursor: 'pointer',
+      background: 'var(--surface)',
+      border: '1px solid var(--border)',
+      borderLeft: '3px solid #DC2626',
+      borderRadius: 10,
+      padding: '12px 16px',
+      fontSize: 13,
+      lineHeight: 1.5,
+      color: 'var(--text-1)',
+      boxShadow: '0 12px 32px rgba(0,0,0,.25)'
+    }
+  }, c.erro);
+}
+
 function App() {
   const [authed, setAuthed] = React.useState(false);
   const [authedEmail, setAuthedEmail] = React.useState(null);
@@ -13592,13 +14294,21 @@ function App() {
       } catch (e) {}
     };
   }, []);
-  const doLogout = () => {
+  const doLogout = async () => {
     try {
       const c = bspGetClient();
-      if (c) c.auth.signOut();
+      if (c) await c.auth.signOut();
+    } catch (e) {}
+    /* Mesma razão do MenuConta.sair: sem isto o estado guardado neste posto
+       sobrevive à saída e volta para quem entrar a seguir. */
+    try {
+      localStorage.removeItem(STORAGE_KEY);
     } catch (e) {}
     setAuthedEmail(null);
     setAuthed(false);
+    try {
+      window.location.reload();
+    } catch (e) {}
   };
   const [page, setPage] = React.useState('dashboard');
   const isMobile = useIsMobile();
@@ -13610,6 +14320,13 @@ function App() {
     ...currentUserBase,
     status: t.presence
   };
+  /* Anunciar a identidade ao canal de chamadas. Só depois disto é que ele
+     sabe distinguir o que lhe é dirigido, por isso corre sempre que mudar. */
+  const chamadasCtx = useChamadas();
+  React.useEffect(() => {
+    if (chamadasCtx && authed && currentUser.id && currentUser.id !== 'self') chamadasCtx.definirEu(currentUser.id);
+    if (chamadasCtx && !authed) chamadasCtx.definirEu(null);
+  }, [authed, currentUser.id]);
   React.useEffect(() => {
     const root = document.documentElement;
     root.style.setProperty('--accent', t.accent);
@@ -13803,7 +14520,9 @@ function mixAccentDark(hex) {
   const bl = Math.round((a & 255) * .7 + (b & 255) * .3);
   return `#${[r, g, bl].map(x => x.toString(16).padStart(2, '0')).join('')}`;
 }
-ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(StoreProvider, null, React.createElement(ToastProvider, null, React.createElement(App, null))));
+/* O ChamadasProvider fica por fora da App para que uma chamada a entrar
+   chegue esteja o utilizador em que ecrã estiver, e sobreviva à navegação. */
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(StoreProvider, null, React.createElement(ToastProvider, null, React.createElement(ChamadasProvider, null, React.createElement(App, null), React.createElement(ChamadaView, null), React.createElement(ChamadaRecebida, null), React.createElement(ChamadaErro, null)))));
 </script>
 
 
