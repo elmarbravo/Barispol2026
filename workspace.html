@@ -14257,8 +14257,16 @@ function ChamadasProvider({
       });
     };
     p.ontrack = ev => {
-      if (!remoto.current) remoto.current = new MediaStream();
-      remoto.current.addTrack(ev.track);
+      /* O navegador entrega o fluxo remoto em ev.streams[0] e mantem-no
+         actualizado sozinho a medida que as pistas chegam. Montar um
+         MediaStream a mao funciona em Chrome mas o Safari nem sempre nota
+         as pistas acrescentadas a um fluxo ja atribuido ao srcObject —
+         chamada ligada, e muda. Ficamos com o do navegador quando existe. */
+      if (ev.streams && ev.streams[0]) remoto.current = ev.streams[0];
+      else {
+        if (!remoto.current) remoto.current = new MediaStream();
+        remoto.current.addTrack(ev.track);
+      }
       setCh(c => c.fase === 'livre' ? c : Object.assign({}, c, {
         fase: 'ligado'
       }));
@@ -14345,10 +14353,15 @@ function ChamadasProvider({
       fase: 'a-ligar'
     }));
     try {
-      const s = await pedirMedia(!!c.comVideo);
       const p = criarPC(c.outroId, c.id);
-      s.getTracks().forEach(t => p.addTrack(t, s));
+      /* A descrição remota vem PRIMEIRO, e só depois as pistas locais.
+         Assim as pistas encaixam nos transceptores que a oferta já criou;
+         ao contrário, o navegador cria transceptores seus e podem não
+         corresponder aos da oferta — que é uma das maneiras de acabar com
+         uma chamada ligada mas sem som. */
       await p.setRemoteDescription(new RTCSessionDescription(ofertaRef.current));
+      const s = await pedirMedia(!!c.comVideo);
+      s.getTracks().forEach(t => p.addTrack(t, s));
       pendentes.current.forEach(cand => {
         try {
           p.addIceCandidate(new RTCIceCandidate(cand));
@@ -14534,22 +14547,21 @@ function VideoFluxo({
     const v = el.current;
     if (!v) return;
     let parado = false;
-    /* O fluxo nasce de forma assincrona e vive numa ref, que nao provoca
-       nova renderizacao. Esperamos por ele e paramos assim que estiver
-       ligado, para nao deixar um ciclo a correr durante a chamada toda. */
-    const ligar = () => {
+    /* O fluxo nasce de forma assincrona, vive numa ref (que nao provoca
+       nova renderizacao) e pode trocar de identidade quando as pistas
+       chegam. Vigiar cobre os dois casos sem deixar um ciclo a 60 por
+       segundo a correr durante a chamada inteira. */
+    const vigia = setInterval(() => {
       if (parado) return;
       const s = fluxoRef.current;
-      if (s) {
+      if (s && v.srcObject !== s) {
         v.srcObject = s;
         v.play && v.play().catch(() => {});
-        return;
       }
-      window.requestAnimationFrame(ligar);
-    };
-    ligar();
+    }, 200);
     return () => {
       parado = true;
+      clearInterval(vigia);
     };
   }, [fluxoRef]);
   return React.createElement("video", {
@@ -14612,42 +14624,65 @@ function BotaoChamada({
    e por isso as chamadas de voz nao tinham som nenhum: o fluxo remoto
    chegava e nao havia nada a toca-lo.
 
-   Vive fora do ecra da chamada para sobreviver a minimizacao: se o audio
-   fosse desmontado ao minimizar, a chamada emudecia. */
+/* Elemento que toca o som da outra pessoa. Fica montado enquanto houver
+   chamada, com video ou sem ele — antes so existia em videochamada, e por
+   isso as chamadas de voz eram mudas: o fluxo chegava e nao havia nada a
+   toca-lo.
+
+   Duas armadilhas do WebKit, ambas apanhadas a sair da primeira tentativa:
+
+   1. E um <video> e nao um <audio>. O <audio> do Safari nao toca um
+      MediaStream vindo do srcObject de forma fiavel; o <video> com o
+      atributo playsinline toca. Serve de altifalante invisivel.
+
+   2. Nao leva display:none. Um elemento de media escondido assim pode
+      simplesmente nao tocar. Fica de um pixel, quase transparente e sem
+      apanhar toques, mas dentro da pagina.
+
+   Vive fora do ecra da chamada para sobreviver a minimizacao: se fosse
+   desmontado ao minimizar, a chamada emudecia. */
 function AudioRemoto() {
   const c = useChamadas();
   const el = React.useRef(null);
+  const [precisaToque, setPrecisaToque] = React.useState(false);
   const emChamada = c.ch.fase !== 'livre' && c.ch.fase !== 'a-tocar';
-  React.useEffect(() => {
-    if (!emChamada) return;
+
+  const tocar = React.useCallback(() => {
     const a = el.current;
     if (!a) return;
-    let parado = false;
-    const ligar = () => {
-      if (parado) return;
+    const p = a.play && a.play();
+    if (p && p.then) p.then(() => setPrecisaToque(false), () => setPrecisaToque(true));
+  }, []);
+
+  React.useEffect(() => {
+    if (!emChamada) {
+      setPrecisaToque(false);
+      return;
+    }
+    /* Vigia em vez de ligar uma vez so: o fluxo nasce depois do elemento,
+       e pode ainda trocar de identidade quando as pistas chegam. Cinco
+       vezes por segundo nao custa nada e cobre os dois casos. */
+    const vigia = setInterval(() => {
+      const a = el.current;
       const s = c.remoto.current;
-      if (s) {
+      if (a && s && a.srcObject !== s) {
         a.srcObject = s;
-        /* O play() pode ser recusado ate haver gesto do utilizador; como a
-           chamada comeca sempre com um toque no botao, ha gesto. */
-        a.play && a.play().catch(() => {});
-        return;
+        tocar();
       }
-      window.requestAnimationFrame(ligar);
-    };
-    ligar();
+    }, 200);
     return () => {
-      parado = true;
+      clearInterval(vigia);
       try {
-        a.srcObject = null;
+        if (el.current) el.current.srcObject = null;
       } catch (e) {}
     };
-  }, [emChamada]);
-  /* Encaminhar para o altifalante. So funciona onde o setSinkId existe;
-     no Safari do iPhone e' o sistema que decide e nao ha como pedir. */
+  }, [emChamada, tocar]);
+
+  /* Encaminhar para o altifalante. So funciona onde o setSinkId existe; no
+     Safari do iPhone e' o sistema que decide e nao ha como pedir. */
   React.useEffect(() => {
     const a = el.current;
-    if (!a || !c.podeEscolherSaida) return;
+    if (!a || !emChamada || !c.podeEscolherSaida) return;
     let vivo = true;
     (async () => {
       try {
@@ -14664,15 +14699,47 @@ function AudioRemoto() {
       vivo = false;
     };
   }, [c.altifalante, c.podeEscolherSaida, emChamada]);
+
   if (!emChamada) return null;
-  return React.createElement("audio", {
+  return React.createElement(React.Fragment, null, React.createElement("video", {
     ref: el,
     autoPlay: true,
     playsInline: true,
+    /* muted seria o oposto do que este elemento existe para fazer. */
+    muted: false,
     style: {
-      display: 'none'
+      position: 'fixed',
+      right: 0,
+      bottom: 0,
+      width: 1,
+      height: 1,
+      opacity: .01,
+      pointerEvents: 'none',
+      zIndex: 0
     }
-  });
+  }),
+  /* O navegador pode recusar tocar som sem um toque recente. Quando isso
+     acontece, o silencio seria inexplicavel — mais vale pedir o toque. */
+  precisaToque && React.createElement("button", {
+    onClick: tocar,
+    style: {
+      position: 'fixed',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      top: 'calc(70px + env(safe-area-inset-top))',
+      zIndex: 985,
+      border: 'none',
+      borderRadius: 999,
+      padding: '11px 20px',
+      background: '#fff',
+      color: '#002060',
+      fontFamily: 'inherit',
+      fontSize: 13.5,
+      fontWeight: 700,
+      cursor: 'pointer',
+      boxShadow: '0 8px 24px rgba(0,0,0,.35)'
+    }
+  }, "Toque para ouvir"));
 }
 
 /* Barra flutuante da chamada minimizada. Permite usar a aplicacao enquanto
