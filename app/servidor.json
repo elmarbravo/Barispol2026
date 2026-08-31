@@ -1,0 +1,5 @@
+{
+  "_leia": "Preencha com os dados do vosso projecto Supabase e corra `npm run sincronizar`. A app passa a arrancar já ligada, e o utilizador só vê o ecrã de entrada. Deixe vazio para a app pedir a ligação como faz hoje o site. A chave é a anon public (começa por eyJ) — NUNCA a service_role.",
+  "url": "",
+  "key": ""
+}

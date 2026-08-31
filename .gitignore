@@ -1,0 +1,14 @@
+# Dependências e artefactos de compilação da app nativa.
+# O projecto (android/, ios/, configuração, ícones) é versionado;
+# o que se regenera com `npm install` e `npm run sincronizar` não é.
+app/node_modules/
+app/www/
+app/android/build/
+app/android/app/build/
+app/android/.gradle/
+app/android/local.properties
+app/android/app/release/
+app/ios/App/Pods/
+app/ios/App/build/
+app/ios/App/App/public/
+.DS_Store

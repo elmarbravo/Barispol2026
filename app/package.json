@@ -1,0 +1,19 @@
+{
+  "name": "barispol-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Invólucro nativo (Android e iOS) do Barispol Workspace",
+  "scripts": {
+    "sincronizar": "node sincronizar.js && cap sync",
+    "abrir:android": "cap open android",
+    "abrir:ios": "cap open ios"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.0"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0"
+  }
+}
