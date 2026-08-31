@@ -62,13 +62,35 @@
   body[data-mobile="true"] .bsp-grid2,
   body[data-mobile="true"] .bsp-grid3 { grid-template-columns: 1fr !important; }
 
-  /* Tabelas de seis colunas: ao telemóvel cada linha passa a ficha
-     empilhada. Rolar na horizontal seria pior — o cabeçalho fica escondido
-     e sem ele as colunas não se identificam. */
+  /* Tabelas de seis colunas ao telemóvel.
+
+     Troca o modo de disposição em vez de tentar reescrever as colunas da
+     grelha: com display:flex a grid-template-columns fica inerte, e a
+     regra não depende de vencer o estilo inline campo a campo.
+
+     Fica quem é a pessoa numa linha inteira, e por baixo o que se pode
+     fazer com ela. Cargo, departamento, e-mail e aniversário saem: são
+     seis colunas num ecrã de quatro palavras, e vêem-se ao abrir a ficha.
+
+     Admin      1 Utilizador 2 Cargo 3 Departamento 4 Acesso 5 Aniversário 6 acções
+     Directório 1 Nome       2 Cargo 3 Departamento 4 E-mail 5 Estado      6 acções */
   body[data-mobile="true"] .bsp-tabela,
   body[data-mobile="true"] .bsp-admin-row {
-    grid-template-columns: 1fr !important; gap: 3px !important;
-    padding: 12px 14px !important; }
+    display: flex !important; flex-wrap: wrap; align-items: center;
+    gap: 8px !important; padding: 12px 14px !important; }
+  body[data-mobile="true"] .bsp-tabela > *:first-child,
+  body[data-mobile="true"] .bsp-admin-row > *:first-child {
+    flex: 1 1 100%; min-width: 0; }
+  body[data-mobile="true"] .bsp-tabela > *:nth-child(6),
+  body[data-mobile="true"] .bsp-admin-row > *:nth-child(6) {
+    flex: none; margin-left: auto; }
+  body[data-mobile="true"] .bsp-admin-row > *:nth-child(2),
+  body[data-mobile="true"] .bsp-admin-row > *:nth-child(3),
+  body[data-mobile="true"] .bsp-admin-row > *:nth-child(5),
+  body[data-mobile="true"] .bsp-tabela > *:nth-child(2),
+  body[data-mobile="true"] .bsp-tabela > *:nth-child(3),
+  body[data-mobile="true"] .bsp-tabela > *:nth-child(4) {
+    display: none !important; }
   body[data-mobile="true"] .bsp-tabela-cab { display: none !important; }
 </style>
 
@@ -14104,6 +14126,18 @@ function bspIceServers() {
 function bspSuportaChamadas() {
   return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.RTCPeerConnection);
 }
+/* Encaminhar o som para o altifalante e' o setSinkId, que o Chrome tem no
+   computador e no Android. O Safari nao o implementa: numa pagina web em
+   iPhone nao ha forma de escolher a saida de audio, e o sistema decide.
+   Por isso o botao so aparece onde funciona — mostrar um botao inerte era
+   pior do que nao ter botao. Na app nativa isto resolve-se com um plugin. */
+function bspPodeEscolherSaida() {
+  try {
+    return typeof HTMLMediaElement !== 'undefined' && !!HTMLMediaElement.prototype.setSinkId;
+  } catch (e) {
+    return false;
+  }
+}
 
 const ChamadasContext = React.createContext(null);
 function useChamadas() {
@@ -14134,6 +14168,8 @@ function ChamadasProvider({
   const convidou = React.useRef(false);
   const [semSom, setSemSom] = React.useState(false);
   const [semImagem, setSemImagem] = React.useState(false);
+  const [minimizada, setMinimizada] = React.useState(false);
+  const [altifalante, setAltifalante] = React.useState(false);
   const pc = React.useRef(null);
   const local = React.useRef(null);
   const remoto = React.useRef(null);
@@ -14203,6 +14239,8 @@ function ChamadasProvider({
     ofertaRef.current = null;
     setSemSom(false);
     setSemImagem(false);
+    setMinimizada(false);
+    setAltifalante(false);
     setCh({
       fase: 'livre'
     });
@@ -14468,6 +14506,12 @@ function ChamadasProvider({
     alternarImagem: alternarImagem,
     semSom: semSom,
     semImagem: semImagem,
+    minimizada: minimizada,
+    minimizar: () => setMinimizada(true),
+    restaurar: () => setMinimizada(false),
+    altifalante: altifalante,
+    alternarAltifalante: () => setAltifalante(v => !v),
+    podeEscolherSaida: bspPodeEscolherSaida(),
     local: local,
     remoto: remoto,
     definirEu: setEu,
@@ -14563,6 +14607,197 @@ function BotaoChamada({
 }
 
 /* Ecra da chamada a decorrer, dentro do workspace. */
+/* Elemento que toca o som da outra pessoa. Fica sempre montado enquanto
+   houver chamada, com video ou sem ele — antes so existia em videochamada,
+   e por isso as chamadas de voz nao tinham som nenhum: o fluxo remoto
+   chegava e nao havia nada a toca-lo.
+
+   Vive fora do ecra da chamada para sobreviver a minimizacao: se o audio
+   fosse desmontado ao minimizar, a chamada emudecia. */
+function AudioRemoto() {
+  const c = useChamadas();
+  const el = React.useRef(null);
+  const emChamada = c.ch.fase !== 'livre' && c.ch.fase !== 'a-tocar';
+  React.useEffect(() => {
+    if (!emChamada) return;
+    const a = el.current;
+    if (!a) return;
+    let parado = false;
+    const ligar = () => {
+      if (parado) return;
+      const s = c.remoto.current;
+      if (s) {
+        a.srcObject = s;
+        /* O play() pode ser recusado ate haver gesto do utilizador; como a
+           chamada comeca sempre com um toque no botao, ha gesto. */
+        a.play && a.play().catch(() => {});
+        return;
+      }
+      window.requestAnimationFrame(ligar);
+    };
+    ligar();
+    return () => {
+      parado = true;
+      try {
+        a.srcObject = null;
+      } catch (e) {}
+    };
+  }, [emChamada]);
+  /* Encaminhar para o altifalante. So funciona onde o setSinkId existe;
+     no Safari do iPhone e' o sistema que decide e nao ha como pedir. */
+  React.useEffect(() => {
+    const a = el.current;
+    if (!a || !c.podeEscolherSaida) return;
+    let vivo = true;
+    (async () => {
+      try {
+        if (!c.altifalante) {
+          await a.setSinkId('');
+          return;
+        }
+        const saidas = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audiooutput');
+        const alto = saidas.find(d => /speaker|altifalante|alto/i.test(d.label)) || saidas.find(d => d.deviceId === 'default');
+        if (vivo && alto) await a.setSinkId(alto.deviceId);
+      } catch (e) {}
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [c.altifalante, c.podeEscolherSaida, emChamada]);
+  if (!emChamada) return null;
+  return React.createElement("audio", {
+    ref: el,
+    autoPlay: true,
+    playsInline: true,
+    style: {
+      display: 'none'
+    }
+  });
+}
+
+/* Barra flutuante da chamada minimizada. Permite usar a aplicacao enquanto
+   se fala: tocar nela devolve o ecra inteiro. */
+function ChamadaMini() {
+  const c = useChamadas();
+  const {
+    ch
+  } = c;
+  const [seg, setSeg] = React.useState(0);
+  React.useEffect(() => {
+    if (ch.fase !== 'ligado') return;
+    const t = setInterval(() => setSeg(s => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [ch.fase]);
+  if (ch.fase === 'livre' || ch.fase === 'a-tocar' || !c.minimizada) return null;
+  const outro = ch.outroId ? window.userById(ch.outroId) : null;
+  const nome = outro ? (outro.name || '').split(' ')[0] : 'Colega';
+  const estado = ch.fase === 'ligado'
+    ? String(Math.floor(seg / 60)).padStart(2, '0') + ':' + String(seg % 60).padStart(2, '0')
+    : 'A ligar…';
+  return React.createElement("div", {
+    style: {
+      position: 'fixed',
+      left: 12,
+      right: 12,
+      /* Acima da barra de navegação móvel, e acima da margem do aparelho. */
+      bottom: 'calc(12px + env(safe-area-inset-bottom))',
+      zIndex: 959,
+      background: '#002060',
+      color: '#fff',
+      borderRadius: 14,
+      boxShadow: '0 10px 30px rgba(0,0,0,.35)',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '10px 12px'
+    }
+  }, React.createElement("button", {
+    onClick: c.restaurar,
+    title: "Voltar à chamada",
+    style: {
+      flex: 1,
+      minWidth: 0,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      background: 'transparent',
+      border: 'none',
+      color: '#fff',
+      cursor: 'pointer',
+      fontFamily: 'inherit',
+      textAlign: 'left',
+      padding: 0
+    }
+  }, React.createElement("span", {
+    style: {
+      width: 32,
+      height: 32,
+      flex: 'none',
+      borderRadius: '50%',
+      background: 'rgba(255,255,255,.18)',
+      display: 'grid',
+      placeItems: 'center'
+    }
+  }, React.createElement(I.Phone, {
+    size: 15
+  })), React.createElement("span", {
+    style: {
+      minWidth: 0,
+      overflow: 'hidden'
+    }
+  }, React.createElement("span", {
+    style: {
+      display: 'block',
+      fontSize: 13.5,
+      fontWeight: 700,
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis'
+    }
+  }, nome), React.createElement("span", {
+    style: {
+      display: 'block',
+      fontSize: 11.5,
+      opacity: .8,
+      fontVariantNumeric: 'tabular-nums'
+    }
+  }, estado))), React.createElement("button", {
+    onClick: c.alternarSom,
+    title: c.semSom ? 'Ligar o microfone' : 'Desligar o microfone',
+    "aria-label": c.semSom ? 'Ligar o microfone' : 'Desligar o microfone',
+    style: {
+      width: 38,
+      height: 38,
+      flex: 'none',
+      borderRadius: '50%',
+      border: 'none',
+      cursor: 'pointer',
+      color: '#fff',
+      background: c.semSom ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.14)',
+      display: 'grid',
+      placeItems: 'center'
+    }
+  }, React.createElement(c.semSom ? I.MicOff : I.Mic, {
+    size: 16
+  })), React.createElement("button", {
+    onClick: c.desligar,
+    title: "Desligar",
+    "aria-label": "Desligar",
+    style: {
+      width: 38,
+      height: 38,
+      flex: 'none',
+      borderRadius: '50%',
+      border: 'none',
+      cursor: 'pointer',
+      color: '#fff',
+      background: '#DC2626',
+      display: 'grid',
+      placeItems: 'center'
+    }
+  }, React.createElement(IconeDesligar, null)));
+}
+
 function ChamadaView() {
   const c = useChamadas();
   const {
@@ -14579,7 +14814,7 @@ function ChamadaView() {
     const t = setInterval(() => setSeg(s => s + 1), 1000);
     return () => clearInterval(t);
   }, [ch.fase]);
-  if (ch.fase === 'livre' || ch.fase === 'a-tocar') return null;
+  if (ch.fase === 'livre' || ch.fase === 'a-tocar' || c.minimizada) return null;
   const mmss = String(Math.floor(seg / 60)).padStart(2, '0') + ':' + String(seg % 60).padStart(2, '0');
   const estado = ch.fase === 'a-chamar' ? 'A chamar…' : ch.fase === 'a-ligar' ? 'A ligar…' : mmss;
   return React.createElement("div", {
@@ -14608,9 +14843,30 @@ function ChamadaView() {
       background: '#002060',
       color: '#fff'
     }
-  }, React.createElement("strong", {
+  }, React.createElement("button", {
+    onClick: c.minimizar,
+    title: "Minimizar a chamada",
+    "aria-label": "Minimizar a chamada",
+    style: {
+      width: 34,
+      height: 34,
+      flex: 'none',
+      marginRight: 4,
+      borderRadius: 9,
+      border: 'none',
+      background: 'rgba(255,255,255,.14)',
+      color: '#fff',
+      cursor: 'pointer',
+      display: 'grid',
+      placeItems: 'center'
+    }
+  }, React.createElement(I.ChevD, {
+    size: 18
+  })), React.createElement("strong", {
     style: {
       fontSize: 14.5,
+      flex: 1,
+      minWidth: 0,
       overflow: 'hidden',
       textOverflow: 'ellipsis',
       whiteSpace: 'nowrap'
@@ -14619,6 +14875,7 @@ function ChamadaView() {
     style: {
       fontSize: 12.5,
       opacity: .85,
+      flex: 'none',
       fontVariantNumeric: 'tabular-nums'
     }
   }, estado)),
@@ -14630,8 +14887,10 @@ function ChamadaView() {
       minHeight: 0
     }
   }, ch.comVideo ? React.createElement(VideoFluxo, {
+    /* Só a imagem: o som da outra pessoa é sempre tocado pelo AudioRemoto,
+       montado fora deste ecrã para sobreviver à minimização. */
     fluxoRef: c.remoto,
-    mudo: false
+    mudo: true
   }) : React.createElement("div", {
     style: {
       width: '100%',
@@ -14678,15 +14937,7 @@ function ChamadaView() {
     mudo: true,
     espelho: true
   })),
-  /* som apenas: continuar a captar sem mostrar */
-  !ch.comVideo && React.createElement("div", {
-    style: {
-      display: 'none'
-    }
-  }, React.createElement(VideoFluxo, {
-    fluxoRef: c.local,
-    mudo: true
-  }))),
+  ),
   /* barra de controlos */
   React.createElement("div", {
     style: {
@@ -14705,6 +14956,12 @@ function ChamadaView() {
     titulo: c.semSom ? 'Ligar o microfone' : 'Desligar o microfone'
   }, React.createElement(c.semSom ? I.MicOff : I.Mic, {
     size: 21
+  })), c.podeEscolherSaida && React.createElement(BotaoChamada, {
+    onClick: c.alternarAltifalante,
+    activo: c.altifalante,
+    titulo: c.altifalante ? 'Voltar ao auricular' : 'Altifalante'
+  }, React.createElement(I.Megaphone, {
+    size: 20
   })), ch.comVideo && React.createElement(BotaoChamada, {
     onClick: c.alternarImagem,
     activo: c.semImagem,
@@ -15101,7 +15358,7 @@ function mixAccentDark(hex) {
 }
 /* O ChamadasProvider fica por fora da App para que uma chamada a entrar
    chegue esteja o utilizador em que ecrã estiver, e sobreviva à navegação. */
-ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(StoreProvider, null, React.createElement(ToastProvider, null, React.createElement(ChamadasProvider, null, React.createElement(App, null), React.createElement(ChamadaView, null), React.createElement(ChamadaRecebida, null), React.createElement(ChamadaErro, null)))));
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(StoreProvider, null, React.createElement(ToastProvider, null, React.createElement(ChamadasProvider, null, React.createElement(App, null), React.createElement(AudioRemoto, null), React.createElement(ChamadaView, null), React.createElement(ChamadaMini, null), React.createElement(ChamadaRecebida, null), React.createElement(ChamadaErro, null)))));
 </script>
 
 
