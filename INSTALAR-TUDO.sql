@@ -4,23 +4,23 @@
 --  Cole ESTE ficheiro inteiro no SQL Editor do Supabase e carregue em RUN.
 --  É uma vez só. Pode repetir sem estragar nada, se ficar na dúvida.
 --
---  Junta, pela ordem certa, o que estava em três ficheiros separados:
---    1. camadas-editaveis.sql   camadas de acesso editáveis
---    2. crm-seguimento.sql      utentes e seguimento (CRM)
---    3. tarefas-pessoais.sql    tarefas privadas de cada pessoa
+--  Junta, pela ordem certa, o que estava em quatro ficheiros separados:
+--    1. seguranca-conversas.sql  regras por conversa (directas e grupos)
+--    2. camadas-editaveis.sql    camadas de acesso editáveis
+--    3. crm-seguimento.sql       utentes e seguimento (CRM)
+--    4. tarefas-pessoais.sql     tarefas privadas de cada pessoa
 --
---  A ordem importa: o 2 e o 3 usam funções que o 1 deixa prontas.
+--  A ordem importa: os blocos 2, 3 e 4 usam funções que o bloco 1 cria.
 -- ═══════════════════════════════════════════════════════════════════════
 
--- PRIMEIRO, uma verificação. Estes três blocos assentam nas funções que o
--- seguranca-conversas.sql criou. Se esse ainda não tiver corrido, mais vale
--- parar já com uma frase clara do que falhar dez linhas à frente com um
--- erro que não diz nada.
+-- PRIMEIRO, uma verificação. Tudo isto assenta nas tabelas base. Se elas
+-- ainda não existirem, mais vale parar já com uma frase clara do que
+-- falhar cinquenta linhas à frente com um erro que não diz nada.
 do $verificar$
 begin
-  if to_regprocedure('public.bsp_meu_id()') is null then
+  if to_regclass('public.messages') is null or to_regclass('public.shared_state') is null then
     raise exception
-      'Falta correr primeiro o ficheiro seguranca-conversas.sql. Corra esse, depois volte a este.';
+      'Faltam as tabelas base. Corra primeiro o supabase-configuracao.sql, depois volte a este.';
   end if;
 end
 $verificar$;
@@ -28,7 +28,128 @@ $verificar$;
 
 
 -- ═══════════════════════════════════════════════════════════════════════
---  1 de 3 · CAMADAS DE ACESSO EDITÁVEIS
+--  1 de 4 · REGRAS POR CONVERSA
+-- ═══════════════════════════════════════════════════════════════════════
+
+-- ATENÇÃO: este bloco fecha as mensagens directas e os grupos privados.
+-- Antes dele, qualquer pessoa com sessão iniciada conseguia ler tudo pela
+-- API — os grupos privados eram privados só no ecrã.
+--
+-- Depois de correr: se alguém deixar de ver as suas mensagens directas, é
+-- porque o e-mail dessa pessoa em Admin -> Utilizadores não coincide com o
+-- e-mail de login. Corrigir o e-mail no directório resolve na hora.
+
+-- Barispol Workspace · seguranca por conversa (passo 2)
+-- Correr UMA vez no SQL Editor do Supabase. Pode repetir sem estragar nada.
+-- O que faz: as mensagens directas passam a ser legiveis APENAS pelos dois
+-- participantes (e os grupos privados apenas pelos membros), mesmo que alguem
+-- fale directamente com o servidor por fora da aplicacao. Antes, qualquer
+-- colaborador com sessao iniciada conseguia ler tudo pela API.
+
+-- 1. Quem sou eu? (traduz o e-mail da sessao para o id usado na aplicacao)
+create or replace function bsp_meu_id() returns text
+language sql stable security definer set search_path = public as $f$
+  select e->>'id'
+  from shared_state s, jsonb_array_elements(coalesce(s.team, '[]'::jsonb)) e
+  where s.id = 1
+    and lower(e->>'email') = lower(coalesce(auth.jwt()->>'email', ''))
+  limit 1
+$f$;
+
+-- 2. Sou gestor? (Direccao ou Coordenacao)
+create or replace function bsp_e_gestor() returns boolean
+language sql stable security definer set search_path = public as $f$
+  select exists (
+    select 1
+    from shared_state s, jsonb_array_elements(coalesce(s.team, '[]'::jsonb)) e
+    where s.id = 1
+      and lower(e->>'email') = lower(coalesce(auth.jwt()->>'email', ''))
+      and (e->>'accessLevel') in ('Direcção', 'Coordenação')
+  )
+$f$;
+
+-- 3. Posso ver esta conversa?
+--    dm-…            -> so os dois participantes
+--    th~<conversa>~… -> a regra da conversa-mae
+--    grupo privado   -> so os membros (a Direccao/Coordenacao ve tudo)
+--    canais normais  -> toda a equipa autenticada
+create or replace function bsp_ve_conversa(chave text) returns boolean
+language plpgsql stable security definer set search_path = public as $f$
+declare
+  alvo text := chave;
+  privado boolean;
+begin
+  if alvo like 'th~%' then
+    alvo := split_part(alvo, '~', 2);
+  end if;
+  if alvo like 'dm-%' then
+    return bsp_meu_id() is not null and (
+      bsp_meu_id() = split_part(substr(alvo, 4), '_', 1)
+      or bsp_meu_id() = split_part(substr(alvo, 4), '_', 2)
+    );
+  end if;
+  select jsonb_array_length(coalesce(c.value->'membros', '[]'::jsonb)) > 0 into privado
+  from shared_state s, jsonb_array_elements(coalesce(s.channels, '[]'::jsonb)) c
+  where s.id = 1 and c.value->>'id' = alvo
+  limit 1;
+  if coalesce(privado, false) then
+    return bsp_e_gestor() or exists (
+      select 1
+      from shared_state s, jsonb_array_elements(coalesce(s.channels, '[]'::jsonb)) c,
+           jsonb_array_elements_text(c.value->'membros') m
+      where s.id = 1 and c.value->>'id' = alvo and m = bsp_meu_id()
+    );
+  end if;
+  return true;
+end
+$f$;
+
+-- 4. Substituir as regras "tudo ou nada" das mensagens
+drop policy if exists "bsp_msg_auth" on messages;
+drop policy if exists "bsp_msg_ler" on messages;
+drop policy if exists "bsp_msg_criar" on messages;
+drop policy if exists "bsp_msg_apagar" on messages;
+
+create policy "bsp_msg_ler" on messages for select
+  to authenticated using (bsp_ve_conversa(conv_key));
+create policy "bsp_msg_criar" on messages for insert
+  to authenticated with check (
+    bsp_ve_conversa(conv_key)
+    and (user_id = bsp_meu_id() or bsp_meu_id() is null)
+  );
+create policy "bsp_msg_apagar" on messages for delete
+  to authenticated using (user_id = bsp_meu_id() or bsp_e_gestor());
+
+-- 5. Feed: todos leem; cada um publica em seu nome; apaga o autor ou um gestor
+drop policy if exists "bsp_post_auth" on posts;
+drop policy if exists "bsp_post_ler" on posts;
+drop policy if exists "bsp_post_criar" on posts;
+drop policy if exists "bsp_post_apagar" on posts;
+
+create policy "bsp_post_ler" on posts for select
+  to authenticated using (true);
+create policy "bsp_post_criar" on posts for insert
+  to authenticated with check (user_id = bsp_meu_id() or bsp_meu_id() is null);
+create policy "bsp_post_apagar" on posts for delete
+  to authenticated using (user_id = bsp_meu_id() or bsp_e_gestor());
+
+-- Nota: se alguem deixar de ver as suas mensagens directas, e porque o
+-- e-mail dessa pessoa em Admin -> Utilizadores nao coincide com o e-mail
+-- de login. Corrigir o e-mail no directorio resolve na hora.
+
+-- REVERTER (so em emergencia): apaga as regras novas e repoe as antigas.
+-- drop policy if exists "bsp_msg_ler" on messages;
+-- drop policy if exists "bsp_msg_criar" on messages;
+-- drop policy if exists "bsp_msg_apagar" on messages;
+-- create policy "bsp_msg_auth" on messages for all to authenticated using (true) with check (true);
+-- drop policy if exists "bsp_post_ler" on posts;
+-- drop policy if exists "bsp_post_criar" on posts;
+-- drop policy if exists "bsp_post_apagar" on posts;
+-- create policy "bsp_post_auth" on posts for all to authenticated using (true) with check (true);
+
+
+-- ═══════════════════════════════════════════════════════════════════════
+--  2 de 4 · CAMADAS DE ACESSO EDITÁVEIS
 -- ═══════════════════════════════════════════════════════════════════════
 
 -- Barispol Workspace · camadas de acesso editaveis (passo 3)
@@ -100,7 +221,7 @@ $f$;
 
 
 -- ═══════════════════════════════════════════════════════════════════════
---  2 de 3 · UTENTES E SEGUIMENTO (CRM)
+--  3 de 4 · UTENTES E SEGUIMENTO (CRM)
 -- ═══════════════════════════════════════════════════════════════════════
 
 -- Barispol Workspace · seguimento e retorno de utentes (CRM, passo 1)
@@ -198,7 +319,7 @@ create policy "bsp_seg_apagar" on seguimentos for delete
 
 
 -- ═══════════════════════════════════════════════════════════════════════
---  3 de 3 · TAREFAS PESSOAIS
+--  4 de 4 · TAREFAS PESSOAIS
 -- ═══════════════════════════════════════════════════════════════════════
 
 -- Barispol Workspace · tarefas pessoais
@@ -264,11 +385,12 @@ create policy "bsp_tp_apagar" on tarefas_pessoais for delete
 -- ═══════════════════════════════════════════════════════════════════════
 --  CONFERIR
 --  Depois do RUN, corra isto para ver se ficou tudo de pé.
---  Deve devolver quatro linhas, todas com rowsecurity = true.
+--  Deve devolver seis linhas, todas com protegida = true.
 -- ═══════════════════════════════════════════════════════════════════════
 
 select tablename, rowsecurity as protegida
 from pg_tables
 where schemaname = 'public'
-  and tablename in ('utentes', 'seguimentos', 'tarefas_pessoais', 'shared_state')
+  and tablename in ('messages', 'posts', 'shared_state',
+                    'utentes', 'seguimentos', 'tarefas_pessoais')
 order by tablename;

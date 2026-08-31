@@ -15,8 +15,12 @@ Falta correr um ficheiro e instalar uma função. Vinte minutos.
 
 ### 1. Correr o `INSTALAR-TUDO.sql`
 
-Traz as camadas de acesso editáveis, o Seguimento de utentes e as tarefas
-pessoais.
+Traz as regras por conversa, as camadas de acesso editáveis, o Seguimento de
+utentes e as tarefas pessoais.
+
+**As regras por conversa são as que fecham os grupos privados e as mensagens
+directas do lado do servidor.** Sem elas, um grupo privado é privado apenas no
+ecrã: alguém com sessão iniciada conseguiria ler as mensagens pela API.
 
 1. **[supabase.com/dashboard](https://supabase.com/dashboard)** → o projecto
 2. Barra da esquerda → **SQL Editor** → **+ New query**
@@ -24,9 +28,14 @@ pessoais.
    seleccione tudo e copie
 4. Cole e **RUN**
 
-No fim aparecem quatro linhas — `seguimentos`, `shared_state`,
-`tarefas_pessoais`, `utentes` — todas com `protegida = true`. É essa a
-confirmação de que correu bem.
+No fim aparecem seis linhas — `messages`, `posts`, `seguimentos`,
+`shared_state`, `tarefas_pessoais`, `utentes` — todas com `protegida = true`.
+É essa a confirmação de que correu bem.
+
+Depois de correr, confirme que consegue ver as suas mensagens directas. Se
+alguém deixar de as ver, é porque o e-mail de login dessa pessoa não coincide
+com o que está em Admin → Utilizadores — as regras traduzem uma coisa na outra
+pelo e-mail.
 
 O ficheiro pode correr as vezes que forem precisas sem estragar nada, e
 começa por verificar se falta algum passo anterior.
@@ -60,11 +69,10 @@ a Europa Ocidental é a menos má.
 | Ordem | Ficheiro | Para quê |
 | --- | --- | --- |
 | 1 | [`supabase-configuracao.sql`](supabase-configuracao.sql) | Tabelas, armazenamento de ficheiros e tempo real |
-| 2 | [`seguranca-conversas.sql`](seguranca-conversas.sql) | Regras por conversa: as directas só as vêem os dois |
-| 3 | [`INSTALAR-TUDO.sql`](INSTALAR-TUDO.sql) | Camadas editáveis, CRM e tarefas pessoais |
+| 2 | [`INSTALAR-TUDO.sql`](INSTALAR-TUDO.sql) | Regras por conversa, camadas editáveis, CRM e tarefas pessoais |
 
-A ordem importa: o 3 usa funções que o 2 cria, e pára com um aviso claro se
-o 2 ainda não tiver corrido.
+O `INSTALAR-TUDO.sql` verifica se as tabelas base existem e pára com um aviso
+claro se o 1 ainda não tiver corrido.
 
 ### 3. Instalar as funções
 
