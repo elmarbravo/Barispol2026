@@ -132,18 +132,25 @@ order by tablename;
 --    os dois não batem certo, a pessoa entra mas fica sem ver as suas
 --    mensagens directas nem as suas tarefas pessoais — e nada no ecrã lhe
 --    explica porquê. Isto mostra quem está nessa situação.
+with directorio as (
+  select e->>'name' as nome, lower(e->>'email') as email
+  from shared_state s, jsonb_array_elements(coalesce(s.team, '[]'::jsonb)) e
+  where s.id = 1 and e->>'email' is not null
+),
+contas as (
+  select lower(email) as email from auth.users where email is not null
+)
 select
-  coalesce(e->>'name', '(só no Supabase)')  as pessoa,
-  e->>'email'                               as no_directorio,
-  u.email                                   as no_login,
+  coalesce(d.nome, '(sem ficha no directório)') as pessoa,
+  d.email as no_directorio,
+  c.email as no_login,
   case
-    when e is null then 'entra, mas o servidor não sabe quem é'
-    when u.id is null then 'está no directório e não consegue entrar'
+    when d.email is null then 'entra, mas o servidor não sabe quem é'
+    when c.email is null then 'está no directório e não consegue entrar'
     else 'ok'
-  end                                       as estado
-from (select team from shared_state where id = 1) s
-full outer join lateral jsonb_array_elements(coalesce(s.team, '[]'::jsonb)) e on true
-full outer join auth.users u on lower(u.email) = lower(e->>'email')
+  end as estado
+from directorio d
+full outer join contas c on c.email = d.email
 order by 4, 1;
 
 -- Quem o servidor considera gestor. Se alguém aparecer errado, o e-mail

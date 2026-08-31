@@ -1170,25 +1170,25 @@ const CAMADAS = {
     ordem: 1,
     desc: 'Vê tudo e administra o sistema. Gere utilizadores, camadas e a ligação ao servidor.',
     canais: '*', admin: 'total',
-    podeGerirUtilizadores: true, podeVerSistema: true
+    podeGerirUtilizadores: true, podeVerSistema: true, podeVerTarefasPessoais: true
   },
   'Coordenação': {
     ordem: 2,
     desc: 'Coordenação, recursos humanos e apoio à direcção. Vê todos os canais e gere pessoas e tarefas, sem mexer na configuração do servidor.',
     canais: '*', admin: 'sem-sistema',
-    podeGerirUtilizadores: true, podeVerSistema: false
+    podeGerirUtilizadores: true, podeVerSistema: false, podeVerTarefasPessoais: false
   },
   'Clínica': {
     ordem: 3,
     desc: 'Médicos, enfermagem e laboratório. Canais clínicos, escalas, farmácia, tarefas e calendário.',
     canais: [null, 'clinica', 'enfermagem', 'farmacia', 'escalas'], admin: null,
-    podeGerirUtilizadores: false, podeVerSistema: false
+    podeGerirUtilizadores: false, podeVerSistema: false, podeVerTarefasPessoais: false
   },
   'Operações': {
     ordem: 4,
     desc: 'Recepção, motorista e apoio geral. Canais de recepção e escalas, tarefas e calendário.',
     canais: [null, 'rececao', 'escalas'], admin: null,
-    podeGerirUtilizadores: false, podeVerSistema: false
+    podeGerirUtilizadores: false, podeVerSistema: false, podeVerTarefasPessoais: false
   }
 };
 /* Níveis da versão anterior, para não deixar ninguém de fora ao actualizar */
@@ -1219,7 +1219,7 @@ function bspCamadaBase(){
   const nomes = Object.keys(cs);
   if (!nomes.length) return 'Operações';
   const porOrdem = nomes.slice().sort((a, b) => (cs[b].ordem || 0) - (cs[a].ordem || 0));
-  const inofensivas = porOrdem.filter(x => !cs[x].podeGerirUtilizadores && !cs[x].podeVerSistema);
+  const inofensivas = porOrdem.filter(x => !cs[x].podeGerirUtilizadores && !cs[x].podeVerSistema && !cs[x].podeVerTarefasPessoais);
   return inofensivas.length ? inofensivas[0] : '\u0000sem-camada';
 }
 function bspCamadaNome(u){
@@ -1239,7 +1239,8 @@ const BSP_CAMADA_NULA = {
   canais: [],
   admin: null,
   podeGerirUtilizadores: false,
-  podeVerSistema: false
+  podeVerSistema: false,
+  podeVerTarefasPessoais: false
 };
 function bspCamada(u){
   const cs = bspCamadas();
@@ -4130,7 +4131,8 @@ function StoreProvider({
           canais: camada.canais === '*' ? '*' : (camada.canais || []),
           admin: camada.podeVerSistema ? 'total' : camada.podeGerirUtilizadores ? 'sem-sistema' : null,
           podeGerirUtilizadores: !!camada.podeGerirUtilizadores,
-          podeVerSistema: !!camada.podeVerSistema
+          podeVerSistema: !!camada.podeVerSistema,
+          podeVerTarefasPessoais: !!camada.podeVerTarefasPessoais
         };
         /* Ao mudar o nome, os utilizadores tem de o acompanhar: o
            accessLevel guarda o nome, nao um identificador. */
@@ -9673,6 +9675,12 @@ function TaskComposer({
   const [prio, setPrio] = React.useState('media');
   const [who, setWho] = React.useState([]);
   const [pessoal, setPessoal] = React.useState(false);
+  /* Quem escreve tem de saber quem pode ler. Lido das camadas vivas, para
+     o aviso acompanhar o que estiver ligado em Admin -> Permissões. */
+  const camadasQueVeem = React.useMemo(() => {
+    const cs = bspCamadas();
+    return Object.keys(cs).filter(k => cs[k].podeVerTarefasPessoais);
+  }, []);
   React.useEffect(() => {
     if (open) {
       setTitle(editTask ? editTask.title : '');
@@ -9773,7 +9781,9 @@ function TaskComposer({
       marginTop: 2
     }
   }, pessoal
-    ? 'Fica guardada em seu nome. Ninguém mais a vê, nem a direcção — nem sequer chega aos aparelhos dos outros.'
+    ? (camadasQueVeem.length
+        ? 'Fica guardada em seu nome e sai do quadro da equipa. ' + (camadasQueVeem.length === 1 ? 'A camada ' : 'As camadas ') + camadasQueVeem.join(' e ') + (camadasQueVeem.length === 1 ? ' pode lê-la.' : ' podem lê-la.')
+        : 'Fica guardada em seu nome. Ninguém mais a vê — nem sequer chega aos aparelhos dos outros.')
     : 'Todos os colegas vêem esta tarefa no quadro da equipa.'))), React.createElement("div", null, React.createElement("label", {
     style: {
       fontSize: 12,
@@ -9903,7 +9913,9 @@ function useTarefasPessoais() {
           setEstado(/relation|does not exist|schema cache/i.test(r.error.message || '') ? 'sem-tabela' : 'erro');
           return;
         }
-        /* O RLS ja limita as linhas ao dono; nao ha nada a filtrar aqui. */
+        /* O RLS decide o que chega: quem tem a permissão recebe as de
+           todos, quem não tem recebe só as suas. Não há nada a filtrar
+           aqui — filtrar no cliente seria a fechadura no sítio errado. */
         setTarefas(r.data || []);
         setEstado('pronto');
       } catch (e) {
@@ -9949,10 +9961,14 @@ function useTarefasPessoais() {
     const b = { todo: [], doing: [], review: [], done: [] };
     tarefas.forEach(t => {
       const c = b[t.coluna] ? t.coluna : 'todo';
+      const meu = t.user_id === window.CURRENT_USER_ID;
       b[c].push({
         id: 'p' + t.id,
         idReal: t.id,
         pessoal: true,
+        /* Quando não é minha, é porque a minha camada pode ver as dos
+           outros. Mostrar de quem é, senão aparecia uma tarefa sem dono. */
+        dono: meu ? null : (window.userById(t.user_id) || {}).name || 'Colega',
         title: t.titulo,
         priority: t.prioridade,
         due: t.prazo || '',
@@ -9973,6 +9989,7 @@ function TasksScreen() {
     actions
   } = useStore();
   const pess = useTarefasPessoais();
+  const toast = useToast();
   const [verPessoais, setVerPessoais] = React.useState(true);
   /* Junta as duas origens numa vista só. As pessoais vêm de uma tabela que
      o servidor só mostra ao dono; as da equipa, do estado partilhado. */
@@ -10020,8 +10037,17 @@ function TasksScreen() {
       reset();
       return;
     }
-    if (ePessoal(dragId)) pess.mover(idReal(dragId), toCol);
-    else actions.moveTask(dragFrom, toCol, dragId);
+    if (ePessoal(dragId)) {
+      const t = (board[dragFrom] || []).find(x => x.id === dragId);
+      /* Só o dono mexe. O servidor recusaria de qualquer forma; travar
+         aqui evita que pareça avariado. */
+      if (t && t.dono) {
+        toast('A tarefa pessoal de ' + t.dono + ' só pode ser movida por ' + String(t.dono).split(' ')[0] + '.');
+        reset();
+        return;
+      }
+      pess.mover(idReal(dragId), toCol);
+    } else actions.moveTask(dragFrom, toCol, dragId);
     reset();
   }
   function reset() {
@@ -10033,8 +10059,14 @@ function TasksScreen() {
     const idx = order.indexOf(fromCol);
     const to = order[idx + dir];
     if (!to) return;
-    if (ePessoal(taskId)) pess.mover(idReal(taskId), to);
-    else actions.moveTask(fromCol, to, taskId);
+    if (ePessoal(taskId)) {
+      const t = (board[fromCol] || []).find(x => x.id === taskId);
+      if (t && t.dono) {
+        toast('A tarefa pessoal de ' + t.dono + ' só pode ser movida por ' + String(t.dono).split(' ')[0] + '.');
+        return;
+      }
+      pess.mover(idReal(taskId), to);
+    } else actions.moveTask(fromCol, to, taskId);
   }
   return React.createElement("div", {
     style: {
@@ -10286,7 +10318,11 @@ function TasksScreen() {
     canNext: ci < cols.length - 1,
     onPrev: () => move(c.id, tk.id, -1),
     onNext: () => move(c.id, tk.id, 1),
-    onDelete: () => ePessoal(tk.id) ? pess.apagar(idReal(tk.id)) : actions.deleteTask(c.id, tk.id),
+    onDelete: () => {
+      if (!ePessoal(tk.id)) return actions.deleteTask(c.id, tk.id);
+      if (tk.dono) return toast('A tarefa pessoal de ' + tk.dono + ' só pode ser apagada por quem a escreveu.');
+      pess.apagar(idReal(tk.id));
+    },
     onEdit: () => setComposer({
       open: true,
       col: c.id,
@@ -10377,7 +10413,7 @@ function TaskCard({
       background: prioMeta.c
     }
   }), prioMeta.l.toUpperCase()), t.pessoal && React.createElement("span", {
-    title: "Só você vê esta tarefa",
+    title: t.dono ? ('Tarefa pessoal de ' + t.dono) : 'Só você vê esta tarefa',
     style: {
       display: 'inline-flex',
       alignItems: 'center',
@@ -10393,7 +10429,7 @@ function TaskCard({
     }
   }, React.createElement(I.Lock, {
     size: 10
-  }), "SÓ EU"), (t.tags || []).slice(0, 2).map(tag => React.createElement(Badge, {
+  }), t.dono ? String(t.dono).split(' ')[0].toUpperCase() : "SÓ EU"), (t.tags || []).slice(0, 2).map(tag => React.createElement(Badge, {
     key: tag,
     tone: tagColors[tag] || 'default',
     size: "xs"
@@ -12711,6 +12747,7 @@ function CamadaModal({
   const [depts, setDepts] = React.useState([]);
   const [gerir, setGerir] = React.useState(false);
   const [sistema, setSistema] = React.useState(false);
+  const [verPessoais, setVerPessoais] = React.useState(false);
   const [erro, setErro] = React.useState('');
   /* Departamentos reais, incluindo o null dos canais abertos a todos. */
   const todosCanais = CHANNELS.concat(state.extraChannels || []);
@@ -12731,6 +12768,7 @@ function CamadaModal({
     setDepts(existente && existente.canais !== '*' ? (existente.canais || []).slice() : [null]);
     setGerir(existente ? !!existente.podeGerirUtilizadores : false);
     setSistema(existente ? !!existente.podeVerSistema : false);
+    setVerPessoais(existente ? !!existente.podeVerTarefasPessoais : false);
   }, [open, nome]);
   const alternar = d => setDepts(v => v.indexOf(d) === -1 ? v.concat([d]) : v.filter(x => x !== d));
   const guardar = () => {
@@ -12742,7 +12780,8 @@ function CamadaModal({
       podeGerirUtilizadores: gerir,
       /* Configurar o servidor implica gerir pessoas: uma camada que mexe na
          ligacao mas nao vê os utilizadores seria uma armadilha. */
-      podeVerSistema: sistema && gerir
+      podeVerSistema: sistema && gerir,
+      podeVerTarefasPessoais: verPessoais
     });
     if (e) {
       setErro(e);
@@ -12898,7 +12937,26 @@ function CamadaModal({
       fontSize: 11.5,
       color: 'var(--text-3)'
     }
-  }, gerir ? "Ligação ao Supabase, cópia de segurança, camadas de acesso." : "Requer “Gerir utilizadores”."))))), React.createElement(FormField, {
+  }, gerir ? "Ligação ao Supabase, cópia de segurança, camadas de acesso." : "Requer “Gerir utilizadores”."))), React.createElement("label", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 9,
+      fontSize: 13,
+      color: 'var(--text-1)',
+      cursor: 'pointer'
+    }
+  }, React.createElement("input", {
+    type: "checkbox",
+    checked: verPessoais,
+    onChange: e => setVerPessoais(e.target.checked)
+  }), React.createElement("span", null, "Ver as tarefas pessoais de todos", React.createElement("span", {
+    style: {
+      display: 'block',
+      fontSize: 11.5,
+      color: 'var(--text-3)'
+    }
+  }, "Quem marcar uma tarefa como pessoal é avisado, no momento em que a escreve, de que esta camada a pode ler."))))), React.createElement(FormField, {
     label: "Ordem na lista",
     hint: "1 é a camada de maior privilégio. Quem ficar sem camada recai na de número mais alto."
   }, React.createElement(TextInput, {
@@ -12951,6 +13009,7 @@ function AdminRoles() {
       const perms = nomesCanais(c).slice();
       if (c.podeGerirUtilizadores) perms.push('Gerir utilizadores');
       if (c.podeVerSistema) perms.push('Configurar servidor');
+      if (c.podeVerTarefasPessoais) perms.push('Ver tarefas pessoais');
       return {
         name: nome,
         desc: c.desc,
