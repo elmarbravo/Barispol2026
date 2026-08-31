@@ -5165,7 +5165,8 @@ function TopicoPanel({
       right: 0,
       bottom: 0,
       width: movel ? '100%' : 380,
-      zIndex: 90,
+      /* Era 90: em ecrã cheio no telemóvel ficava por baixo da navegação. */
+      zIndex: 955,
       background: 'var(--surface)',
       borderLeft: '1px solid var(--border)',
       boxShadow: '0 0 48px rgba(0,0,0,.25)',
@@ -13374,7 +13375,8 @@ function AlterarSenha({
     style: {
       position: 'fixed',
       inset: 0,
-      zIndex: 130,
+      /* Era 130: ficava escondido atras da navegacao movel (900). */
+      zIndex: 956,
       background: 'rgba(0,0,0,.45)',
       display: 'flex',
       alignItems: 'center',
@@ -14013,7 +14015,9 @@ function ChamadaView() {
     style: {
       position: 'fixed',
       inset: 0,
-      zIndex: 130,
+      /* Acima da barra de navegação móvel (900) e do painel "Mais" (950),
+         ambos definidos no bloco CSS lá em cima. */
+      zIndex: 960,
       background: '#0b1220',
       display: 'flex',
       flexDirection: 'column'
@@ -14023,11 +14027,13 @@ function ChamadaView() {
   React.createElement("div", {
     style: {
       flex: 'none',
-      height: 56,
+      /* O box-sizing e border-box, portanto a altura minima tem de incluir
+         a margem do entalhe — senao num iPhone sobravam 9px para o texto. */
+      minHeight: 'calc(56px + env(safe-area-inset-top))',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: '0 18px',
+      padding: 'env(safe-area-inset-top) 18px 0',
       background: '#002060',
       color: '#fff'
     }
@@ -14114,7 +14120,9 @@ function ChamadaView() {
   React.createElement("div", {
     style: {
       flex: 'none',
-      padding: '18px 0 26px',
+      /* Sem a margem de segurança, os botões ficam por baixo da barra do
+         Safari no iPhone e do indicador de início. */
+      padding: '18px 0 calc(26px + env(safe-area-inset-bottom))',
       display: 'flex',
       justifyContent: 'center',
       gap: 16,
@@ -14161,11 +14169,11 @@ function ChamadaRecebida() {
     style: {
       position: 'fixed',
       inset: 0,
-      zIndex: 140,
+      zIndex: 970,
       background: 'rgba(6,10,20,.72)',
       display: 'grid',
       placeItems: 'center',
-      padding: 18
+      padding: '18px 18px calc(18px + env(safe-area-inset-bottom))'
     }
   }, React.createElement("div", {
     style: {
@@ -14240,8 +14248,8 @@ function ChamadaErro() {
       position: 'fixed',
       left: '50%',
       transform: 'translateX(-50%)',
-      bottom: 24,
-      zIndex: 150,
+      bottom: 'calc(24px + env(safe-area-inset-bottom))',
+      zIndex: 980,
       maxWidth: 460,
       cursor: 'pointer',
       background: 'var(--surface)',
