@@ -2,6 +2,7 @@
 <html lang="pt"><head>
 <meta charset="UTF-8">
 <meta name="robots" content="noindex,nofollow">
+<script src="servidor.js"></script>
 <script src="vendor/supabase.js"></script>
 <script>
 /* Saída de emergência: abrir o site com #reset (ou ?reset) limpa a ligação ao servidor. */
@@ -2997,15 +2998,66 @@ function bspEmailWrap(title, body) {
   return '<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden">' + '<div style="background:#002060;color:#fff;padding:16px 20px;font-size:16px;font-weight:bold">Centro Médico Barispol — Workspace</div>' + '<div style="padding:20px;color:#0F172A"><h2 style="margin:0 0 10px;font-size:17px">' + title + '</h2>' + '<p style="margin:0;font-size:14px;line-height:1.6;color:#475569">' + body + '</p>' + '<p style="margin:18px 0 0;font-size:12px;color:#94A3B8">Abra o Workspace para responder. Este é um aviso automático.</p></div></div>';
 }
 let __bspClient = null;
+/* A ligacao ao servidor vem do servidor.js, definido uma vez para toda a
+   gente. Quem abrir o site entra ja ligado, sem escrever endereco nem
+   chave — era esse o passo que travava cada aparelho novo.
+
+   O que estiver guardado neste aparelho continua a mandar, para quem
+   precisar de apontar para outro servidor sem mexer no ficheiro. Abrir o
+   site com #reset limpa essa escolha e devolve o valor comum. */
 function bspGetCfg() {
   try {
-    return JSON.parse(localStorage.getItem('bsp_supabase_cfg') || 'null');
-  } catch (e) {
-    return null;
-  }
+    const guardado = JSON.parse(localStorage.getItem('bsp_supabase_cfg') || 'null');
+    if (guardado && guardado.url && guardado.key) return guardado;
+  } catch (e) {}
+  try {
+    const comum = window.BSP_SERVIDOR;
+    if (comum && comum.url && comum.key) return {
+      url: String(comum.url).trim().replace(/\/+$/, ''),
+      key: String(comum.key).trim()
+    };
+  } catch (e) {}
+  return null;
 }
 function bspSecureMode() {
   return true;
+}
+/* Cria ou actualiza o login de alguem. Tem de passar pela funcao no
+   servidor: criar contas exige a chave service_role, que contorna todas as
+   regras e por isso nunca pode estar aqui no navegador.
+   Devolve null se correu bem, ou a frase a explicar o que falhou. */
+async function bspGerirLogin(email, password, apagar) {
+  const cfg = bspGetCfg();
+  const cl = bspGetClient();
+  if (!cfg || !cl) return 'O servidor não está ligado.';
+  let testemunho = '';
+  try {
+    const {
+      data
+    } = await cl.auth.getSession();
+    testemunho = data && data.session && data.session.access_token || '';
+  } catch (e) {}
+  if (!testemunho) return 'A sua sessão expirou. Volte a entrar.';
+  try {
+    const r = await fetch(cfg.url.replace(/\/$/, '') + '/functions/v1/criar-utilizador', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + testemunho
+      },
+      body: JSON.stringify({
+        email: email,
+        password: password || '',
+        apagar: !!apagar
+      })
+    });
+    if (r.status === 404) return 'A função “criar-utilizador” ainda não existe no Supabase. Veja funcoes/criar-utilizador/index.ts no repositório.';
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return j.erro || ('O servidor respondeu ' + r.status + '.');
+    return null;
+  } catch (e) {
+    return 'Não foi possível falar com o servidor.';
+  }
 }
 function bspGetClient() {
   if (__bspClient) return __bspClient;
@@ -12012,9 +12064,29 @@ function AdminUserModal({
       setSemCanais(user && user.semCanais || []);
     }
   }, [open, user]);
-  function save() {
+  const [aGuardar, setAGuardar] = React.useState(false);
+  const [aviso, setAviso] = React.useState('');
+  async function save() {
     if (!nome.trim()) return;
     if (!isEdit && !email.trim()) return;
+    setAviso('');
+    /* A palavra-passe era recolhida e deitada fora: quem fosse acrescentado
+       ficava no directório e não conseguia entrar. Agora cria a conta a
+       sério, e só grava no directório se isso correr bem — senão ficava uma
+       pessoa listada que nunca poderia entrar. */
+    if (email.trim() && (pass.trim() || !isEdit)) {
+      if (pass.trim().length < 8) {
+        setAviso('A palavra-passe deve ter pelo menos 8 caracteres.');
+        return;
+      }
+      setAGuardar(true);
+      const erro = await bspGerirLogin(email.trim().toLowerCase(), pass.trim(), false);
+      setAGuardar(false);
+      if (erro) {
+        setAviso(erro);
+        return;
+      }
+    }
     const m = {
       id: isEdit ? user.id : 'u' + Date.now(),
       name: nome.trim(),
@@ -12045,8 +12117,8 @@ function AdminUserModal({
     }, "Cancelar"), React.createElement(Button, {
       variant: "primary",
       size: "sm",
-      onClick: save
-    }, isEdit ? 'Guardar alterações' : 'Criar utilizador'))
+      onClick: aGuardar ? undefined : save
+    }, aGuardar ? 'A criar a conta…' : isEdit ? 'Guardar alterações' : 'Criar utilizador'))
   }, React.createElement("div", {
     style: {
       padding: 20,
@@ -12054,7 +12126,18 @@ function AdminUserModal({
       flexDirection: 'column',
       gap: 14
     }
-  }, React.createElement("div", {
+  }, aviso && React.createElement("div", {
+    style: {
+      background: 'rgba(220,38,38,.08)',
+      border: '1px solid rgba(220,38,38,.35)',
+      borderLeft: '3px solid #DC2626',
+      borderRadius: 8,
+      padding: '10px 12px',
+      fontSize: 12.5,
+      lineHeight: 1.5,
+      color: 'var(--text-1)'
+    }
+  }, aviso), React.createElement("div", {
     className: "bsp-grid2",
     style: {
       display: 'grid',
@@ -12073,7 +12156,15 @@ function AdminUserModal({
     value: email,
     onChange: setEmail,
     placeholder: "nome@barispol.com"
-  }))), React.createElement("div", {
+  }))), React.createElement(FormField, {
+    label: isEdit ? 'Definir nova palavra-passe' : 'Palavra-passe de entrada',
+    hint: isEdit ? 'Deixe vazio para não mexer na palavra-passe desta pessoa.' : 'Mínimo 8 caracteres. É com esta que a pessoa entra pela primeira vez; pode mudá-la depois no menu da conta.'
+  }, React.createElement(TextInput, {
+    type: "password",
+    value: pass,
+    onChange: setPass,
+    placeholder: isEdit ? 'Sem alteração' : 'Pelo menos 8 caracteres'
+  })), React.createElement("div", {
     className: "bsp-grid2",
     style: {
       display: 'grid',
@@ -12255,7 +12346,7 @@ function AdminUsers() {
     onClose: () => setModal(null),
     onSave: m => {
       actions.upsertTeamMember(m);
-      toast(m.id && modal && modal.id ? 'Utilizador atualizado.' : 'Utilizador criado — já pode entrar com o e-mail e palavra-passe definidos.');
+      toast(m.id && modal && modal.id ? 'Utilizador actualizado.' : 'Utilizador criado. Já pode entrar com o e-mail e a palavra-passe definidos.');
     }
   }), React.createElement("div", {
     style: {

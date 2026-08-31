@@ -13,6 +13,8 @@ const DESTINO = path.join(__dirname, 'www');
    pastas assets/, images/ e media/ pertencem ao sítio público e ficam de
    fora, senão a app levava 4 MB de fotografias que nunca mostra. */
 const FICHEIROS = ['workspace.html'];
+/* O servidor.js leva a ligacao comum; sem ele a app pedia-a outra vez. */
+const SOLTOS = ['servidor.js'];
 const PASTAS = ['vendor'];
 
 function limpar(dir) {
@@ -43,6 +45,10 @@ for (const f of FICHEIROS) {
   total++;
 }
 for (const p of PASTAS) total += copiarPasta(path.join(RAIZ, p), path.join(DESTINO, p));
+for (const f of SOLTOS) {
+  const de = path.join(RAIZ, f);
+  if (fs.existsSync(de)) { fs.copyFileSync(de, path.join(DESTINO, f)); total++; }
+}
 
 /* Numa app instalada nao faz sentido pedir ao utilizador o endereco e a
    chave do servidor: isso e configuracao de quem monta, nao de quem usa.
