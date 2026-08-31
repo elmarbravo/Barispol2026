@@ -1742,7 +1742,11 @@ function Avatar({
   if (!user) return null;
   const [bg, fg] = toneFor(user.id);
   const fs = Math.round(size * 0.38);
-  const s = STATUS_META[user.status] || STATUS_META.offline;
+  let estado = user.status;
+  if (window.__bspOnline && user.id !== window.CURRENT_USER_ID) {
+    estado = window.__bspOnline.indexOf(user.id) !== -1 ? 'online' : 'offline';
+  }
+  const s = STATUS_META[estado] || STATUS_META.offline;
   const dot = Math.max(8, Math.round(size * 0.28));
   return React.createElement("span", {
     style: {
@@ -2521,7 +2525,31 @@ function Sidebar({
       textOverflow: 'ellipsis',
       whiteSpace: 'nowrap'
     }
-  }, currentUser.role))), !collapsed && React.createElement("button", {
+  }, currentUser.role))), !collapsed && React.createElement(MenuConta, {
+    sFg: sFg
+  })));
+}
+function MenuConta({
+  sFg
+}) {
+  const [aberto, setAberto] = React.useState(false);
+  function sair() {
+    try {
+      const c = bspGetClient();
+      if (c) c.auth.signOut();
+    } catch (e) {}
+    try {
+      setTimeout(() => window.location.reload(), 250);
+    } catch (e) {}
+  }
+  return React.createElement("span", {
+    style: {
+      position: 'relative',
+      display: 'inline-flex'
+    }
+  }, React.createElement("button", {
+    onClick: () => setAberto(a => !a),
+    title: "Conta",
     style: {
       background: 'transparent',
       border: 'none',
@@ -2533,7 +2561,41 @@ function Sidebar({
   }, React.createElement(I.Cog, {
     size: 16,
     stroke: sFg
-  }))));
+  })), aberto && React.createElement("div", {
+    style: {
+      position: 'absolute',
+      bottom: 30,
+      right: 0,
+      zIndex: 80,
+      width: 232,
+      background: 'var(--surface)',
+      border: '1px solid var(--border)',
+      borderRadius: 12,
+      boxShadow: '0 10px 30px rgba(0,0,0,.25)',
+      padding: 10
+    }
+  }, React.createElement(AlterarSenha, null), React.createElement("button", {
+    onClick: sair,
+    style: {
+      marginTop: 8,
+      width: '100%',
+      padding: '10px 12px',
+      borderRadius: 10,
+      border: '1px solid var(--border)',
+      background: 'transparent',
+      cursor: 'pointer',
+      fontFamily: 'inherit',
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: 'var(--text-2)',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 7
+    }
+  }, React.createElement(I.Logout, {
+    size: 13
+  }), " Terminar sess\u00e3o")));
 }
 function Topbar({
   current,
@@ -2950,7 +3012,12 @@ function StoreProvider({
   const syncRef = React.useRef({
     client: null,
     seen: new Set(),
-    ch: null
+    ch: null,
+    poll: null,
+    maxId: 0,
+    maxPost: 0,
+    stateTs: '',
+    myCids: new Set()
   });
   const lastPushedRef = React.useRef('');
   React.useEffect(() => {
@@ -3057,8 +3124,21 @@ function StoreProvider({
       if (!m || m.user_id === window.CURRENT_USER_ID) return;
       const u = window.userById(m.user_id);
       const name = u ? u.name : 'Colega';
-      const isDm = String(m.conv_key || '').startsWith('dm-');
-      const where = isDm ? 'mensagem direta' : 'em #' + String(m.conv_key || '').replace('c-', '');
+      /* Nos tópicos, a regra de quem pode ver é a da conversa-mãe. */
+      let chave = String(m.conv_key || '');
+      const emTopico = chave.indexOf('th~') === 0;
+      if (emTopico) chave = chave.split('~')[1] || chave;
+      const isDm = chave.startsWith('dm-');
+      /* Só avisa do que a pessoa pode ver: as directas dos outros e os canais fora da camada ficam de fora. */
+      if (isDm) {
+        const par = chave.slice(3).split('_');
+        if (par.indexOf(window.CURRENT_USER_ID) === -1) return;
+      } else {
+        const cn = (window.CHANNELS || []).find(c => c.id === chave);
+        const eu = window.userById && window.userById(window.CURRENT_USER_ID);
+        if (cn && eu && !bspVeCanal(eu, cn)) return;
+      }
+      const where = (emTopico ? 'num tópico ' : '') + (isDm ? 'mensagem direta' : 'em #' + chave.replace('c-', ''));
       setState(s => pushNotif(s, {
         type: 'message',
         userId: m.user_id,
@@ -3080,6 +3160,9 @@ function StoreProvider({
     };
     const applyState = row => {
       if (!row) return;
+      try {
+        if (row.updated_at) syncRef.current.stateTs = row.updated_at;
+      } catch (e) {}
       setState(s => {
         const tasks = row.tasks || s.tasks;
         const events = row.events || s.todayEvents;
@@ -3115,8 +3198,106 @@ function StoreProvider({
         };
       });
     };
+    const seenP = new Set();
+    const aplicarReaccao = m => {
+      try {
+        const partes = String(m.text).split('\u200b');
+        const sid = parseInt(partes[2], 10);
+        const emoji = partes[3];
+        if (!sid || !emoji) return;
+        setState(s => {
+          const arr = s.channelMessages[m.conv_key];
+          if (!arr) return s;
+          return {
+            ...s,
+            channelMessages: {
+              ...s.channelMessages,
+              [m.conv_key]: arr.map(x => {
+                if (x.sid !== sid) return x;
+                const list = [...(x.reactions || [])];
+                const idx = list.findIndex(r => r.e === emoji);
+                if (idx >= 0) list[idx] = {
+                  ...list[idx],
+                  n: list[idx].n + 1
+                };
+                else list.push({
+                  e: emoji,
+                  n: 1
+                });
+                return {
+                  ...x,
+                  reactions: list
+                };
+              })
+            }
+          };
+        });
+      } catch (e) {}
+    };
+    const ingest = (m, silencioso) => {
+      if (!m || m.id == null) return;
+      if (seen.has(m.id)) {
+        addMsg(m);
+        return;
+      }
+      seen.add(m.id);
+      if (m.id > (syncRef.current.maxId || 0)) syncRef.current.maxId = m.id;
+      if (String(m.text || '').indexOf('\u200bl\u200b') === 0) {
+        const sidL = parseInt(String(m.text).split('\u200b')[2], 10);
+        if (sidL) setState(s => {
+          const lv = {
+            ...(s.leituras || {})
+          };
+          const conv = {
+            ...(lv[m.conv_key] || {})
+          };
+          if (!conv[m.user_id] || conv[m.user_id] < sidL) conv[m.user_id] = sidL;
+          lv[m.conv_key] = conv;
+          return {
+            ...s,
+            leituras: lv
+          };
+        });
+        return;
+      }
+      if (String(m.text || '').indexOf('\u200br\u200b') === 0) {
+        if (!(m.cid && syncRef.current.myCids.has(m.cid))) aplicarReaccao(m);
+        return;
+      }
+      addMsg(m);
+      if (!silencioso) notifMsg(m);
+    };
+    const ingestPost = (p, silencioso) => {
+      if (!p || p.id == null || seenP.has(p.id)) return;
+      seenP.add(p.id);
+      if (p.id > (syncRef.current.maxPost || 0)) syncRef.current.maxPost = p.id;
+      addPost(p);
+      if (!silencioso) notifPost(p);
+    };
     (async () => {
       try {
+        /* Sem sessão iniciada as regras da base de dados não deixam ler nada.
+           Espera aqui pelo início de sessão antes de carregar e subscrever. */
+        let sess = null;
+        while (!cancelled) {
+          try {
+            const r = await client.auth.getSession();
+            sess = r && r.data && r.data.session;
+          } catch (e) {}
+          if (sess) break;
+          await new Promise(res => setTimeout(res, 1200));
+        }
+        if (cancelled) return;
+        try {
+          client.realtime.setAuth(sess.access_token);
+        } catch (e) {}
+        try {
+          client.auth.onAuthStateChange((ev2, s2) => {
+            try {
+              if (s2 && s2.access_token) client.realtime.setAuth(s2.access_token);
+            } catch (e) {}
+          });
+        } catch (e) {}
         const {
           data: msgs,
           error: e1
@@ -3124,10 +3305,7 @@ function StoreProvider({
           ascending: true
         }).limit(2000);
         if (e1) throw e1;
-        if (!cancelled && msgs) msgs.forEach(m => {
-          seen.add(m.id);
-          addMsg(m);
-        });
+        if (!cancelled && msgs) msgs.forEach(m => ingest(m, true));
         const {
           data: posts,
           error: e2
@@ -3135,7 +3313,7 @@ function StoreProvider({
           ascending: false
         }).limit(500);
         if (e2) throw e2;
-        if (!cancelled && posts) posts.slice().reverse().forEach(p => addPost(p));
+        if (!cancelled && posts) posts.slice().reverse().forEach(p => ingestPost(p, true));
         try {
           const {
             data: ss
@@ -3147,10 +3325,7 @@ function StoreProvider({
           event: 'INSERT',
           schema: 'public',
           table: 'messages'
-        }, payload => {
-          addMsg(payload.new);
-          notifMsg(payload.new);
-        }).on('postgres_changes', {
+        }, payload => ingest(payload.new)).on('postgres_changes', {
           event: 'DELETE',
           schema: 'public',
           table: 'messages'
@@ -3172,10 +3347,7 @@ function StoreProvider({
           event: 'INSERT',
           schema: 'public',
           table: 'posts'
-        }, payload => {
-          addPost(payload.new);
-          notifPost(payload.new);
-        }).on('postgres_changes', {
+        }, payload => ingestPost(payload.new)).on('postgres_changes', {
           event: 'DELETE',
           schema: 'public',
           table: 'posts'
@@ -3191,6 +3363,60 @@ function StoreProvider({
           table: 'shared_state'
         }, payload => applyState(payload.new)).subscribe();
         syncRef.current.ch = ch;
+        /* Presença real: cada sessão anuncia-se e todos vêem quem está online agora. */
+        try {
+          const pch = client.channel('bsp-presenca', {
+            config: {
+              presence: {
+                key: window.CURRENT_USER_ID
+              }
+            }
+          });
+          pch.on('presence', {
+            event: 'sync'
+          }, () => {
+            try {
+              window.__bspOnline = Object.keys(pch.presenceState() || {});
+              setState(s => ({
+                ...s,
+                presTick: (s.presTick || 0) + 1
+              }));
+            } catch (e) {}
+          }).subscribe(st => {
+            if (st === 'SUBSCRIBED') {
+              try {
+                pch.track({
+                  id: window.CURRENT_USER_ID,
+                  t: Date.now()
+                });
+              } catch (e) {}
+            }
+          });
+          syncRef.current.pch = pch;
+        } catch (e) {}
+        /* A rede móvel cai e volta: além do tempo real, um verificador de
+           10 em 10 segundos garante que nenhuma mensagem fica para trás. */
+        syncRef.current.poll = setInterval(async () => {
+          try {
+            if (cancelled || document.hidden) return;
+            const {
+              data: novas
+            } = await client.from('messages').select('*').gt('id', syncRef.current.maxId || 0).order('id', {
+              ascending: true
+            }).limit(200);
+            if (novas) novas.forEach(m => ingest(m));
+            const {
+              data: novosPosts
+            } = await client.from('posts').select('*').gt('id', syncRef.current.maxPost || 0).order('id', {
+              ascending: true
+            }).limit(100);
+            if (novosPosts) novosPosts.forEach(p => ingestPost(p));
+            const {
+              data: ss2
+            } = await client.from('shared_state').select('*').eq('id', 1).maybeSingle();
+            if (ss2 && ss2.updated_at && ss2.updated_at !== syncRef.current.stateTs) applyState(ss2);
+          } catch (e) {}
+        }, 10000);
         setSync({
           status: 'live',
           error: ''
@@ -3205,7 +3431,13 @@ function StoreProvider({
     return () => {
       cancelled = true;
       try {
+        if (syncRef.current.poll) clearInterval(syncRef.current.poll);
+      } catch (e) {}
+      try {
         client.removeChannel(syncRef.current.ch);
+      } catch (e) {}
+      try {
+        if (syncRef.current.pch) client.removeChannel(syncRef.current.pch);
       } catch (e) {}
       syncRef.current.client = null;
     };
@@ -3488,6 +3720,77 @@ function StoreProvider({
         }
       } catch (e) {}
     },
+    marcarLido: (convKey, sid) => {
+      const cl = syncRef.current && syncRef.current.client;
+      if (sid && cl) {
+        try {
+          cl.from('messages').delete().eq('conv_key', convKey).eq('user_id', window.CURRENT_USER_ID).like('text', '\u200bl\u200b%').then(() => {
+            cl.from('messages').insert({
+              conv_key: convKey,
+              user_id: window.CURRENT_USER_ID,
+              text: '\u200bl\u200b' + sid,
+              cid: 'l' + Date.now()
+            }).then(() => {}, () => {});
+          }, () => {});
+        } catch (e) {}
+      }
+      setState(s => {
+        const lv = {
+          ...(s.leituras || {})
+        };
+        const conv = {
+          ...(lv[convKey] || {})
+        };
+        conv[window.CURRENT_USER_ID] = sid;
+        lv[convKey] = conv;
+        return {
+          ...s,
+          leituras: lv
+        };
+      });
+    },
+    reagirMensagem: (convKey, msgId, emoji) => setState(s => {
+      const arr = s.channelMessages[convKey] || [];
+      const alvo = arr.find(x => x.id === msgId);
+      const cl = syncRef.current && syncRef.current.client;
+      if (alvo && alvo.sid && cl) {
+        const cid = 'r' + Date.now() + Math.floor(Math.random() * 999);
+        try {
+          syncRef.current.myCids.add(cid);
+        } catch (e) {}
+        try {
+          cl.from('messages').insert({
+            conv_key: convKey,
+            user_id: window.CURRENT_USER_ID,
+            text: '\u200br\u200b' + alvo.sid + '\u200b' + emoji,
+            cid
+          }).then(() => {}, () => {});
+        } catch (e) {}
+      }
+      return {
+        ...s,
+        channelMessages: {
+          ...s.channelMessages,
+          [convKey]: arr.map(m => {
+            if (m.id !== msgId) return m;
+            const list = [...(m.reactions || [])];
+            const idx = list.findIndex(r => r.e === emoji);
+            if (idx >= 0) list[idx] = {
+              ...list[idx],
+              n: list[idx].n + 1
+            };
+            else list.push({
+              e: emoji,
+              n: 1
+            });
+            return {
+              ...m,
+              reactions: list
+            };
+          })
+        }
+      };
+    }),
     deleteMessage: (convKey, msgId) => setState(s => {
       const arr = s.channelMessages[convKey] || [];
       const m = arr.find(x => x.id === msgId);
@@ -4821,6 +5124,270 @@ Object.assign(window, {
   LoginScreen,
   DashboardScreen
 });
+function TopicoPanel({
+  thread,
+  currentUser,
+  onClose
+}) {
+  const {
+    state,
+    actions
+  } = useStore();
+  const [texto, setTexto] = React.useState('');
+  const fimRef = React.useRef(null);
+  if (!thread) return null;
+  const tKey = 'th~' + thread.convKey + '~' + thread.sid;
+  const msgs = state.channelMessages[tKey] || [];
+  function enviar() {
+    const t = texto.trim();
+    if (!t) return;
+    actions.sendMessage(tKey, {
+      userId: currentUser.id,
+      text: t
+    });
+    setTexto('');
+  }
+  const movel = typeof window !== 'undefined' && window.innerWidth < 820;
+  return React.createElement("div", {
+    style: {
+      position: 'fixed',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      width: movel ? '100%' : 380,
+      zIndex: 90,
+      background: 'var(--surface)',
+      borderLeft: '1px solid var(--border)',
+      boxShadow: '0 0 48px rgba(0,0,0,.25)',
+      display: 'flex',
+      flexDirection: 'column'
+    }
+  }, React.createElement("div", {
+    style: {
+      height: 54,
+      flex: 'none',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '0 16px',
+      borderBottom: '1px solid var(--border)'
+    }
+  }, React.createElement("strong", {
+    style: {
+      fontSize: 14,
+      color: 'var(--text-1)'
+    }
+  }, "T\u00f3pico"), React.createElement("button", {
+    onClick: onClose,
+    style: {
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+      color: 'var(--text-2)',
+      padding: 4
+    }
+  }, React.createElement(I.X, {
+    size: 16
+  }))), React.createElement("div", {
+    style: {
+      padding: '12px 16px',
+      borderBottom: '1px solid var(--border)',
+      background: 'var(--surface-2)',
+      fontSize: 12.5,
+      color: 'var(--text-2)',
+      lineHeight: 1.5
+    }
+  }, React.createElement("strong", {
+    style: {
+      color: 'var(--text-1)'
+    }
+  }, thread.autor), ": ", String(thread.texto || '').slice(0, 140)), React.createElement("div", {
+    style: {
+      flex: 1,
+      overflow: 'auto',
+      padding: '14px 16px'
+    }
+  }, msgs.length === 0 && React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: 'var(--text-3)'
+    }
+  }, "Ainda sem respostas. Comece o t\u00f3pico abaixo."), msgs.map(mm => {
+    const uu = window.userById(mm.userId);
+    return React.createElement("div", {
+      key: mm.id,
+      style: {
+        display: 'flex',
+        gap: 10,
+        marginBottom: 12
+      }
+    }, React.createElement(Avatar, {
+      user: uu,
+      size: 26
+    }), React.createElement("div", {
+      style: {
+        minWidth: 0
+      }
+    }, React.createElement("div", {
+      style: {
+        fontSize: 12,
+        fontWeight: 700,
+        color: 'var(--text-1)'
+      }
+    }, uu ? uu.name : 'Colega', React.createElement("span", {
+      style: {
+        fontWeight: 400,
+        color: 'var(--text-3)',
+        marginLeft: 6,
+        fontSize: 11
+      }
+    }, mm.ts)), React.createElement("div", {
+      style: {
+        fontSize: 13,
+        color: 'var(--text-1)',
+        lineHeight: 1.5
+      }
+    }, renderText(mm.text))));
+  }), React.createElement("div", {
+    ref: fimRef
+  })), React.createElement("div", {
+    style: {
+      flex: 'none',
+      padding: 12,
+      borderTop: '1px solid var(--border)',
+      display: 'flex',
+      gap: 8
+    }
+  }, React.createElement("input", {
+    value: texto,
+    onChange: e => setTexto(e.target.value),
+    onKeyDown: e => {
+      if (e.key === 'Enter') enviar();
+    },
+    placeholder: "Responder no t\u00f3pico...",
+    style: {
+      flex: 1,
+      height: 38,
+      padding: '0 12px',
+      borderRadius: 9,
+      border: '1px solid var(--border)',
+      background: 'var(--surface-2)',
+      color: 'var(--text-1)',
+      fontSize: 13,
+      outline: 'none',
+      fontFamily: 'inherit'
+    }
+  }), React.createElement(Button, {
+    variant: "primary",
+    size: "sm",
+    onClick: enviar
+  }, "Enviar")));
+}
+function ChamadaModal({
+  open,
+  sala,
+  comVideo,
+  nome,
+  onClose
+}) {
+  const boxRef = React.useRef(null);
+  const apiRef = React.useRef(null);
+  React.useEffect(() => {
+    if (!open || !sala) return;
+    let cancel = false;
+    function arrancar() {
+      if (cancel || !boxRef.current || apiRef.current) return;
+      try {
+        apiRef.current = new window.JitsiMeetExternalAPI('meet.jit.si', {
+          roomName: sala,
+          parentNode: boxRef.current,
+          width: '100%',
+          height: '100%',
+          userInfo: {
+            displayName: nome || 'Barispol'
+          },
+          configOverwrite: {
+            prejoinConfig: {
+              enabled: false
+            },
+            disableDeepLinking: true,
+            startWithVideoMuted: !comVideo
+          },
+          interfaceConfigOverwrite: {
+            MOBILE_APP_PROMO: false,
+            SHOW_JITSI_WATERMARK: false
+          }
+        });
+        apiRef.current.on('readyToClose', onClose);
+      } catch (e) {}
+    }
+    if (window.JitsiMeetExternalAPI) arrancar();
+    else {
+      const s = document.createElement('script');
+      s.src = 'https://meet.jit.si/external_api.js';
+      s.onload = arrancar;
+      s.onerror = () => {
+        /* Sem acesso ao script, abre no navegador na mesma. */
+        if (!cancel) window.open('https://meet.jit.si/' + sala + '#config.disableDeepLinking=true', '_blank', 'noopener');
+      };
+      document.head.appendChild(s);
+    }
+    return () => {
+      cancel = true;
+      try {
+        apiRef.current && apiRef.current.dispose();
+      } catch (e) {}
+      apiRef.current = null;
+    };
+  }, [open, sala]);
+  if (!open) return null;
+  return React.createElement("div", {
+    style: {
+      position: 'fixed',
+      inset: 0,
+      zIndex: 120,
+      background: '#0b1220',
+      display: 'flex',
+      flexDirection: 'column'
+    }
+  }, React.createElement("div", {
+    style: {
+      height: 52,
+      flex: 'none',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '0 16px',
+      color: '#fff',
+      background: '#002060'
+    }
+  }, React.createElement("strong", {
+    style: {
+      fontSize: 14,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, comVideo ? 'Videochamada' : 'Chamada', " \u00b7 Barispol"), React.createElement("button", {
+    onClick: onClose,
+    style: {
+      border: '1px solid rgba(255,255,255,.35)',
+      background: 'transparent',
+      color: '#fff',
+      borderRadius: 8,
+      padding: '6px 14px',
+      cursor: 'pointer',
+      fontFamily: 'inherit',
+      fontSize: 13
+    }
+  }, "Sair da chamada")), React.createElement("div", {
+    ref: boxRef,
+    style: {
+      flex: 1,
+      minHeight: 0
+    }
+  }));
+}
 function NovoGrupoModal({
   open,
   onClose,
@@ -4990,6 +5557,9 @@ function ChatScreen({
   const [typing, setTyping] = React.useState(false);
   const [drawer, setDrawer] = React.useState(false);
   const [grupoModal, setGrupoModal] = React.useState(false);
+  const [call, setCall] = React.useState(null);
+  const [thread, setThread] = React.useState(null);
+  const [busca, setBusca] = React.useState(null);
   const [winW, setWinW] = React.useState(typeof window !== 'undefined' ? window.innerWidth : 1400);
   React.useEffect(() => {
     const fn = () => setWinW(window.innerWidth);
@@ -5010,6 +5580,49 @@ function ChatScreen({
   const dmUser = activeDm ? window.userById(activeDm.userId) : null;
   const convKey = isDM ? `dm-${dmId}` : channelId;
   const messages = messagesByChan[convKey] || [];
+  /* Recibo de leitura: ao ter a conversa aberta, regista até onde leu. */
+  const ultimoLidoRef = React.useRef({});
+  React.useEffect(() => {
+    const comSid = messages.filter(x => x.sid);
+    const topo = comSid.length ? comSid[comSid.length - 1].sid : 0;
+    if (!topo) return;
+    if ((ultimoLidoRef.current[convKey] || 0) >= topo) return;
+    ultimoLidoRef.current[convKey] = topo;
+    actions.marcarLido(convKey, topo);
+  }, [convKey, messages.length]);
+  const ultimaMinha = [...messages].reverse().find(x => x.userId === currentUser.id && x.sid);
+  /* Pesquisa local nas conversas que a pessoa pode ver. */
+  const normTxt = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  let resultados = [];
+  if (busca && busca.trim().length >= 2) {
+    const q = normTxt(busca);
+    const chaves = Object.keys(messagesByChan);
+    for (const k of chaves) {
+      if (resultados.length >= 30) break;
+      let rotulo = '';
+      if (k.indexOf('dm-') === 0) {
+        const par = k.slice(3).split('_');
+        if (par.indexOf(currentUser.id) === -1) continue;
+        const outro = window.userById(par.find(x => x !== currentUser.id));
+        rotulo = outro ? outro.name : 'Directa';
+      } else if (k.indexOf('th~') === 0) {
+        continue;
+      } else {
+        const cn = CHANNELS.find(c => c.id === k);
+        if (!cn || !bspVeCanal(currentUser, cn)) continue;
+        rotulo = '#' + cn.name;
+      }
+      const lista = messagesByChan[k] || [];
+      for (const mm of lista) {
+        if (resultados.length >= 30) break;
+        if (mm.text && normTxt(mm.text).indexOf(q) !== -1) resultados.push({
+          k: k,
+          rotulo: rotulo,
+          mm: mm
+        });
+      }
+    }
+  }
   React.useEffect(() => {
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [messages.length, convKey]);
@@ -5075,20 +5688,26 @@ function ChatScreen({
     setChannelId(id);
     setDmId(null);
     setDrawer(false);
+    setThread(null);
   }
   function selectDm(id) {
     setDmId(id);
     setChannelId(null);
     setDrawer(false);
+    setThread(null);
   }
-  function iniciarChamada() {
+  function iniciarChamada(comVideo) {
     const sala = 'Barispol-' + String(convKey).replace(/[^A-Za-z0-9]/g, '') + '-' + Math.random().toString(36).slice(2, 7);
-    const link = 'https://meet.jit.si/' + sala;
+    /* O sufixo desliga o ecrã «Join in app»: quem toca na ligação entra logo pelo navegador. */
+    const link = 'https://meet.jit.si/' + sala + '#config.disableDeepLinking=true';
     actions.sendMessage(convKey, {
       userId: currentUser.id,
-      text: '**Chamada iniciada** — entre por aqui: ' + link
+      text: '**' + (comVideo ? 'Videochamada' : 'Chamada') + ' iniciada** — toque para entrar: ' + link
     });
-    window.open(link, '_blank', 'noopener');
+    setCall({
+      sala: sala,
+      video: !!comVideo
+    });
   }
   function apagarCanalActual() {
     if (!activeChannel || !activeChannel.criadoPor) return;
@@ -5106,7 +5725,97 @@ function ChatScreen({
       border: '1px solid var(--border)',
       borderRadius: 14
     }
-  }, React.createElement(NovoGrupoModal, {
+  }, thread && React.createElement(TopicoPanel, {
+    thread: thread,
+    currentUser: currentUser,
+    onClose: () => setThread(null)
+  }), React.createElement(Modal, {
+    open: busca !== null,
+    onClose: () => setBusca(null),
+    title: "Pesquisar mensagens",
+    width: 560
+  }, React.createElement("div", {
+    style: {
+      padding: 16
+    }
+  }, React.createElement("input", {
+    autoFocus: true,
+    value: busca || '',
+    onChange: e => setBusca(e.target.value),
+    placeholder: "Escreva pelo menos 2 letras...",
+    style: {
+      width: '100%',
+      height: 38,
+      padding: '0 12px',
+      borderRadius: 9,
+      border: '1px solid var(--border)',
+      background: 'var(--surface-2)',
+      color: 'var(--text-1)',
+      fontSize: 13.5,
+      outline: 'none',
+      fontFamily: 'inherit',
+      marginBottom: 12
+    }
+  }), React.createElement("div", {
+    style: {
+      maxHeight: 340,
+      overflow: 'auto'
+    }
+  }, busca && busca.trim().length >= 2 && resultados.length === 0 && React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: 'var(--text-3)',
+      padding: '8px 2px'
+    }
+  }, "Nada encontrado."), resultados.map((r, ri) => {
+    const autor = window.userById(r.mm.userId);
+    return React.createElement("button", {
+      key: ri,
+      className: "bsp-row-hover",
+      onClick: () => {
+        if (r.k.indexOf('dm-') === 0) selectDm(r.k.slice(3));
+        else selectChannel(r.k);
+        setBusca(null);
+      },
+      style: {
+        display: 'block',
+        width: '100%',
+        textAlign: 'left',
+        padding: '9px 10px',
+        borderRadius: 9,
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        fontFamily: 'inherit'
+      }
+    }, React.createElement("div", {
+      style: {
+        fontSize: 11.5,
+        fontWeight: 700,
+        color: 'var(--accent-d)'
+      }
+    }, r.rotulo, React.createElement("span", {
+      style: {
+        color: 'var(--text-3)',
+        fontWeight: 400,
+        marginLeft: 6
+      }
+    }, autor ? autor.name : '', " \u00b7 ", r.mm.ts || '')), React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        color: 'var(--text-2)',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }, String(r.mm.text).slice(0, 120)));
+  })))), React.createElement(ChamadaModal, {
+    open: !!call,
+    sala: call && call.sala,
+    comVideo: call && call.video,
+    nome: currentUser.name,
+    onClose: () => setCall(null)
+  }), React.createElement(NovoGrupoModal, {
     open: grupoModal,
     onClose: () => setGrupoModal(false),
     currentUser: currentUser,
@@ -5406,8 +6115,25 @@ function ChatScreen({
       color: 'var(--text-3)'
     }
   }, messages.length, " ", messages.length === 1 ? 'mensagem' : 'mensagens'), React.createElement("button", {
-    onClick: iniciarChamada,
-    title: "Iniciar chamada de voz/vídeo",
+    onClick: () => setBusca(''),
+    title: "Pesquisar mensagens",
+    style: {
+      width: 34,
+      height: 34,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 9,
+      border: '1px solid var(--border)',
+      background: 'var(--surface-2)',
+      color: 'var(--text-2)',
+      cursor: 'pointer'
+    }
+  }, React.createElement(I.Search, {
+    size: 15
+  })), React.createElement("button", {
+    onClick: () => iniciarChamada(false),
+    title: "Chamada de voz",
     style: {
       width: 34,
       height: 34,
@@ -5421,6 +6147,23 @@ function ChatScreen({
       cursor: 'pointer'
     }
   }, React.createElement(I.Phone, {
+    size: 16
+  })), React.createElement("button", {
+    onClick: () => iniciarChamada(true),
+    title: "Videochamada",
+    style: {
+      width: 34,
+      height: 34,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 9,
+      border: '1px solid var(--border)',
+      background: 'var(--surface-2)',
+      color: 'var(--accent-d)',
+      cursor: 'pointer'
+    }
+  }, React.createElement(I.Cam, {
     size: 16
   })), !isDM && activeChannel && activeChannel.criadoPor && (currentUser.id === activeChannel.criadoPor || bspCamada(currentUser).podeGerirUtilizadores) && React.createElement("button", {
     onClick: apagarCanalActual,
@@ -5552,7 +6295,72 @@ function ChatScreen({
         flex: 1,
         minWidth: 0
       }
-    }, renderText(m.text)), (isOwn || bspCamada(currentUser).podeGerirUtilizadores) && React.createElement("button", {
+    }, renderText(m.text)), React.createElement("button", {
+      className: "bsp-msg-del",
+      title: "Gosto",
+      onClick: () => actions.reagirMensagem(convKey, m.id, '\ud83d\udc4d'),
+      style: {
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        padding: 2,
+        fontSize: 13,
+        lineHeight: 1,
+        flex: 'none',
+        opacity: 0,
+        transition: 'opacity .15s'
+      }
+    }, "\ud83d\udc4d"), React.createElement("button", {
+      className: "bsp-msg-del",
+      title: "Responder",
+      onClick: () => {
+        const autor = (window.userById(m.userId) || {}).name || 'Colega';
+        const excerto = String(m.text || '').replace(/\n/g, ' ').slice(0, 80);
+        setDraft(d => '**\u21a9 ' + autor.split(' ')[0] + ':** _' + excerto + '_\n' + d);
+        try {
+          taRef.current && taRef.current.focus();
+        } catch (e) {}
+      },
+      style: {
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        color: 'var(--text-3)',
+        padding: 2,
+        lineHeight: 0,
+        flex: 'none',
+        opacity: 0,
+        transition: 'opacity .15s'
+      }
+    }, React.createElement(I.Reply, {
+      size: 13
+    })), m.sid && React.createElement("button", {
+      className: "bsp-msg-del",
+      title: "T\u00f3pico",
+      onClick: () => setThread({
+        sid: m.sid,
+        convKey: convKey,
+        autor: (window.userById(m.userId) || {}).name || 'Colega',
+        texto: m.text
+      }),
+      style: {
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        color: 'var(--text-3)',
+        padding: 2,
+        lineHeight: 0,
+        flex: 'none',
+        opacity: 0,
+        transition: 'opacity .15s',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 3,
+        fontSize: 11
+      }
+    }, React.createElement(I.Chat, {
+      size: 13
+    }), (messagesByChan['th~' + convKey + '~' + m.sid] || []).length || ''), (isOwn || bspCamada(currentUser).podeGerirUtilizadores) && React.createElement("button", {
       className: "bsp-msg-del",
       title: "Apagar mensagem",
       onClick: () => {
@@ -5592,7 +6400,18 @@ function ChatScreen({
         gap: 4,
         cursor: 'pointer'
       }
-    }, r.e, " ", React.createElement("span", null, r.n)))), m.pinned && React.createElement("div", {
+    }, r.e, " ", React.createElement("span", null, r.n)))), isOwn && m.sid && ultimaMinha && m.id === ultimaMinha.id && (() => {
+      const lv = (state.leituras || {})[convKey] || {};
+      const leitores = Object.keys(lv).filter(uid => uid !== currentUser.id && lv[uid] >= m.sid);
+      if (!leitores.length) return null;
+      return React.createElement("div", {
+        style: {
+          marginTop: 4,
+          fontSize: 10.5,
+          color: 'var(--text-3)'
+        }
+      }, isDM ? '\u2713\u2713 Visto' : '\u2713\u2713 Visto por ' + leitores.length);
+    })(), m.pinned && React.createElement("div", {
       style: {
         marginTop: 6,
         fontSize: 11,
@@ -6165,6 +6984,22 @@ function renderText(text) {
   const parts = String(text).split(rx);
   return parts.map((p, i) => {
     if (!p) return null;
+    if (/^https?:\/\//.test(p) && /\.(png|jpe?g|gif|webp)([?#]|$)/i.test(p)) return React.createElement("a", {
+      key: i,
+      href: p,
+      target: "_blank",
+      rel: "noopener noreferrer"
+    }, React.createElement("img", {
+      src: p,
+      alt: "imagem",
+      style: {
+        maxWidth: 260,
+        maxHeight: 200,
+        borderRadius: 10,
+        display: 'block',
+        margin: '4px 0'
+      }
+    }));
     if (/^https?:\/\//.test(p)) return React.createElement("a", {
       key: i,
       href: p,
@@ -12097,7 +12932,72 @@ function AdminServer() {
       overflow: 'auto',
       whiteSpace: 'pre-wrap'
     }
-  }, SQL) : null);
+  }, SQL) : null, React.createElement(BackupCard, null));
+}
+function BackupCard() {
+  const [busy, setBusy] = React.useState(false);
+  async function exportar() {
+    const cl = bspGetClient();
+    if (!cl) {
+      window.alert('Ligue primeiro o servidor.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const [a, b, c] = await Promise.all([cl.from('messages').select('*').order('id', {
+        ascending: true
+      }).limit(10000), cl.from('posts').select('*').order('id', {
+        ascending: true
+      }).limit(5000), cl.from('shared_state').select('*').eq('id', 1).maybeSingle()]);
+      const pacote = {
+        exportado_em: new Date().toISOString(),
+        messages: a && a.data || [],
+        posts: b && b.data || [],
+        shared_state: c && c.data || null
+      };
+      const blob = new Blob([JSON.stringify(pacote, null, 1)], {
+        type: 'application/json'
+      });
+      const el = document.createElement('a');
+      el.href = URL.createObjectURL(blob);
+      el.download = 'barispol-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(el);
+      el.click();
+      el.remove();
+    } catch (e) {
+      window.alert('N\u00e3o foi poss\u00edvel exportar.');
+    }
+    setBusy(false);
+  }
+  return React.createElement(Card, {
+    pad: 20,
+    style: {
+      marginTop: 14
+    }
+  }, React.createElement("h3", {
+    style: {
+      fontSize: 15,
+      fontWeight: 700,
+      margin: 0,
+      color: 'var(--text-1)'
+    }
+  }, "C\u00f3pia de seguran\u00e7a"), React.createElement("p", {
+    style: {
+      fontSize: 12.5,
+      color: 'var(--text-2)',
+      margin: '6px 0 12px',
+      lineHeight: 1.5,
+      maxWidth: 560
+    }
+  }, "O plano gratuito do Supabase n\u00e3o guarda c\u00f3pias autom\u00e1ticas. Descarregue este ficheiro uma vez por semana e guarde-o num local seguro. Cont\u00e9m mensagens, feed, tarefas, calend\u00e1rio e equipa \u2014 apenas o que a sua conta pode ver."), React.createElement(Button, {
+    variant: "primary",
+    size: "sm",
+    icon: React.createElement(I.Download, {
+      size: 13
+    }),
+    onClick: exportar,
+    disabled: busy
+  }, busy ? 'A preparar...' : 'Descarregar c\u00f3pia de seguran\u00e7a'));
 }
 function AdminSystem() {
   return React.createElement("div", null, React.createElement(AdminServer, null), React.createElement("div", {
@@ -12349,6 +13249,158 @@ function MobileNav({
     size: 20
   }), "Mais"));
 }
+function AlterarSenha({
+  largura
+}) {
+  const [aberto, setAberto] = React.useState(false);
+  const [p1, setP1] = React.useState('');
+  const [p2, setP2] = React.useState('');
+  const [busy, setBusy] = React.useState(false);
+  async function guardar() {
+    if (p1.length < 8) {
+      window.alert('A palavra-passe deve ter pelo menos 8 caracteres.');
+      return;
+    }
+    if (p1 !== p2) {
+      window.alert('As palavras-passe n\u00e3o coincidem.');
+      return;
+    }
+    const c = bspGetClient();
+    if (!c) {
+      window.alert('Servidor n\u00e3o ligado.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const {
+        error
+      } = await c.auth.updateUser({
+        password: p1
+      });
+      setBusy(false);
+      if (error) {
+        window.alert('N\u00e3o foi poss\u00edvel alterar: ' + (error.message || ''));
+        return;
+      }
+      setP1('');
+      setP2('');
+      setAberto(false);
+      window.alert('Palavra-passe alterada. Use a nova na pr\u00f3xima entrada.');
+    } catch (e) {
+      setBusy(false);
+      window.alert('N\u00e3o foi poss\u00edvel alterar.');
+    }
+  }
+  const inp = {
+    width: '100%',
+    height: 38,
+    padding: '0 12px',
+    borderRadius: 9,
+    border: '1px solid var(--border)',
+    background: 'var(--surface-2)',
+    color: 'var(--text-1)',
+    fontSize: 13.5,
+    outline: 'none',
+    fontFamily: 'inherit',
+    marginBottom: 10
+  };
+  return React.createElement(React.Fragment, null, React.createElement("button", {
+    onClick: () => setAberto(true),
+    style: {
+      marginTop: 8,
+      width: largura || '100%',
+      padding: '10px 12px',
+      borderRadius: 10,
+      border: '1px solid var(--border)',
+      background: 'transparent',
+      cursor: 'pointer',
+      fontFamily: 'inherit',
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: 'var(--text-2)',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 7
+    }
+  }, React.createElement(I.Lock, {
+    size: 13
+  }), " Alterar palavra-passe"), aberto && React.createElement("div", {
+    style: {
+      position: 'fixed',
+      inset: 0,
+      zIndex: 130,
+      background: 'rgba(0,0,0,.45)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 16
+    },
+    onClick: () => !busy && setAberto(false)
+  }, React.createElement("div", {
+    onClick: e => e.stopPropagation(),
+    style: {
+      width: '100%',
+      maxWidth: 380,
+      background: 'var(--surface)',
+      borderRadius: 14,
+      border: '1px solid var(--border)',
+      padding: 20
+    }
+  }, React.createElement("h3", {
+    style: {
+      margin: '0 0 12px',
+      fontSize: 15,
+      color: 'var(--text-1)'
+    }
+  }, "Alterar palavra-passe"), React.createElement("input", {
+    type: "password",
+    value: p1,
+    onChange: e => setP1(e.target.value),
+    placeholder: "Nova palavra-passe (m\u00edn. 8)",
+    style: inp
+  }), React.createElement("input", {
+    type: "password",
+    value: p2,
+    onChange: e => setP2(e.target.value),
+    placeholder: "Repetir a nova palavra-passe",
+    style: inp
+  }), React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'flex-end',
+      gap: 8,
+      marginTop: 6
+    }
+  }, React.createElement("button", {
+    onClick: () => setAberto(false),
+    disabled: busy,
+    style: {
+      padding: '8px 14px',
+      borderRadius: 9,
+      border: '1px solid var(--border)',
+      background: 'transparent',
+      cursor: 'pointer',
+      fontFamily: 'inherit',
+      fontSize: 13,
+      color: 'var(--text-2)'
+    }
+  }, "Cancelar"), React.createElement("button", {
+    onClick: guardar,
+    disabled: busy,
+    style: {
+      padding: '8px 16px',
+      borderRadius: 9,
+      border: 'none',
+      background: 'var(--accent)',
+      color: '#fff',
+      cursor: 'pointer',
+      fontFamily: 'inherit',
+      fontSize: 13,
+      fontWeight: 700
+    }
+  }, busy ? 'A guardar...' : 'Guardar')))));
+}
 function MobileMore({
   current,
   setCurrent,
@@ -12420,7 +13472,7 @@ function MobileMore({
     }, React.createElement(Ico, {
       size: 22
     }), it.label);
-  })), React.createElement("button", {
+  })), React.createElement(AlterarSenha, null), React.createElement("button", {
     onClick: () => {
       onLogout();
       onClose();
@@ -12449,6 +13501,40 @@ function MobileMore({
 function App() {
   const [authed, setAuthed] = React.useState(false);
   const [authedEmail, setAuthedEmail] = React.useState(null);
+  /* Ao recarregar a página, a sessão guardada volta a entrar sozinha. */
+  React.useEffect(() => {
+    const c = bspGetClient();
+    if (!c) return;
+    let vivo = true;
+    try {
+      c.auth.getSession().then(r => {
+        const s = r && r.data && r.data.session;
+        if (vivo && s && s.user) {
+          setAuthedEmail(s.user.email || null);
+          setAuthed(true);
+        }
+      }, () => {});
+    } catch (e) {}
+    let sub = null;
+    try {
+      sub = c.auth.onAuthStateChange((ev, s) => {
+        if (!vivo) return;
+        if (ev === 'SIGNED_OUT') {
+          setAuthed(false);
+          setAuthedEmail(null);
+        } else if (s && s.user) {
+          setAuthedEmail(s.user.email || null);
+          setAuthed(true);
+        }
+      });
+    } catch (e) {}
+    return () => {
+      vivo = false;
+      try {
+        sub && sub.data && sub.data.subscription && sub.data.subscription.unsubscribe();
+      } catch (e) {}
+    };
+  }, []);
   const doLogout = () => {
     try {
       const c = bspGetClient();
@@ -12622,7 +13708,7 @@ function TweaksPanelWrap({
       value: 'offline',
       label: 'Offline'
     }]
-  }), onLogout && React.createElement("button", {
+  }), React.createElement(AlterarSenha, null), onLogout && React.createElement("button", {
     onClick: onLogout,
     style: {
       marginTop: 8,
