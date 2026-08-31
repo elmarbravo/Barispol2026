@@ -38,6 +38,38 @@
   .bsp-evtdel { opacity: 0; transition: opacity .15s; }
   .bsp-evt:hover .bsp-evtdel { opacity: 1; }
   body[data-mobile="true"] .bsp-evtdel { opacity: 1; }
+
+  /* ── Correcções de dimensões no telemóvel ─────────────────────────────
+     No ecrã estreito o conteúdo tinha de mandar na largura; era o cromo à
+     volta que estava a mandar. */
+
+  /* Os botões de acção da mensagem são sempre visíveis no telemóvel, por
+     não haver rato. Como irmãos do texto, roubavam-lhe metade da largura:
+     passam para o canto superior direito da linha, sobrepostos. */
+  .bsp-msg-row { position: relative; }
+  body[data-mobile="true"] .bsp-msg-acts {
+    position: absolute; top: -2px; right: 0; z-index: 2;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1px 2px; }
+  body[data-mobile="true"] .bsp-msg-row > div:last-child { padding-right: 0; }
+
+  /* A caixa de escrita ocupava quase metade do ecrã: a barra de formatação
+     e a legenda das teclas não fazem sentido num telemóvel. */
+  body[data-mobile="true"] .bsp-composer-tools { display: none !important; }
+  body[data-mobile="true"] .bsp-composer-hint { display: none !important; }
+
+  /* Grelhas de duas e três colunas que ficavam ilegíveis ao encolher. */
+  body[data-mobile="true"] .bsp-grid2,
+  body[data-mobile="true"] .bsp-grid3 { grid-template-columns: 1fr !important; }
+
+  /* Tabelas de seis colunas: ao telemóvel cada linha passa a ficha
+     empilhada. Rolar na horizontal seria pior — o cabeçalho fica escondido
+     e sem ele as colunas não se identificam. */
+  body[data-mobile="true"] .bsp-tabela,
+  body[data-mobile="true"] .bsp-admin-row {
+    grid-template-columns: 1fr !important; gap: 3px !important;
+    padding: 12px 14px !important; }
+  body[data-mobile="true"] .bsp-tabela-cab { display: none !important; }
 </style>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1940,11 +1972,12 @@ function Card({
   style,
   pad = 20,
   hoverable = false,
-  onClick
+  onClick,
+  className
 }) {
   return React.createElement("div", {
     onClick: onClick,
-    className: hoverable ? 'bsp-card-hover' : '',
+    className: [hoverable ? 'bsp-card-hover' : '', className || ''].filter(Boolean).join(' '),
     style: {
       background: 'var(--surface)',
       border: '1px solid var(--border)',
@@ -4809,6 +4842,7 @@ function DashboardScreen({
     }
   }, text));
   return React.createElement("div", {
+    className: "bsp-stack-mobile",
     style: {
       display: 'grid',
       gridTemplateColumns: '1fr 340px',
@@ -5924,18 +5958,23 @@ function ChatScreen({
     style: {
       height: 60,
       flex: 'none',
-      padding: '0 20px',
+      padding: '0 14px',
       borderBottom: '1px solid var(--border)',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'space-between'
+      justifyContent: 'space-between',
+      /* O pai tem overflow: hidden. Sem isto o nome e o cargo quebravam
+         para quatro linhas dentro de 60px e apareciam cortados ao meio. */
+      gap: 8,
+      overflow: 'hidden'
     }
   }, React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 12,
-      minWidth: 0
+      gap: 10,
+      minWidth: 0,
+      flex: 1
     }
   }, !showChannelList && React.createElement("button", {
     onClick: () => setDrawer(true),
@@ -5989,28 +6028,44 @@ function ChatScreen({
   }, "URGÊNCIA")), React.createElement("div", {
     style: {
       fontSize: 11.5,
-      color: 'var(--text-3)'
+      color: 'var(--text-3)',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis'
     }
   }, activeChannel.desc, " · ", activeChannel.members, " membros"))) : React.createElement(React.Fragment, null, React.createElement(Avatar, {
     user: dmUser,
     size: 36,
     showStatus: true
-  }), React.createElement("div", null, React.createElement("div", {
+  }), React.createElement("div", {
+    /* minWidth: 0 é obrigatório para as reticências funcionarem dentro de
+       um flex — sem isso o filho recusa-se a encolher e transborda. */
+    style: {
+      minWidth: 0
+    }
+  }, React.createElement("div", {
     style: {
       fontSize: 15,
       fontWeight: 700,
-      color: 'var(--text-1)'
+      color: 'var(--text-1)',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis'
     }
   }, dmUser.name), React.createElement("div", {
     style: {
       fontSize: 11.5,
-      color: 'var(--text-3)'
+      color: 'var(--text-3)',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis'
     }
   }, dmUser.role, " · ", dmUser.dept)))), React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 4
+      gap: 4,
+      flex: 'none'
     }
   }, React.createElement("span", {
     className: "bsp-hide-mobile",
@@ -6199,7 +6254,18 @@ function ChatScreen({
         flex: 1,
         minWidth: 0
       }
-    }, renderText(m.text)), React.createElement("button", {
+    }, renderText(m.text)), React.createElement("div", {
+      /* Os quatro botões passam a viver num grupo. No telemóvel são
+         sempre visíveis (não há rato para o hover), e como irmãos do
+         texto roubavam-lhe metade da largura. */
+      className: "bsp-msg-acts",
+      style: {
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 2,
+        flex: 'none'
+      }
+    }, React.createElement("button", {
       className: "bsp-msg-del",
       title: "Gosto",
       onClick: () => actions.reagirMensagem(convKey, m.id, '\ud83d\udc4d'),
@@ -6283,7 +6349,7 @@ function ChatScreen({
       }
     }, React.createElement(I.Trash, {
       size: 13
-    }))), m.reactions && m.reactions.length > 0 && React.createElement("div", {
+    })))), m.reactions && m.reactions.length > 0 && React.createElement("div", {
       style: {
         display: 'flex',
         gap: 6,
@@ -6381,6 +6447,7 @@ function ChatScreen({
     onFocusCapture: e => e.currentTarget.style.borderColor = 'var(--accent)',
     onBlurCapture: e => e.currentTarget.style.borderColor = 'var(--border)'
   }, React.createElement("div", {
+    className: "bsp-composer-tools",
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -6542,6 +6609,7 @@ function ChatScreen({
       gap: 10
     }
   }, React.createElement("span", {
+    className: "bsp-composer-hint",
     style: {
       fontSize: 11,
       color: 'var(--text-3)'
@@ -6978,6 +7046,7 @@ function FeedScreen({
   }];
   const posts = filter === 'todos' ? state.feedPosts : state.feedPosts.filter(p => p.type === filter);
   return React.createElement("div", {
+    className: "bsp-stack-mobile",
     style: {
       display: 'grid',
       gridTemplateColumns: '1fr 320px',
@@ -7678,6 +7747,7 @@ function ComposePostModal({
       width: '100%'
     }
   }, "+ Adicionar opção")), type === 'evento' && React.createElement("div", {
+    className: "bsp-grid2",
     style: {
       display: 'grid',
       gridTemplateColumns: '1fr 1fr',
@@ -8332,6 +8402,7 @@ function CalEventModal({
     onChange: setTitle,
     placeholder: "Ex.: Reunião de equipa"
   })), React.createElement("div", {
+    className: "bsp-grid2",
     style: {
       display: 'grid',
       gridTemplateColumns: '1fr 1fr',
@@ -10656,6 +10727,7 @@ function DirectoryScreen() {
       flexDirection: 'column'
     }
   }, React.createElement("div", {
+    className: "bsp-tabela-cab",
     style: {
       display: 'grid',
       gridTemplateColumns: '2fr 1.4fr 1.2fr 1.6fr 1.2fr 100px',
@@ -10675,6 +10747,7 @@ function DirectoryScreen() {
     }
   }, list.map((u, i) => React.createElement("div", {
     key: u.id,
+    className: "bsp-tabela",
     style: {
       display: 'grid',
       gridTemplateColumns: '2fr 1.4fr 1.2fr 1.6fr 1.2fr 100px',
@@ -11830,6 +11903,7 @@ function AdminUserModal({
       gap: 14
     }
   }, React.createElement("div", {
+    className: "bsp-grid2",
     style: {
       display: 'grid',
       gridTemplateColumns: '1fr 1fr',
@@ -11848,6 +11922,7 @@ function AdminUserModal({
     onChange: setEmail,
     placeholder: "nome@barispol.com"
   }))), React.createElement("div", {
+    className: "bsp-grid2",
     style: {
       display: 'grid',
       gridTemplateColumns: '1fr 1fr',
@@ -11871,6 +11946,7 @@ function AdminUserModal({
       padding: '9px 12px'
     }
   }, "A palavra-passe não se define aqui. A conta de entrada cria-se no Supabase, em Authentication → Users.")), React.createElement("div", {
+    className: "bsp-grid3",
     style: {
       display: 'grid',
       gridTemplateColumns: '1fr 1fr 1fr',
@@ -12539,6 +12615,7 @@ function AdminServer() {
       margin: '10px 0 0'
     }
   }, sync.error) : null, React.createElement("div", {
+    className: "bsp-grid2",
     style: {
       display: 'grid',
       gridTemplateColumns: '1fr 1fr',
@@ -13047,6 +13124,7 @@ function TurnCard() {
 }
 function AdminSystem() {
   return React.createElement("div", null, React.createElement(AdminServer, null), React.createElement("div", {
+    className: "bsp-grid2",
     style: {
       display: 'grid',
       gridTemplateColumns: '1fr 1fr',
