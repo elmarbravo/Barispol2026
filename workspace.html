@@ -93,6 +93,12 @@
   body[data-mobile="true"] .bsp-tabela > *:nth-child(4) {
     display: none !important; }
   body[data-mobile="true"] .bsp-tabela-cab { display: none !important; }
+
+  /* A linha do seguimento: nome em cima, acções por baixo, encostadas à
+     direita. Duas colunas num ecrã estreito deixavam o nome sem espaço. */
+  body[data-mobile="true"] .bsp-seg-linha {
+    grid-template-columns: 1fr !important; gap: 10px !important; }
+  body[data-mobile="true"] .bsp-seg-linha > *:last-child { justify-content: flex-end; }
 </style>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2351,6 +2357,11 @@ const NAV_ITEMS = [{
   icon: 'Tasks',
   badge: null
 }, {
+  id: 'seguimento',
+  label: 'Seguimento',
+  icon: 'Heart',
+  badge: null
+}, {
   id: 'admin',
   label: 'Admin',
   icon: 'Shield',
@@ -2761,7 +2772,7 @@ function Topbar({
       fontSize: 12.5,
       color: 'var(--text-3)'
     }
-  }, current === 'dashboard' && 'Bom dia, ' + currentUser.name.split(' ')[0], current === 'chat' && CHANNELS.filter(c => bspVeCanal(currentUser, c)).length + ' canais', current === 'meetings' && 'Reuniões da equipa', current === 'feed' && 'Mural de avisos', current === 'drive' && 'Ficheiros partilhados', current === 'calendar' && 'O seu calendário', current === 'tasks' && 'Quadro de tarefas', current === 'admin' && ('Camada: ' + bspCamadaNome(currentUser)))), React.createElement("div", {
+  }, current === 'dashboard' && 'Bom dia, ' + currentUser.name.split(' ')[0], current === 'chat' && CHANNELS.filter(c => bspVeCanal(currentUser, c)).length + ' canais', current === 'meetings' && 'Reuniões da equipa', current === 'feed' && 'Mural de avisos', current === 'drive' && 'Ficheiros partilhados', current === 'calendar' && 'O seu calendário', current === 'tasks' && 'Quadro de tarefas', current === 'seguimento' && 'Utentes por recuperar', current === 'admin' && ('Camada: ' + bspCamadaNome(currentUser)))), React.createElement("div", {
     style: {
       flex: 1,
       display: 'flex',
@@ -15251,6 +15262,650 @@ function ChamadaErro() {
   }, c.erro);
 }
 
+/* Leitor de CSV para os relatorios do MetaGest.
+
+   Escrito a mao em vez de trazer uma biblioteca: o site nao tem passo de
+   compilacao, e uma folha de calculo custaria quase um megabyte para
+   fazer o que cabe em cinquenta linhas.
+
+   Aguenta o que o Excel portugues produz de facto: ponto-e-virgula como
+   separador, BOM no inicio, campos entre aspas com separadores e quebras
+   de linha la dentro, aspas duplicadas para escapar aspas, e fins de
+   linha do Windows. */
+
+function bspDetectarSeparador(texto) {
+  /* Conta cada candidato FORA de aspas, na primeira linha util. Contar em
+     todo o ficheiro enganava-se com nomes tipo "Silva, Maria". */
+  const cands = [';', ',', '\t', '|'];
+  const conta = {};
+  cands.forEach(c => conta[c] = 0);
+  let dentro = false;
+  for (let i = 0; i < texto.length; i++) {
+    const ch = texto[i];
+    if (ch === '"') {
+      if (dentro && texto[i + 1] === '"') { i++; continue; }
+      dentro = !dentro;
+      continue;
+    }
+    if (dentro) continue;
+    if (ch === '\n') break;
+    if (ch in conta) conta[ch]++;
+  }
+  let melhor = ';', max = -1;
+  cands.forEach(c => {
+    if (conta[c] > max) { max = conta[c]; melhor = c; }
+  });
+  return max > 0 ? melhor : ';';
+}
+
+function bspLerCsv(texto) {
+  if (typeof texto !== 'string' || !texto.trim()) return { cabecalho: [], linhas: [] };
+  /* O BOM do Excel apareceria colado ao primeiro cabecalho. */
+  if (texto.charCodeAt(0) === 0xFEFF) texto = texto.slice(1);
+  const sep = bspDetectarSeparador(texto);
+
+  const linhas = [];
+  let campo = '';
+  let linha = [];
+  let dentro = false;
+
+  const fecharCampo = () => { linha.push(campo.trim()); campo = ''; };
+  const fecharLinha = () => {
+    fecharCampo();
+    /* Linhas totalmente vazias nao contam — o Excel deixa-as no fim. */
+    if (linha.some(c => c !== '')) linhas.push(linha);
+    linha = [];
+  };
+
+  for (let i = 0; i < texto.length; i++) {
+    const ch = texto[i];
+    if (dentro) {
+      if (ch === '"') {
+        if (texto[i + 1] === '"') { campo += '"'; i++; }
+        else dentro = false;
+      } else campo += ch;
+      continue;
+    }
+    if (ch === '"') { dentro = true; continue; }
+    if (ch === sep) { fecharCampo(); continue; }
+    if (ch === '\r') continue;
+    if (ch === '\n') { fecharLinha(); continue; }
+    campo += ch;
+  }
+  if (campo !== '' || linha.length) fecharLinha();
+
+  if (!linhas.length) return { cabecalho: [], linhas: [], sep: sep };
+  const cabecalho = linhas[0].map((c, i) => c || ('Coluna ' + (i + 1)));
+  return { cabecalho: cabecalho, linhas: linhas.slice(1), sep: sep };
+}
+
+/* Datas: o MetaGest e o Excel portugues escrevem dd/mm/aaaa; o ISO tambem
+   aparece. Devolve aaaa-mm-dd, ou null se nao for data nenhuma. */
+function bspLerData(v) {
+  const s = String(v || '').trim();
+  if (!s) return null;
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return bspDataValida(+m[1], +m[2], +m[3]);
+  m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
+  if (m) {
+    let ano = +m[3];
+    if (ano < 100) ano += ano < 70 ? 2000 : 1900;
+    return bspDataValida(ano, +m[2], +m[1]);
+  }
+  return null;
+}
+
+function bspDataValida(a, m, d) {
+  if (!(a >= 1900 && a <= 2200) || !(m >= 1 && m <= 12) || !(d >= 1 && d <= 31)) return null;
+  const dt = new Date(Date.UTC(a, m - 1, d));
+  /* Apanha 31/02 e afins, que o Date acomoda em silencio. */
+  if (dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
+  return a + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+
+/* Chave estavel do utente, para nao duplicar a cada importacao. O nome sem
+   acentos nem pontuacao, mais os digitos do telefone quando existe. */
+function bspChaveUtente(nome, telefone) {
+  const n = String(nome || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+  const t = String(telefone || '').replace(/\D/g, '').replace(/^244/, '');
+  if (!n) return null;
+  return t ? n + '|' + t : n;
+}
+
+/* ═══ Seguimento e retorno ══════════════════════════════════════════════
+   Quem esteve na clinica e nao voltou.
+
+   O MetaGest continua a ser a verdade sobre consultas e facturacao. Este
+   modulo nao a duplica: importa de la quem veio e quando, e guarda so o
+   que a clinica fez desde entao para o trazer de volta.
+
+   Vive em tabelas proprias (utentes, seguimentos) e nao no shared_state,
+   que e um unico bloco JSON reescrito por inteiro a cada alteracao —
+   serve para dezenas de linhas, nao para milhares de utentes. */
+
+const BSP_ESTADOS = [
+  { id: 'por-contactar', nome: 'Por contactar', cor: '#B54708', fundo: 'rgba(181,71,8,.10)' },
+  { id: 'contactado',    nome: 'Contactado',    cor: '#14448F', fundo: 'rgba(20,68,143,.10)' },
+  { id: 'marcado',       nome: 'Marcado',       cor: '#06713F', fundo: 'rgba(6,113,63,.10)' },
+  { id: 'voltou',        nome: 'Voltou',        cor: '#06713F', fundo: 'rgba(6,113,63,.16)' },
+  { id: 'dispensado',    nome: 'Não insistir',  cor: '#64748B', fundo: 'rgba(100,116,139,.12)' }
+];
+const bspEstado = id => BSP_ESTADOS.find(e => e.id === id) || BSP_ESTADOS[0];
+
+/* Dias desde uma data em aaaa-mm-dd, contados em UTC para o resultado nao
+   mudar consoante a hora a que se abre a pagina. */
+function bspDiasDesde(iso) {
+  if (!iso) return null;
+  const p = String(iso).slice(0, 10).split('-');
+  if (p.length !== 3) return null;
+  const d = Date.UTC(+p[0], +p[1] - 1, +p[2]);
+  if (isNaN(d)) return null;
+  const hoje = new Date();
+  const h = Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  return Math.floor((h - d) / 86400000);
+}
+
+function bspHaQuanto(dias) {
+  if (dias === null) return 'sem registo';
+  if (dias <= 0) return 'hoje';
+  if (dias === 1) return 'ontem';
+  if (dias < 30) return 'há ' + dias + ' dias';
+  const m = Math.floor(dias / 30);
+  if (m < 12) return 'há ' + m + (m === 1 ? ' mês' : ' meses');
+  const a = Math.floor(dias / 365);
+  return 'há ' + a + (a === 1 ? ' ano' : ' anos');
+}
+
+/* Carrega os utentes que nao vem ha mais de `meses`, com o estado de
+   seguimento mais recente de cada um. */
+function useSeguimento(meses) {
+  const [linhas, setLinhas] = React.useState([]);
+  const [estado, setEstado] = React.useState('inicio');
+  const [erro, setErro] = React.useState('');
+  const [tick, setTick] = React.useState(0);
+  const recarregar = React.useCallback(() => setTick(t => t + 1), []);
+
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) {
+      setEstado('sem-servidor');
+      return;
+    }
+    let vivo = true;
+    setEstado('a-carregar');
+    setErro('');
+    (async () => {
+      try {
+        const corte = new Date();
+        corte.setMonth(corte.getMonth() - meses);
+        const limite = corte.toISOString().slice(0, 10);
+
+        const u = await cl.from('utentes').select('*')
+          .lte('ultima_visita', limite)
+          .order('ultima_visita', { ascending: true })
+          .limit(600);
+        if (!vivo) return;
+        if (u.error) {
+          /* A tabela pode ainda nao existir: dizer isso, e nao um erro cru. */
+          setEstado(/relation|does not exist|schema cache/i.test(u.error.message || '') ? 'sem-tabelas' : 'erro');
+          setErro(u.error.message || '');
+          return;
+        }
+        const utentes = u.data || [];
+        if (!utentes.length) {
+          setLinhas([]);
+          setEstado('pronto');
+          return;
+        }
+        /* Todo o historico dos utentes trazidos, reduzido ao mais recente
+           de cada um. Uma consulta em vez de uma por pessoa. */
+        const s = await cl.from('seguimentos').select('*')
+          .in('utente_id', utentes.map(x => x.id))
+          .order('created_at', { ascending: false });
+        if (!vivo) return;
+        const ultimo = {};
+        (s.data || []).forEach(r => {
+          if (!ultimo[r.utente_id]) ultimo[r.utente_id] = r;
+        });
+        setLinhas(utentes.map(x => ({
+          ...x,
+          dias: bspDiasDesde(x.ultima_visita),
+          seg: ultimo[x.id] || null
+        })));
+        setEstado('pronto');
+      } catch (e) {
+        if (!vivo) return;
+        setEstado('erro');
+        setErro(e && e.message || 'Falha a carregar.');
+      }
+    })();
+    return () => { vivo = false; };
+  }, [meses, tick]);
+
+  return { linhas, estado, erro, recarregar };
+}
+
+/* Regista uma accao de seguimento. Historico, nao estado: a linha nova
+   passa a ser a verdade, e as anteriores ficam para se saber o percurso. */
+async function bspRegistarSeguimento(utenteId, estado, nota) {
+  const cl = bspGetClient();
+  if (!cl) return 'O servidor não está ligado.';
+  const r = await cl.from('seguimentos').insert({
+    utente_id: utenteId,
+    estado: estado,
+    nota: (nota || '').trim() || null,
+    user_id: window.CURRENT_USER_ID || null
+  });
+  return r && r.error ? (r.error.message || 'Não foi possível gravar.') : null;
+}
+
+/* ── Importacao do relatorio do MetaGest ──────────────────────────────
+   Os nomes das colunas nao estao fixos aqui de proposito: o relatorio
+   pode mudar, e adivinhar cabecalhos e' a maneira certa de partir isto no
+   primeiro ficheiro real. A pessoa aponta as colunas uma vez e fica
+   guardado. */
+
+const BSP_CAMPOS_IMPORT = [
+  { id: 'data',     nome: 'Data da visita',  obrig: true,  dicas: ['data de postagem', 'data', 'postagem'] },
+  { id: 'nome',     nome: 'Nome do utente',  obrig: true,  dicas: ['nome do utente', 'utente', 'paciente', 'nome'] },
+  { id: 'telefone', nome: 'Telefone',        obrig: false, dicas: ['telefone', 'telemovel', 'contacto', 'tel'] },
+  { id: 'servico',  nome: 'Serviço',         obrig: false, dicas: ['servico', 'exame', 'descricao', 'artigo'] },
+  { id: 'medico',   nome: 'Médico',          obrig: false, dicas: ['medico', 'profissional', 'prestador'] }
+];
+
+/* Proposta inicial de correspondencia, por semelhanca do cabecalho. Serve
+   para poupar cliques; quem importa confirma sempre. */
+function bspAdivinharColunas(cabecalho) {
+  const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  const cols = cabecalho.map(norm);
+  const escolha = {};
+  BSP_CAMPOS_IMPORT.forEach(c => {
+    let i = cols.findIndex(h => c.dicas.some(d => h === d));
+    if (i < 0) i = cols.findIndex(h => c.dicas.some(d => h.indexOf(d) !== -1));
+    escolha[c.id] = i >= 0 ? i : -1;
+  });
+  return escolha;
+}
+
+/* Transforma as linhas do relatorio em utentes: uma linha por pessoa, com
+   a visita MAIS RECENTE e quantas vezes apareceu. O relatorio tem uma
+   linha por acto, nao por pessoa. */
+function bspAgruparUtentes(linhas, mapa) {
+  const porChave = {};
+  let semData = 0, semNome = 0;
+  linhas.forEach(l => {
+    const nome = mapa.nome >= 0 ? String(l[mapa.nome] || '').trim() : '';
+    const tel = mapa.telefone >= 0 ? String(l[mapa.telefone] || '').trim() : '';
+    const data = mapa.data >= 0 ? bspLerData(l[mapa.data]) : null;
+    /* A skill do mapa de pagamentos avisa: as linhas sem data de postagem
+       sao a linha-fantasma de totais do MetaGest. */
+    if (!data) { semData++; return; }
+    const chave = bspChaveUtente(nome, tel);
+    if (!chave) { semNome++; return; }
+    const anterior = porChave[chave];
+    const registo = {
+      chave: chave,
+      nome: nome,
+      telefone: tel || (anterior && anterior.telefone) || '',
+      ultima_visita: data,
+      ultimo_servico: mapa.servico >= 0 ? String(l[mapa.servico] || '').trim() : '',
+      ultimo_medico: mapa.medico >= 0 ? String(l[mapa.medico] || '').trim() : '',
+      visitas: 1
+    };
+    if (!anterior) { porChave[chave] = registo; return; }
+    anterior.visitas++;
+    if (!anterior.telefone && registo.telefone) anterior.telefone = registo.telefone;
+    /* So a visita mais recente manda nos campos "ultimo". */
+    if (data > anterior.ultima_visita) {
+      anterior.ultima_visita = data;
+      anterior.ultimo_servico = registo.ultimo_servico;
+      anterior.ultimo_medico = registo.ultimo_medico;
+      anterior.nome = nome;
+    }
+  });
+  return { utentes: Object.values(porChave), semData: semData, semNome: semNome };
+}
+
+/* Envia em lotes: um upsert de milhares de linhas de uma vez costuma
+   morrer a meio, e a chave unica deixa repetir sem duplicar. */
+async function bspImportarUtentes(utentes, aoProgresso) {
+  const cl = bspGetClient();
+  if (!cl) return { erro: 'O servidor não está ligado.' };
+  const LOTE = 200;
+  let feitos = 0;
+  for (let i = 0; i < utentes.length; i += LOTE) {
+    const parte = utentes.slice(i, i + LOTE).map(u => ({
+      ...u,
+      actualizado_em: new Date().toISOString()
+    }));
+    const r = await cl.from('utentes').upsert(parte, { onConflict: 'chave' });
+    if (r && r.error) {
+      if (/relation|does not exist|schema cache/i.test(r.error.message || '')) {
+        return { erro: 'As tabelas ainda não existem no servidor. Corra o crm-seguimento.sql uma vez no Supabase.' };
+      }
+      return { erro: r.error.message || 'O servidor recusou a importação.', feitos: feitos };
+    }
+    feitos += parte.length;
+    if (aoProgresso) aoProgresso(feitos, utentes.length);
+  }
+  return { feitos: feitos };
+}
+
+/* Janela de importacao do relatorio do MetaGest. Tres passos: escolher o
+   ficheiro, apontar as colunas, confirmar. A correspondencia fica
+   guardada, para as importacoes seguintes serem so dois cliques. */
+function ImportarUtentesModal({ open, onClose, aoImportar }) {
+  const toast = useToast();
+  const [ficheiro, setFicheiro] = React.useState(null);
+  const [dados, setDados] = React.useState(null);
+  const [mapa, setMapa] = React.useState({});
+  const [erro, setErro] = React.useState('');
+  const [ocupado, setOcupado] = React.useState('');
+  const inputRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    setFicheiro(null); setDados(null); setErro(''); setOcupado('');
+  }, [open]);
+
+  function escolher(e) {
+    const f = (e.target.files || [])[0];
+    if (!f) return;
+    setErro(''); setFicheiro(f);
+    if (/\.xlsx?$/i.test(f.name)) {
+      setErro('Este ficheiro é do Excel. No MetaGest, exporte o relatório como CSV — é a mesma informação, e evita trazer para dentro do site uma biblioteca de folhas de cálculo inteira.');
+      setDados(null);
+      return;
+    }
+    const fr = new FileReader();
+    fr.onload = () => {
+      const r = bspLerCsv(String(fr.result || ''));
+      if (!r.cabecalho.length || !r.linhas.length) {
+        setErro('Não encontrei linhas neste ficheiro.');
+        setDados(null);
+        return;
+      }
+      setDados(r);
+      /* Uma correspondencia guardada vale mais do que a adivinha, desde
+         que ainda aponte para colunas que existem neste ficheiro. */
+      let guardado = null;
+      try { guardado = JSON.parse(localStorage.getItem('bsp_import_mapa') || 'null'); } catch (x) {}
+      const valido = guardado && Object.keys(guardado).every(k => guardado[k] < r.cabecalho.length);
+      setMapa(valido ? guardado : bspAdivinharColunas(r.cabecalho));
+    };
+    fr.onerror = () => setErro('Não foi possível ler o ficheiro.');
+    fr.readAsText(f, 'utf-8');
+  }
+
+  const emFalta = BSP_CAMPOS_IMPORT.filter(c => c.obrig && (mapa[c.id] === undefined || mapa[c.id] < 0));
+  const previa = dados ? bspAgruparUtentes(dados.linhas, mapa) : null;
+
+  async function importar() {
+    if (!previa || !previa.utentes.length) return;
+    try { localStorage.setItem('bsp_import_mapa', JSON.stringify(mapa)); } catch (x) {}
+    setOcupado('A enviar… 0 de ' + previa.utentes.length);
+    const r = await bspImportarUtentes(previa.utentes, (feitos, total) =>
+      setOcupado('A enviar… ' + feitos + ' de ' + total));
+    setOcupado('');
+    if (r.erro) { setErro(r.erro); return; }
+    toast(r.feitos + (r.feitos === 1 ? ' utente actualizado.' : ' utentes actualizados.'));
+    aoImportar && aoImportar();
+    onClose();
+  }
+
+  const sel = {
+    width: '100%', height: 34, padding: '0 8px', borderRadius: 8,
+    border: '1px solid var(--border)', background: 'var(--surface)',
+    color: 'var(--text-1)', fontSize: 12.5, fontFamily: 'inherit'
+  };
+
+  return React.createElement(Modal, {
+    open: open, onClose: onClose, title: 'Importar do MetaGest', width: 620
+  }, React.createElement("div", {
+    style: { padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }
+  },
+  erro && React.createElement("div", {
+    style: {
+      background: 'rgba(220,38,38,.08)', border: '1px solid rgba(220,38,38,.35)',
+      borderLeft: '3px solid #DC2626', borderRadius: 8, padding: '10px 12px',
+      fontSize: 12.5, lineHeight: 1.5, color: 'var(--text-1)'
+    }
+  }, erro),
+
+  React.createElement("p", {
+    style: { fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.55, margin: 0 }
+  }, "No MetaGest, exporte o ", React.createElement("strong", null, "Relatório para o Dashboard"),
+     " em CSV e escolha-o aqui. Nada é apagado: quem já cá está é actualizado, e a mesma importação pode correr as vezes que forem precisas."),
+
+  React.createElement("input", {
+    ref: inputRef, type: "file", accept: ".csv,text/csv", onChange: escolher,
+    style: { display: 'none' }
+  }),
+  React.createElement(Button, {
+    variant: ficheiro ? 'ghost' : 'primary', size: "sm",
+    icon: React.createElement(I.Upload, { size: 13 }),
+    onClick: () => inputRef.current && inputRef.current.click()
+  }, ficheiro ? ficheiro.name : 'Escolher o ficheiro CSV'),
+
+  dados && React.createElement(React.Fragment, null,
+    React.createElement("div", {
+      style: {
+        fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase',
+        color: 'var(--text-3)', fontWeight: 700, marginTop: 4
+      }
+    }, "Que coluna é o quê"),
+    React.createElement("p", {
+      style: { fontSize: 12, color: 'var(--text-3)', margin: '-6px 0 0', lineHeight: 1.5 }
+    }, dados.linhas.length + " linhas, " + dados.cabecalho.length + " colunas. Confirme a correspondência — fica guardada para a próxima."),
+
+    React.createElement("div", {
+      className: "bsp-grid2",
+      style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }
+    }, BSP_CAMPOS_IMPORT.map(c => React.createElement("label", {
+      key: c.id, style: { display: 'block' }
+    }, React.createElement("span", {
+      style: { display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }
+    }, c.nome, c.obrig && React.createElement("span", { style: { color: '#DC2626' } }, " *")),
+      React.createElement("select", {
+        style: sel,
+        value: String(mapa[c.id] === undefined ? -1 : mapa[c.id]),
+        onChange: e => setMapa(m => ({ ...m, [c.id]: parseInt(e.target.value, 10) }))
+      }, React.createElement("option", { value: "-1" }, c.obrig ? '— escolher —' : '— não usar —'),
+        dados.cabecalho.map((h, i) => React.createElement("option", { key: i, value: String(i) }, h)))))),
+
+    previa && React.createElement("div", {
+      style: {
+        background: 'var(--surface-2)', border: '1px solid var(--border)',
+        borderRadius: 10, padding: '12px 14px', fontSize: 12.5,
+        color: 'var(--text-2)', lineHeight: 1.6
+      }
+    }, emFalta.length
+      ? ('Falta apontar: ' + emFalta.map(c => c.nome).join(' e ') + '.')
+      : React.createElement(React.Fragment, null,
+          React.createElement("strong", { style: { color: 'var(--text-1)' } },
+            previa.utentes.length + (previa.utentes.length === 1 ? ' utente' : ' utentes')),
+          " a partir de " + dados.linhas.length + " linhas.",
+          (previa.semData > 0 || previa.semNome > 0) && React.createElement("span", {
+            style: { display: 'block', marginTop: 4, color: 'var(--text-3)' }
+          }, "Ignoradas: " +
+             (previa.semData ? previa.semData + ' sem data' : '') +
+             (previa.semData && previa.semNome ? ', ' : '') +
+             (previa.semNome ? previa.semNome + ' sem nome' : '') +
+             ". As linhas sem data são o total do MetaGest, e não uma visita."))),
+
+    !emFalta.length && previa && previa.utentes.length > 0 && React.createElement("div", {
+      style: { display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 2 }
+    }, React.createElement(Button, {
+      variant: "primary", size: "sm",
+      onClick: ocupado ? undefined : importar
+    }, ocupado || ('Importar ' + previa.utentes.length))))));
+}
+
+/* Ecra do seguimento. Uma lista de quem nao volta ha muito, e o que ja se
+   fez a cada um. */
+function SeguimentoScreen() {
+  const { state } = useStore();
+  const toast = useToast();
+  const [meses, setMeses] = React.useState(6);
+  const [filtro, setFiltro] = React.useState('todos');
+  const [busca, setBusca] = React.useState('');
+  const [importar, setImportar] = React.useState(false);
+  const { linhas, estado, erro, recarregar } = useSeguimento(meses);
+
+  const equipa = (state.team && state.team.length) ? state.team : USERS;
+  const eu = bspResolveUser(null, equipa);
+  const podeImportar = bspCamada(eu).podeGerirUtilizadores;
+
+  const visiveis = linhas.filter(l => {
+    const e = l.seg ? l.seg.estado : 'por-contactar';
+    if (filtro !== 'todos' && e !== filtro) return false;
+    if (!busca.trim()) return true;
+    const q = busca.trim().toLowerCase();
+    return String(l.nome || '').toLowerCase().indexOf(q) !== -1 ||
+           String(l.telefone || '').indexOf(q) !== -1;
+  });
+
+  const contagem = {};
+  BSP_ESTADOS.forEach(e => contagem[e.id] = 0);
+  linhas.forEach(l => { contagem[l.seg ? l.seg.estado : 'por-contactar']++; });
+
+  async function marcar(l, novo) {
+    const err = await bspRegistarSeguimento(l.id, novo, '');
+    if (err) { toast(err); return; }
+    toast(bspEstado(novo).nome + ' · ' + String(l.nome || '').split(' ')[0]);
+    recarregar();
+  }
+
+  const chip = (on, cor, fundo) => ({
+    padding: '7px 13px', borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit',
+    fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap',
+    border: '1px solid ' + (on ? (cor || 'var(--accent-d)') : 'var(--border)'),
+    background: on ? (fundo || 'var(--accent-soft)') : 'transparent',
+    color: on ? (cor || 'var(--accent-d)') : 'var(--text-2)'
+  });
+
+  const vazio = txt => React.createElement("div", {
+    style: {
+      padding: '48px 20px', textAlign: 'center', color: 'var(--text-3)',
+      fontSize: 13.5, lineHeight: 1.6, maxWidth: 460, margin: '0 auto'
+    }
+  }, txt);
+
+  return React.createElement("div", {
+    style: { display: 'flex', flexDirection: 'column', gap: 14, height: '100%', overflow: 'hidden' }
+  },
+  /* cabeçalho */
+  React.createElement("div", {
+    style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', flex: 'none' }
+  }, React.createElement("div", { style: { minWidth: 0 } },
+    React.createElement("h2", {
+      style: { fontSize: 18, fontWeight: 700, margin: 0, color: 'var(--text-1)' }
+    }, "Seguimento e retorno"),
+    React.createElement("p", {
+      style: { fontSize: 12.5, color: 'var(--text-2)', margin: '4px 0 0', maxWidth: 620, lineHeight: 1.5 }
+    }, "Quem esteve na clínica e não voltou. Os dados vêm do MetaGest — aqui guarda-se apenas o que já se fez para os trazer de volta.")),
+    podeImportar && React.createElement(Button, {
+      variant: "primary", size: "sm",
+      icon: React.createElement(I.Upload, { size: 13 }),
+      onClick: () => setImportar(true)
+    }, "Importar do MetaGest")),
+
+  /* filtros */
+  React.createElement("div", {
+    style: { display: 'flex', gap: 8, flexWrap: 'wrap', flex: 'none', alignItems: 'center' }
+  }, [3, 6, 12, 24].map(m => React.createElement("button", {
+    key: m, onClick: () => setMeses(m), style: chip(meses === m)
+  }, "Há mais de " + (m === 12 ? '1 ano' : m === 24 ? '2 anos' : m + ' meses'))),
+    React.createElement("span", { style: { flex: 1 } }),
+    React.createElement("input", {
+      value: busca, onChange: e => setBusca(e.target.value),
+      placeholder: "Procurar por nome ou telefone",
+      style: {
+        height: 34, padding: '0 12px', borderRadius: 9, minWidth: 200,
+        border: '1px solid var(--border)', background: 'var(--surface-2)',
+        color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit'
+      }
+    })),
+
+  linhas.length > 0 && React.createElement("div", {
+    style: { display: 'flex', gap: 8, flexWrap: 'wrap', flex: 'none' }
+  }, React.createElement("button", {
+    onClick: () => setFiltro('todos'), style: chip(filtro === 'todos')
+  }, "Todos ", React.createElement("span", { style: { opacity: .65 } }, linhas.length)),
+    BSP_ESTADOS.map(e => React.createElement("button", {
+      key: e.id, onClick: () => setFiltro(e.id), style: chip(filtro === e.id, e.cor, e.fundo)
+    }, e.nome, " ", React.createElement("span", { style: { opacity: .65 } }, contagem[e.id])))),
+
+  /* lista */
+  React.createElement(Card, {
+    pad: 0, style: { flex: 1, overflow: 'auto', minHeight: 0 }
+  }, estado === 'a-carregar' ? vazio('A carregar…')
+   : estado === 'sem-servidor' ? vazio('O servidor não está ligado neste aparelho.')
+   : estado === 'sem-tabelas' ? vazio('As tabelas do seguimento ainda não existem. Corra o crm-seguimento.sql uma vez no SQL Editor do Supabase.')
+   : estado === 'erro' ? vazio('Não foi possível carregar. ' + erro)
+   : !linhas.length ? vazio(podeImportar
+       ? 'Ainda não há utentes. Importe o Relatório para o Dashboard do MetaGest para começar.'
+       : 'Ainda não há utentes importados. Peça à coordenação para importar o relatório do MetaGest.')
+   : !visiveis.length ? vazio('Nenhum utente com este filtro.')
+   : visiveis.map((l, i) => React.createElement("div", {
+      key: l.id,
+      className: "bsp-row-hover bsp-seg-linha",
+      style: {
+        display: 'grid', gridTemplateColumns: '1fr auto', gap: 12,
+        padding: '14px 18px', alignItems: 'center',
+        borderBottom: i < visiveis.length - 1 ? '1px solid var(--border)' : 'none'
+      }
+    }, React.createElement("div", { style: { minWidth: 0 } },
+      React.createElement("div", {
+        style: {
+          fontSize: 14, fontWeight: 600, color: 'var(--text-1)',
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+        }
+      }, l.nome),
+      React.createElement("div", {
+        style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2, lineHeight: 1.5 }
+      }, bspHaQuanto(l.dias),
+        l.ultimo_servico ? ' · ' + l.ultimo_servico : '',
+        l.visitas > 1 ? ' · ' + l.visitas + ' visitas' : '',
+        l.telefone ? React.createElement("span", { style: { display: 'block' } }, l.telefone) : null)),
+
+    React.createElement("div", {
+      style: { display: 'flex', alignItems: 'center', gap: 8, flex: 'none' }
+    }, React.createElement(Badge, {
+      tone: "outline", size: "xs",
+      style: {
+        color: bspEstado(l.seg && l.seg.estado).cor,
+        background: bspEstado(l.seg && l.seg.estado).fundo,
+        borderColor: bspEstado(l.seg && l.seg.estado).cor
+      }
+    }, bspEstado(l.seg && l.seg.estado).nome),
+      l.telefone && React.createElement("a", {
+        href: 'tel:' + l.telefone.replace(/\s/g, ''),
+        title: "Ligar",
+        onClick: () => marcar(l, 'contactado'),
+        style: {
+          width: 34, height: 34, borderRadius: 9, flex: 'none',
+          border: '1px solid var(--border)', background: 'var(--surface-2)',
+          color: 'var(--accent-d)', display: 'grid', placeItems: 'center'
+        }
+      }, React.createElement(I.Phone, { size: 15 })),
+      React.createElement("select", {
+        value: l.seg ? l.seg.estado : 'por-contactar',
+        onChange: e => marcar(l, e.target.value),
+        title: "Estado do seguimento",
+        style: {
+          height: 34, padding: '0 8px', borderRadius: 9, flex: 'none',
+          border: '1px solid var(--border)', background: 'var(--surface)',
+          color: 'var(--text-2)', fontSize: 12.5, fontFamily: 'inherit', cursor: 'pointer'
+        }
+      }, BSP_ESTADOS.map(e => React.createElement("option", { key: e.id, value: e.id }, e.nome))))))),
+
+  React.createElement(ImportarUtentesModal, {
+    open: importar, onClose: () => setImportar(false), aoImportar: recarregar
+  }));
+}
+
 function App() {
   const [authed, setAuthed] = React.useState(false);
   const [authedEmail, setAuthedEmail] = React.useState(null);
@@ -15389,7 +16044,7 @@ function App() {
   }), page === 'meetings' && React.createElement(MeetingsScreen, null), page === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), page === 'drive' && React.createElement(DriveScreen, null), page === 'calendar' && React.createElement(CalendarScreen, null), page === 'tasks' && React.createElement(TasksScreen, null), page === 'directory' && React.createElement(DirectoryScreen, null), page === 'admin' && React.createElement(AdminScreen, {
+  }), page === 'drive' && React.createElement(DriveScreen, null), page === 'calendar' && React.createElement(CalendarScreen, null), page === 'tasks' && React.createElement(TasksScreen, null), page === 'seguimento' && React.createElement(SeguimentoScreen, null), page === 'directory' && React.createElement(DirectoryScreen, null), page === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
   }), page === 'notifications' && React.createElement(NotificationsScreen, null))), isMobile && React.createElement(MobileNav, {
     current: page,
