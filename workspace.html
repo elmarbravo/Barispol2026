@@ -6046,7 +6046,7 @@ function ChatScreen({
   }, React.createElement(ChannelList, {
     title: "Canais",
     actionIcon: "Plus",
-    actionTitle: "Criar grupo",
+    actionTitle: "Criar canal ou grupo privado",
     onAction: () => setGrupoModal(true),
     items: CHANNELS.filter(c => bspVeCanal(currentUser, c)),
     renderItem: c => {
@@ -9672,12 +9672,14 @@ function TaskComposer({
   const [col, setCol] = React.useState(defaultCol || 'todo');
   const [prio, setPrio] = React.useState('media');
   const [who, setWho] = React.useState([]);
+  const [pessoal, setPessoal] = React.useState(false);
   React.useEffect(() => {
     if (open) {
       setTitle(editTask ? editTask.title : '');
       setCol(defaultCol || 'todo');
       setPrio(editTask ? editTask.priority || 'media' : 'media');
       setWho(editTask ? editTask.assignees || [] : []);
+      setPessoal(false);
     }
   }, [open, defaultCol, editTask]);
   const submit = () => {
@@ -9696,7 +9698,9 @@ function TaskComposer({
     onCreate(col, {
       title: title.trim(),
       priority: prio,
-      assignees: who,
+      /* Uma tarefa pessoal não tem responsáveis: é sua e mais de ninguém. */
+      assignees: pessoal ? [] : who,
+      pessoal: pessoal,
       tags: [],
       due: '',
       proj: ''
@@ -9735,7 +9739,42 @@ function TaskComposer({
       flexDirection: 'column',
       gap: 16
     }
-  }, React.createElement("div", null, React.createElement("label", {
+  }, !editTask && React.createElement("label", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 10,
+      padding: '12px 14px',
+      borderRadius: 10,
+      cursor: 'pointer',
+      border: '1px solid ' + (pessoal ? 'var(--accent-d)' : 'var(--border)'),
+      background: pessoal ? 'var(--accent-soft)' : 'var(--surface-2)'
+    }
+  }, React.createElement("input", {
+    type: "checkbox",
+    checked: pessoal,
+    onChange: e => setPessoal(e.target.checked),
+    style: {
+      marginTop: 2
+    }
+  }), React.createElement("span", null, React.createElement("span", {
+    style: {
+      display: 'block',
+      fontSize: 13.5,
+      fontWeight: 600,
+      color: 'var(--text-1)'
+    }
+  }, "Só para mim"), React.createElement("span", {
+    style: {
+      display: 'block',
+      fontSize: 11.5,
+      color: 'var(--text-3)',
+      lineHeight: 1.5,
+      marginTop: 2
+    }
+  }, pessoal
+    ? 'Fica guardada em seu nome. Ninguém mais a vê, nem a direcção — nem sequer chega aos aparelhos dos outros.'
+    : 'Todos os colegas vêem esta tarefa no quadro da equipa.'))), React.createElement("div", null, React.createElement("label", {
     style: {
       fontSize: 12,
       fontWeight: 600,
@@ -9835,12 +9874,115 @@ function chip(on) {
     fontFamily: 'inherit'
   };
 }
+/* ═══ Tarefas pessoais ═══════════════════════════════════════════════════
+   As tarefas da equipa vivem no shared_state, que e enviado por inteiro
+   para todos os aparelhos. Uma tarefa marcada "pessoal" e apenas escondida
+   no ecra continuaria a chegar a toda a gente — privacidade a fingir.
+
+   Estas vivem numa tabela propria onde a regra do servidor so deixa cada
+   pessoa ler as suas. Nem sequer chegam ao aparelho dos outros. */
+
+function useTarefasPessoais() {
+  const [tarefas, setTarefas] = React.useState([]);
+  const [estado, setEstado] = React.useState('inicio');
+  const [tick, setTick] = React.useState(0);
+  const recarregar = React.useCallback(() => setTick(t => t + 1), []);
+
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) { setEstado('sem-servidor'); return; }
+    let vivo = true;
+    setEstado('a-carregar');
+    (async () => {
+      try {
+        const r = await cl.from('tarefas_pessoais').select('*')
+          .order('ordem', { ascending: true })
+          .order('created_at', { ascending: true });
+        if (!vivo) return;
+        if (r.error) {
+          setEstado(/relation|does not exist|schema cache/i.test(r.error.message || '') ? 'sem-tabela' : 'erro');
+          return;
+        }
+        /* O RLS ja limita as linhas ao dono; nao ha nada a filtrar aqui. */
+        setTarefas(r.data || []);
+        setEstado('pronto');
+      } catch (e) {
+        if (vivo) setEstado('erro');
+      }
+    })();
+    return () => { vivo = false; };
+  }, [tick]);
+
+  const criar = React.useCallback(async (coluna, dados) => {
+    const cl = bspGetClient();
+    if (!cl) return 'O servidor não está ligado.';
+    const r = await cl.from('tarefas_pessoais').insert({
+      user_id: window.CURRENT_USER_ID || null,
+      coluna: coluna,
+      titulo: dados.title,
+      prioridade: dados.priority || 'media',
+      prazo: dados.due || null,
+      ordem: Date.now() % 2000000000
+    });
+    if (r && r.error) return r.error.message || 'Não foi possível gravar.';
+    recarregar();
+    return null;
+  }, [recarregar]);
+
+  const mover = React.useCallback(async (id, coluna) => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    await cl.from('tarefas_pessoais').update({ coluna: coluna }).eq('id', id);
+    recarregar();
+  }, [recarregar]);
+
+  const apagar = React.useCallback(async id => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    await cl.from('tarefas_pessoais').delete().eq('id', id);
+    recarregar();
+  }, [recarregar]);
+
+  /* Devolve no mesmo formato do quadro da equipa, para o ecra tratar as
+     duas origens da mesma maneira. */
+  const porColuna = React.useMemo(() => {
+    const b = { todo: [], doing: [], review: [], done: [] };
+    tarefas.forEach(t => {
+      const c = b[t.coluna] ? t.coluna : 'todo';
+      b[c].push({
+        id: 'p' + t.id,
+        idReal: t.id,
+        pessoal: true,
+        title: t.titulo,
+        priority: t.prioridade,
+        due: t.prazo || '',
+        assignees: [],
+        tags: [],
+        proj: ''
+      });
+    });
+    return b;
+  }, [tarefas]);
+
+  return { porColuna, estado, criar, mover, apagar, recarregar };
+}
+
 function TasksScreen() {
   const {
     state,
     actions
   } = useStore();
-  const board = state.tasks;
+  const pess = useTarefasPessoais();
+  const [verPessoais, setVerPessoais] = React.useState(true);
+  /* Junta as duas origens numa vista só. As pessoais vêm de uma tabela que
+     o servidor só mostra ao dono; as da equipa, do estado partilhado. */
+  const board = React.useMemo(() => {
+    const b = {};
+    ['todo', 'doing', 'review', 'done'].forEach(c => {
+      b[c] = (state.tasks[c] || []).concat(verPessoais ? (pess.porColuna[c] || []) : []);
+    });
+    return b;
+  }, [state.tasks, pess.porColuna, verPessoais]);
   const [dragId, setDragId] = React.useState(null);
   const [dragFrom, setDragFrom] = React.useState(null);
   const [hoverCol, setHoverCol] = React.useState(null);
@@ -9867,12 +10009,19 @@ function TasksScreen() {
   }];
   const order = cols.map(c => c.id);
   const total = order.reduce((n, id) => n + (board[id] || []).length, 0);
+  const nPessoais = ['todo', 'doing', 'review', 'done']
+    .reduce((n, c) => n + (pess.porColuna[c] || []).length, 0);
+  /* Uma tarefa pessoal traz o prefixo p no id: é assim que se sabe a que
+     origem pertence sem ter de a procurar nas duas listas. */
+  const ePessoal = id => String(id || '').charAt(0) === 'p';
+  const idReal = id => parseInt(String(id).slice(1), 10);
   function onDrop(toCol) {
     if (!dragId || !dragFrom || dragFrom === toCol) {
       reset();
       return;
     }
-    actions.moveTask(dragFrom, toCol, dragId);
+    if (ePessoal(dragId)) pess.mover(idReal(dragId), toCol);
+    else actions.moveTask(dragFrom, toCol, dragId);
     reset();
   }
   function reset() {
@@ -9883,7 +10032,9 @@ function TasksScreen() {
   function move(fromCol, taskId, dir) {
     const idx = order.indexOf(fromCol);
     const to = order[idx + dir];
-    if (to) actions.moveTask(fromCol, to, taskId);
+    if (!to) return;
+    if (ePessoal(taskId)) pess.mover(idReal(taskId), to);
+    else actions.moveTask(fromCol, to, taskId);
   }
   return React.createElement("div", {
     style: {
@@ -9900,7 +10051,10 @@ function TasksScreen() {
       open: false,
       col: 'todo'
     }),
-    onCreate: actions.createTask,
+    onCreate: (col, t) => {
+      if (t.pessoal) pess.criar(col, t);
+      else actions.createTask(col, t);
+    },
     onUpdate: actions.updateTask,
     onMove: actions.moveTask
   }), React.createElement("div", {
@@ -9927,7 +10081,26 @@ function TasksScreen() {
     }
   }, "Quadro de Tarefas"), React.createElement(Badge, {
     tone: "accent"
-  }, total, " ", total === 1 ? 'tarefa' : 'tarefas')), React.createElement("div", {
+  }, total, " ", total === 1 ? 'tarefa' : 'tarefas'), nPessoais > 0 && React.createElement("button", {
+    onClick: () => setVerPessoais(v => !v),
+    title: verPessoais ? 'Esconder as minhas tarefas pessoais' : 'Mostrar as minhas tarefas pessoais',
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      padding: '5px 11px',
+      borderRadius: 999,
+      cursor: 'pointer',
+      fontFamily: 'inherit',
+      fontSize: 12,
+      fontWeight: 600,
+      border: '1px solid ' + (verPessoais ? 'var(--accent-d)' : 'var(--border)'),
+      background: verPessoais ? 'var(--accent-soft)' : 'transparent',
+      color: verPessoais ? 'var(--accent-d)' : 'var(--text-3)'
+    }
+  }, React.createElement(verPessoais ? I.Eye : I.Lock, {
+    size: 12
+  }), nPessoais, " ", nPessoais === 1 ? 'pessoal' : 'pessoais')), React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -10113,7 +10286,7 @@ function TasksScreen() {
     canNext: ci < cols.length - 1,
     onPrev: () => move(c.id, tk.id, -1),
     onNext: () => move(c.id, tk.id, 1),
-    onDelete: () => actions.deleteTask(c.id, tk.id),
+    onDelete: () => ePessoal(tk.id) ? pess.apagar(idReal(tk.id)) : actions.deleteTask(c.id, tk.id),
     onEdit: () => setComposer({
       open: true,
       col: c.id,
@@ -10203,7 +10376,24 @@ function TaskCard({
       borderRadius: '50%',
       background: prioMeta.c
     }
-  }), prioMeta.l.toUpperCase()), (t.tags || []).slice(0, 2).map(tag => React.createElement(Badge, {
+  }), prioMeta.l.toUpperCase()), t.pessoal && React.createElement("span", {
+    title: "Só você vê esta tarefa",
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4,
+      fontSize: 10,
+      fontWeight: 700,
+      letterSpacing: '.04em',
+      padding: '2px 7px',
+      borderRadius: 999,
+      color: 'var(--accent-d)',
+      background: 'var(--accent-soft)',
+      border: '1px solid rgba(0,163,224,.25)'
+    }
+  }, React.createElement(I.Lock, {
+    size: 10
+  }), "SÓ EU"), (t.tags || []).slice(0, 2).map(tag => React.createElement(Badge, {
     key: tag,
     tone: tagColors[tag] || 'default',
     size: "xs"
