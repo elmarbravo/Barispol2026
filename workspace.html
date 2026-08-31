@@ -14122,6 +14122,16 @@ function ChamadasProvider({
      isso a App anuncia-se aqui, e a subscricao refaz-se quando mudar. */
   const [eu, setEu] = React.useState(null);
   const [erro, setErro] = React.useState('');
+  /* O provider vive dentro do StoreProvider, por isso pode escrever na
+     conversa. Serve para deixar rasto de uma chamada não atendida. */
+  const {
+    actions
+  } = useStore();
+  const atendida = React.useRef(false);
+  /* So conta como chamada perdida se o convite chegou a sair. Sem isto,
+     recusar o proprio microfone escrevia "nao atendida" na conversa da
+     outra pessoa, que nunca chegou a ser incomodada. */
+  const convidou = React.useRef(false);
   const [semSom, setSemSom] = React.useState(false);
   const [semImagem, setSemImagem] = React.useState(false);
   const pc = React.useRef(null);
@@ -14153,7 +14163,32 @@ function ChamadasProvider({
     } catch (e) {}
   }, []);
 
+  /* Uma chamada que ninguem atendeu tem de deixar rasto. Antes, o botao de
+     chamar publicava a ligacao do Jitsi como mensagem, e por ser mensagem
+     directa disparava o e-mail para quem estava a ser chamado. A chamada
+     nativa e so um sinal em tempo real: sem isto, quem nao tivesse o
+     Workspace aberto nunca sabia que lhe tinham ligado.
+
+     Escreve so quem chamou, e so se nao chegou a haver ligacao — se a
+     pessoa atendeu, ja sabe. O e-mail vai atras, porque qualquer mensagem
+     directa o dispara. */
+  const registarPerdida = React.useCallback(() => {
+    const c = chRef.current;
+    if (!c || c.fase === 'livre' || !c.euChamei) return;
+    if (!convidou.current || atendida.current) return;
+    if (!eu || !c.outroId) return;
+    try {
+      actions.sendMessage('dm-' + [eu, c.outroId].sort().join('_'), {
+        userId: eu,
+        text: (c.comVideo ? 'Videochamada' : 'Chamada') + ' não atendida.'
+      });
+    } catch (e) {}
+  }, [actions, eu]);
+
   const limpar = React.useCallback(() => {
+    registarPerdida();
+    atendida.current = false;
+    convidou.current = false;
     try {
       pc.current && pc.current.close();
     } catch (e) {}
@@ -14171,7 +14206,7 @@ function ChamadasProvider({
     setCh({
       fase: 'livre'
     });
-  }, []);
+  }, [registarPerdida]);
 
   const criarPC = React.useCallback((outroId, id) => {
     const p = new RTCPeerConnection({
@@ -14192,9 +14227,12 @@ function ChamadasProvider({
     };
     p.onconnectionstatechange = () => {
       const e = p.connectionState;
-      if (e === 'connected') setCh(c => c.fase === 'livre' ? c : Object.assign({}, c, {
-        fase: 'ligado'
-      }));
+      if (e === 'connected') {
+        atendida.current = true;
+        setCh(c => c.fase === 'livre' ? c : Object.assign({}, c, {
+          fase: 'ligado'
+        }));
+      }
       if (e === 'failed') {
         setErro('Não foi possível estabelecer a ligação directa. Se isto acontecer muitas vezes, é preciso configurar um servidor TURN em Admin → Sistema.');
         limpar();
@@ -14255,6 +14293,7 @@ function ChamadasProvider({
           sdp: oferta.sdp
         }
       });
+      convidou.current = true;
     } catch (e) {
       setErro(e && e.name === 'NotAllowedError' ? 'Precisa de autorizar o microfone' + (comVideo ? ' e a câmara' : '') + ' no navegador.' : 'Não foi possível iniciar a chamada.');
       limpar();
