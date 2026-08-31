@@ -1167,17 +1167,63 @@ const CAMADAS_ANTIGAS = {
   'Super Admin': 'Direcção', 'Admin': 'Coordenação', 'Manager': 'Coordenação',
   'Membro': 'Operações', 'Convidado': 'Operações'
 };
-function bspCamadaNome(u){
-  const n = u && u.accessLevel;
-  if (CAMADAS[n]) return n;
-  return CAMADAS_ANTIGAS[n] || 'Operações';
+/* As camadas deixaram de estar presas ao codigo: o CAMADAS acima e apenas
+   o ponto de partida de uma instalacao nova. A versao viva e editavel no
+   Admin, vive no estado partilhado e sincroniza pelo Supabase.
+
+   O StoreProvider publica-a em window.__bspCamadas porque estas funcoes
+   sao chamadas de fora de componentes React e nao podem ler o estado — e
+   o mesmo caminho que o window.CURRENT_USER_ID ja usa. */
+function bspCamadas(){
+  const vivas = typeof window !== 'undefined' && window.__bspCamadas;
+  return (vivas && Object.keys(vivas).length) ? vivas : CAMADAS;
 }
-function bspCamada(u){ return CAMADAS[bspCamadaNome(u)] || CAMADAS['Operações']; }
+/* A camada para onde recai quem tem um nivel que ja nao existe — porque
+   foi apagado, ou porque chegou do servidor uma lista sem ele.
+
+   Escolhe SEMPRE de entre as que nao administram nada. Ordenar so pelo
+   numero de ordem nao chegava: se a unica camada restante fosse a
+   Direccao, quem perdesse a sua herdava a administracao inteira. Um erro
+   de dados nunca pode dar permissoes a alguem. */
+function bspCamadaBase(){
+  const cs = bspCamadas();
+  const nomes = Object.keys(cs);
+  if (!nomes.length) return 'Operações';
+  const porOrdem = nomes.slice().sort((a, b) => (cs[b].ordem || 0) - (cs[a].ordem || 0));
+  const inofensivas = porOrdem.filter(x => !cs[x].podeGerirUtilizadores && !cs[x].podeVerSistema);
+  return inofensivas.length ? inofensivas[0] : '\u0000sem-camada';
+}
+function bspCamadaNome(u){
+  const cs = bspCamadas();
+  const n = u && u.accessLevel;
+  if (cs[n]) return n;
+  const antigo = CAMADAS_ANTIGAS[n];
+  if (antigo && cs[antigo]) return antigo;
+  return bspCamadaBase();
+}
+/* Camada sem poder nenhum. So e usada quando todas as camadas existentes
+   administram alguma coisa e alguem ficou sem a sua: nesse caso e melhor
+   nao ver nada do que ver tudo. */
+const BSP_CAMADA_NULA = {
+  ordem: 999,
+  desc: 'Sem camada atribuída.',
+  canais: [],
+  admin: null,
+  podeGerirUtilizadores: false,
+  podeVerSistema: false
+};
+function bspCamada(u){
+  const cs = bspCamadas();
+  return cs[bspCamadaNome(u)] || cs[bspCamadaBase()] || BSP_CAMADA_NULA;
+}
 function bspVeCanal(u, canal){
   if (!u || !canal) return false;
   /* Grupos privados: só os membros escolhidos. A Direcção vê tudo. */
   if (canal.membros && canal.membros.length) {
-    if (bspCamadaNome(u) === 'Direcção') return true;
+    /* Antes era o nome 'Direcção' à letra. Com camadas editáveis isso
+       deixaria um administrador de fora só por se chamar outra coisa:
+       o que conta é poder ver o sistema, não o nome da camada. */
+    if (bspCamada(u).podeVerSistema) return true;
     return canal.membros.indexOf(u.id) !== -1;
   }
   /* Ajustes por pessoa feitos no Admin: retirar ganha a dar, e ambos ganham à camada. */
@@ -2843,6 +2889,9 @@ function loadInitial() {
           ...u
         }));
         if (!parsed.extraChannels) parsed.extraChannels = [];
+        /* Instalações anteriores às camadas editáveis arrancam com as
+           quatro originais, em vez de ficarem sem nenhuma. */
+        if (!parsed.camadas || !Object.keys(parsed.camadas).length) parsed.camadas = JSON.parse(JSON.stringify(CAMADAS));
         return parsed;
       }
     }
@@ -2863,6 +2912,7 @@ function loadInitial() {
     activityLog: ACTIVITY_LOG,
     pinnedMessages: {},
     extraChannels: [],
+    camadas: JSON.parse(JSON.stringify(CAMADAS)),
     seq: 100
   };
 }
@@ -3063,6 +3113,10 @@ function StoreProvider({
     myCids: new Set()
   });
   const lastPushedRef = React.useRef('');
+  /* As camadas vivas tem de estar em window antes de qualquer render as
+     ler: o bspCamada() e chamado de fora de componentes. Durante o render
+     e nao num efeito, senao a primeira pintura usava as camadas antigas. */
+  if (state.camadas && Object.keys(state.camadas).length) window.__bspCamadas = state.camadas;
   React.useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -3212,6 +3266,9 @@ function StoreProvider({
         const drive = row.drive || s.driveFiles;
         const team = row.team && row.team.length ? row.team : s.team;
         const canais = row.channels || s.extraChannels || [];
+        /* Só substitui se vier alguma coisa: uma linha sem a coluna camadas
+           não pode apagar as que este posto já conhece. */
+        const camadas = (row.camadas && Object.keys(row.camadas).length) ? row.camadas : s.camadas;
         try {
           const flat = b => [].concat(...Object.values(b || {}));
           const oldIds = new Set(flat(s.tasks).map(x => x.id));
@@ -3229,7 +3286,8 @@ function StoreProvider({
           events,
           drive,
           team,
-          channels: canais
+          channels: canais,
+          camadas: camadas
         });
         return {
           ...s,
@@ -3237,7 +3295,8 @@ function StoreProvider({
           todayEvents: events,
           driveFiles: drive,
           team,
-          extraChannels: canais
+          extraChannels: canais,
+          camadas: camadas
         };
       });
     };
@@ -3494,7 +3553,8 @@ function StoreProvider({
       events: state.todayEvents,
       drive: state.driveFiles,
       team: state.team,
-      channels: state.extraChannels || []
+      channels: state.extraChannels || [],
+      camadas: state.camadas || {}
     });
     if (payload === lastPushedRef.current) return;
     lastPushedRef.current = payload;
@@ -3506,13 +3566,22 @@ function StoreProvider({
         drive: state.driveFiles,
         team: state.team,
         channels: state.extraChannels || [],
+        camadas: state.camadas || {},
         updated_at: new Date().toISOString()
       };
       cl.from('shared_state').upsert(row).then(res => {
         if (res && res.error) {
-          /* Servidores sem a coluna channels: tenta sem ela; depois sem team. */
-          const r2 = {
+          /* Servidores sem as colunas novas: larga-as por ordem inversa de
+             antiguidade — camadas, depois channels, depois team. Assim um
+             servidor por actualizar continua a guardar o essencial. */
+          const r1 = {
             ...row
+          };
+          delete r1.camadas;
+          cl.from('shared_state').upsert(r1).then(resA => {
+            if (!resA || !resA.error) return;
+          const r2 = {
+            ...r1
           };
           delete r2.channels;
           cl.from('shared_state').upsert(r2).then(res2 => {
@@ -3524,10 +3593,11 @@ function StoreProvider({
               cl.from('shared_state').upsert(r3).then(() => {}, () => {});
             }
           }, () => {});
+          }, () => {});
         }
       }, () => {});
     } catch (e) {}
-  }, [state.tasks, state.todayEvents, state.driveFiles, state.team, state.extraChannels, sync.status]);
+  }, [state.tasks, state.todayEvents, state.driveFiles, state.team, state.extraChannels, state.camadas, sync.status]);
   React.useEffect(() => {
     const team = state.team;
     if (!team || !team.length) return;
@@ -3945,6 +4015,66 @@ function StoreProvider({
       ...s,
       extraChannels: (s.extraChannels || []).filter(c => c.id !== canalId)
     }, CURRENT_USER_ID, 'apagou um canal', '')),
+    /* ── Camadas de acesso editaveis ──────────────────────────────────
+       Devolvem null em caso de sucesso, ou uma frase a explicar a recusa.
+       As guardas existem para que ninguem se tranque fora da propria
+       plataforma por engano — nao ha forma de recuperar sem tocar na base
+       de dados a mao. */
+    guardarCamada: (nomeAntigo, camada) => {
+      const nome = String(camada.nome || '').trim();
+      if (!nome) return 'A camada precisa de um nome.';
+      let erro = null;
+      setState(s => {
+        const cs = { ...(s.camadas || CAMADAS) };
+        if (nome !== nomeAntigo && cs[nome]) { erro = 'Já existe uma camada com o nome “' + nome + '”.'; return s; }
+        const antes = nomeAntigo ? cs[nomeAntigo] : null;
+        /* Retirar a gestao de utilizadores a ultima camada que a tem
+           deixaria a plataforma sem quem administre. */
+        if (antes && antes.podeGerirUtilizadores && !camada.podeGerirUtilizadores) {
+          const outras = Object.keys(cs).filter(x => x !== nomeAntigo && cs[x].podeGerirUtilizadores);
+          if (!outras.length) { erro = 'Esta é a única camada que pode gerir utilizadores. Dê essa permissão a outra antes de a retirar aqui.'; return s; }
+        }
+        if (antes && antes.podeVerSistema && !camada.podeVerSistema) {
+          const outras = Object.keys(cs).filter(x => x !== nomeAntigo && cs[x].podeVerSistema);
+          if (!outras.length) { erro = 'Esta é a única camada que pode configurar o servidor. Dê essa permissão a outra antes de a retirar aqui.'; return s; }
+        }
+        if (nomeAntigo) delete cs[nomeAntigo];
+        cs[nome] = {
+          ordem: Number(camada.ordem) || 99,
+          desc: String(camada.desc || '').trim(),
+          canais: camada.canais === '*' ? '*' : (camada.canais || []),
+          admin: camada.podeVerSistema ? 'total' : camada.podeGerirUtilizadores ? 'sem-sistema' : null,
+          podeGerirUtilizadores: !!camada.podeGerirUtilizadores,
+          podeVerSistema: !!camada.podeVerSistema
+        };
+        /* Ao mudar o nome, os utilizadores tem de o acompanhar: o
+           accessLevel guarda o nome, nao um identificador. */
+        const equipa = (s.team || []).map(u => (nomeAntigo && u.accessLevel === nomeAntigo) ? { ...u, accessLevel: nome } : u);
+        return pushActivity({ ...s, camadas: cs, team: equipa }, CURRENT_USER_ID,
+          nomeAntigo ? 'alterou a camada' : 'criou a camada', nome);
+      });
+      return erro;
+    },
+    apagarCamada: nome => {
+      let erro = null;
+      setState(s => {
+        const cs = { ...(s.camadas || CAMADAS) };
+        if (!cs[nome]) { erro = 'Essa camada já não existe.'; return s; }
+        if (Object.keys(cs).length <= 1) { erro = 'Tem de existir pelo menos uma camada.'; return s; }
+        const equipa = s.team || [];
+        const comMembros = equipa.filter(u => bspCamadaNome(u) === nome).length;
+        if (comMembros) { erro = 'Ainda há ' + comMembros + (comMembros === 1 ? ' pessoa nesta camada. Mude-a' : ' pessoas nesta camada. Mude-as') + ' de camada antes de a apagar.'; return s; }
+        if (cs[nome].podeGerirUtilizadores && !Object.keys(cs).some(x => x !== nome && cs[x].podeGerirUtilizadores)) {
+          erro = 'É a única camada que pode gerir utilizadores. Apagá-la deixava a plataforma sem administração.'; return s;
+        }
+        if (cs[nome].podeVerSistema && !Object.keys(cs).some(x => x !== nome && cs[x].podeVerSistema)) {
+          erro = 'É a única camada que pode configurar o servidor. Apagá-la deixava a ligação sem quem lhe mexa.'; return s;
+        }
+        delete cs[nome];
+        return pushActivity({ ...s, camadas: cs }, CURRENT_USER_ID, 'apagou a camada', nome);
+      });
+      return erro;
+    },
     resetAll: () => {
       try {
         localStorage.removeItem(STORAGE_KEY);
@@ -10649,7 +10779,7 @@ function DirectoryScreen() {
     tone: "outline",
     size: "xs"
   }, u.dept), React.createElement(Badge, {
-    tone: bspCamadaNome(u) === 'Direcção' ? 'navy' : bspCamadaNome(u) === 'Coordenação' ? 'accent' : bspCamadaNome(u) === 'Clínica' ? 'amber' : 'default',
+    tone: bspCamada(u).podeVerSistema ? 'navy' : bspCamada(u).podeGerirUtilizadores ? 'accent' : bspCamada(u).canais === '*' ? 'amber' : 'default',
     size: "xs"
   }, bspCamadaNome(u))), React.createElement("div", {
     style: {
@@ -11969,7 +12099,7 @@ function AdminUserModal({
   }, React.createElement(Select, {
     value: acesso,
     onChange: setAcesso,
-    options: Object.keys(CAMADAS).sort((x, y) => CAMADAS[x].ordem - CAMADAS[y].ordem).map(n => ({
+    options: Object.keys(bspCamadas()).sort((x, y) => bspCamadas()[x].ordem - bspCamadas()[y].ordem).map(n => ({
       value: n,
       label: n
     }))
@@ -12070,9 +12200,21 @@ function AdminUsers() {
     a.remove();
   }
   function remove(u) {
-    if (u.id === 'u1' || bspCamadaNome(u) === 'Direcção') {
-      toast('A conta da Direcção não pode ser removida aqui.');
-      return;
+    /* Antes era o nome 'Direcção' à letra. Com camadas editáveis, o que
+       interessa é não deixar a plataforma sem ninguém que a administre. */
+    if (bspCamada(u).podeVerSistema) {
+      const outros = team.filter(x => x.id !== u.id && bspCamada(x).podeVerSistema).length;
+      if (!outros) {
+        toast('É a única pessoa que pode configurar o servidor. Dê essa camada a outra antes de a remover.');
+        return;
+      }
+    }
+    if (bspCamada(u).podeGerirUtilizadores) {
+      const outros = team.filter(x => x.id !== u.id && bspCamada(x).podeGerirUtilizadores).length;
+      if (!outros) {
+        toast('É a única pessoa que pode gerir utilizadores. Dê essa camada a outra antes de a remover.');
+        return;
+      }
     }
     if (u.id === meId) {
       toast('Não pode remover a sua própria conta.');
@@ -12195,7 +12337,7 @@ function AdminUsers() {
       color: 'var(--text-3)'
     }
   }, "—")), React.createElement("div", null, React.createElement(Badge, {
-    tone: bspCamadaNome(u) === 'Direcção' ? 'navy' : bspCamadaNome(u) === 'Coordenação' ? 'accent' : 'default',
+    tone: bspCamada(u).podeVerSistema ? 'navy' : bspCamada(u).podeGerirUtilizadores ? 'accent' : 'default',
     size: "xs"
   }, bspCamadaNome(u))), React.createElement("div", {
     style: {
@@ -12234,18 +12376,264 @@ function AdminUsers() {
     size: 13
   }))))));
 }
+/* Editor de uma camada de acesso. Os departamentos vem dos canais que
+   existem de facto, para nao haver forma de escolher um que nao exista. */
+function CamadaModal({
+  open,
+  nome,
+  onClose
+}) {
+  const {
+    state,
+    actions
+  } = useStore();
+  const toast = useToast();
+  const cs = state.camadas || CAMADAS;
+  const existente = nome ? cs[nome] : null;
+  const [n, setN] = React.useState('');
+  const [desc, setDesc] = React.useState('');
+  const [ordem, setOrdem] = React.useState(5);
+  const [todos, setTodos] = React.useState(false);
+  const [depts, setDepts] = React.useState([]);
+  const [gerir, setGerir] = React.useState(false);
+  const [sistema, setSistema] = React.useState(false);
+  const [erro, setErro] = React.useState('');
+  /* Departamentos reais, incluindo o null dos canais abertos a todos. */
+  const todosCanais = CHANNELS.concat(state.extraChannels || []);
+  const deptos = [];
+  todosCanais.forEach(c => {
+    const d = c.dept || null;
+    if (deptos.indexOf(d) === -1) deptos.push(d);
+  });
+  const rotulo = d => d === null ? 'Canais gerais' : d.charAt(0).toUpperCase() + d.slice(1);
+  const canaisDe = d => todosCanais.filter(c => (c.dept || null) === d).map(c => '#' + c.name);
+  React.useEffect(() => {
+    if (!open) return;
+    setErro('');
+    setN(nome || '');
+    setDesc(existente ? existente.desc || '' : '');
+    setOrdem(existente ? existente.ordem || 5 : Object.keys(cs).length + 1);
+    setTodos(existente ? existente.canais === '*' : false);
+    setDepts(existente && existente.canais !== '*' ? (existente.canais || []).slice() : [null]);
+    setGerir(existente ? !!existente.podeGerirUtilizadores : false);
+    setSistema(existente ? !!existente.podeVerSistema : false);
+  }, [open, nome]);
+  const alternar = d => setDepts(v => v.indexOf(d) === -1 ? v.concat([d]) : v.filter(x => x !== d));
+  const guardar = () => {
+    const e = actions.guardarCamada(nome || null, {
+      nome: n,
+      desc: desc,
+      ordem: ordem,
+      canais: todos ? '*' : depts,
+      podeGerirUtilizadores: gerir,
+      /* Configurar o servidor implica gerir pessoas: uma camada que mexe na
+         ligacao mas nao vê os utilizadores seria uma armadilha. */
+      podeVerSistema: sistema && gerir
+    });
+    if (e) {
+      setErro(e);
+      return;
+    }
+    toast(nome ? 'Camada actualizada' : 'Camada criada');
+    onClose();
+  };
+  const apagar = () => {
+    if (!window.confirm('Apagar a camada “' + nome + '”? Quem lá estiver passa para a camada de menor privilégio.')) return;
+    const e = actions.apagarCamada(nome);
+    if (e) {
+      setErro(e);
+      return;
+    }
+    toast('Camada apagada');
+    onClose();
+  };
+  return React.createElement(Modal, {
+    open: open,
+    onClose: onClose,
+    title: nome ? 'Editar camada' : 'Nova camada de acesso',
+    width: 560
+  }, React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 14
+    }
+  }, erro && React.createElement("div", {
+    style: {
+      background: 'rgba(220,38,38,.08)',
+      border: '1px solid rgba(220,38,38,.35)',
+      borderLeft: '3px solid #DC2626',
+      borderRadius: 8,
+      padding: '10px 12px',
+      fontSize: 12.5,
+      lineHeight: 1.5,
+      color: 'var(--text-1)'
+    }
+  }, erro), React.createElement(FormField, {
+    label: "Nome da camada"
+  }, React.createElement(TextInput, {
+    value: n,
+    onChange: setN,
+    placeholder: "Farmácia, Laboratório, Facturação…"
+  })), React.createElement(FormField, {
+    label: "O que esta camada é",
+    hint: "Aparece no cartão da camada e ajuda quem gere a escolher."
+  }, React.createElement(TextArea, {
+    value: desc,
+    onChange: setDesc,
+    rows: 2,
+    placeholder: "Quem pertence a esta camada e a que tem acesso."
+  })), React.createElement(FormField, {
+    label: "Canais que alcança"
+  }, React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8
+    }
+  }, React.createElement("label", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 9,
+      fontSize: 13,
+      color: 'var(--text-1)',
+      cursor: 'pointer'
+    }
+  }, React.createElement("input", {
+    type: "checkbox",
+    checked: todos,
+    onChange: e => setTodos(e.target.checked)
+  }), "Todos os canais, incluindo os que vierem a ser criados"), !todos && React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 7,
+      paddingTop: 2
+    }
+  }, deptos.map(d => {
+    const on = depts.indexOf(d) !== -1;
+    return React.createElement("button", {
+      key: String(d),
+      onClick: () => alternar(d),
+      title: canaisDe(d).join('  '),
+      style: {
+        padding: '7px 12px',
+        borderRadius: 999,
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        fontSize: 12.5,
+        fontWeight: 600,
+        border: '1px solid ' + (on ? 'var(--accent-d)' : 'var(--border)'),
+        background: on ? 'var(--accent-soft)' : 'transparent',
+        color: on ? 'var(--accent-d)' : 'var(--text-2)'
+      }
+    }, rotulo(d), React.createElement("span", {
+      style: {
+        opacity: .6,
+        fontWeight: 500
+      }
+    }, "  ", canaisDe(d).length));
+  })))), React.createElement(FormField, {
+    label: "Administração"
+  }, React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 9
+    }
+  }, React.createElement("label", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 9,
+      fontSize: 13,
+      color: 'var(--text-1)',
+      cursor: 'pointer'
+    }
+  }, React.createElement("input", {
+    type: "checkbox",
+    checked: gerir,
+    onChange: e => {
+      setGerir(e.target.checked);
+      if (!e.target.checked) setSistema(false);
+    }
+  }), React.createElement("span", null, "Gerir utilizadores", React.createElement("span", {
+    style: {
+      display: 'block',
+      fontSize: 11.5,
+      color: 'var(--text-3)'
+    }
+  }, "Acrescentar pessoas, mudar camadas, apagar mensagens de outros."))), React.createElement("label", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 9,
+      fontSize: 13,
+      color: gerir ? 'var(--text-1)' : 'var(--text-3)',
+      cursor: gerir ? 'pointer' : 'not-allowed'
+    }
+  }, React.createElement("input", {
+    type: "checkbox",
+    checked: sistema,
+    disabled: !gerir,
+    onChange: e => setSistema(e.target.checked)
+  }), React.createElement("span", null, "Configurar o servidor", React.createElement("span", {
+    style: {
+      display: 'block',
+      fontSize: 11.5,
+      color: 'var(--text-3)'
+    }
+  }, gerir ? "Ligação ao Supabase, cópia de segurança, camadas de acesso." : "Requer “Gerir utilizadores”."))))), React.createElement(FormField, {
+    label: "Ordem na lista",
+    hint: "1 é a camada de maior privilégio. Quem ficar sem camada recai na de número mais alto."
+  }, React.createElement(TextInput, {
+    value: String(ordem),
+    onChange: v => setOrdem(v.replace(/[^0-9]/g, '') || 1),
+    placeholder: "5"
+  })), React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      gap: 10,
+      paddingTop: 4
+    }
+  }, nome ? React.createElement(Button, {
+    variant: "ghost",
+    size: "sm",
+    onClick: apagar
+  }, "Apagar camada") : React.createElement("span", null), React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 10
+    }
+  }, React.createElement(Button, {
+    variant: "ghost",
+    size: "sm",
+    onClick: onClose
+  }, "Cancelar"), React.createElement(Button, {
+    variant: "primary",
+    size: "sm",
+    onClick: guardar
+  }, nome ? "Guardar" : "Criar camada")))));
+}
+
 function AdminRoles() {
-  /* Camadas reais, com a contagem tirada da própria equipa. */
+  /* Camadas vivas, editáveis. A contagem vem da própria equipa. */
   const { state } = useStore();
+  const [editar, setEditar] = React.useState(undefined);
+  const cs = state.camadas || CAMADAS;
   const equipa = (state.team && state.team.length) ? state.team : USERS;
+  const podeEditar = bspCamada(bspResolveUser(null, equipa)).podeVerSistema;
+  const todosCanais = CHANNELS.concat(state.extraChannels || []);
   const nomesCanais = camada => {
     if (!camada || camada.canais === '*') return ['Todos os canais'];
-    return CHANNELS.filter(c => camada.canais.indexOf(c.dept || null) !== -1).map(c => '#' + c.name);
+    return todosCanais.filter(c => camada.canais.indexOf(c.dept || null) !== -1).map(c => '#' + c.name);
   };
-  const roles = Object.keys(CAMADAS)
-    .sort((a, b) => CAMADAS[a].ordem - CAMADAS[b].ordem)
+  const roles = Object.keys(cs)
+    .sort((a, b) => (cs[a].ordem || 99) - (cs[b].ordem || 99))
     .map(nome => {
-      const c = CAMADAS[nome];
+      const c = cs[nome];
       const perms = nomesCanais(c).slice();
       if (c.podeGerirUtilizadores) perms.push('Gerir utilizadores');
       if (c.podeVerSistema) perms.push('Configurar servidor');
@@ -12256,7 +12644,45 @@ function AdminRoles() {
         perms: perms
       };
     });
-  return React.createElement("div", {
+  return React.createElement("div", null, podeEditar && React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 14,
+      flexWrap: 'wrap'
+    }
+  }, React.createElement("p", {
+    style: {
+      fontSize: 12.5,
+      color: 'var(--text-2)',
+      margin: 0,
+      maxWidth: 560,
+      lineHeight: 1.5
+    }
+  }, "Crie as camadas que a clínica precisar. Cada uma define os canais que alcança e o que pode administrar.", bspGetCfg() && React.createElement("span", {
+    style: {
+      display: 'block',
+      marginTop: 6,
+      color: 'var(--text-3)'
+    }
+  }, "Com o servidor ligado, corra também o ", React.createElement("code", {
+    style: {
+      background: 'var(--surface-2)',
+      border: '1px solid var(--border)',
+      borderRadius: 4,
+      padding: '1px 5px'
+    }
+  }, "camadas-editaveis.sql"), " uma vez. Sem ele, o servidor continua a decidir quem é gestor pelos nomes antigos, e uma camada nova de gestão não teria poder nenhum lá.")), React.createElement(Button, {
+    variant: "primary",
+    size: "sm",
+    icon: React.createElement(I.Plus, {
+      size: 13
+    }),
+    onClick: () => setEditar(null)
+  }, "Nova camada")), React.createElement("div", {
+    className: "bsp-stack-mobile",
     style: {
       display: 'grid',
       gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
@@ -12269,6 +12695,8 @@ function AdminRoles() {
     style: {
       display: 'flex',
       justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      gap: 10,
       marginBottom: 8
     }
   }, React.createElement("h4", {
@@ -12276,11 +12704,33 @@ function AdminRoles() {
       fontSize: 15,
       fontWeight: 700,
       margin: 0,
-      color: 'var(--text-1)'
+      color: 'var(--text-1)',
+      minWidth: 0
     }
-  }, r.name), React.createElement(Badge, {
-    tone: r.name === 'Direcção' ? 'navy' : r.name === 'Coordenação' ? 'accent' : r.name === 'Clínica' ? 'amber' : 'default'
-  }, r.members, " membros")), React.createElement("p", {
+  }, r.name), React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      flex: 'none'
+    }
+  }, React.createElement(Badge, {
+    tone: r.perms.indexOf('Configurar servidor') !== -1 ? 'navy' : r.perms.indexOf('Gerir utilizadores') !== -1 ? 'accent' : 'default'
+  }, r.members, r.members === 1 ? ' membro' : ' membros'), podeEditar && React.createElement("button", {
+    onClick: () => setEditar(r.name),
+    title: "Editar camada",
+    "aria-label": "Editar camada " + r.name,
+    style: {
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+      color: 'var(--text-3)',
+      padding: 2,
+      display: 'inline-flex'
+    }
+  }, React.createElement(I.Edit, {
+    size: 14
+  })))), React.createElement("p", {
     style: {
       fontSize: 12.5,
       color: 'var(--text-2)',
@@ -12297,7 +12747,11 @@ function AdminRoles() {
     key: p,
     tone: "outline",
     size: "xs"
-  }, p))))));
+  }, p)))))), React.createElement(CamadaModal, {
+    open: editar !== undefined,
+    nome: editar,
+    onClose: () => setEditar(undefined)
+  }));
 }
 function AdminActivity() {
   const all = [...ACTIVITY_LOG, {
@@ -12548,7 +13002,7 @@ function AdminServer() {
     toast('Servidor desligado. A recarregar…');
     setTimeout(() => window.location.reload(), 700);
   };
-  const SQL = ['-- Barispol Workspace · configuracao completa', '-- Pode correr esta pagina inteira mais do que uma vez sem estragar nada.', '', '-- 1. TABELAS', 'create table if not exists messages (', '  id bigint generated always as identity primary key,', '  conv_key text not null, user_id text, text text, cid text,', '  created_at timestamptz default now());', 'create table if not exists posts (', '  id bigint generated always as identity primary key,', '  user_id text, type text, title text, body text, cid text,', '  created_at timestamptz default now());', 'create table if not exists shared_state (', '  id int primary key, tasks jsonb, events jsonb, drive jsonb, team jsonb,', '  updated_at timestamptz default now());', 'alter table shared_state add column if not exists drive jsonb;', 'alter table shared_state add column if not exists team jsonb;', 'insert into shared_state (id) values (1) on conflict (id) do nothing;', '', '-- 2. TRANCAR AS TABELAS', '-- So quem tiver sessao iniciada le e escreve. Sem sessao, nada.', 'alter table messages enable row level security;', 'alter table posts enable row level security;', 'alter table shared_state enable row level security;', '', 'drop policy if exists "bsp_msg" on messages;', 'drop policy if exists "bsp_post" on posts;', 'drop policy if exists "bsp_state" on shared_state;', 'drop policy if exists "bsp_msg_auth" on messages;', 'drop policy if exists "bsp_post_auth" on posts;', 'drop policy if exists "bsp_state_auth" on shared_state;', '', 'create policy "bsp_msg_auth" on messages for all', '  to authenticated using (true) with check (true);', 'create policy "bsp_post_auth" on posts for all', '  to authenticated using (true) with check (true);', 'create policy "bsp_state_auth" on shared_state for all', '  to authenticated using (true) with check (true);', '', '-- 3. ARMAZENAMENTO DE FICHEIROS (balde privado "drive")', 'insert into storage.buckets (id, name, public)', '  values (\'drive\', \'drive\', false) on conflict (id) do nothing;', '', 'drop policy if exists "bsp_drive_ler" on storage.objects;', 'drop policy if exists "bsp_drive_criar" on storage.objects;', 'drop policy if exists "bsp_drive_apagar" on storage.objects;', '', 'create policy "bsp_drive_ler" on storage.objects for select', '  to authenticated using (bucket_id = \'drive\');', 'create policy "bsp_drive_criar" on storage.objects for insert', '  to authenticated with check (bucket_id = \'drive\');', 'create policy "bsp_drive_apagar" on storage.objects for delete', '  to authenticated using (bucket_id = \'drive\');', '', '-- 4. TEMPO REAL', 'do $$ begin alter publication supabase_realtime add table messages; exception when duplicate_object then null; end $$;', 'do $$ begin alter publication supabase_realtime add table posts; exception when duplicate_object then null; end $$;', 'do $$ begin alter publication supabase_realtime add table shared_state; exception when duplicate_object then null; end $$;'].join('\n');
+  const SQL = ['-- Barispol Workspace · configuracao completa', '-- Pode correr esta pagina inteira mais do que uma vez sem estragar nada.', '', '-- 1. TABELAS', 'create table if not exists messages (', '  id bigint generated always as identity primary key,', '  conv_key text not null, user_id text, text text, cid text,', '  created_at timestamptz default now());', 'create table if not exists posts (', '  id bigint generated always as identity primary key,', '  user_id text, type text, title text, body text, cid text,', '  created_at timestamptz default now());', 'create table if not exists shared_state (', '  id int primary key, tasks jsonb, events jsonb, drive jsonb, team jsonb,', '  updated_at timestamptz default now());', 'alter table shared_state add column if not exists drive jsonb;', 'alter table shared_state add column if not exists team jsonb;', 'alter table shared_state add column if not exists channels jsonb;', 'alter table shared_state add column if not exists camadas jsonb;', 'insert into shared_state (id) values (1) on conflict (id) do nothing;', '', '-- 2. TRANCAR AS TABELAS', '-- So quem tiver sessao iniciada le e escreve. Sem sessao, nada.', 'alter table messages enable row level security;', 'alter table posts enable row level security;', 'alter table shared_state enable row level security;', '', 'drop policy if exists "bsp_msg" on messages;', 'drop policy if exists "bsp_post" on posts;', 'drop policy if exists "bsp_state" on shared_state;', 'drop policy if exists "bsp_msg_auth" on messages;', 'drop policy if exists "bsp_post_auth" on posts;', 'drop policy if exists "bsp_state_auth" on shared_state;', '', 'create policy "bsp_msg_auth" on messages for all', '  to authenticated using (true) with check (true);', 'create policy "bsp_post_auth" on posts for all', '  to authenticated using (true) with check (true);', 'create policy "bsp_state_auth" on shared_state for all', '  to authenticated using (true) with check (true);', '', '-- 3. ARMAZENAMENTO DE FICHEIROS (balde privado "drive")', 'insert into storage.buckets (id, name, public)', '  values (\'drive\', \'drive\', false) on conflict (id) do nothing;', '', 'drop policy if exists "bsp_drive_ler" on storage.objects;', 'drop policy if exists "bsp_drive_criar" on storage.objects;', 'drop policy if exists "bsp_drive_apagar" on storage.objects;', '', 'create policy "bsp_drive_ler" on storage.objects for select', '  to authenticated using (bucket_id = \'drive\');', 'create policy "bsp_drive_criar" on storage.objects for insert', '  to authenticated with check (bucket_id = \'drive\');', 'create policy "bsp_drive_apagar" on storage.objects for delete', '  to authenticated using (bucket_id = \'drive\');', '', '-- 4. TEMPO REAL', 'do $$ begin alter publication supabase_realtime add table messages; exception when duplicate_object then null; end $$;', 'do $$ begin alter publication supabase_realtime add table posts; exception when duplicate_object then null; end $$;', 'do $$ begin alter publication supabase_realtime add table shared_state; exception when duplicate_object then null; end $$;'].join('\n');
   const copySql = () => {
     try {
       navigator.clipboard.writeText(SQL);
