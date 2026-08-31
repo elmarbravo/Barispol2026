@@ -17,6 +17,6 @@
  * A chave service_role NUNCA entra aqui. Essa contorna todas as regras.
  */
 window.BSP_SERVIDOR = {
-  url: "",
-  key: ""
+  url: "https://ferqkmfntcockmhviscf.supabase.co",
+  key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZlcnFrbWZudGNvY2ttaHZpc2NmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1ODU4ODcsImV4cCI6MjA5NjE2MTg4N30.jdm-UyNrZkATiY2BCS1aOWN8cXJYz2wWbf9hq-Au5DI"
 };
