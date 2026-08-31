@@ -121,11 +121,30 @@ segurança deixam de ser opcionais: são a fechadura.
 No **SQL Editor**:
 
 ```sql
--- Todas devem estar protegidas
+-- 1. Todas devem estar protegidas
 select tablename, rowsecurity as protegida
 from pg_tables
 where schemaname = 'public'
 order by tablename;
+
+-- 2. A CONSULTA MAIS ÚTIL DE TODAS.
+--    As regras traduzem o e-mail de login para o id do directório. Quando
+--    os dois não batem certo, a pessoa entra mas fica sem ver as suas
+--    mensagens directas nem as suas tarefas pessoais — e nada no ecrã lhe
+--    explica porquê. Isto mostra quem está nessa situação.
+select
+  coalesce(e->>'name', '(só no Supabase)')  as pessoa,
+  e->>'email'                               as no_directorio,
+  u.email                                   as no_login,
+  case
+    when e is null then 'entra, mas o servidor não sabe quem é'
+    when u.id is null then 'está no directório e não consegue entrar'
+    else 'ok'
+  end                                       as estado
+from (select team from shared_state where id = 1) s
+full outer join lateral jsonb_array_elements(coalesce(s.team, '[]'::jsonb)) e on true
+full outer join auth.users u on lower(u.email) = lower(e->>'email')
+order by 4, 1;
 
 -- Quem o servidor considera gestor. Se alguém aparecer errado, o e-mail
 -- em Admin -> Utilizadores não coincide com o e-mail de login.
