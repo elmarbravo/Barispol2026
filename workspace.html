@@ -3155,19 +3155,46 @@ async function bspUploadToStorage(file, prefixo) {
   if (error) throw error;
   return caminho;
 }
-async function bspSignedUrl(caminho, segundos) {
+/* Porque e que o servidor recusou. Quando as regras escondem um ficheiro,
+   o Supabase responde "nao existe" — e a diferenca entre "nao existe" e
+   "existe mas nao e para si" e precisamente o que a pessoa precisa de
+   saber para o poder resolver. */
+function bspMotivoAcesso(erro, caminho) {
+  const c = String(caminho || '');
+  const m = String(erro && (erro.message || erro.error) || '').toLowerCase();
+  if (!bspGetClient()) return 'O servidor não está ligado neste dispositivo.';
+  if (/not.?found|does not exist|404/.test(m)) {
+    if (c.indexOf('conversa/') === 0) {
+      return 'O servidor não lhe deu acesso a este ficheiro. Ou já foi apagado, ou o e-mail com que entrou não é o mesmo que está em Admin → Utilizadores — é por aí que o servidor sabe que a conversa é sua.';
+    }
+    if (c.indexOf('privado/') === 0) {
+      return 'Este ficheiro é pessoal de outra pessoa, ou já foi apagado.';
+    }
+    return 'O ficheiro já não está no servidor.';
+  }
+  if (/jwt|token|expired|unauthor|401/.test(m)) return 'A sua sessão expirou. Volte a entrar.';
+  if (/network|fetch|failed/.test(m)) return 'Sem ligação ao servidor neste momento.';
+  return 'O servidor não deixou abrir este ficheiro' + (m ? ' (' + m + ')' : '') + '.';
+}
+async function bspSignedUrl(caminho, segundos, aoFalhar) {
   if (!caminho) return null;
   const agora = Date.now();
   const guardado = __bspUrlCache[caminho];
   if (guardado && guardado.expira > agora) return guardado.url;
   const cl = bspGetClient();
-  if (!cl) return null;
+  if (!cl) {
+    if (aoFalhar) aoFalhar(bspMotivoAcesso(null, caminho));
+    return null;
+  }
   const dur = segundos || 3600;
   const {
     data,
     error
   } = await cl.storage.from(BSP_BUCKET).createSignedUrl(caminho, dur);
-  if (error || !data) return null;
+  if (error || !data) {
+    if (aoFalhar) aoFalhar(bspMotivoAcesso(error, caminho));
+    return null;
+  }
   __bspUrlCache[caminho] = {
     url: data.signedUrl,
     expira: agora + (dur - 60) * 1000
@@ -3276,8 +3303,9 @@ function bspPostReagir(reaccoes, emoji, quem) {
   return r;
 }
 async function bspAbrirFicheiro(f, aoFalhar) {
+  let motivo = '';
   if (f && f.path) {
-    const url = await bspSignedUrl(f.path);
+    const url = await bspSignedUrl(f.path, 0, m => { motivo = m; });
     if (url) {
       window.open(url, '_blank', 'noopener');
       return true;
@@ -3292,7 +3320,7 @@ async function bspAbrirFicheiro(f, aoFalhar) {
     a.remove();
     return true;
   }
-  if (aoFalhar) aoFalhar();
+  if (aoFalhar) aoFalhar(motivo || 'Este ficheiro não tem conteúdo guardado.');
   return false;
 }
 function bspResolveUser(email, users) {
@@ -7404,8 +7432,10 @@ function AnexoMensagem({ a }) {
   const [erro, setErro] = React.useState('');
   if (!a) return null;
   const f = { name: a.name, path: a.path, dataUrl: a.dataUrl };
-  const img = /\.(png|jpe?g|gif|webp)$/i.test(a.name || '');
-  const abrir = () => bspAbrirFicheiro(f, () => setErro('Não foi possível abrir o ficheiro.'));
+  /* Se a imagem nao carregar, mostra-se o cartao com o nome — sempre
+     alguma coisa em que se possa carregar, e o motivo por baixo. */
+  const img = /\.(png|jpe?g|gif|webp)$/i.test(a.name || '') && !erro;
+  const abrir = () => bspAbrirFicheiro(f, m => setErro(m || 'Não foi possível abrir o ficheiro.'));
   return React.createElement("div", {
     style: { margin: '6px 0 2px' }
   }, img ? React.createElement("button", {
@@ -7415,6 +7445,7 @@ function AnexoMensagem({ a }) {
   }, React.createElement(FicheiroImg, {
     f: f,
     alt: a.name,
+    aoFalhar: m => setErro(m),
     style: { maxWidth: 260, maxHeight: 220, borderRadius: 10, display: 'block', objectFit: 'cover' }
   })) : React.createElement("button", {
     onClick: abrir,
@@ -7437,7 +7468,7 @@ function AnexoMensagem({ a }) {
   }, a.name), React.createElement("span", {
     style: { display: 'block', fontSize: 11, color: 'var(--text-3)' }
   }, a.bytes ? fmtSize(a.bytes) : 'Abrir'))), erro ? React.createElement("div", {
-    style: { fontSize: 11.5, color: '#DC2626', marginTop: 4 }
+    style: { fontSize: 11.5, color: '#DC2626', marginTop: 4, lineHeight: 1.5, maxWidth: 300 }
   }, erro) : null);
 }
 function renderText(text) {
@@ -8464,7 +8495,8 @@ function FeedPost({
       return React.createElement("button", {
         key: name,
         onClick: () => {
-          if (f) bspAbrirFicheiro(f);
+          if (f) bspAbrirFicheiro(f, m => toast(m));
+          else toast('Este ficheiro já não está no Drive.');
         },
         style: {
           display: 'flex',
@@ -11018,16 +11050,27 @@ function fileKind(name) {
     label: ext ? ext.toUpperCase() : 'FICH'
   };
 }
+/* Uma imagem que nao carrega deixava de aparecer, e mais nada: nem a
+   pessoa sabia que ali havia um ficheiro, nem quem o mandou percebia
+   porque e que o outro lado "nao conseguia ver". Passa a dizer o que
+   aconteceu. */
 function FicheiroImg({
   f,
   alt,
-  style
+  style,
+  aoFalhar
 }) {
   const [src, setSrc] = React.useState(f && f.dataUrl ? f.dataUrl : null);
+  const [erro, setErro] = React.useState('');
   React.useEffect(() => {
     let vivo = true;
+    setErro('');
     if (f && f.path) {
-      bspSignedUrl(f.path).then(u => {
+      bspSignedUrl(f.path, 0, m => {
+        if (!vivo) return;
+        setErro(m);
+        if (aoFalhar) aoFalhar(m);
+      }).then(u => {
         if (vivo && u) setSrc(u);
       });
     } else if (f && f.dataUrl) {
@@ -11037,12 +11080,35 @@ function FicheiroImg({
       vivo = false;
     };
   }, [f && f.path, f && f.dataUrl]);
-  if (!src) return null;
+  if (!src) {
+    if (!erro) return null;
+    return React.createElement("div", {
+      style: {
+        padding: '10px 12px',
+        borderRadius: 10,
+        border: '1px dashed var(--border)',
+        background: 'var(--surface-2)',
+        fontSize: 11.5,
+        lineHeight: 1.5,
+        color: 'var(--text-3)',
+        maxWidth: 300
+      }
+    }, React.createElement("div", {
+      style: { fontWeight: 600, color: 'var(--text-2)', marginBottom: 2 }
+    }, alt || f && f.name || 'Ficheiro'), erro);
+  }
   return React.createElement("img", {
     src: src,
     alt: alt || '',
     style: style,
-    loading: "lazy"
+    loading: "lazy",
+    /* O endereco assinado expira. Se isso acontecer com a imagem ja no
+       ecra, mais vale pedir outro do que deixar o quadrado partido. */
+    onError: () => {
+      try { delete __bspUrlCache[f.path]; } catch (e) {}
+      setSrc(null);
+      setErro('Não foi possível carregar a imagem. Feche e volte a abrir a conversa.');
+    }
   });
 }
 function DriveScreen() {
@@ -11177,7 +11243,7 @@ function DriveScreen() {
       setProcura('');
       return;
     }
-    bspAbrirFicheiro(f, () => toast('Este ficheiro não tem conteúdo guardado.'));
+    bspAbrirFicheiro(f, m => toast(m || 'Este ficheiro não tem conteúdo guardado.'));
   }
   function eliminar(f) {
     if (!podeApagar(f)) {
