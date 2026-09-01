@@ -3189,16 +3189,34 @@ async function bspDeleteFromStorage(caminho) {
    quem alcanca a conversa — a mesma fechadura, sem uma segunda copia
    noutro sitio. */
 const BSP_MARCA_ANEXO = '\u200bf\u200b';
+/* As mensagens antigas — as que dizem apenas «Partilhei o ficheiro "X" no
+   Drive» — nao carregam caminho nenhum: nessa altura o ficheiro era
+   copiado para o Drive da equipa e a mensagem era so texto. O ficheiro
+   continua la; procura-se pelo nome para a mensagem voltar a apontar-lhe.
+   Se ja nao existir, fica o texto como estava. */
+const BSP_ANEXO_ANTIGO = /Partilhei o ficheiro "([^"]+)" no Drive/;
 function bspAnexoDaMensagem(texto){
   const t = String(texto == null ? '' : texto);
   const i = t.indexOf(BSP_MARCA_ANEXO);
-  if (i === -1) return null;
-  const p = t.slice(i + BSP_MARCA_ANEXO.length).split('\u200b');
-  if (!p[0]) return null;
+  if (i !== -1) {
+    const p = t.slice(i + BSP_MARCA_ANEXO.length).split('\u200b');
+    if (!p[0]) return null;
+    return {
+      path: p[0],
+      name: p[1] || 'ficheiro',
+      bytes: parseInt(p[2], 10) || 0
+    };
+  }
+  const m = t.match(BSP_ANEXO_ANTIGO);
+  if (!m) return null;
+  const f = (window.__bspDrive || []).find(x => x && x.name === m[1]);
+  if (!f || !(f.path || f.dataUrl)) return null;
   return {
-    path: p[0],
-    name: p[1] || 'ficheiro',
-    bytes: parseInt(p[2], 10) || 0
+    path: f.path,
+    dataUrl: f.dataUrl,
+    name: f.name,
+    bytes: f.bytes || 0,
+    antigo: true
   };
 }
 /* O texto sem a parte escondida — para mostrar, para pesquisar e para os
@@ -3277,6 +3295,10 @@ function StoreProvider({
      ler: o bspCamada() e chamado de fora de componentes. Durante o render
      e nao num efeito, senao a primeira pintura usava as camadas antigas. */
   if (state.camadas && Object.keys(state.camadas).length) window.__bspCamadas = state.camadas;
+  /* A lista do Drive tem de estar em window pela mesma razao que as
+     camadas: o bspAnexoDaMensagem() e chamado de fora de componentes,
+     para dar vida as mensagens antigas que so dizem o nome do ficheiro. */
+  window.__bspDrive = state.driveFiles || [];
   React.useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -7330,7 +7352,7 @@ function FileMini({
 function AnexoMensagem({ a }) {
   const [erro, setErro] = React.useState('');
   if (!a) return null;
-  const f = { name: a.name, path: a.path };
+  const f = { name: a.name, path: a.path, dataUrl: a.dataUrl };
   const img = /\.(png|jpe?g|gif|webp)$/i.test(a.name || '');
   const abrir = () => bspAbrirFicheiro(f, () => setErro('Não foi possível abrir o ficheiro.'));
   return React.createElement("div", {
