@@ -1254,14 +1254,22 @@ function bspCamada(u){
      ecra do Chat ficava em branco.
 
      O que faltar vem da definicao de origem com o mesmo nome. */
-  const c = Object.assign({}, CAMADAS[nome] || {}, viva);
-  /* Ultima rede: canais tem de ser '*' ou uma lista. Qualquer outra coisa
-     sao dados estragados, e nunca pode nem rebentar o ecra nem abrir
-     acessos — na duvida, so os canais gerais. */
+  return bspNormalizarCamada(nome, viva);
+}
+/* Poe uma camada gravada em condicoes de ser usada, venha ela de onde vier.
+   Tem de estar num so sitio: o ecra das Permissoes lia o state.camadas em
+   cru e fazia canais.indexOf() — ficava em branco pela mesma razao que o
+   Chat ficava, e a correccao do bspCamada() nao lhe chegava. */
+function bspNormalizarCamada(nome, viva){
+  const c = Object.assign({}, CAMADAS[nome] || {}, viva || {});
+  /* canais tem de ser '*' ou uma lista. Qualquer outra coisa sao dados
+     estragados, e nunca pode nem rebentar o ecra nem abrir acessos — na
+     duvida, so os canais gerais. */
   if (c.canais !== '*' && !Array.isArray(c.canais)) {
     const origem = (CAMADAS[nome] || {}).canais;
     c.canais = (origem === '*' || Array.isArray(origem)) ? origem : [null];
   }
+  if (typeof c.ordem !== 'number') c.ordem = 99;
   return c;
 }
 function bspVeCanal(u, canal){
@@ -12788,7 +12796,10 @@ function CamadaModal({
   } = useStore();
   const toast = useToast();
   const cs = state.camadas || CAMADAS;
-  const existente = nome ? cs[nome] : null;
+  /* Normalizada: abrir para editar uma camada gravada sem o campo canais
+     mostrava "nenhum canal" e gravava isso mesmo — a camada perdia os
+     acessos so por alguem ter aberto e fechado a janela. */
+  const existente = nome && cs[nome] ? bspNormalizarCamada(nome, cs[nome]) : null;
   const [n, setN] = React.useState('');
   const [desc, setDesc] = React.useState('');
   const [ordem, setOrdem] = React.useState(5);
@@ -13043,7 +13054,11 @@ function AdminRoles() {
   /* Camadas vivas, editáveis. A contagem vem da própria equipa. */
   const { state } = useStore();
   const [editar, setEditar] = React.useState(undefined);
-  const cs = state.camadas || CAMADAS;
+  /* Sempre normalizadas: uma camada gravada sem o campo canais deixava
+     este ecra em branco. */
+  const cruas = state.camadas || CAMADAS;
+  const cs = {};
+  Object.keys(cruas).forEach(n => { cs[n] = bspNormalizarCamada(n, cruas[n]); });
   const equipa = (state.team && state.team.length) ? state.team : USERS;
   const podeEditar = bspCamada(bspResolveUser(null, equipa)).podeVerSistema;
   const todosCanais = CHANNELS.concat(state.extraChannels || []);
@@ -16243,6 +16258,49 @@ function SeguimentoScreen() {
   }));
 }
 
+/* Rede por baixo de cada ecra.
+   Ate aqui, um erro de desenho em qualquer ecra deixava um rectangulo
+   branco e mais nada — nem no ecra, nem para quem tinha de o arranjar.
+   Passa a aparecer o que rebentou, com um botao para copiar. O resto da
+   aplicacao continua de pe: a barra, a navegacao e os outros ecras. */
+class EcraSeguro extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { erro: null, onde: '' };
+  }
+  static getDerivedStateFromError(erro) {
+    return { erro: erro };
+  }
+  componentDidCatch(erro, info) {
+    this.setState({ onde: (info && info.componentStack || '').split('\n').slice(0, 6).join('\n') });
+    try { console.error('[Barispol] ecrã em falha:', erro, info); } catch (e) {}
+  }
+  componentDidUpdate(prev) {
+    /* Mudar de ecrã dá nova oportunidade. */
+    if (prev.chave !== this.props.chave && this.state.erro) this.setState({ erro: null, onde: '' });
+  }
+  render() {
+    if (!this.state.erro) return this.props.children;
+    const texto = 'Ecrã: ' + (this.props.chave || '?') + '\n' + String(this.state.erro && this.state.erro.stack || this.state.erro) + '\n' + this.state.onde;
+    return React.createElement("div", {
+      style: { maxWidth: 620, margin: '32px auto', padding: 22, borderRadius: 12, background: 'var(--surface-1)', border: '1px solid var(--border)' }
+    }, React.createElement("h3", {
+      style: { margin: '0 0 8px', fontSize: 16, fontWeight: 700, color: 'var(--text-1)' }
+    }, "Este ecrã não abriu"), React.createElement("p", {
+      style: { margin: '0 0 14px', fontSize: 13, lineHeight: 1.6, color: 'var(--text-2)' }
+    }, "O resto da aplicação continua a funcionar. Copie a mensagem abaixo e envie-a a quem trata do sistema — é ela que diz o que se passou."), React.createElement("pre", {
+      style: { margin: '0 0 14px', padding: 12, borderRadius: 8, background: 'var(--surface-2)', border: '1px solid var(--border)', fontSize: 11.5, lineHeight: 1.5, color: 'var(--text-2)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 240, overflow: 'auto' }
+    }, texto), React.createElement("div", {
+      style: { display: 'flex', gap: 10, flexWrap: 'wrap' }
+    }, React.createElement("button", {
+      onClick: () => { try { navigator.clipboard.writeText(texto); } catch (e) {} },
+      style: { padding: '9px 16px', background: 'var(--navy)', color: '#fff', border: 'none', borderRadius: 9, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }
+    }, "Copiar mensagem"), React.createElement("button", {
+      onClick: () => this.setState({ erro: null, onde: '' }),
+      style: { padding: '9px 16px', background: 'transparent', color: 'var(--text-2)', border: '1px solid var(--border)', borderRadius: 9, fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }
+    }, "Tentar outra vez")));
+  }
+}
 function App() {
   const [authed, setAuthed] = React.useState(false);
   const [authedEmail, setAuthedEmail] = React.useState(null);
@@ -16373,6 +16431,8 @@ function App() {
       padding: '18px 22px 22px',
       background: 'var(--bg)'
     }
+  }, React.createElement(EcraSeguro, {
+    chave: page
   }, page === 'dashboard' && React.createElement(DashboardScreen, {
     currentUser: currentUser,
     onSwitch: setPage
@@ -16383,7 +16443,7 @@ function App() {
     onSwitch: setPage
   }), page === 'drive' && React.createElement(DriveScreen, null), page === 'calendar' && React.createElement(CalendarScreen, null), page === 'tasks' && React.createElement(TasksScreen, null), page === 'seguimento' && React.createElement(SeguimentoScreen, null), page === 'directory' && React.createElement(DirectoryScreen, null), page === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
-  }), page === 'notifications' && React.createElement(NotificationsScreen, null))), isMobile && React.createElement(MobileNav, {
+  }), page === 'notifications' && React.createElement(NotificationsScreen, null)))), isMobile && React.createElement(MobileNav, {
     current: page,
     setCurrent: setPage,
     isAdmin: isAdmin,

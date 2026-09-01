@@ -189,6 +189,21 @@ ou tem outro nome. Tem de se chamar exactamente assim.
 **O ecrã Seguimento diz que faltam tabelas.** O `INSTALAR-TUDO.sql` ainda não
 correu.
 
+**Um ecrã abre em branco.** A partir de agora não abre: aparece uma caixa com
+a mensagem do erro e um botão para a copiar. Envie essa mensagem — é ela que
+diz o que se passou.
+
+Se for o **Chat** ou as **Permissões**, a causa conhecida são camadas de
+acesso gravadas sem a lista de canais, pela primeira versão do
+`camadas-editaveis.sql`. A aplicação já aguenta esses dados, mas convém
+corrigi-los na base: corra o [`reparar-camadas.sql`](reparar-camadas.sql). Ele
+acrescenta o que falta **sem apagar nada**, e mostra antes e depois.
+
+**Grupos privados que desapareceram de um aparelho.** Foram criados enquanto
+esse aparelho estava em «modo local» — nunca chegaram ao servidor, e ao ligar‑se
+ele passou a usar a lista partilhada. Basta criá-los outra vez, uma só vez, em
+qualquer aparelho ligado: daí em diante aparecem em todos.
+
 **As mensagens chegam com atraso, ou parecem não chegar a alguns
 aparelhos.** O indicador em Admin → Sistema diz qual dos dois casos é:
 
