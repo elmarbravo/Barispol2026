@@ -238,7 +238,7 @@ footer a:hover{color:#fff}
 </footer>
 
 <script>
-/* ─────────────────────────────────────────────────────────────
+/* ────────────────────────────────────────────────────────────
    CAPTAÇÃO DE CONTACTOS
 
    Como funciona: o visitante preenche quatro campos e o pedido segue
@@ -255,7 +255,7 @@ footer a:hover{color:#fff}
    OPCIONAL — se quiser também a lista em Excel, crie um formulário no
    Microsoft Forms e cole aqui o identificador que vem a seguir a «/r/».
    Aparece então uma segunda opção por baixo do botão do WhatsApp.
-   ───────────────────────────────────────────────────────────── */
+   ──────────────────────────────────────────────────────────── */
 var WHATSAPP = '244946373631';
 var LEAD_FORM_ID = '';
 
@@ -275,7 +275,7 @@ var LEAD_FORM_ID = '';
   }
 
   function telValido(v) {
-    var d = (v || '').replace(/\D/g, '').replace(/^244/, '');
+    var d = (v || '').replace(/\\D/g, '').replace(/^244/, '');
     return d.length === 9 && d.charAt(0) === '9';
   }
   function marca(campo, ok) { campo.setAttribute('aria-invalid', ok ? 'false' : 'true'); return ok; }
@@ -302,7 +302,7 @@ var LEAD_FORM_ID = '';
     if (origem) linhas.push('Veio de: ' + origem);
     linhas.push('', 'Agradeço que me liguem para marcar.');
 
-    var url = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(linhas.join('\n'));
+    var url = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(linhas.join('\\n'));
     document.getElementById('reabrir').href = url;
     window.open(url, '_blank', 'noopener');
     caixa.classList.add('pronto');
@@ -317,6 +317,11 @@ var LEAD_FORM_ID = '';
   });
 })();
 </script>
+
+<!-- Meta Pixel e eventos de contacto. Legenda dos codigos dentro de assets/mkt.js -->
+<script src="assets/mkt.js"></script>
+<noscript><img height="1" width="1" style="display:none" alt=""
+src="https://www.facebook.com/tr?id=1052013565482332&ev=PageView&noscript=1"></noscript>
 
 </body>
 </html>
