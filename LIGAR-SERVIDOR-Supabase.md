@@ -56,17 +56,18 @@ No fim deve dizer `protegida = true` e listar as três regras do
 armazenamento. Os ficheiros que já lá estavam continuam a ser da equipa —
 nada se perde.
 
-### 3. Correr o `pastas-pessoais.sql` e o `apagar-ficheiros.sql`
+### 3. Correr o `FALTA-CORRER.sql`
 
-O primeiro traz pastas à área pessoal. O segundo faz com que, no Drive da
-equipa, só quem carregou o ficheiro — e as camadas com a permissão
-**«Apagar ficheiros da equipa»** — o possam apagar.
+Um só ficheiro, **sem nada para preencher**. Traz as pastas na área
+pessoal do Drive e faz com que, no Drive da equipa, só quem carregou o
+ficheiro — e as camadas com a permissão **«Apagar ficheiros da equipa»** —
+o possam apagar.
 
-Uma ressalva sobre o segundo, que convém saber: os ficheiros que **já lá
-estão** não têm no armazenamento nada que diga quem os carregou. Neles, a
-regra é só a do ecrã — o botão não aparece a quem não deve, mas o servidor
-não o pode impedir. A partir de agora, todos os novos ficam protegidos dos
-dois lados.
+Uma ressalva que convém saber: os ficheiros que **já lá estão** não têm no
+armazenamento nada que diga quem os carregou. Neles, a regra é só a do
+ecrã — o botão não aparece a quem não deve, mas o servidor não o pode
+impedir. A partir de agora, todos os novos ficam protegidos dos dois
+lados.
 
 ### 4. O resumo matinal
 
@@ -75,10 +76,13 @@ Duas partes: a função que o escreve e o agendamento que a acorda.
 1. **Edge Functions** → **Deploy a new function**, nome exacto
    `resumo-matinal`, colar
    [`funcoes/resumo-matinal/index.ts`](funcoes/resumo-matinal/index.ts).
-2. **SQL Editor** → colar [`resumo-matinal.sql`](resumo-matinal.sql).
-   **Este tem duas linhas para preencher à mão** — o endereço do projecto
-   e a chave `service_role`, ambos em *Project Settings → API*. Ficam
-   guardados dentro da base de dados, e nunca no site nem no repositório.
+2. **SQL Editor** → colar [`agendar-resumo.sql`](agendar-resumo.sql).
+   **Este tem uma linha para mudar: a 22**, onde se cola a chave
+   `service_role` (*Project Settings → API → service_role → Reveal*). O
+   ficheiro pára com um aviso claro se ela não estiver lá, ou se for a
+   chave errada — mais vale parar do que ficar com um agendamento activo
+   que falha todas as manhãs em silêncio. A chave fica guardada dentro do
+   próprio Supabase, e nunca no site nem no repositório.
 
 Sai às 06h30 de Luanda, de segunda a sábado. Cada pessoa recebe as tarefas
 que lhe estão atribuídas e por fechar; cada equipa recebe o que está em
@@ -121,8 +125,8 @@ a Europa Ocidental é a menos má.
 | 1 | [`supabase-configuracao.sql`](supabase-configuracao.sql) | Tabelas, armazenamento de ficheiros e tempo real |
 | 2 | [`INSTALAR-TUDO.sql`](INSTALAR-TUDO.sql) | Regras por conversa, camadas editáveis, CRM e tarefas pessoais |
 | 3 | [`ficheiros-pessoais.sql`](ficheiros-pessoais.sql) | Gaveta pessoal do Drive e anexos fechados na conversa |
-| 4 | [`pastas-pessoais.sql`](pastas-pessoais.sql) | Pastas na área pessoal |
-| 5 | [`apagar-ficheiros.sql`](apagar-ficheiros.sql) | Só quem carregou (e quem tiver a permissão) apaga no Drive da equipa |
+| 4 | [`FALTA-CORRER.sql`](FALTA-CORRER.sql) | Pastas na área pessoal, e quem pode apagar no Drive da equipa |
+| 5 | [`agendar-resumo.sql`](agendar-resumo.sql) | O resumo matinal por e-mail |
 
 O `INSTALAR-TUDO.sql` verifica se as tabelas base existem e pára com um aviso
 claro se o 1 ainda não tiver corrido.

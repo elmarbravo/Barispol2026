@@ -148,7 +148,21 @@ Deno.serve(async (req) => {
       .from("resumos_enviados")
       .insert({ dia: hoje });
     if (jaFoi) {
-      return responder({ ok: true, enviados: 0, nota: "O resumo de hoje já tinha saído." });
+      /* Só a chave repetida quer dizer "já saiu hoje". Qualquer outro
+         erro — a tabela não existe, por exemplo — não pode calar o envio
+         em silêncio: era assim que uma instalação incompleta ficava a
+         não mandar nada, todas as manhãs, sem ninguém perceber. */
+      const m = String(jaFoi.message || "").toLowerCase();
+      const jaSaiu = jaFoi.code === "23505" || /duplicate key|already exists/.test(m);
+      if (jaSaiu) {
+        return responder({ ok: true, enviados: 0, nota: "O resumo de hoje já tinha saído." });
+      }
+      if (/relation|does not exist|schema cache/.test(m)) {
+        return responder({
+          erro: "Falta a tabela resumos_enviados. Corra o agendar-resumo.sql no SQL Editor.",
+        }, 500);
+      }
+      return responder({ erro: "Não foi possível registar o envio: " + jaFoi.message }, 500);
     }
   }
 
