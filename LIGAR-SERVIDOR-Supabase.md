@@ -169,6 +169,15 @@ order by 3 desc, 1;
 **Um aparelho pede o endereço e a chave.** Tem uma ligação antiga guardada.
 Abra `barispol.com/workspace.html#reset` nesse aparelho.
 
+**Um aparelho diz «Desligado · modo local».** Está a usar uma versão antiga
+da página, guardada na memória do navegador. O sintoma é característico: a
+pessoa entra com a palavra-passe e consegue escrever, mas não recebe nada —
+as mensagens dos outros nunca lhe aparecem. Recarregue à força (no telemóvel,
+fechar o separador e voltar a abrir; no computador, `Ctrl`+`Shift`+`R`, ou
+`Cmd`+`Shift`+`R` no Mac). Em **Admin → Sistema**, uma versão em dia diz que
+a ligação vem do `servidor.js` e o indicador fica verde — os campos do
+endereço e da chave aparecem preenchidos, e não é preciso lá tocar.
+
 **Alguém não vê as suas mensagens directas, ou as suas tarefas pessoais.** O
 e-mail com que essa pessoa entra não é o mesmo que está em
 Admin → Utilizadores. As regras do servidor traduzem uma coisa na outra pelo
