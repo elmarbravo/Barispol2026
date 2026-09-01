@@ -68,7 +68,29 @@ regra é só a do ecrã — o botão não aparece a quem não deve, mas o servid
 não o pode impedir. A partir de agora, todos os novos ficam protegidos dos
 dois lados.
 
-### 4. Instalar a função `criar-utilizador`
+### 4. O resumo matinal
+
+Duas partes: a função que o escreve e o agendamento que a acorda.
+
+1. **Edge Functions** → **Deploy a new function**, nome exacto
+   `resumo-matinal`, colar
+   [`funcoes/resumo-matinal/index.ts`](funcoes/resumo-matinal/index.ts).
+2. **SQL Editor** → colar [`resumo-matinal.sql`](resumo-matinal.sql).
+   **Este tem duas linhas para preencher à mão** — o endereço do projecto
+   e a chave `service_role`, ambos em *Project Settings → API*. Ficam
+   guardados dentro da base de dados, e nunca no site nem no repositório.
+
+Sai às 06h30 de Luanda, de segunda a sábado. Cada pessoa recebe as tarefas
+que lhe estão atribuídas e por fechar; cada equipa recebe o que está em
+aberto na sua área, e recebe-o toda a gente dessa área — não só quem tem a
+tarefa em mãos. Quem não tiver nada não recebe nada: uma caixa de correio
+com um «não tem nada» diário acaba por ser ignorada, e com ela os dias em
+que há mesmo alguma coisa.
+
+Em **Admin → Sistema** há o botão **«Enviar o resumo matinal agora»**, para
+o ver acontecer sem esperar pelo dia seguinte.
+
+### 5. Instalar a função `criar-utilizador`
 
 Sem ela, acrescentar alguém em Admin → Utilizadores põe a pessoa no
 directório mas **não lhe cria a conta**: ela não consegue entrar.

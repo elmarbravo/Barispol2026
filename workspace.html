@@ -14016,50 +14016,56 @@ function AdminServer() {
     setDiagBusy(false);
   }
   const [remBusy, setRemBusy] = React.useState(false);
+  /* O resumo sai sozinho de manhã, pela função "resumo-matinal" agendada
+     no servidor. Este botão serve para o ver a acontecer sem esperar
+     pelo dia seguinte — e para perceber, se não sair, onde é que pára.
+
+     Deixou de ser o navegador a montar e a disparar os e-mails: assim
+     dependia de alguém ter o Workspace aberto, e o que saía dependia do
+     que esse aparelho por acaso tinha sincronizado. */
   async function sendReminders() {
     const cfg = bspGetCfg();
-    if (!cfg || !cfg.url || !cfg.key) {
+    const cl = bspGetClient();
+    if (!cfg || !cl) {
       toast('Ligue primeiro o servidor.');
       return;
     }
-    const team = storeState && storeState.team && storeState.team.length ? storeState.team : USERS;
-    const tasks = storeState && storeState.tasks ? storeState.tasks : {
-      todo: [],
-      doing: [],
-      review: [],
-      done: []
-    };
-    const pend = [].concat(tasks.todo || [], tasks.doing || [], tasks.review || []);
-    if (!pend.length) {
-      toast('Não há tarefas pendentes.');
-      return;
-    }
     setRemBusy(true);
-    const colName = {
-      todo: 'A Fazer',
-      doing: 'Em Progresso',
-      review: 'Em Revisão'
-    };
-    const whereOf = id => (tasks.todo || []).some(x => x.id === id) ? 'todo' : (tasks.doing || []).some(x => x.id === id) ? 'doing' : 'review';
-    let sent = 0;
-    team.forEach(u => {
-      if (!u.email) return;
-      const mine = pend.filter(tk => (tk.assignees || []).includes(u.id));
-      if (!mine.length) return;
-      const rows = mine.map(tk => '<li style="margin-bottom:5px"><b>' + (tk.title || '') + '</b> <span style="color:#94A3B8">— ' + (colName[whereOf(tk.id)] || '') + (tk.priority ? ' · ' + tk.priority : '') + '</span></li>').join('');
-      bspSendEmail(u.email, 'As suas tarefas pendentes (' + mine.length + ')', bspEmailWrap('Tem ' + mine.length + ' tarefa(s) por concluir', 'Bom dia, ' + (u.name || '').split(' ')[0] + '. Estas são as suas tarefas pendentes no Barispol Workspace:<ul style="padding-left:18px;margin:10px 0">' + rows + '</ul>'));
-      sent++;
-    });
-    const byUser = team.filter(u => pend.some(tk => (tk.assignees || []).includes(u.id))).map(u => {
-      const c = pend.filter(tk => (tk.assignees || []).includes(u.id)).length;
-      return '<li style="margin-bottom:4px"><b>' + u.name + '</b>: ' + c + ' pendente(s)</li>';
-    }).join('');
-    const unassigned = pend.filter(tk => !(tk.assignees || []).length).length;
-    bspSendEmail('rh@barispol.com', 'Resumo diário de tarefas pendentes', bspEmailWrap('Tarefas pendentes da equipa', 'Total pendentes: <b>' + pend.length + '</b>' + (unassigned ? ' (' + unassigned + ' sem responsável)' : '') + '<ul style="padding-left:18px;margin:10px 0">' + (byUser || '<li>Nenhuma atribuída</li>') + '</ul>'));
-    setTimeout(() => {
-      setRemBusy(false);
-      toast('Lembretes enviados a ' + sent + ' colaborador(es) + RH.');
-    }, 600);
+    try {
+      const { data } = await cl.auth.getSession();
+      const testemunho = data && data.session && data.session.access_token || '';
+      if (!testemunho) {
+        toast('A sua sessão expirou. Volte a entrar.');
+        setRemBusy(false);
+        return;
+      }
+      const r = await fetch(cfg.url.replace(/\/$/, '') + '/functions/v1/resumo-matinal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + testemunho
+        },
+        body: JSON.stringify({ forcar: true })
+      });
+      if (r.status === 404) {
+        toast('A função “resumo-matinal” ainda não está instalada no Supabase.');
+        setRemBusy(false);
+        return;
+      }
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        toast(j.erro || ('O servidor respondeu ' + r.status + '.'));
+        setRemBusy(false);
+        return;
+      }
+      const total = (j.pessoais || 0) + (j.deEquipa || 0);
+      toast(total
+        ? total + ' e-mail(s) enviados · ' + (j.pendentes || 0) + ' tarefa(s) em aberto.'
+        : 'Não há tarefas por fechar — nada a enviar.');
+    } catch (e) {
+      toast('Não foi possível falar com o servidor.');
+    }
+    setRemBusy(false);
   }
   const stMap = {
     off: {
@@ -14310,7 +14316,7 @@ function AdminServer() {
       fontFamily: 'inherit',
       marginRight: 8
     }
-  }, remBusy ? '⏳ A enviar…' : '🔔 Enviar lembretes agora') : null, saved ? React.createElement("button", {
+  }, remBusy ? '⏳ A enviar…' : '🔔 Enviar o resumo matinal agora') : null, saved ? React.createElement("button", {
     onClick: disconnect,
     style: {
       padding: '10px 18px',
