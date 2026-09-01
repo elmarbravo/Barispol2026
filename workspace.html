@@ -3902,12 +3902,16 @@ function StoreProvider({
         [col]: s.tasks[col].filter(t => t.id !== taskId)
       }
     })),
+    /* O "type" e deduzido do nome quando quem chama nao o dá — e nenhum
+       dos sitios que chamam o dava. Sem ele os ficheiros ficavam
+       gravados no servidor sem tipo, para sempre. */
     uploadFile: file => setState(s => pushNotif(pushActivity({
       ...s,
       driveFiles: [{
         id: nextId('f'),
         modified: 'Agora',
-        ...file
+        ...file,
+        type: (file && file.type) || fileKind(file && file.name).k
       }, ...s.driveFiles]
     }, file.owner, 'carregou ficheiro', file.name), {
       type: 'file',
@@ -7174,13 +7178,20 @@ function InfoRow({
 function FileMini({
   f
 }) {
+  /* Nenhum ficheiro carregado alguma vez trouxe o campo "type" — nenhum
+     dos sitios que chamam o uploadFile o preenchia. Enquanto o Drive
+     esteve vazio isto nunca se viu; bastou existir um ficheiro no
+     servidor para o f.type.toUpperCase() rebentar e o Chat inteiro ficar
+     em branco. O tipo tira-se do nome, que esse existe sempre. */
+  const k = fileKind(f && f.name);
   const colors = {
     pdf: '#DC2626',
     xlsx: '#16A34A',
     docx: '#0369A1',
     img: '#7C3AED'
   };
-  const c = colors[f.type] || '#64748b';
+  const c = colors[f && f.type] || k.c;
+  const etiqueta = (f && f.type) ? String(f.type).toUpperCase() : k.label;
   return React.createElement("div", {
     style: {
       display: 'flex',
@@ -7204,7 +7215,7 @@ function FileMini({
       fontSize: 9,
       fontWeight: 800
     }
-  }, f.type.toUpperCase()), React.createElement("div", {
+  }, etiqueta), React.createElement("div", {
     style: {
       flex: 1,
       minWidth: 0
@@ -10593,8 +10604,12 @@ function fmtSize(bytes) {
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
+/* Devolve sempre um objecto util, venha o nome como vier. Um ficheiro
+   chamado "README", sem ponto nenhum, dava antes a extensao "readme". */
 function fileKind(name) {
-  const ext = (name.split('.').pop() || '').toLowerCase();
+  const n = String(name == null ? '' : name);
+  const p = n.lastIndexOf('.');
+  const ext = (p > 0 ? n.slice(p + 1) : '').toLowerCase();
   if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) return {
     k: 'img',
     c: '#0F766E',
