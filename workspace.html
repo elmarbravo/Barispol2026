@@ -14759,20 +14759,64 @@ function ChamadasProvider({
     return p;
   }, [enviar, limpar]);
 
+  /* O que se pede a camara. Tres coisas que faltavam e custam nitidez:
+
+     - facingMode: sem isto, um telemovel com varias camaras traseiras
+       pode entregar a grande angular, que e a mais fraca das tres.
+     - um minimo: so com "ideal" o navegador pode descer a 320x240 sem
+       avisar. Com min: 640 recusa entregar uma imagem indefensavel.
+     - um tecto de imagens por segundo: a 30 fps o codificador gasta em
+       fluidez a largura de banda que faz falta a definicao. Numa chamada
+       de duas caras a falar, 24 chegam bem e a imagem fica mais limpa.
+
+     Se a camara nao conseguir o que se pede, tenta-se outra vez sem
+     exigencias — mais vale uma imagem fraca do que nenhuma. */
   const pedirMedia = React.useCallback(async comVideo => {
-    const s = await navigator.mediaDevices.getUserMedia({
-      audio: true,
+    const exigente = {
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      },
       video: comVideo ? {
-        width: {
-          ideal: 1280
-        },
-        height: {
-          ideal: 720
-        }
+        facingMode: 'user',
+        width: { min: 640, ideal: 1280 },
+        height: { min: 360, ideal: 720 },
+        frameRate: { ideal: 24, max: 30 }
       } : false
-    });
+    };
+    let s;
+    try {
+      s = await navigator.mediaDevices.getUserMedia(exigente);
+    } catch (e) {
+      s = await navigator.mediaDevices.getUserMedia({ audio: true, video: !!comVideo });
+    }
     local.current = s;
     return s;
+  }, []);
+
+  /* Depois de a pista de video entrar na ligacao, dizer ao codificador o
+     que preferimos quando a rede aperta.
+
+     Por omissao ele escolhe "balanced" e, ao primeiro aperto, corta na
+     resolucao — a imagem fica desfocada e assim continua, mesmo quando a
+     rede melhora. Numa chamada de caras a falar quase nao ha movimento:
+     e preferivel perder imagens por segundo e manter a definicao.
+
+     O tecto de 1,5 Mbit/s e generoso para 720p e evita que o codificador
+     se acanhe sozinho. Tudo isto e opcional no navegador: se nao existir,
+     nada acontece. */
+  const afinarVideo = React.useCallback(async pc => {
+    try {
+      const env = pc.getSenders().find(x => x.track && x.track.kind === 'video');
+      if (!env || !env.getParameters) return;
+      const par = env.getParameters();
+      par.degradationPreference = 'maintain-resolution';
+      if (!par.encodings || !par.encodings.length) par.encodings = [{}];
+      par.encodings[0].maxBitrate = 1500000;
+      par.encodings[0].scaleResolutionDownBy = 1;
+      await env.setParameters(par);
+    } catch (e) {}
   }, []);
 
   const chamar = React.useCallback(async (outroId, comVideo) => {
@@ -14797,6 +14841,7 @@ function ChamadasProvider({
       const s = await pedirMedia(!!comVideo);
       const p = criarPC(outroId, id);
       s.getTracks().forEach(t => p.addTrack(t, s));
+      if (comVideo) afinarVideo(p);
       const oferta = await p.createOffer();
       await p.setLocalDescription(oferta);
       enviar('convite', outroId, {
@@ -14812,7 +14857,7 @@ function ChamadasProvider({
       setErro(e && e.name === 'NotAllowedError' ? 'Precisa de autorizar o microfone' + (comVideo ? ' e a câmara' : '') + ' no navegador.' : 'Não foi possível iniciar a chamada.');
       limpar();
     }
-  }, [criarPC, enviar, limpar, pedirMedia]);
+  }, [criarPC, enviar, limpar, pedirMedia, afinarVideo]);
 
   const atender = React.useCallback(async () => {
     const c = chRef.current;
@@ -14830,6 +14875,7 @@ function ChamadasProvider({
       await p.setRemoteDescription(new RTCSessionDescription(ofertaRef.current));
       const s = await pedirMedia(!!c.comVideo);
       s.getTracks().forEach(t => p.addTrack(t, s));
+      if (c.comVideo) afinarVideo(p);
       pendentes.current.forEach(cand => {
         try {
           p.addIceCandidate(new RTCIceCandidate(cand));
@@ -14852,7 +14898,7 @@ function ChamadasProvider({
       });
       limpar();
     }
-  }, [criarPC, enviar, limpar, pedirMedia]);
+  }, [criarPC, enviar, limpar, pedirMedia, afinarVideo]);
 
   const desligar = React.useCallback(() => {
     const c = chRef.current;
@@ -15436,7 +15482,13 @@ function ChamadaView() {
     /* Só a imagem: o som da outra pessoa é sempre tocado pelo AudioRemoto,
        montado fora deste ecrã para sobreviver à minimização. */
     fluxoRef: c.remoto,
-    mudo: true
+    mudo: true,
+    /* "contain" e nao "cover": a imagem que chega e ao comprido, o ecrã de
+       um telemóvel e ao alto. A cobrir, o navegador cortava os lados e
+       esticava o meio — a mesma imagem, mais esborratada e com menos
+       gente lá dentro. A conter, vê-se o que a câmara está mesmo a
+       apanhar, sem esticar nada, com faixas escuras em cima e em baixo. */
+    style: { objectFit: 'contain' }
   }) : React.createElement("div", {
     style: {
       width: '100%',
