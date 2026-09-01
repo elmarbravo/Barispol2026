@@ -54,9 +54,13 @@ create table if not exists ficheiros_pessoais (
   id bigint generated always as identity primary key,
   user_id text not null,
   nome text not null,
-  caminho text not null,
+  -- vazio nas pastas, que nao tem bytes no armazenamento
+  caminho text,
   bytes bigint default 0,
   mime text,
+  -- onde esta: vazio na raiz, ou "Exames", ou "Exames/2026"
+  pasta text not null default '',
+  e_pasta boolean not null default false,
   created_at timestamptz default now()
 );
 create index if not exists ficheiros_pessoais_dono on ficheiros_pessoais (user_id, created_at desc);
@@ -64,6 +68,7 @@ alter table ficheiros_pessoais enable row level security;
 
 drop policy if exists "bsp_fp_ler" on ficheiros_pessoais;
 drop policy if exists "bsp_fp_criar" on ficheiros_pessoais;
+drop policy if exists "bsp_fp_editar" on ficheiros_pessoais;
 drop policy if exists "bsp_fp_apagar" on ficheiros_pessoais;
 
 -- Ler: as minhas. Quem tiver a permissao le as de todos.
@@ -78,6 +83,12 @@ create policy "bsp_fp_criar" on ficheiros_pessoais for insert
   to authenticated with check (
     user_id = bsp_meu_id() and bsp_meu_id() is not null
   );
+
+-- Alterar (mudar de pasta, mudar o nome): so o dono.
+create policy "bsp_fp_editar" on ficheiros_pessoais for update
+  to authenticated
+  using (user_id = bsp_meu_id())
+  with check (user_id = bsp_meu_id());
 
 -- Apagar: so o dono. Ver nao e mexer, nem para quem ve tudo.
 create policy "bsp_fp_apagar" on ficheiros_pessoais for delete

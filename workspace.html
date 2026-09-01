@@ -1170,25 +1170,29 @@ const CAMADAS = {
     ordem: 1,
     desc: 'Vê tudo e administra o sistema. Gere utilizadores, camadas e a ligação ao servidor.',
     canais: '*', admin: 'total',
-    podeGerirUtilizadores: true, podeVerSistema: true, podeVerTarefasPessoais: true
+    podeGerirUtilizadores: true, podeVerSistema: true, podeVerTarefasPessoais: true,
+    podeApagarFicheiros: true
   },
   'Coordenação': {
     ordem: 2,
     desc: 'Coordenação, recursos humanos e apoio à direcção. Vê todos os canais e gere pessoas e tarefas, sem mexer na configuração do servidor.',
     canais: '*', admin: 'sem-sistema',
-    podeGerirUtilizadores: true, podeVerSistema: false, podeVerTarefasPessoais: false
+    podeGerirUtilizadores: true, podeVerSistema: false, podeVerTarefasPessoais: false,
+    podeApagarFicheiros: true
   },
   'Clínica': {
     ordem: 3,
     desc: 'Médicos, enfermagem e laboratório. Canais clínicos, escalas, farmácia, tarefas e calendário.',
     canais: [null, 'clinica', 'enfermagem', 'farmacia', 'escalas'], admin: null,
-    podeGerirUtilizadores: false, podeVerSistema: false, podeVerTarefasPessoais: false
+    podeGerirUtilizadores: false, podeVerSistema: false, podeVerTarefasPessoais: false,
+    podeApagarFicheiros: false
   },
   'Operações': {
     ordem: 4,
     desc: 'Recepção, motorista e apoio geral. Canais de recepção e escalas, tarefas e calendário.',
     canais: [null, 'rececao', 'escalas'], admin: null,
-    podeGerirUtilizadores: false, podeVerSistema: false, podeVerTarefasPessoais: false
+    podeGerirUtilizadores: false, podeVerSistema: false, podeVerTarefasPessoais: false,
+    podeApagarFicheiros: false
   }
 };
 /* Níveis da versão anterior, para não deixar ninguém de fora ao actualizar */
@@ -1240,7 +1244,8 @@ const BSP_CAMADA_NULA = {
   admin: null,
   podeGerirUtilizadores: false,
   podeVerSistema: false,
-  podeVerTarefasPessoais: false
+  podeVerTarefasPessoais: false,
+  podeApagarFicheiros: false
 };
 function bspCamada(u){
   const cs = bspCamadas();
@@ -4272,7 +4277,8 @@ function StoreProvider({
           admin: camada.podeVerSistema ? 'total' : camada.podeGerirUtilizadores ? 'sem-sistema' : null,
           podeGerirUtilizadores: !!camada.podeGerirUtilizadores,
           podeVerSistema: !!camada.podeVerSistema,
-          podeVerTarefasPessoais: !!camada.podeVerTarefasPessoais
+          podeVerTarefasPessoais: !!camada.podeVerTarefasPessoais,
+          podeApagarFicheiros: !!camada.podeApagarFicheiros
         };
         /* Ao mudar o nome, os utilizadores tem de o acompanhar: o
            accessLevel guarda o nome, nao um identificador. */
@@ -10149,7 +10155,7 @@ function useFicheirosPessoais() {
     return () => { vivo = false; };
   }, [tick]);
 
-  const guardar = React.useCallback(async file => {
+  const guardar = React.useCallback(async (file, pasta) => {
     const cl = bspGetClient();
     if (!cl) return 'O servidor não está ligado.';
     const meu = window.CURRENT_USER_ID;
@@ -10165,42 +10171,126 @@ function useFicheirosPessoais() {
       nome: file.name,
       caminho: caminho,
       bytes: file.size || 0,
-      mime: file.type || ''
+      mime: file.type || '',
+      pasta: pasta || '',
+      e_pasta: false
     });
     if (r && r.error) return r.error.message || 'Não foi possível gravar.';
     recarregar();
     return null;
   }, [recarregar]);
 
+  const criarPasta = React.useCallback(async (nome, pasta) => {
+    const cl = bspGetClient();
+    if (!cl) return 'O servidor não está ligado.';
+    const meu = window.CURRENT_USER_ID;
+    if (!meu) return 'Não foi possível identificar a sua conta.';
+    const limpo = String(nome || '').trim().replace(/[\/]/g, '-');
+    if (!limpo) return 'Dê um nome à pasta.';
+    /* Duas pastas com o mesmo nome no mesmo sitio tornavam impossivel
+       saber em qual se estava a entrar. */
+    const ja = ficheiros.some(x => x.e_pasta && (x.pasta || '') === (pasta || '') &&
+      String(x.nome).toLowerCase() === limpo.toLowerCase() && x.user_id === meu);
+    if (ja) return 'Já existe uma pasta com esse nome aqui.';
+    const r = await cl.from('ficheiros_pessoais').insert({
+      user_id: meu,
+      nome: limpo,
+      caminho: null,
+      bytes: 0,
+      mime: '',
+      pasta: pasta || '',
+      e_pasta: true
+    });
+    if (r && r.error) return r.error.message || 'Não foi possível criar a pasta.';
+    recarregar();
+    return null;
+  }, [recarregar, ficheiros]);
+
+  const mover = React.useCallback(async (id, destino) => {
+    const cl = bspGetClient();
+    if (!cl) return 'O servidor não está ligado.';
+    const r = await cl.from('ficheiros_pessoais').update({ pasta: destino || '' }).eq('id', id);
+    if (r && r.error) return r.error.message || 'Não foi possível mover.';
+    recarregar();
+    return null;
+  }, [recarregar]);
+
+  const renomear = React.useCallback(async (f, nome) => {
+    const cl = bspGetClient();
+    if (!cl) return 'O servidor não está ligado.';
+    const limpo = String(nome || '').trim().replace(/[\/]/g, '-');
+    if (!limpo) return 'O nome não pode ficar vazio.';
+    const r = await cl.from('ficheiros_pessoais').update({ nome: limpo }).eq('id', f.idReal);
+    if (r && r.error) return r.error.message || 'Não foi possível mudar o nome.';
+    /* Mudar o nome de uma pasta muda o caminho de tudo o que está lá
+       dentro, a qualquer profundidade. Feito aqui e não por uma regra na
+       base de dados, para se ver o que acontece. */
+    if (f.pasta_mesmo) {
+      const antes = (f.dentroDe ? f.dentroDe + '/' : '') + f.name;
+      const depois = (f.dentroDe ? f.dentroDe + '/' : '') + limpo;
+      const filhos = ficheiros.filter(x => (x.pasta || '') === antes || String(x.pasta || '').indexOf(antes + '/') === 0);
+      for (const c of filhos) {
+        await cl.from('ficheiros_pessoais')
+          .update({ pasta: depois + String(c.pasta).slice(antes.length) }).eq('id', c.id);
+      }
+    }
+    recarregar();
+    return null;
+  }, [recarregar, ficheiros]);
+
   const apagar = React.useCallback(async f => {
     const cl = bspGetClient();
     if (!cl) return;
-    /* Primeiro os bytes, depois a ficha: ao contrario, um erro deixava o
-       ficheiro no armazenamento sem nada que o mencionasse. */
-    try { await cl.storage.from(BSP_BUCKET).remove([f.caminho]); } catch (e) {}
-    await cl.from('ficheiros_pessoais').delete().eq('id', f.id);
+    if (f.pasta_mesmo) {
+      /* Apagar uma pasta leva o que está dentro, a qualquer
+         profundidade. Os bytes primeiro: ao contrário, um erro deixava
+         ficheiros no armazenamento sem nada que os mencionasse. */
+      const dentro = (f.dentroDe ? f.dentroDe + '/' : '') + f.name;
+      const alvos = ficheiros.filter(x => (x.pasta || '') === dentro || String(x.pasta || '').indexOf(dentro + '/') === 0);
+      const caminhos = alvos.filter(x => x.caminho).map(x => x.caminho);
+      if (caminhos.length) {
+        try { await cl.storage.from(BSP_BUCKET).remove(caminhos); } catch (e) {}
+      }
+      for (const a of alvos) await cl.from('ficheiros_pessoais').delete().eq('id', a.id);
+      await cl.from('ficheiros_pessoais').delete().eq('id', f.idReal);
+      recarregar();
+      return;
+    }
+    if (f.caminho) {
+      try { await cl.storage.from(BSP_BUCKET).remove([f.caminho]); } catch (e) {}
+    }
+    await cl.from('ficheiros_pessoais').delete().eq('id', f.idReal);
     recarregar();
-  }, [recarregar]);
+  }, [recarregar, ficheiros]);
 
   /* No mesmo formato do Drive da equipa, para o ecra tratar as duas
-     origens da mesma maneira. */
+     origens da mesma maneira. As pastas vem misturadas, marcadas. */
   const comoDrive = React.useMemo(() => ficheiros.map(f => ({
     id: 'fp' + f.id,
     idReal: f.id,
     pessoal: true,
+    pasta_mesmo: !!f.e_pasta,
+    dentroDe: f.pasta || '',
     meu: f.user_id === window.CURRENT_USER_ID,
     name: f.nome,
-    size: fmtSize(f.bytes || 0),
+    size: f.e_pasta ? '' : fmtSize(f.bytes || 0),
     bytes: f.bytes || 0,
     owner: f.user_id,
-    path: f.caminho,
-    caminho: f.caminho,
+    path: f.caminho || '',
+    caminho: f.caminho || '',
     mime: f.mime || '',
-    type: fileKind(f.nome).k,
+    type: f.e_pasta ? 'pasta' : fileKind(f.nome).k,
+    criado: f.created_at || '',
     modified: fmtTs(f.created_at)
   })), [ficheiros]);
 
-  return { lista: comoDrive, estado, guardar, apagar, recarregar };
+  /* Todas as pastas, em caminho completo, para o menu de mover. */
+  const pastas = React.useMemo(() => comoDrive
+    .filter(x => x.pasta_mesmo && x.meu)
+    .map(x => (x.dentroDe ? x.dentroDe + '/' : '') + x.name)
+    .sort((a, b) => a.localeCompare(b, 'pt')), [comoDrive]);
+
+  return { lista: comoDrive, pastas, estado, guardar, criarPasta, mover, renomear, apagar, recarregar };
 }
 function useTarefasPessoais() {
   const [tarefas, setTarefas] = React.useState([]);
@@ -10918,17 +11008,31 @@ function DriveScreen() {
   } = useStore();
   const currentUser = window.userById(window.CURRENT_USER_ID);
   const toast = useToast();
-  /* Duas gavetas. A da equipa e a de sempre; a pessoal vive numa tabela
-     com as suas proprias regras, e o servidor so entrega o que for para
-     entregar. */
+  /* Duas gavetas. A da equipa e a de sempre; a pessoal tem pastas e vive
+     numa tabela com as suas proprias regras. */
   const [aba, setAba] = React.useState('equipa');
+  const [caminho, setCaminho] = React.useState('');
+  const [vista, setVista] = React.useState(() => {
+    try { return localStorage.getItem('bsp_drive_vista') || 'grelha'; } catch (e) { return 'grelha'; }
+  });
+  const [procura, setProcura] = React.useState('');
+  const [ordem, setOrdem] = React.useState('nome');
+  const [novaPasta, setNovaPasta] = React.useState(null);
+  const [renomear, setRenomear] = React.useState(null);
+  const [mover, setMover] = React.useState(null);
   const pessoais = useFicheirosPessoais();
-  const daEquipa = state.driveFiles || [];
-  const files = aba === 'pessoal' ? pessoais.lista : daEquipa;
   const inputRef = React.useRef(null);
   const [busy, setBusy] = React.useState(false);
   const MAX = BSP_MAX_BYTES;
-  const veTudo = bspCamada(currentUser).podeVerTarefasPessoais;
+  const camada = bspCamada(currentUser);
+  const veTudo = camada.podeVerTarefasPessoais;
+  const podeApagarTudo = !!camada.podeApagarFicheiros;
+  const ehPessoal = aba === 'pessoal';
+
+  const trocarVista = v => {
+    setVista(v);
+    try { localStorage.setItem('bsp_drive_vista', v); } catch (e) {}
+  };
   /* Quem guarda um ficheiro tem de saber quem o pode ler. Nao chega
      perguntar se EU vejo os dos outros: o que interessa e se ALGUEM os
      ve. Lido das camadas vivas, para o aviso acompanhar o que estiver
@@ -10937,6 +11041,45 @@ function DriveScreen() {
     const cs = bspCamadas();
     return Object.keys(cs).filter(k => cs[k].podeVerTarefasPessoais);
   }, [state.camadas]);
+  const camadasQueApagam = React.useMemo(() => {
+    const cs = bspCamadas();
+    return Object.keys(cs).filter(k => cs[k].podeApagarFicheiros);
+  }, [state.camadas]);
+
+  /* O que esta a ser mostrado agora. Na aba pessoal, so o que esta nesta
+     pasta — a nao ser que se esteja a procurar, que ai procura em tudo,
+     como no OneDrive. */
+  const aProcurar = procura.trim().length >= 1;
+  const norm = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const visiveis = React.useMemo(() => {
+    let base = ehPessoal ? pessoais.lista : (state.driveFiles || []);
+    if (ehPessoal && !aProcurar) base = base.filter(x => (x.dentroDe || '') === caminho);
+    if (aProcurar) {
+      const q = norm(procura);
+      base = base.filter(x => norm(x.name).indexOf(q) !== -1);
+    }
+    const por = {
+      nome: (a, b) => String(a.name).localeCompare(String(b.name), 'pt'),
+      tamanho: (a, b) => (b.bytes || 0) - (a.bytes || 0),
+      data: (a, b) => String(b.criado || '').localeCompare(String(a.criado || ''))
+    };
+    const lista = base.slice().sort(por[ordem] || por.nome);
+    /* As pastas primeiro, sempre. */
+    return lista.filter(x => x.pasta_mesmo).concat(lista.filter(x => !x.pasta_mesmo));
+  }, [ehPessoal, pessoais.lista, state.driveFiles, caminho, procura, ordem, aProcurar]);
+
+  const totalBytes = visiveis.reduce((n, f) => n + (f.bytes || 0), 0);
+  const nFicheiros = visiveis.filter(x => !x.pasta_mesmo).length;
+  const nPastas = visiveis.filter(x => x.pasta_mesmo).length;
+
+  /* Quem pode apagar isto. No Drive da equipa: quem o carregou, e as
+     camadas com essa permissao. Na area pessoal: so o dono, mesmo para
+     quem le as de todos — ver nao e mexer. */
+  const podeApagar = f => {
+    if (f.pessoal) return !!f.meu;
+    return f.owner === currentUser.id || podeApagarTudo;
+  };
+
   function pick() {
     inputRef.current && inputRef.current.click();
   }
@@ -10956,19 +11099,22 @@ function DriveScreen() {
         continue;
       }
       try {
-        if (aba === 'pessoal') {
-          const err = await pessoais.guardar(f);
+        if (ehPessoal) {
+          const err = await pessoais.guardar(f, caminho);
           if (err) { toast(err); continue; }
           ok++;
           continue;
         }
-        const caminho = await bspUploadToStorage(f);
+        /* O caminho passa a dizer quem carregou, para o servidor poder
+           impedir que outra pessoa apague. Os que ja la estao nao o
+           trazem — nesses, a regra e so a do ecra. */
+        const dest = await bspUploadToStorage(f, 'equipa/' + currentUser.id);
         actions.uploadFile({
           name: f.name,
           size: fmtSize(f.size),
           bytes: f.size,
           owner: currentUser.id,
-          path: caminho,
+          path: dest,
           mime: f.type || '',
           dept: ''
         });
@@ -10980,10 +11126,59 @@ function DriveScreen() {
     setBusy(false);
     if (ok) toast(ok === 1 ? 'Ficheiro carregado.' : ok + ' ficheiros carregados.');
   }
-  function download(f) {
+  function abrir(f) {
+    if (f.pasta_mesmo) {
+      setCaminho((f.dentroDe ? f.dentroDe + '/' : '') + f.name);
+      setProcura('');
+      return;
+    }
     bspAbrirFicheiro(f, () => toast('Este ficheiro não tem conteúdo guardado.'));
   }
-  const totalBytes = files.reduce((n, f) => n + (f.bytes || 0), 0);
+  function eliminar(f) {
+    if (!podeApagar(f)) {
+      toast(f.pessoal ? 'Só o dono pode apagar um ficheiro pessoal.'
+        : 'Só quem carregou o ficheiro' + (camadasQueApagam.length ? ' ou ' + camadasQueApagam.join(' e ') : '') + ' o pode apagar.');
+      return;
+    }
+    if (f.pasta_mesmo) {
+      const dentro = (f.dentroDe ? f.dentroDe + '/' : '') + f.name;
+      const quantos = pessoais.lista.filter(x => (x.dentroDe || '') === dentro || String(x.dentroDe || '').indexOf(dentro + '/') === 0).length;
+      if (quantos && !window.confirm('A pasta “' + f.name + '” tem ' + quantos + ' item(ns). Apagar leva tudo o que está lá dentro. Continuar?')) return;
+      pessoais.apagar(f);
+      return;
+    }
+    if (f.pessoal) { pessoais.apagar(f); return; }
+    actions.deleteFile(f.id);
+  }
+
+  /* Migalhas do caminho: "Os meus ficheiros / Exames / 2026". */
+  const migalhas = caminho ? caminho.split('/') : [];
+  const irPara = i => setCaminho(migalhas.slice(0, i + 1).join('/'));
+
+  const Vazio = ({ texto, accao }) => React.createElement("button", {
+    onClick: accao,
+    style: {
+      flex: 1, border: '2px dashed var(--border)', borderRadius: 14,
+      background: 'var(--surface-2)', cursor: accao ? 'pointer' : 'default',
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      justifyContent: 'center', gap: 12, color: 'var(--text-3)',
+      fontFamily: 'inherit', minHeight: 220, width: '100%'
+    }
+  }, React.createElement("span", {
+    style: {
+      width: 56, height: 56, borderRadius: 14, background: 'var(--surface)',
+      border: '1px solid var(--border)', display: 'flex',
+      alignItems: 'center', justifyContent: 'center'
+    }
+  }, React.createElement(I.Upload, {
+    size: 24,
+    stroke: "var(--accent-d)"
+  })), React.createElement("span", {
+    style: { fontSize: 14, fontWeight: 600, color: 'var(--text-2)' }
+  }, texto), accao && React.createElement("span", {
+    style: { fontSize: 12 }
+  }, "Clique para escolher (máx. 25 MB cada)"));
+
   return React.createElement("div", {
     style: {
       height: '100%',
@@ -10996,52 +11191,38 @@ function DriveScreen() {
     type: "file",
     multiple: true,
     onChange: onFiles,
+    style: { display: 'none' }
+  }),
+  /* cabeçalho */
+  React.createElement("div", {
     style: {
-      display: 'none'
-    }
-  }), React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 14,
-      gap: 12,
-      flexWrap: 'wrap'
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      marginBottom: 14, gap: 12, flexWrap: 'wrap'
     }
   }, React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 12
-    }
+    style: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', minWidth: 0 }
   }, React.createElement("h2", {
-    style: {
-      fontSize: 18,
-      fontWeight: 700,
-      color: 'var(--text-1)',
-      margin: 0
-    }
+    style: { fontSize: 18, fontWeight: 700, color: 'var(--text-1)', margin: 0 }
   }, "Drive"), React.createElement(Badge, {
     tone: "accent"
-  }, files.length, " ", files.length === 1 ? 'ficheiro' : 'ficheiros'), React.createElement("span", {
-    style: {
-      fontSize: 12,
-      color: 'var(--text-3)'
-    }
-  }, fmtSize(totalBytes), " usados")), React.createElement(Button, {
+  }, nFicheiros, " ", nFicheiros === 1 ? 'ficheiro' : 'ficheiros', nPastas ? ' · ' + nPastas + (nPastas === 1 ? ' pasta' : ' pastas') : ''), React.createElement("span", {
+    style: { fontSize: 12, color: 'var(--text-3)' }
+  }, fmtSize(totalBytes), " usados")), React.createElement("div", {
+    style: { display: 'flex', gap: 8, flexWrap: 'wrap' }
+  }, ehPessoal && React.createElement(Button, {
+    variant: "ghost",
+    size: "sm",
+    icon: React.createElement(I.Plus, { size: 13 }),
+    onClick: () => setNovaPasta('')
+  }, "Nova pasta"), React.createElement(Button, {
     variant: "primary",
     size: "sm",
-    icon: React.createElement(I.Upload, {
-      size: 14
-    }),
+    icon: React.createElement(I.Upload, { size: 14 }),
     onClick: pick
-  }, busy ? 'A carregar…' : 'Carregar ficheiro')), React.createElement("div", {
-    style: {
-      display: 'flex',
-      gap: 6,
-      borderBottom: '1px solid var(--border)',
-      marginBottom: 14
-    }
+  }, busy ? 'A carregar…' : 'Carregar ficheiro'))),
+  /* abas */
+  React.createElement("div", {
+    style: { display: 'flex', gap: 6, borderBottom: '1px solid var(--border)', marginBottom: 14 }
   }, [{
     id: 'equipa',
     l: 'Da equipa'
@@ -11050,85 +11231,174 @@ function DriveScreen() {
     l: veTudo ? 'Pessoais' : 'Os meus ficheiros'
   }].map(x => React.createElement("button", {
     key: x.id,
-    onClick: () => setAba(x.id),
+    onClick: () => { setAba(x.id); setCaminho(''); setProcura(''); },
     style: {
-      padding: '10px 16px',
-      background: 'transparent',
-      border: 'none',
+      padding: '10px 16px', background: 'transparent', border: 'none',
       borderBottom: aba === x.id ? '2px solid var(--accent)' : '2px solid transparent',
       color: aba === x.id ? 'var(--text-1)' : 'var(--text-3)',
-      fontSize: 13.5,
-      fontWeight: 600,
-      cursor: 'pointer',
-      fontFamily: 'inherit'
+      fontSize: 13.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit'
     }
-  }, x.l))), React.createElement(Card, {
+  }, x.l))),
+  /* barra: migalhas, pesquisa, ordenação, vista */
+  React.createElement("div", {
+    style: {
+      display: 'flex', alignItems: 'center', gap: 10,
+      marginBottom: 12, flexWrap: 'wrap'
+    }
+  }, ehPessoal && React.createElement("div", {
+    style: { display: 'flex', alignItems: 'center', gap: 4, fontSize: 12.5, flex: 1, minWidth: 180, flexWrap: 'wrap' }
+  }, React.createElement("button", {
+    onClick: () => { setCaminho(''); setProcura(''); },
+    style: {
+      background: 'transparent', border: 'none', padding: '2px 4px', cursor: 'pointer',
+      fontFamily: 'inherit', fontSize: 12.5,
+      color: caminho ? 'var(--accent-d)' : 'var(--text-2)',
+      fontWeight: caminho ? 500 : 700
+    }
+  }, veTudo ? 'Pessoais' : 'Os meus ficheiros'), migalhas.map((m, i) => React.createElement(React.Fragment, {
+    key: i
+  }, React.createElement("span", {
+    style: { color: 'var(--text-3)' }
+  }, "/"), React.createElement("button", {
+    onClick: () => irPara(i),
+    style: {
+      background: 'transparent', border: 'none', padding: '2px 4px', cursor: 'pointer',
+      fontFamily: 'inherit', fontSize: 12.5,
+      color: i === migalhas.length - 1 ? 'var(--text-2)' : 'var(--accent-d)',
+      fontWeight: i === migalhas.length - 1 ? 700 : 500
+    }
+  }, m)))), !ehPessoal && React.createElement("div", { style: { flex: 1, minWidth: 100 } }), React.createElement("input", {
+    value: procura,
+    onChange: e => setProcura(e.target.value),
+    placeholder: ehPessoal ? 'Procurar em tudo…' : 'Procurar…',
+    style: {
+      width: 180, padding: '7px 11px', borderRadius: 8,
+      border: '1px solid var(--border)', background: 'var(--surface)',
+      color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 12.5
+    }
+  }), React.createElement("select", {
+    value: ordem,
+    onChange: e => setOrdem(e.target.value),
+    style: {
+      padding: '7px 9px', borderRadius: 8, border: '1px solid var(--border)',
+      background: 'var(--surface)', color: 'var(--text-2)',
+      fontFamily: 'inherit', fontSize: 12.5, cursor: 'pointer'
+    }
+  }, React.createElement("option", { value: "nome" }, "Nome"),
+     React.createElement("option", { value: "data" }, "Mais recentes"),
+     React.createElement("option", { value: "tamanho" }, "Maiores")),
+  React.createElement("div", {
+    style: { display: 'flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }
+  }, [{
+    id: 'grelha',
+    ic: 'Grid',
+    t: 'Mosaicos'
+  }, {
+    id: 'lista',
+    ic: 'List',
+    t: 'Lista'
+  }].map(v => React.createElement("button", {
+    key: v.id,
+    onClick: () => trocarVista(v.id),
+    title: v.t,
+    style: {
+      width: 32, height: 32, display: 'inline-flex', alignItems: 'center',
+      justifyContent: 'center', border: 'none', cursor: 'pointer',
+      background: vista === v.id ? 'var(--accent-soft)' : 'transparent',
+      color: vista === v.id ? 'var(--accent-d)' : 'var(--text-3)'
+    }
+  }, React.createElement(I[v.ic] || I.Drive, {
+    size: 14,
+    stroke: vista === v.id ? 'var(--accent-d)' : 'var(--text-3)'
+  }))))),
+  /* aviso */
+  React.createElement(Card, {
     pad: 12,
     style: {
       marginBottom: 14,
-      background: aba === 'pessoal' ? 'var(--surface-2)' : 'var(--accent-soft)',
-      border: aba === 'pessoal' ? '1px solid var(--border)' : '1px solid rgba(0,163,224,.25)'
+      background: ehPessoal ? 'var(--surface-2)' : 'var(--accent-soft)',
+      border: ehPessoal ? '1px solid var(--border)' : '1px solid rgba(0,163,224,.25)'
     }
   }, React.createElement("div", {
     style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      fontSize: 12.5,
-      color: aba === 'pessoal' ? 'var(--text-2)' : 'var(--accent-d)'
+      display: 'flex', alignItems: 'center', gap: 10,
+      fontSize: 12.5, color: ehPessoal ? 'var(--text-2)' : 'var(--accent-d)'
     }
-  }, React.createElement(aba === 'pessoal' ? I.Lock : I.Shield, {
+  }, React.createElement(ehPessoal ? I.Lock : I.Shield, {
     size: 15
   }), React.createElement("span", null,
-  /* O aviso tem de dizer a verdade, e a verdade muda com a aba e com
-     o que o servidor tem instalado. Prometer "só seu" num ecrã onde a
-     Direcção lê tudo seria mentir a quem carrega o ficheiro. */
-  !(sync && sync.status === 'live') ? React.createElement(React.Fragment, null, "O servidor não está ligado neste dispositivo, por isso não é possível carregar ficheiros. Ligue-o em Admin → Sistema.") : aba !== 'pessoal' ? React.createElement(React.Fragment, null, "Ficheiros (até 25 MB) ", React.createElement("strong", null, "partilhados com toda a equipa"), ", guardados no servidor. Os anexos das conversas não vêm aqui parar — ficam na conversa.") : pessoais.estado === 'sem-tabela' ? React.createElement(React.Fragment, null, "Falta correr o ", React.createElement("code", null, "ficheiros-pessoais.sql"), " no Supabase. Sem ele não há onde guardar ficheiros só seus.") : pessoais.estado === 'erro' ? React.createElement(React.Fragment, null, "Não foi possível ler os seus ficheiros do servidor.") : veTudo ? React.createElement(React.Fragment, null, "Ficheiros pessoais. A sua camada ", React.createElement("strong", null, "vê os de toda a gente"), " — mas ninguém apaga os de outra pessoa.") : camadasQueVeem.length ? React.createElement(React.Fragment, null, "Não aparecem no Drive da equipa, mas ", React.createElement("strong", null, camadasQueVeem.join(' e ')), camadasQueVeem.length === 1 ? " pode lê-los" : " podem lê-los", ". Ninguém os pode apagar além de si.") : React.createElement(React.Fragment, null, React.createElement("strong", null, "Só seus."), " Mais ninguém os vê — nem a Direcção. Se isso mudar em Admin → Permissões, este aviso muda com ela.")))), files.length === 0 ? React.createElement("button", {
-    onClick: pick,
-    style: {
-      flex: 1,
-      border: '2px dashed var(--border)',
-      borderRadius: 14,
-      background: 'var(--surface-2)',
-      cursor: 'pointer',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 12,
-      color: 'var(--text-3)',
-      fontFamily: 'inherit',
-      minHeight: 220
-    }
-  }, React.createElement("span", {
-    style: {
-      width: 56,
-      height: 56,
-      borderRadius: 14,
-      background: 'var(--surface)',
-      border: '1px solid var(--border)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }
-  }, React.createElement(I.Upload, {
-    size: 24,
-    stroke: "var(--accent-d)"
-  })), React.createElement("span", {
-    style: {
-      fontSize: 14,
-      fontWeight: 600,
-      color: 'var(--text-2)'
-    }
-  }, "Carregar o primeiro ficheiro"), React.createElement("span", {
-    style: {
-      fontSize: 12
-    }
-  }, "Clique para escolher (máx. 25 MB cada)")) : React.createElement("div", {
-    style: {
-      flex: 1,
-      overflow: 'auto'
-    }
+  /* O aviso tem de dizer a verdade, e a verdade muda com a aba e com o
+     que estiver ligado em Admin -> Permissões. */
+  !(sync && sync.status === 'live') ? React.createElement(React.Fragment, null, "O servidor não está ligado neste dispositivo, por isso não é possível carregar ficheiros. Ligue-o em Admin → Sistema.") : !ehPessoal ? React.createElement(React.Fragment, null, "Ficheiros (até 25 MB) ", React.createElement("strong", null, "partilhados com toda a equipa"), ". Apagar é de quem carregou", camadasQueApagam.length ? React.createElement(React.Fragment, null, " e de ", React.createElement("strong", null, camadasQueApagam.join(' e '))) : null, ". Os anexos das conversas não vêm aqui parar — ficam na conversa.") : pessoais.estado === 'sem-tabela' ? React.createElement(React.Fragment, null, "Falta correr o ", React.createElement("code", null, "ficheiros-pessoais.sql"), " e o ", React.createElement("code", null, "pastas-pessoais.sql"), " no Supabase.") : pessoais.estado === 'erro' ? React.createElement(React.Fragment, null, "Não foi possível ler os seus ficheiros do servidor.") : veTudo ? React.createElement(React.Fragment, null, "Ficheiros pessoais. A sua camada ", React.createElement("strong", null, "vê os de toda a gente"), " — mas ninguém apaga nem move os de outra pessoa.") : camadasQueVeem.length ? React.createElement(React.Fragment, null, "Não aparecem no Drive da equipa, mas ", React.createElement("strong", null, camadasQueVeem.join(' e ')), camadasQueVeem.length === 1 ? " pode lê-los" : " podem lê-los", ". Ninguém os pode apagar além de si.") : React.createElement(React.Fragment, null, React.createElement("strong", null, "Só seus."), " Mais ninguém os vê — nem a Direcção. Se isso mudar em Admin → Permissões, este aviso muda com ela.")))),
+  /* conteúdo */
+  visiveis.length === 0 ? (aProcurar ? React.createElement(Vazio, {
+    texto: 'Nada encontrado para “' + procura.trim() + '”.'
+  }) : React.createElement(Vazio, {
+    texto: ehPessoal && caminho ? 'Esta pasta está vazia' : 'Carregar o primeiro ficheiro',
+    accao: pick
+  })) : vista === 'lista' ? React.createElement("div", {
+    style: { flex: 1, overflow: 'auto' }
+  }, React.createElement(Card, {
+    pad: 0,
+    style: { overflow: 'hidden' }
+  }, visiveis.map((f, i) => {
+    const k = f.pasta_mesmo ? null : fileKind(f.name);
+    const dono = window.userById(f.owner);
+    return React.createElement("div", {
+      key: f.id,
+      className: "bsp-row-hover",
+      style: {
+        display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
+        borderBottom: i < visiveis.length - 1 ? '1px solid var(--border)' : 'none'
+      }
+    }, React.createElement("button", {
+      onClick: () => abrir(f),
+      title: f.pasta_mesmo ? 'Abrir pasta' : 'Abrir',
+      style: {
+        display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0,
+        background: 'transparent', border: 'none', cursor: 'pointer',
+        textAlign: 'left', fontFamily: 'inherit', padding: 0
+      }
+    }, React.createElement("span", {
+      style: {
+        width: 30, height: 30, borderRadius: 7, flex: 'none',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        background: f.pasta_mesmo ? 'var(--accent-soft)' : 'var(--surface-2)',
+        color: f.pasta_mesmo ? 'var(--accent-d)' : (k ? k.c : 'var(--text-3)'),
+        fontSize: 9, fontWeight: 800
+      }
+    }, f.pasta_mesmo ? React.createElement(I.Folder || I.Drive, {
+      size: 15,
+      stroke: 'var(--accent-d)'
+    }) : k.label), React.createElement("span", {
+      style: { flex: 1, minWidth: 0 }
+    }, React.createElement("span", {
+      style: {
+        display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-1)',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+      }
+    }, f.name), React.createElement("span", {
+      style: { display: 'block', fontSize: 11, color: 'var(--text-3)' }
+    }, [f.pasta_mesmo ? 'Pasta' : f.size, dono ? dono.name.split(' ')[0] : null,
+        aProcurar && f.pessoal && f.dentroDe ? 'em ' + f.dentroDe : null,
+        f.modified].filter(Boolean).join(' · ')))), f.pessoal && f.meu && React.createElement("button", {
+      className: "bsp-iconbtn",
+      title: "Mudar o nome",
+      onClick: () => setRenomear(f),
+      style: { width: 30, height: 30 }
+    }, React.createElement(I.Edit, { size: 13 })), f.pessoal && f.meu && !f.pasta_mesmo && React.createElement("button", {
+      className: "bsp-iconbtn",
+      title: "Mover para uma pasta",
+      onClick: () => setMover(f),
+      style: { width: 30, height: 30 }
+    }, React.createElement(I.Drive, { size: 13 })), podeApagar(f) && React.createElement("button", {
+      className: "bsp-iconbtn",
+      onClick: () => eliminar(f),
+      title: "Apagar",
+      style: { width: 30, height: 30 }
+    }, React.createElement(I.Trash, { size: 13 })));
+  }))) : React.createElement("div", {
+    style: { flex: 1, overflow: 'auto' }
   }, React.createElement("div", {
     className: "bsp-drive-grid",
     style: {
@@ -11136,117 +11406,142 @@ function DriveScreen() {
       gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
       gap: 12
     }
-  }, files.map(f => {
-    const k = fileKind(f.name);
-    const owner = window.userById(f.owner);
+  }, visiveis.map(f => {
+    const k = f.pasta_mesmo ? null : fileKind(f.name);
+    const dono = window.userById(f.owner);
+    const img = !f.pasta_mesmo && /\.(png|jpe?g|gif|webp)$/i.test(f.name || '') && (f.path || f.dataUrl);
     return React.createElement(Card, {
       key: f.id,
       pad: 0,
+      style: { overflow: 'hidden' }
+    }, React.createElement("button", {
+      onClick: () => abrir(f),
+      title: f.pasta_mesmo ? 'Abrir pasta' : 'Abrir',
       style: {
-        overflow: 'hidden'
+        display: 'block', width: '100%', height: 96, padding: 0,
+        border: 'none', cursor: 'pointer',
+        background: f.pasta_mesmo ? 'var(--accent-soft)' : 'var(--surface-2)'
       }
-    }, React.createElement("div", {
-      style: {
-        height: 96,
-        background: 'var(--surface-2)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        position: 'relative',
-        overflow: 'hidden'
-      }
-    }, k.k === 'img' && (f.path || f.dataUrl) ? React.createElement(FicheiroImg, {
+    }, img ? React.createElement(FicheiroImg, {
       f: f,
       alt: f.name,
-      style: {
-        width: '100%',
-        height: '100%',
-        objectFit: 'cover'
-      }
+      style: { width: '100%', height: 96, objectFit: 'cover', display: 'block' }
     }) : React.createElement("span", {
       style: {
-        width: 46,
-        height: 46,
-        borderRadius: 10,
-        background: k.c,
-        color: '#fff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: 11,
-        fontWeight: 800
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        width: '100%', height: 96
       }
-    }, k.label), React.createElement("button", {
-      onClick: () => actions.toggleStar(f.id),
-      title: "Favorito",
+    }, f.pasta_mesmo ? React.createElement(I.Folder || I.Drive, {
+      size: 30,
+      stroke: 'var(--accent-d)'
+    }) : React.createElement("span", {
       style: {
-        position: 'absolute',
-        top: 6,
-        left: 6,
-        border: 'none',
-        background: 'rgba(255,255,255,.8)',
-        borderRadius: 6,
-        padding: 3,
-        cursor: 'pointer',
-        lineHeight: 0,
-        color: f.star ? '#F59E0B' : 'var(--text-3)'
+        padding: '7px 12px', borderRadius: 8, background: k.c,
+        color: '#fff', fontSize: 12, fontWeight: 800
       }
-    }, React.createElement(I.Star, {
-      size: 13
-    }))), React.createElement("div", {
-      style: {
-        padding: 11
-      }
+    }, k.label))), React.createElement("div", {
+      style: { padding: 12 }
     }, React.createElement("div", {
       style: {
-        fontSize: 12.5,
-        fontWeight: 600,
-        color: 'var(--text-1)',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap'
-      },
-      title: f.name
+        fontSize: 12.5, fontWeight: 600, color: 'var(--text-1)',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+      }
     }, f.name), React.createElement("div", {
-      style: {
-        fontSize: 11,
-        color: 'var(--text-3)',
-        marginTop: 2
-      }
-    }, f.size, owner ? ' · ' + owner.name.split(' ')[0] : ''), React.createElement("div", {
-      style: {
-        display: 'flex',
-        gap: 6,
-        marginTop: 10
-      }
+      style: { fontSize: 11, color: 'var(--text-3)', marginTop: 2 }
+    }, [f.pasta_mesmo ? 'Pasta' : f.size, dono ? dono.name.split(' ')[0] : null,
+        aProcurar && f.pessoal && f.dentroDe ? 'em ' + f.dentroDe : null].filter(Boolean).join(' · ')), React.createElement("div", {
+      style: { display: 'flex', gap: 6, marginTop: 10 }
     }, React.createElement(Button, {
       variant: "ghost",
       size: "sm",
-      icon: React.createElement(I.Download, {
-        size: 12
-      }),
-      onClick: () => download(f),
-      style: {
-        flex: 1
-      }
-    }, "Abrir"), React.createElement("button", {
+      icon: React.createElement(f.pasta_mesmo ? (I.Folder || I.Drive) : I.Download, { size: 12 }),
+      onClick: () => abrir(f),
+      style: { flex: 1 }
+    }, f.pasta_mesmo ? 'Abrir' : 'Abrir'), f.pessoal && f.meu && React.createElement("button", {
       className: "bsp-iconbtn",
-      onClick: () => {
-        if (f.pessoal) {
-          if (!f.meu) { toast('Só o dono pode apagar um ficheiro pessoal.'); return; }
-          pessoais.apagar({ id: f.idReal, caminho: f.caminho });
-          return;
-        }
-        actions.deleteFile(f.id);
-      },
+      title: "Mudar o nome",
+      onClick: () => setRenomear(f),
+      style: { width: 30, height: 30 }
+    }, React.createElement(I.Edit, { size: 13 })), podeApagar(f) && React.createElement("button", {
+      className: "bsp-iconbtn",
+      onClick: () => eliminar(f),
       title: "Apagar",
-      style: {
-        width: 30,
-        height: 30
+      style: { width: 30, height: 30 }
+    }, React.createElement(I.Trash, { size: 13 })))));
+  }))),
+  /* nova pasta */
+  React.createElement(Modal, {
+    open: novaPasta !== null,
+    onClose: () => setNovaPasta(null),
+    title: "Nova pasta",
+    footer: React.createElement(React.Fragment, null, React.createElement(Button, {
+      variant: "ghost",
+      onClick: () => setNovaPasta(null)
+    }, "Cancelar"), React.createElement(Button, {
+      variant: "primary",
+      onClick: async () => {
+        const err = await pessoais.criarPasta(novaPasta, caminho);
+        if (err) { toast(err); return; }
+        setNovaPasta(null);
       }
-    }, React.createElement(I.Trash, {
-      size: 13
-    })))));
+    }, "Criar"))
+  }, React.createElement(FormField, {
+    label: "Nome da pasta",
+    hint: caminho ? 'Será criada dentro de “' + caminho + '”.' : 'Será criada na raiz dos seus ficheiros.'
+  }, React.createElement(TextInput, {
+    value: novaPasta || '',
+    onChange: setNovaPasta,
+    placeholder: "Exames"
+  }))),
+  /* mudar o nome */
+  React.createElement(Modal, {
+    open: !!renomear,
+    onClose: () => setRenomear(null),
+    title: renomear && renomear.pasta_mesmo ? "Mudar o nome da pasta" : "Mudar o nome",
+    footer: React.createElement(React.Fragment, null, React.createElement(Button, {
+      variant: "ghost",
+      onClick: () => setRenomear(null)
+    }, "Cancelar"), React.createElement(Button, {
+      variant: "primary",
+      onClick: async () => {
+        const err = await pessoais.renomear(renomear, renomear.novoNome != null ? renomear.novoNome : renomear.name);
+        if (err) { toast(err); return; }
+        setRenomear(null);
+      }
+    }, "Gravar"))
+  }, React.createElement(FormField, {
+    label: "Nome",
+    hint: renomear && renomear.pasta_mesmo ? 'O que está dentro da pasta acompanha a mudança.' : null
+  }, React.createElement(TextInput, {
+    value: renomear ? (renomear.novoNome != null ? renomear.novoNome : renomear.name) : '',
+    onChange: v => setRenomear(r => Object.assign({}, r, { novoNome: v }))
+  }))),
+  /* mover */
+  React.createElement(Modal, {
+    open: !!mover,
+    onClose: () => setMover(null),
+    title: "Mover para",
+    footer: React.createElement(React.Fragment, null, React.createElement(Button, {
+      variant: "ghost",
+      onClick: () => setMover(null)
+    }, "Cancelar"), React.createElement(Button, {
+      variant: "primary",
+      onClick: async () => {
+        const err = await pessoais.mover(mover.idReal, mover.destino != null ? mover.destino : (mover.dentroDe || ''));
+        if (err) { toast(err); return; }
+        setMover(null);
+      }
+    }, "Mover"))
+  }, React.createElement(FormField, {
+    label: "Pasta de destino",
+    hint: pessoais.pastas.length ? null : 'Ainda não tem pastas. Crie uma primeiro.'
+  }, React.createElement(Select, {
+    value: mover ? (mover.destino != null ? mover.destino : (mover.dentroDe || '')) : '',
+    onChange: v => setMover(m => Object.assign({}, m, { destino: v })),
+    options: [{
+      value: '',
+      label: veTudo ? 'Pessoais (raiz)' : 'Os meus ficheiros (raiz)'
+    }].concat(pessoais.pastas.map(x => ({ value: x, label: x })))
   }))));
 }
 function DirectoryScreen() {
@@ -13145,6 +13440,7 @@ function CamadaModal({
   const [gerir, setGerir] = React.useState(false);
   const [sistema, setSistema] = React.useState(false);
   const [verPessoais, setVerPessoais] = React.useState(false);
+  const [apagarFich, setApagarFich] = React.useState(false);
   const [erro, setErro] = React.useState('');
   /* Departamentos reais, incluindo o null dos canais abertos a todos. */
   const todosCanais = CHANNELS.concat(state.extraChannels || []);
@@ -13166,6 +13462,7 @@ function CamadaModal({
     setGerir(existente ? !!existente.podeGerirUtilizadores : false);
     setSistema(existente ? !!existente.podeVerSistema : false);
     setVerPessoais(existente ? !!existente.podeVerTarefasPessoais : false);
+    setApagarFich(existente ? !!existente.podeApagarFicheiros : false);
   }, [open, nome]);
   const alternar = d => setDepts(v => v.indexOf(d) === -1 ? v.concat([d]) : v.filter(x => x !== d));
   const guardar = () => {
@@ -13178,7 +13475,8 @@ function CamadaModal({
       /* Configurar o servidor implica gerir pessoas: uma camada que mexe na
          ligacao mas nao vê os utilizadores seria uma armadilha. */
       podeVerSistema: sistema && gerir,
-      podeVerTarefasPessoais: verPessoais
+      podeVerTarefasPessoais: verPessoais,
+      podeApagarFicheiros: apagarFich
     });
     if (e) {
       setErro(e);
@@ -13353,7 +13651,26 @@ function CamadaModal({
       fontSize: 11.5,
       color: 'var(--text-3)'
     }
-  }, "Quem marcar uma tarefa como pessoal é avisado, no momento em que a escreve, de que esta camada a pode ler."))))), React.createElement(FormField, {
+  }, "Quem marcar uma tarefa como pessoal é avisado, no momento em que a escreve, de que esta camada a pode ler."))), React.createElement("label", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 9,
+      fontSize: 13,
+      color: 'var(--text-1)',
+      cursor: 'pointer'
+    }
+  }, React.createElement("input", {
+    type: "checkbox",
+    checked: apagarFich,
+    onChange: e => setApagarFich(e.target.checked)
+  }), React.createElement("span", null, "Apagar ficheiros da equipa", React.createElement("span", {
+    style: {
+      display: 'block',
+      fontSize: 11.5,
+      color: 'var(--text-3)'
+    }
+  }, "No Drive da equipa, apagar o que os outros carregaram. Quem carrega um ficheiro pode sempre apagar o seu."))))), React.createElement(FormField, {
     label: "Ordem na lista",
     hint: "1 é a camada de maior privilégio. Quem ficar sem camada recai na de número mais alto."
   }, React.createElement(TextInput, {
@@ -13411,6 +13728,7 @@ function AdminRoles() {
       if (c.podeGerirUtilizadores) perms.push('Gerir utilizadores');
       if (c.podeVerSistema) perms.push('Configurar servidor');
       if (c.podeVerTarefasPessoais) perms.push('Ver tarefas pessoais');
+      if (c.podeApagarFicheiros) perms.push('Apagar ficheiros da equipa');
       return {
         name: nome,
         desc: c.desc,

@@ -56,7 +56,19 @@ No fim deve dizer `protegida = true` e listar as três regras do
 armazenamento. Os ficheiros que já lá estavam continuam a ser da equipa —
 nada se perde.
 
-### 3. Instalar a função `criar-utilizador`
+### 3. Correr o `pastas-pessoais.sql` e o `apagar-ficheiros.sql`
+
+O primeiro traz pastas à área pessoal. O segundo faz com que, no Drive da
+equipa, só quem carregou o ficheiro — e as camadas com a permissão
+**«Apagar ficheiros da equipa»** — o possam apagar.
+
+Uma ressalva sobre o segundo, que convém saber: os ficheiros que **já lá
+estão** não têm no armazenamento nada que diga quem os carregou. Neles, a
+regra é só a do ecrã — o botão não aparece a quem não deve, mas o servidor
+não o pode impedir. A partir de agora, todos os novos ficam protegidos dos
+dois lados.
+
+### 4. Instalar a função `criar-utilizador`
 
 Sem ela, acrescentar alguém em Admin → Utilizadores põe a pessoa no
 directório mas **não lhe cria a conta**: ela não consegue entrar.
@@ -87,6 +99,8 @@ a Europa Ocidental é a menos má.
 | 1 | [`supabase-configuracao.sql`](supabase-configuracao.sql) | Tabelas, armazenamento de ficheiros e tempo real |
 | 2 | [`INSTALAR-TUDO.sql`](INSTALAR-TUDO.sql) | Regras por conversa, camadas editáveis, CRM e tarefas pessoais |
 | 3 | [`ficheiros-pessoais.sql`](ficheiros-pessoais.sql) | Gaveta pessoal do Drive e anexos fechados na conversa |
+| 4 | [`pastas-pessoais.sql`](pastas-pessoais.sql) | Pastas na área pessoal |
+| 5 | [`apagar-ficheiros.sql`](apagar-ficheiros.sql) | Só quem carregou (e quem tiver a permissão) apaga no Drive da equipa |
 
 O `INSTALAR-TUDO.sql` verifica se as tabelas base existem e pára com um aviso
 claro se o 1 ainda não tiver corrido.
