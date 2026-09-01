@@ -40,7 +40,23 @@ pelo e-mail.
 O ficheiro pode correr as vezes que forem precisas sem estragar nada, e
 começa por verificar se falta algum passo anterior.
 
-### 2. Instalar a função `criar-utilizador`
+### 2. Correr o `ficheiros-pessoais.sql`
+
+Traz a gaveta pessoal do Drive e fecha os anexos das conversas.
+
+**É este ficheiro que faz o «privado» querer dizer privado.** Sem ele,
+tudo o que entra no armazenamento é legível por qualquer pessoa com sessão
+iniciada, e um documento anexado numa mensagem directa fica ao alcance de
+toda a gente.
+
+Mesmo caminho: **SQL Editor** → **+ New query** → colar
+[`ficheiros-pessoais.sql`](ficheiros-pessoais.sql) → **RUN**.
+
+No fim deve dizer `protegida = true` e listar as três regras do
+armazenamento. Os ficheiros que já lá estavam continuam a ser da equipa —
+nada se perde.
+
+### 3. Instalar a função `criar-utilizador`
 
 Sem ela, acrescentar alguém em Admin → Utilizadores põe a pessoa no
 directório mas **não lhe cria a conta**: ela não consegue entrar.
@@ -70,6 +86,7 @@ a Europa Ocidental é a menos má.
 | --- | --- | --- |
 | 1 | [`supabase-configuracao.sql`](supabase-configuracao.sql) | Tabelas, armazenamento de ficheiros e tempo real |
 | 2 | [`INSTALAR-TUDO.sql`](INSTALAR-TUDO.sql) | Regras por conversa, camadas editáveis, CRM e tarefas pessoais |
+| 3 | [`ficheiros-pessoais.sql`](ficheiros-pessoais.sql) | Gaveta pessoal do Drive e anexos fechados na conversa |
 
 O `INSTALAR-TUDO.sql` verifica se as tabelas base existem e pára com um aviso
 claro se o 1 ainda não tiver corrido.

@@ -3127,12 +3127,19 @@ function bspSlugFicheiro(nome) {
   const limpo = base.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   return (limpo || 'ficheiro') + ext;
 }
-async function bspUploadToStorage(file) {
+/* O caminho diz a quem o ficheiro pertence, e e o servidor que decide:
+
+     privado/<id da pessoa>/...   so o dono (e quem puder ver as pessoais)
+     conversa/<chave>/...         so quem alcanca essa conversa
+     sem prefixo                  a equipa, como sempre foi
+
+   Os ficheiros que ja la estao nao tem prefixo e continuam da equipa. */
+async function bspUploadToStorage(file, prefixo) {
   const cl = bspGetClient();
   if (!cl) throw new Error('sem-servidor');
   if (file.size > BSP_MAX_BYTES) throw new Error('demasiado-grande');
   const carimbo = String(Date.now()) + '-' + Math.floor(Math.random() * 1e6).toString(36);
-  const caminho = carimbo + '/' + bspSlugFicheiro(file.name);
+  const caminho = (prefixo ? String(prefixo).replace(/\/+$/, '') + '/' : '') + carimbo + '/' + bspSlugFicheiro(file.name);
   const {
     error
   } = await cl.storage.from(BSP_BUCKET).upload(caminho, file, {
@@ -3170,6 +3177,40 @@ async function bspDeleteFromStorage(caminho) {
     await cl.storage.from(BSP_BUCKET).remove([caminho]);
     delete __bspUrlCache[caminho];
   } catch (e) {}
+}
+/* Um ficheiro partilhado numa conversa fica NA conversa.
+   Ate aqui era copiado para o Drive da equipa: bastava alguem mandar um
+   documento numa mensagem directa para toda a gente o ver no Drive.
+
+   A mensagem leva o ficheiro consigo, escondido no fim do texto por
+   caracteres invisiveis: a parte visivel continua a ler-se em qualquer
+   lado (avisos por e-mail, pre-visualizacoes), e quem estiver na conversa
+   ve um cartao para abrir. Assim quem alcanca o ficheiro e exactamente
+   quem alcanca a conversa — a mesma fechadura, sem uma segunda copia
+   noutro sitio. */
+const BSP_MARCA_ANEXO = '\u200bf\u200b';
+function bspAnexoDaMensagem(texto){
+  const t = String(texto == null ? '' : texto);
+  const i = t.indexOf(BSP_MARCA_ANEXO);
+  if (i === -1) return null;
+  const p = t.slice(i + BSP_MARCA_ANEXO.length).split('\u200b');
+  if (!p[0]) return null;
+  return {
+    path: p[0],
+    name: p[1] || 'ficheiro',
+    bytes: parseInt(p[2], 10) || 0
+  };
+}
+/* O texto sem a parte escondida — para mostrar, para pesquisar e para os
+   avisos por e-mail. */
+function bspTextoVisivel(texto){
+  const t = String(texto == null ? '' : texto);
+  const i = t.indexOf(BSP_MARCA_ANEXO);
+  return i === -1 ? t : t.slice(0, i);
+}
+function bspMensagemComAnexo(nome, caminho, bytes){
+  return 'Partilhou o ficheiro \u201c' + nome + '\u201d.' + BSP_MARCA_ANEXO +
+    caminho + '\u200b' + nome + '\u200b' + (bytes || 0);
 }
 async function bspAbrirFicheiro(f, aoFalhar) {
   if (f && f.path) {
@@ -3362,9 +3403,9 @@ function StoreProvider({
         /* Sem isto, carregar na notificacao nao tinha para onde ir. */
         conv: chave,
         text: isDm ? 'enviou-lhe uma mensagem direta' : 'enviou uma mensagem ' + where,
-        preview: String(m.text || '').slice(0, 90)
+        preview: bspTextoVisivel(m.text).slice(0, 90)
       }));
-      bspIncoming(name + (isDm ? ' (direta)' : ' · ' + where), String(m.text || '').slice(0, 90));
+      bspIncoming(name + (isDm ? ' (direta)' : ' · ' + where), bspTextoVisivel(m.text).slice(0, 90));
     };
     const notifPost = p => {
       if (!p || p.user_id === window.CURRENT_USER_ID) return;
@@ -5586,7 +5627,9 @@ function TopicoPanel({
         color: 'var(--text-1)',
         lineHeight: 1.5
       }
-    }, renderText(mm.text))));
+    }, renderText(bspTextoVisivel(mm.text)), React.createElement(AnexoMensagem, {
+      a: bspAnexoDaMensagem(mm.text)
+    }))));
   }), React.createElement("div", {
     ref: fimRef
   })), React.createElement("div", {
@@ -5885,7 +5928,7 @@ function ChatScreen({
       const lista = messagesByChan[k] || [];
       for (const mm of lista) {
         if (resultados.length >= 30) break;
-        if (mm.text && normTxt(mm.text).indexOf(q) !== -1) resultados.push({
+        if (mm.text && normTxt(bspTextoVisivel(mm.text)).indexOf(q) !== -1) resultados.push({
           k: k,
           rotulo: rotulo,
           mm: mm
@@ -5936,19 +5979,13 @@ function ChatScreen({
       return;
     }
     try {
-      const caminho = await bspUploadToStorage(f);
-      actions.uploadFile({
-        name: f.name,
-        size: fmtSize(f.size),
-        bytes: f.size,
-        owner: currentUser.id,
-        path: caminho,
-        mime: f.type || '',
-        dept: ''
-      });
+      /* Nada de uploadFile: o ficheiro fica na conversa, e nao no Drive
+         da equipa. Antes, um documento mandado numa mensagem directa
+         aparecia no Drive de toda a gente. */
+      const caminho = await bspUploadToStorage(f, 'conversa/' + convKey);
       actions.sendMessage(convKey, {
         userId: currentUser.id,
-        text: 'Partilhei o ficheiro "' + f.name + '" no Drive.'
+        text: bspMensagemComAnexo(f.name, caminho, f.size)
       });
     } catch (err) {
       window.alert('Não foi possível carregar o ficheiro.');
@@ -6077,7 +6114,7 @@ function ChatScreen({
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap'
       }
-    }, String(r.mm.text).slice(0, 120)));
+    }, bspTextoVisivel(r.mm.text).slice(0, 120)));
   })))), React.createElement(NovoGrupoModal, {
     open: grupoModal,
     onClose: () => setGrupoModal(false),
@@ -6581,7 +6618,9 @@ function ChatScreen({
         flex: 1,
         minWidth: 0
       }
-    }, renderText(m.text)), React.createElement("div", {
+    }, renderText(bspTextoVisivel(m.text)), React.createElement(AnexoMensagem, {
+      a: bspAnexoDaMensagem(m.text)
+    })), React.createElement("div", {
       /* Os quatro botões passam a viver num grupo. No telemóvel são
          sempre visíveis (não há rato para o hover), e como irmãos do
          texto roubavam-lhe metade da largura. */
@@ -7285,6 +7324,48 @@ function FileMini({
       color: 'var(--text-3)'
     }
   }, f.size, " · ", f.modified)));
+}
+/* O cartao que se ve na conversa quando a mensagem traz um ficheiro.
+   Se for imagem, mostra-a; se nao, um botao para abrir. */
+function AnexoMensagem({ a }) {
+  const [erro, setErro] = React.useState('');
+  if (!a) return null;
+  const f = { name: a.name, path: a.path };
+  const img = /\.(png|jpe?g|gif|webp)$/i.test(a.name || '');
+  const abrir = () => bspAbrirFicheiro(f, () => setErro('Não foi possível abrir o ficheiro.'));
+  return React.createElement("div", {
+    style: { margin: '6px 0 2px' }
+  }, img ? React.createElement("button", {
+    onClick: abrir,
+    title: "Abrir",
+    style: { padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', display: 'block' }
+  }, React.createElement(FicheiroImg, {
+    f: f,
+    alt: a.name,
+    style: { maxWidth: 260, maxHeight: 220, borderRadius: 10, display: 'block', objectFit: 'cover' }
+  })) : React.createElement("button", {
+    onClick: abrir,
+    style: {
+      display: 'inline-flex', alignItems: 'center', gap: 10,
+      padding: '9px 13px', borderRadius: 10,
+      border: '1px solid var(--border)', background: 'var(--surface-2)',
+      cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', maxWidth: '100%'
+    }
+  }, React.createElement(I.Drive, {
+    size: 15,
+    stroke: 'var(--text-2)'
+  }), React.createElement("span", {
+    style: { minWidth: 0 }
+  }, React.createElement("span", {
+    style: {
+      display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--text-1)',
+      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+    }
+  }, a.name), React.createElement("span", {
+    style: { display: 'block', fontSize: 11, color: 'var(--text-3)' }
+  }, a.bytes ? fmtSize(a.bytes) : 'Abrir'))), erro ? React.createElement("div", {
+    style: { fontSize: 11.5, color: '#DC2626', marginTop: 4 }
+  }, erro) : null);
 }
 function renderText(text) {
   const rx = /(https?:\/\/[^\s]+|\*\*[^*]+\*\*|_[^_]+_|~[^~]+~|`[^`]+`|@[A-Za-zÀ-ÿ]+(?:\s[A-Z][a-zÀ-ÿ]+)?)/g;
@@ -10010,6 +10091,95 @@ function chip(on) {
    Estas vivem numa tabela propria onde a regra do servidor so deixa cada
    pessoa ler as suas. Nem sequer chegam ao aparelho dos outros. */
 
+/* Os ficheiros que sao so de cada um. Vivem numa tabela a parte, com as
+   suas proprias regras: a lista do Drive da equipa vive no shared_state,
+   que toda a gente le, e escrever la um ficheiro "pessoal" seria
+   esconde-lo no ecra e deixa-lo a vista na API.
+
+   Quem chega aqui e o que o servidor deixar chegar. Nao se filtra nada do
+   lado do navegador — seria a fechadura no sitio errado. */
+function useFicheirosPessoais() {
+  const [ficheiros, setFicheiros] = React.useState([]);
+  const [estado, setEstado] = React.useState('inicio');
+  const [tick, setTick] = React.useState(0);
+  const recarregar = React.useCallback(() => setTick(t => t + 1), []);
+
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) { setEstado('sem-servidor'); return; }
+    let vivo = true;
+    setEstado('a-carregar');
+    (async () => {
+      try {
+        const r = await cl.from('ficheiros_pessoais').select('*')
+          .order('created_at', { ascending: false });
+        if (!vivo) return;
+        if (r.error) {
+          setEstado(/relation|does not exist|schema cache/i.test(r.error.message || '') ? 'sem-tabela' : 'erro');
+          return;
+        }
+        setFicheiros(r.data || []);
+        setEstado('pronto');
+      } catch (e) {
+        if (vivo) setEstado('erro');
+      }
+    })();
+    return () => { vivo = false; };
+  }, [tick]);
+
+  const guardar = React.useCallback(async file => {
+    const cl = bspGetClient();
+    if (!cl) return 'O servidor não está ligado.';
+    const meu = window.CURRENT_USER_ID;
+    if (!meu) return 'Não foi possível identificar a sua conta.';
+    let caminho;
+    try {
+      caminho = await bspUploadToStorage(file, 'privado/' + meu);
+    } catch (e) {
+      return 'Não foi possível carregar o ficheiro.';
+    }
+    const r = await cl.from('ficheiros_pessoais').insert({
+      user_id: meu,
+      nome: file.name,
+      caminho: caminho,
+      bytes: file.size || 0,
+      mime: file.type || ''
+    });
+    if (r && r.error) return r.error.message || 'Não foi possível gravar.';
+    recarregar();
+    return null;
+  }, [recarregar]);
+
+  const apagar = React.useCallback(async f => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    /* Primeiro os bytes, depois a ficha: ao contrario, um erro deixava o
+       ficheiro no armazenamento sem nada que o mencionasse. */
+    try { await cl.storage.from(BSP_BUCKET).remove([f.caminho]); } catch (e) {}
+    await cl.from('ficheiros_pessoais').delete().eq('id', f.id);
+    recarregar();
+  }, [recarregar]);
+
+  /* No mesmo formato do Drive da equipa, para o ecra tratar as duas
+     origens da mesma maneira. */
+  const comoDrive = React.useMemo(() => ficheiros.map(f => ({
+    id: 'fp' + f.id,
+    idReal: f.id,
+    pessoal: true,
+    meu: f.user_id === window.CURRENT_USER_ID,
+    name: f.nome,
+    size: fmtSize(f.bytes || 0),
+    bytes: f.bytes || 0,
+    owner: f.user_id,
+    path: f.caminho,
+    caminho: f.caminho,
+    mime: f.mime || '',
+    type: fileKind(f.nome).k,
+    modified: fmtTs(f.created_at)
+  })), [ficheiros]);
+
+  return { lista: comoDrive, estado, guardar, apagar, recarregar };
+}
 function useTarefasPessoais() {
   const [tarefas, setTarefas] = React.useState([]);
   const [estado, setEstado] = React.useState('inicio');
@@ -10726,10 +10896,25 @@ function DriveScreen() {
   } = useStore();
   const currentUser = window.userById(window.CURRENT_USER_ID);
   const toast = useToast();
-  const files = state.driveFiles || [];
+  /* Duas gavetas. A da equipa e a de sempre; a pessoal vive numa tabela
+     com as suas proprias regras, e o servidor so entrega o que for para
+     entregar. */
+  const [aba, setAba] = React.useState('equipa');
+  const pessoais = useFicheirosPessoais();
+  const daEquipa = state.driveFiles || [];
+  const files = aba === 'pessoal' ? pessoais.lista : daEquipa;
   const inputRef = React.useRef(null);
   const [busy, setBusy] = React.useState(false);
   const MAX = BSP_MAX_BYTES;
+  const veTudo = bspCamada(currentUser).podeVerTarefasPessoais;
+  /* Quem guarda um ficheiro tem de saber quem o pode ler. Nao chega
+     perguntar se EU vejo os dos outros: o que interessa e se ALGUEM os
+     ve. Lido das camadas vivas, para o aviso acompanhar o que estiver
+     ligado em Admin -> Permissoes. */
+  const camadasQueVeem = React.useMemo(() => {
+    const cs = bspCamadas();
+    return Object.keys(cs).filter(k => cs[k].podeVerTarefasPessoais);
+  }, [state.camadas]);
   function pick() {
     inputRef.current && inputRef.current.click();
   }
@@ -10749,6 +10934,12 @@ function DriveScreen() {
         continue;
       }
       try {
+        if (aba === 'pessoal') {
+          const err = await pessoais.guardar(f);
+          if (err) { toast(err); continue; }
+          ok++;
+          continue;
+        }
         const caminho = await bspUploadToStorage(f);
         actions.uploadFile({
           name: f.name,
@@ -10822,12 +11013,39 @@ function DriveScreen() {
       size: 14
     }),
     onClick: pick
-  }, busy ? 'A carregar…' : 'Carregar ficheiro')), React.createElement(Card, {
+  }, busy ? 'A carregar…' : 'Carregar ficheiro')), React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6,
+      borderBottom: '1px solid var(--border)',
+      marginBottom: 14
+    }
+  }, [{
+    id: 'equipa',
+    l: 'Da equipa'
+  }, {
+    id: 'pessoal',
+    l: veTudo ? 'Pessoais' : 'Os meus ficheiros'
+  }].map(x => React.createElement("button", {
+    key: x.id,
+    onClick: () => setAba(x.id),
+    style: {
+      padding: '10px 16px',
+      background: 'transparent',
+      border: 'none',
+      borderBottom: aba === x.id ? '2px solid var(--accent)' : '2px solid transparent',
+      color: aba === x.id ? 'var(--text-1)' : 'var(--text-3)',
+      fontSize: 13.5,
+      fontWeight: 600,
+      cursor: 'pointer',
+      fontFamily: 'inherit'
+    }
+  }, x.l))), React.createElement(Card, {
     pad: 12,
     style: {
       marginBottom: 14,
-      background: 'var(--accent-soft)',
-      border: '1px solid rgba(0,163,224,.25)'
+      background: aba === 'pessoal' ? 'var(--surface-2)' : 'var(--accent-soft)',
+      border: aba === 'pessoal' ? '1px solid var(--border)' : '1px solid rgba(0,163,224,.25)'
     }
   }, React.createElement("div", {
     style: {
@@ -10835,11 +11053,15 @@ function DriveScreen() {
       alignItems: 'center',
       gap: 10,
       fontSize: 12.5,
-      color: 'var(--accent-d)'
+      color: aba === 'pessoal' ? 'var(--text-2)' : 'var(--accent-d)'
     }
-  }, React.createElement(I.Shield, {
+  }, React.createElement(aba === 'pessoal' ? I.Lock : I.Shield, {
     size: 15
-  }), React.createElement("span", null, sync && sync.status === 'live' ? React.createElement(React.Fragment, null, "Ficheiros (até 25 MB) ", React.createElement("strong", null, "partilhados com toda a equipa"), ", guardados no servidor.") : React.createElement(React.Fragment, null, "O servidor não está ligado neste dispositivo, por isso não é possível carregar ficheiros. Ligue-o em Admin → Sistema.")))), files.length === 0 ? React.createElement("button", {
+  }), React.createElement("span", null,
+  /* O aviso tem de dizer a verdade, e a verdade muda com a aba e com
+     o que o servidor tem instalado. Prometer "só seu" num ecrã onde a
+     Direcção lê tudo seria mentir a quem carrega o ficheiro. */
+  !(sync && sync.status === 'live') ? React.createElement(React.Fragment, null, "O servidor não está ligado neste dispositivo, por isso não é possível carregar ficheiros. Ligue-o em Admin → Sistema.") : aba !== 'pessoal' ? React.createElement(React.Fragment, null, "Ficheiros (até 25 MB) ", React.createElement("strong", null, "partilhados com toda a equipa"), ", guardados no servidor. Os anexos das conversas não vêm aqui parar — ficam na conversa.") : pessoais.estado === 'sem-tabela' ? React.createElement(React.Fragment, null, "Falta correr o ", React.createElement("code", null, "ficheiros-pessoais.sql"), " no Supabase. Sem ele não há onde guardar ficheiros só seus.") : pessoais.estado === 'erro' ? React.createElement(React.Fragment, null, "Não foi possível ler os seus ficheiros do servidor.") : veTudo ? React.createElement(React.Fragment, null, "Ficheiros pessoais. A sua camada ", React.createElement("strong", null, "vê os de toda a gente"), " — mas ninguém apaga os de outra pessoa.") : camadasQueVeem.length ? React.createElement(React.Fragment, null, "Não aparecem no Drive da equipa, mas ", React.createElement("strong", null, camadasQueVeem.join(' e ')), camadasQueVeem.length === 1 ? " pode lê-los" : " podem lê-los", ". Ninguém os pode apagar além de si.") : React.createElement(React.Fragment, null, React.createElement("strong", null, "Só seus."), " Mais ninguém os vê — nem a Direcção. Se isso mudar em Admin → Permissões, este aviso muda com ela.")))), files.length === 0 ? React.createElement("button", {
     onClick: pick,
     style: {
       flex: 1,
@@ -10880,7 +11102,7 @@ function DriveScreen() {
     style: {
       fontSize: 12
     }
-  }, "Clique para escolher (máx. 2 MB cada)")) : React.createElement("div", {
+  }, "Clique para escolher (máx. 25 MB cada)")) : React.createElement("div", {
     style: {
       flex: 1,
       overflow: 'auto'
@@ -10987,7 +11209,14 @@ function DriveScreen() {
       }
     }, "Abrir"), React.createElement("button", {
       className: "bsp-iconbtn",
-      onClick: () => actions.deleteFile(f.id),
+      onClick: () => {
+        if (f.pessoal) {
+          if (!f.meu) { toast('Só o dono pode apagar um ficheiro pessoal.'); return; }
+          pessoais.apagar({ id: f.idReal, caminho: f.caminho });
+          return;
+        }
+        actions.deleteFile(f.id);
+      },
       title: "Apagar",
       style: {
         width: 30,
