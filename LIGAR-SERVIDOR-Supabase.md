@@ -180,8 +180,21 @@ ou tem outro nome. Tem de se chamar exactamente assim.
 **O ecrã Seguimento diz que faltam tabelas.** O `INSTALAR-TUDO.sql` ainda não
 correu.
 
-**As mensagens não aparecem noutro aparelho.** Faltam as linhas do tempo real
-no `supabase-configuracao.sql` (`alter publication … add table …`).
+**As mensagens chegam com atraso, ou parecem não chegar a alguns
+aparelhos.** O indicador em Admin → Sistema diz qual dos dois casos é:
+
+- *«sem tempo real, mensagens com atraso»* — a subscrição não ligou, e é a
+  sondagem de recurso que está a fazer o trabalho. Corra o
+  [`tempo-real.sql`](tempo-real.sql): quase sempre falta pôr as tabelas na
+  publicação do tempo real.
+- *«tempo real activo»* — a entrega é imediata. Se ainda assim alguém não
+  recebe, é o e-mail dessa pessoa que não bate certo: o tempo real também
+  respeita as regras de segurança, e sem saber quem ela é não lhe entrega
+  nada. Use a consulta de diagnóstico acima.
+
+Em qualquer dos casos, num telemóvel a página é suspensa em segundo plano
+e a ligação adormece. Ao voltar à aplicação, ela vai buscar de imediato o
+que ficou para trás.
 
 **Uma camada nova de gestão não consegue administrar nada.** O
 `INSTALAR-TUDO.sql` não correu: o servidor ainda decide quem é gestor por uma

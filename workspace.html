@@ -3600,9 +3600,13 @@ function StoreProvider({
           });
           syncRef.current.pch = pch;
         } catch (e) {}
-        /* A rede móvel cai e volta: além do tempo real, um verificador de
-           10 em 10 segundos garante que nenhuma mensagem fica para trás. */
-        syncRef.current.poll = setInterval(async () => {
+        /* A rede móvel cai e volta, e o tempo real nem sempre liga. Este
+           verificador garante que nada fica para trás.
+
+           Corre de 3 em 3 segundos enquanto o tempo real não estiver
+           confirmado, e de 10 em 10 quando estiver — nesse caso é só uma
+           rede de segurança. */
+        const verificar = async () => {
           try {
             if (cancelled || document.hidden) return;
             const {
@@ -3622,7 +3626,25 @@ function StoreProvider({
             } = await client.from('shared_state').select('*').eq('id', 1).maybeSingle();
             if (ss2 && ss2.updated_at && ss2.updated_at !== syncRef.current.stateTs) applyState(ss2);
           } catch (e) {}
-        }, 10000);
+        };
+        const cadencia = () => syncRef.current.tempoReal ? 10000 : 3000;
+        const agendar = () => {
+          syncRef.current.poll = setTimeout(async () => {
+            await verificar();
+            if (!cancelled) agendar();
+          }, cadencia());
+        };
+        agendar();
+        /* No telemóvel a página é suspensa em segundo plano: a ligação de
+           tempo real adormece e a sondagem pára. Ao voltar, ir buscar já
+           o que ficou para trás, em vez de esperar pelo próximo ciclo —
+           era isto que dava a sensação de as mensagens não chegarem. */
+        syncRef.current.aoVoltar = () => {
+          if (!document.hidden && !cancelled) verificar();
+        };
+        document.addEventListener('visibilitychange', syncRef.current.aoVoltar);
+        window.addEventListener('focus', syncRef.current.aoVoltar);
+        window.addEventListener('online', syncRef.current.aoVoltar);
         setSync({
           status: 'live',
           error: ''
@@ -3637,7 +3659,15 @@ function StoreProvider({
     return () => {
       cancelled = true;
       try {
-        if (syncRef.current.poll) clearInterval(syncRef.current.poll);
+        if (syncRef.current.poll) clearTimeout(syncRef.current.poll);
+      } catch (e) {}
+      try {
+        if (syncRef.current.aoVoltar) {
+          document.removeEventListener('visibilitychange', syncRef.current.aoVoltar);
+          window.removeEventListener('focus', syncRef.current.aoVoltar);
+          window.removeEventListener('online', syncRef.current.aoVoltar);
+          syncRef.current.aoVoltar = null;
+        }
       } catch (e) {}
       try {
         client.removeChannel(syncRef.current.ch);
@@ -13369,6 +13399,14 @@ function AdminServer() {
       bg: 'rgba(31,168,85,.14)',
       l: 'Ligado · tempo real activo'
     },
+    /* O tempo real não ligou. Tudo continua a funcionar pela sondagem, com
+       alguns segundos de atraso — e dizê-lo é melhor do que mostrar um
+       visto verde e deixar a equipa a pensar que a rede está lenta. */
+    lento: {
+      c: '#B54708',
+      bg: 'rgba(181,71,8,.14)',
+      l: 'Ligado · sem tempo real, mensagens com atraso'
+    },
     error: {
       c: '#DC2626',
       bg: 'rgba(220,38,38,.14)',
@@ -14854,7 +14892,18 @@ function ChamadasProvider({
         if (d.tipo === 'ocupado') setErro('A pessoa está noutra chamada.');
         limpar();
       }
-    }).subscribe();
+    }).subscribe(estado => {
+      /* Antes era .subscribe() sem mais nada: se o canal falhasse, ninguém
+         dava por isso e a aplicação continuava a dizer "tempo real activo"
+         enquanto era a sondagem a fazer todo o trabalho, com o atraso que
+         isso traz. Agora o estado real é visível, e a sondagem acelera. */
+      const vivo = estado === 'SUBSCRIBED';
+      syncRef.current.tempoReal = vivo;
+      setSync(x => x.status === 'off' || x.status === 'error' ? x : {
+        status: vivo ? 'live' : 'lento',
+        error: vivo ? '' : 'O tempo real não ligou. As mensagens continuam a chegar, mas com alguns segundos de atraso.'
+      });
+    });
     canal.current = c;
     return () => {
       vivo = false;
