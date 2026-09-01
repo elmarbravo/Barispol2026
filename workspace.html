@@ -3235,6 +3235,46 @@ function bspMensagemComAnexo(nome, caminho, bytes){
   return 'Partilhou o ficheiro \u201c' + nome + '\u201d.' + BSP_MARCA_ANEXO +
     caminho + '\u200b' + nome + '\u200b' + (bytes || 0);
 }
+/* Uma reaccao e uma alternancia, e nao um contador que so sabe subir:
+   carregar outra vez tira a minha. Por isso guarda-se QUEM reagiu, e nao
+   apenas quantos — sem saber quem, carregar cinco vezes dava cinco.
+
+   As linhas antigas nao trazem quem: essas contam uma vez, com uma chave
+   inventada a partir da linha, e nunca se desfazem. */
+function bspAlternarReaccao(lista, emoji, quem) {
+  const l = (lista || []).map(x => Object.assign({}, x, { quem: (x.quem || []).slice() }));
+  const i = l.findIndex(x => x.e === emoji);
+  if (i === -1) {
+    l.push({ e: emoji, quem: [quem], n: 1 });
+    return l;
+  }
+  const j = l[i].quem.indexOf(quem);
+  if (j === -1) l[i].quem.push(quem);
+  else l[i].quem.splice(j, 1);
+  l[i].n = l[i].quem.length;
+  return l.filter(x => x.n > 0);
+}
+/* O mesmo para as publicacoes, que guardam as reaccoes noutro formato:
+   { '👍': 3, '__quem_👍': ['u1','u2','u3'], '__user_👍': true }.
+   O ecra mostra as chaves normais e ignora as que comecam por "__". */
+function bspPostReagir(reaccoes, emoji, quem) {
+  const r = Object.assign({}, reaccoes || {});
+  const k = '__quem_' + emoji;
+  const l = Array.isArray(r[k]) ? r[k].slice() : [];
+  const i = l.indexOf(quem);
+  if (i === -1) l.push(quem);
+  else l.splice(i, 1);
+  if (l.length) {
+    r[k] = l;
+    r[emoji] = l.length;
+  } else {
+    delete r[k];
+    delete r[emoji];
+  }
+  if (l.indexOf(window.CURRENT_USER_ID) !== -1) r['__user_' + emoji] = true;
+  else delete r['__user_' + emoji];
+  return r;
+}
 async function bspAbrirFicheiro(f, aoFalhar) {
   if (f && f.path) {
     const url = await bspSignedUrl(f.path);
@@ -3496,6 +3536,10 @@ function StoreProvider({
         const partes = String(m.text).split('\u200b');
         const sid = parseInt(partes[2], 10);
         const emoji = partes[3];
+        /* As linhas anteriores a esta versao nao dizem quem reagiu.
+           Contam uma vez, com uma chave tirada da propria linha, e nunca
+           se desfazem — que e o mais proximo da verdade que se consegue. */
+        const quem = partes[4] || ('?' + m.id);
         if (!sid || !emoji) return;
         setState(s => {
           const arr = s.channelMessages[m.conv_key];
@@ -3504,26 +3548,32 @@ function StoreProvider({
             ...s,
             channelMessages: {
               ...s.channelMessages,
-              [m.conv_key]: arr.map(x => {
-                if (x.sid !== sid) return x;
-                const list = [...(x.reactions || [])];
-                const idx = list.findIndex(r => r.e === emoji);
-                if (idx >= 0) list[idx] = {
-                  ...list[idx],
-                  n: list[idx].n + 1
-                };
-                else list.push({
-                  e: emoji,
-                  n: 1
-                });
-                return {
-                  ...x,
-                  reactions: list
-                };
-              })
+              [m.conv_key]: arr.map(x => x.sid !== sid ? x : Object.assign({}, x, {
+                reactions: bspAlternarReaccao(x.reactions, emoji, quem)
+              }))
             }
           };
         });
+      } catch (e) {}
+    };
+    /* As reaccoes das publicacoes viajam como linhas novas na tabela das
+       mensagens, e nao como uma alteracao a publicacao. E de proposito: a
+       sincronizacao vai buscar o que e novo pelo numero da linha, e uma
+       alteracao a uma publicacao antiga nunca chegaria aos outros
+       aparelhos. Uma linha nova chega sempre. */
+    const aplicarReaccaoPost = m => {
+      try {
+        const partes = String(m.text).split('\u200b');
+        const chave = partes[2];
+        const emoji = partes[3];
+        const quem = partes[4];
+        if (!chave || !emoji || !quem) return;
+        setState(s => ({
+          ...s,
+          feedPosts: (s.feedPosts || []).map(p => (p.cid !== chave && String(p.sid) !== chave && String(p.id) !== chave) ? p : Object.assign({}, p, {
+            reactions: bspPostReagir(p.reactions, emoji, quem)
+          }))
+        }));
       } catch (e) {}
     };
     const ingest = (m, silencioso) => {
@@ -3554,6 +3604,10 @@ function StoreProvider({
       }
       if (String(m.text || '').indexOf('\u200br\u200b') === 0) {
         if (!(m.cid && syncRef.current.myCids.has(m.cid))) aplicarReaccao(m);
+        return;
+      }
+      if (String(m.text || '').indexOf('\u200bp\u200b') === 0) {
+        if (!(m.cid && syncRef.current.myCids.has(m.cid))) aplicarReaccaoPost(m);
         return;
       }
       addMsg(m);
@@ -3856,13 +3910,6 @@ function StoreProvider({
         unread: false
       }))
     })),
-    markNotifRead: id => setState(s => ({
-      ...s,
-      notifications: (s.notifications || []).map(n => n.id === id ? {
-        ...n,
-        unread: false
-      } : n)
-    })),
     upsertTeamMember: member => setState(s => {
       const team = (s.team && s.team.length ? s.team : USERS).map(u => ({
         ...u
@@ -3907,28 +3954,37 @@ function StoreProvider({
         } catch (e) {}
       }
     },
-    togglePostReaction: (postId, emoji) => setState(s => ({
-      ...s,
-      feedPosts: s.feedPosts.map(p => {
-        if (p.id !== postId) return p;
-        const r = {
-          ...(p.reactions || {})
-        };
-        const has = r['__user_' + emoji];
-        if (has) {
-          r[emoji] = Math.max(0, (r[emoji] || 1) - 1);
-          if (r[emoji] === 0) delete r[emoji];
-          delete r['__user_' + emoji];
-        } else {
-          r[emoji] = (r[emoji] || 0) + 1;
-          r['__user_' + emoji] = true;
-        }
-        return {
-          ...p,
-          reactions: r
-        };
-      })
-    })),
+    /* A reaccao viaja como uma linha nova na tabela das mensagens, na
+       conversa "reacoes". E de proposito: a sincronizacao vai buscar o
+       que e novo pelo numero da linha, e uma alteracao a uma publicacao
+       antiga nunca chegaria aos outros aparelhos — era por isso que estas
+       reaccoes nunca saiam do aparelho de quem as dava. */
+    togglePostReaction: (postId, emoji) => setState(s => {
+      const alvo = (s.feedPosts || []).find(p => p.id === postId);
+      const cl = syncRef.current && syncRef.current.client;
+      const eu = window.CURRENT_USER_ID;
+      const chave = alvo && (alvo.cid || (alvo.sid ? String(alvo.sid) : String(alvo.id)));
+      if (alvo && chave && cl) {
+        const cid = 'rp' + Date.now() + Math.floor(Math.random() * 999);
+        try {
+          syncRef.current.myCids.add(cid);
+        } catch (e) {}
+        try {
+          cl.from('messages').insert({
+            conv_key: 'reacoes',
+            user_id: eu,
+            text: '\u200bp\u200b' + chave + '\u200b' + emoji + '\u200b' + eu,
+            cid
+          }).then(() => {}, () => {});
+        } catch (e) {}
+      }
+      return {
+        ...s,
+        feedPosts: (s.feedPosts || []).map(p => p.id !== postId ? p : Object.assign({}, p, {
+          reactions: bspPostReagir(p.reactions, emoji, eu)
+        }))
+      };
+    }),
     deletePost: postId => {
       setState(s => {
         const p = s.feedPosts.find(x => x.id === postId);
@@ -4097,6 +4153,7 @@ function StoreProvider({
       const arr = s.channelMessages[convKey] || [];
       const alvo = arr.find(x => x.id === msgId);
       const cl = syncRef.current && syncRef.current.client;
+      const eu = window.CURRENT_USER_ID;
       if (alvo && alvo.sid && cl) {
         const cid = 'r' + Date.now() + Math.floor(Math.random() * 999);
         try {
@@ -4105,8 +4162,10 @@ function StoreProvider({
         try {
           cl.from('messages').insert({
             conv_key: convKey,
-            user_id: window.CURRENT_USER_ID,
-            text: '\u200br\u200b' + alvo.sid + '\u200b' + emoji,
+            user_id: eu,
+            /* Quem reagiu vai na linha. Sem isso, carregar cinco vezes
+               dava cinco, e nao havia como tirar a minha. */
+            text: '\u200br\u200b' + alvo.sid + '\u200b' + emoji + '\u200b' + eu,
             cid
           }).then(() => {}, () => {});
         } catch (e) {}
@@ -4115,23 +4174,9 @@ function StoreProvider({
         ...s,
         channelMessages: {
           ...s.channelMessages,
-          [convKey]: arr.map(m => {
-            if (m.id !== msgId) return m;
-            const list = [...(m.reactions || [])];
-            const idx = list.findIndex(r => r.e === emoji);
-            if (idx >= 0) list[idx] = {
-              ...list[idx],
-              n: list[idx].n + 1
-            };
-            else list.push({
-              e: emoji,
-              n: 1
-            });
-            return {
-              ...m,
-              reactions: list
-            };
-          })
+          [convKey]: arr.map(m => m.id !== msgId ? m : Object.assign({}, m, {
+            reactions: bspAlternarReaccao(m.reactions, emoji, eu)
+          }))
         }
       };
     }),
