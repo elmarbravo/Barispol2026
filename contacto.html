@@ -258,6 +258,7 @@ footer a:hover{color:#fff}
    ──────────────────────────────────────────────────────────── */
 var WHATSAPP = '244946373631';
 var LEAD_FORM_ID = '';
+var NL = String.fromCharCode(10);
 
 (function () {
   var form = document.getElementById('formlead');
@@ -275,7 +276,7 @@ var LEAD_FORM_ID = '';
   }
 
   function telValido(v) {
-    var d = (v || '').replace(/\\D/g, '').replace(/^244/, '');
+    var d = (v || '').replace(/[^0-9]/g, '').replace(/^244/, '');
     return d.length === 9 && d.charAt(0) === '9';
   }
   function marca(campo, ok) { campo.setAttribute('aria-invalid', ok ? 'false' : 'true'); return ok; }
@@ -302,7 +303,7 @@ var LEAD_FORM_ID = '';
     if (origem) linhas.push('Veio de: ' + origem);
     linhas.push('', 'Agradeço que me liguem para marcar.');
 
-    var url = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(linhas.join('\\n'));
+    var url = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(linhas.join(NL));
     document.getElementById('reabrir').href = url;
     window.open(url, '_blank', 'noopener');
     caixa.classList.add('pronto');
