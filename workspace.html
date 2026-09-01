@@ -10203,6 +10203,16 @@ function chip(on) {
 
    Quem chega aqui e o que o servidor deixar chegar. Nao se filtra nada do
    lado do navegador — seria a fechadura no sitio errado. */
+/* O Supabase responde a estas coisas em ingles e a falar de colunas e de
+   "schema cache". Quem esta do outro lado nao tem como saber que isso quer
+   dizer "falta correr um ficheiro". Passa a dizer qual. */
+function bspFaltaPastas(erro) {
+  const m = String(erro && erro.message || '');
+  if (/e_pasta|pasta|schema cache|column/i.test(m)) {
+    return 'Falta correr o pastas-pessoais.sql no Supabase — é ele que traz as pastas.';
+  }
+  return null;
+}
 function useFicheirosPessoais() {
   const [ficheiros, setFicheiros] = React.useState([]);
   const [estado, setEstado] = React.useState('inicio');
@@ -10224,7 +10234,14 @@ function useFicheirosPessoais() {
           return;
         }
         setFicheiros(r.data || []);
-        setEstado('pronto');
+        /* A tabela pode existir sem as colunas das pastas: e o que acontece
+           entre correr o ficheiros-pessoais.sql e o pastas-pessoais.sql.
+           Sem esta pergunta, o ecra mostrava o botao "Nova pasta" e so ao
+           carregar e que aparecia um erro em ingles a falar de colunas.
+           Mais vale perguntar uma vez, ao abrir. */
+        const prova = await cl.from('ficheiros_pessoais').select('e_pasta').limit(1);
+        if (!vivo) return;
+        setEstado(prova.error && /e_pasta|schema cache|column/i.test(prova.error.message || '') ? 'sem-pastas' : 'pronto');
       } catch (e) {
         if (vivo) setEstado('erro');
       }
@@ -10243,19 +10260,30 @@ function useFicheirosPessoais() {
     } catch (e) {
       return 'Não foi possível carregar o ficheiro.';
     }
-    const r = await cl.from('ficheiros_pessoais').insert({
+    /* Entre correr o ficheiros-pessoais.sql e o pastas-pessoais.sql, as
+       colunas das pastas ainda nao existem. Guardar um ficheiro nao tem
+       de esperar por elas: manda-se so o que ha. */
+    const ficha = {
       user_id: meu,
       nome: file.name,
       caminho: caminho,
       bytes: file.size || 0,
-      mime: file.type || '',
-      pasta: pasta || '',
-      e_pasta: false
-    });
-    if (r && r.error) return r.error.message || 'Não foi possível gravar.';
+      mime: file.type || ''
+    };
+    if (estado !== 'sem-pastas') {
+      ficha.pasta = pasta || '';
+      ficha.e_pasta = false;
+    }
+    const r = await cl.from('ficheiros_pessoais').insert(ficha);
+    if (r && r.error) {
+      /* Os bytes ja subiram. Sem isto ficava um ficheiro no armazenamento
+         sem nada que o mencionasse — invisivel e a ocupar espaco. */
+      try { await cl.storage.from(BSP_BUCKET).remove([caminho]); } catch (e) {}
+      return bspFaltaPastas(r.error) || r.error.message || 'Não foi possível gravar.';
+    }
     recarregar();
     return null;
-  }, [recarregar]);
+  }, [recarregar, estado]);
 
   const criarPasta = React.useCallback(async (nome, pasta) => {
     const cl = bspGetClient();
@@ -10278,7 +10306,7 @@ function useFicheirosPessoais() {
       pasta: pasta || '',
       e_pasta: true
     });
-    if (r && r.error) return r.error.message || 'Não foi possível criar a pasta.';
+    if (r && r.error) return bspFaltaPastas(r.error) || r.error.message || 'Não foi possível criar a pasta.';
     recarregar();
     return null;
   }, [recarregar, ficheiros]);
@@ -10287,7 +10315,7 @@ function useFicheirosPessoais() {
     const cl = bspGetClient();
     if (!cl) return 'O servidor não está ligado.';
     const r = await cl.from('ficheiros_pessoais').update({ pasta: destino || '' }).eq('id', id);
-    if (r && r.error) return r.error.message || 'Não foi possível mover.';
+    if (r && r.error) return bspFaltaPastas(r.error) || r.error.message || 'Não foi possível mover.';
     recarregar();
     return null;
   }, [recarregar]);
@@ -10298,7 +10326,7 @@ function useFicheirosPessoais() {
     const limpo = String(nome || '').trim().replace(/[\/]/g, '-');
     if (!limpo) return 'O nome não pode ficar vazio.';
     const r = await cl.from('ficheiros_pessoais').update({ nome: limpo }).eq('id', f.idReal);
-    if (r && r.error) return r.error.message || 'Não foi possível mudar o nome.';
+    if (r && r.error) return bspFaltaPastas(r.error) || r.error.message || 'Não foi possível mudar o nome.';
     /* Mudar o nome de uma pasta muda o caminho de tudo o que está lá
        dentro, a qualquer profundidade. Feito aqui e não por uma regra na
        base de dados, para se ver o que acontece. */
@@ -11320,7 +11348,7 @@ function DriveScreen() {
     style: { fontSize: 12, color: 'var(--text-3)' }
   }, fmtSize(totalBytes), " usados")), React.createElement("div", {
     style: { display: 'flex', gap: 8, flexWrap: 'wrap' }
-  }, ehPessoal && React.createElement(Button, {
+  }, ehPessoal && pessoais.estado !== 'sem-pastas' && pessoais.estado !== 'sem-tabela' && React.createElement(Button, {
     variant: "ghost",
     size: "sm",
     icon: React.createElement(I.Plus, { size: 13 }),
@@ -11440,7 +11468,7 @@ function DriveScreen() {
   }), React.createElement("span", null,
   /* O aviso tem de dizer a verdade, e a verdade muda com a aba e com o
      que estiver ligado em Admin -> Permissões. */
-  !(sync && sync.status === 'live') ? React.createElement(React.Fragment, null, "O servidor não está ligado neste dispositivo, por isso não é possível carregar ficheiros. Ligue-o em Admin → Sistema.") : !ehPessoal ? React.createElement(React.Fragment, null, "Ficheiros (até 25 MB) ", React.createElement("strong", null, "partilhados com toda a equipa"), ". Apagar é de quem carregou", camadasQueApagam.length ? React.createElement(React.Fragment, null, " e de ", React.createElement("strong", null, camadasQueApagam.join(' e '))) : null, ". Os anexos das conversas não vêm aqui parar — ficam na conversa.") : pessoais.estado === 'sem-tabela' ? React.createElement(React.Fragment, null, "Falta correr o ", React.createElement("code", null, "ficheiros-pessoais.sql"), " e o ", React.createElement("code", null, "pastas-pessoais.sql"), " no Supabase.") : pessoais.estado === 'erro' ? React.createElement(React.Fragment, null, "Não foi possível ler os seus ficheiros do servidor.") : veTudo ? React.createElement(React.Fragment, null, "Ficheiros pessoais. A sua camada ", React.createElement("strong", null, "vê os de toda a gente"), " — mas ninguém apaga nem move os de outra pessoa.") : camadasQueVeem.length ? React.createElement(React.Fragment, null, "Não aparecem no Drive da equipa, mas ", React.createElement("strong", null, camadasQueVeem.join(' e ')), camadasQueVeem.length === 1 ? " pode lê-los" : " podem lê-los", ". Ninguém os pode apagar além de si.") : React.createElement(React.Fragment, null, React.createElement("strong", null, "Só seus."), " Mais ninguém os vê — nem a Direcção. Se isso mudar em Admin → Permissões, este aviso muda com ela.")))),
+  !(sync && sync.status === 'live') ? React.createElement(React.Fragment, null, "O servidor não está ligado neste dispositivo, por isso não é possível carregar ficheiros. Ligue-o em Admin → Sistema.") : !ehPessoal ? React.createElement(React.Fragment, null, "Ficheiros (até 25 MB) ", React.createElement("strong", null, "partilhados com toda a equipa"), ". Apagar é de quem carregou", camadasQueApagam.length ? React.createElement(React.Fragment, null, " e de ", React.createElement("strong", null, camadasQueApagam.join(' e '))) : null, ". Os anexos das conversas não vêm aqui parar — ficam na conversa.") : pessoais.estado === 'sem-tabela' ? React.createElement(React.Fragment, null, "Falta correr o ", React.createElement("code", null, "ficheiros-pessoais.sql"), " no Supabase. Sem ele não há onde guardar ficheiros só seus.") : pessoais.estado === 'sem-pastas' ? React.createElement(React.Fragment, null, "Os ficheiros pessoais já funcionam. Para ter ", React.createElement("strong", null, "pastas"), ", falta correr o ", React.createElement("code", null, "pastas-pessoais.sql"), " no Supabase.") : pessoais.estado === 'erro' ? React.createElement(React.Fragment, null, "Não foi possível ler os seus ficheiros do servidor.") : veTudo ? React.createElement(React.Fragment, null, "Ficheiros pessoais. A sua camada ", React.createElement("strong", null, "vê os de toda a gente"), " — mas ninguém apaga nem move os de outra pessoa.") : camadasQueVeem.length ? React.createElement(React.Fragment, null, "Não aparecem no Drive da equipa, mas ", React.createElement("strong", null, camadasQueVeem.join(' e ')), camadasQueVeem.length === 1 ? " pode lê-los" : " podem lê-los", ". Ninguém os pode apagar além de si.") : React.createElement(React.Fragment, null, React.createElement("strong", null, "Só seus."), " Mais ninguém os vê — nem a Direcção. Se isso mudar em Admin → Permissões, este aviso muda com ela.")))),
   /* conteúdo */
   visiveis.length === 0 ? (aProcurar ? React.createElement(Vazio, {
     texto: 'Nada encontrado para “' + procura.trim() + '”.'
