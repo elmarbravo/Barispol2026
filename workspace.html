@@ -3359,6 +3359,8 @@ function StoreProvider({
       setState(s => pushNotif(s, {
         type: 'message',
         userId: m.user_id,
+        /* Sem isto, carregar na notificacao nao tinha para onde ir. */
+        conv: chave,
         text: isDm ? 'enviou-lhe uma mensagem direta' : 'enviou uma mensagem ' + where,
         preview: String(m.text || '').slice(0, 90)
       }));
@@ -3785,6 +3787,13 @@ function StoreProvider({
         ...n,
         unread: false
       }))
+    })),
+    markNotifRead: id => setState(s => ({
+      ...s,
+      notifications: (s.notifications || []).map(n => n.id === id ? {
+        ...n,
+        unread: false
+      } : n)
     })),
     upsertTeamMember: member => setState(s => {
       const team = (s.team && s.team.length ? s.team : USERS).map(u => ({
@@ -5770,7 +5779,8 @@ function NovoGrupoModal({
   }, "O grupo fica disponível para toda a equipa assim que o servidor sincronizar. A Direcção vê todos os grupos.")));
 }
 function ChatScreen({
-  currentUser
+  currentUser,
+  alvo
 }) {
   const taRef = React.useRef(null);
   const attachRef = React.useRef(null);
@@ -5800,14 +5810,42 @@ function ChatScreen({
   const showChannelList = winW >= 820;
   const listRef = React.useRef(null);
   const typingTimer = React.useRef(null);
+  /* Vir de uma notificacao abre a conversa de onde ela veio. O "alvo"
+     traz um contador, e nao so a chave: carregar duas vezes na mesma
+     notificacao tem de voltar a abrir a conversa mesmo que ja la esteja. */
+  React.useEffect(() => {
+    const chave = alvo && alvo.conv;
+    if (!chave) return;
+    if (String(chave).indexOf('dm-') === 0) {
+      setDmId(String(chave).slice(3));
+      setChannelId('c-geral');
+    } else {
+      setChannelId(chave);
+      setDmId(null);
+    }
+    setThread(null);
+    setBusca(null);
+  }, [alvo]);
   const isDM = !!dmId;
   const activeChannel = !isDM ? CHANNELS.find(c => c.id === channelId) || CHANNELS[0] : null;
   const equipaToda = (state.team && state.team.length) ? state.team : USERS;
   const nMembros = activeChannel ? bspMembrosCanal(activeChannel, equipaToda).length : 0;
-  const dmList = USERS.filter(u => u.id !== currentUser.id).map(u => ({
-    id: [currentUser.id, u.id].sort().join('_'),
-    userId: u.id
-  }));
+  /* Quantas mensagens de outra pessoa chegaram desde a ultima vez que
+     abri esta conversa. Os contadores ao lado dos nomes ja estavam
+     desenhados, mas ninguem os preenchia: os canais traziam o "unread: 0"
+     de fabrica e as directas nem sequer o campo tinham. O marcador de
+     leitura ja existia — so faltava alguem perguntar-lhe. */
+  const porLer = React.useCallback(chave => {
+    const arr = messagesByChan[chave] || [];
+    const lido = ((state.leituras || {})[chave] || {})[currentUser.id] || 0;
+    let n = 0;
+    for (const m of arr) if (m.userId !== currentUser.id && (m.sid || 0) > lido) n++;
+    return n;
+  }, [messagesByChan, state.leituras, currentUser.id]);
+  const dmList = USERS.filter(u => u.id !== currentUser.id).map(u => {
+    const id = [currentUser.id, u.id].sort().join('_');
+    return { id: id, userId: u.id, unread: porLer('dm-' + id) };
+  });
   const activeDm = isDM ? dmList.find(d => d.id === dmId) : null;
   const dmUser = activeDm ? window.userById(activeDm.userId) : null;
   const convKey = isDM ? `dm-${dmId}` : channelId;
@@ -6120,7 +6158,9 @@ function ChatScreen({
     actionIcon: "Plus",
     actionTitle: "Criar canal ou grupo privado",
     onAction: () => setGrupoModal(true),
-    items: CHANNELS.filter(c => bspVeCanal(currentUser, c)),
+    items: CHANNELS.filter(c => bspVeCanal(currentUser, c)).map(c => Object.assign({}, c, {
+      unread: porLer(c.id)
+    })),
     renderItem: c => {
       const active = channelId === c.id;
       return React.createElement("button", {
@@ -11566,7 +11606,9 @@ function Connector({
     }
   });
 }
-function NotificationsScreen() {
+function NotificationsScreen({
+  onAbrir
+}) {
   const {
     state,
     actions
@@ -11602,22 +11644,26 @@ function NotificationsScreen() {
       label: 'Ficheiro'
     }
   };
+  /* Os numeros ao lado dos filtros contam as POR LER, nao o total. Era
+     por isso que ficavam nos sete depois de "Marcar todas como lidas":
+     contavam quantas havia, e nao quantas faltavam ver. */
+  const porLer = t => all.filter(n => n.unread && (!t || n.type === t)).length;
   const filters = [{
     id: 'todas',
     label: 'Todas',
-    count: all.length
+    count: porLer(null)
   }, {
     id: 'message',
     label: 'Mensagens',
-    count: all.filter(n => n.type === 'message').length
+    count: porLer('message')
   }, {
     id: 'task',
     label: 'Tarefas',
-    count: all.filter(n => n.type === 'task').length
+    count: porLer('task')
   }, {
     id: 'comunicado',
     label: 'Feed',
-    count: all.filter(n => n.type === 'comunicado').length
+    count: porLer('comunicado')
   }];
   const list = filter === 'todas' ? all : all.filter(n => n.type === filter);
   function askPermission() {
@@ -11829,8 +11875,16 @@ function NotificationsScreen() {
     const u = n.userId ? window.userById(n.userId) : null;
     const m = typeMeta[n.type] || typeMeta.message;
     const Ic = I[m.icon];
-    return React.createElement("div", {
+    /* Cada linha e agora um botao: leva a pessoa ao sitio de onde a
+       notificacao veio e marca-a como lida. Ate aqui nao acontecia nada
+       ao carregar — e nada no ecra dizia que assim era. */
+    return React.createElement("button", {
       key: n.id,
+      onClick: () => {
+        actions.markNotifRead(n.id);
+        onAbrir && onAbrir(n);
+      },
+      title: "Abrir",
       style: {
         padding: '16px 20px',
         display: 'flex',
@@ -11838,7 +11892,14 @@ function NotificationsScreen() {
         alignItems: 'flex-start',
         background: n.unread ? 'rgba(0,163,224,.04)' : 'transparent',
         borderBottom: i < list.length - 1 ? '1px solid var(--border)' : 'none',
-        position: 'relative'
+        position: 'relative',
+        width: '100%',
+        border: 'none',
+        borderRadius: 0,
+        textAlign: 'left',
+        font: 'inherit',
+        color: 'inherit',
+        cursor: 'pointer'
       },
       className: "bsp-row-hover"
     }, n.unread && React.createElement("span", {
@@ -16432,6 +16493,22 @@ function App() {
     } catch (e) {}
   };
   const [page, setPage] = React.useState('dashboard');
+  /* Conversa que uma notificacao mandou abrir. O contador faz parte do
+     valor para que carregar duas vezes na mesma notificacao volte a
+     mandar o Chat para la. */
+  const [alvoChat, setAlvoChat] = React.useState(null);
+  const abrirNotificacao = React.useCallback(n => {
+    if (!n) return;
+    if (n.conv) {
+      setAlvoChat({ conv: n.conv, vez: Date.now() });
+      setPage('chat');
+      return;
+    }
+    if (n.type === 'comunicado') setPage('feed');
+    else if (n.type === 'task') setPage('tasks');
+    else if (n.type === 'file') setPage('drive');
+    else setPage('chat');
+  }, []);
   const isMobile = useIsMobile();
   const [moreOpen, setMoreOpen] = React.useState(false);
   const [t, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
@@ -16514,13 +16591,16 @@ function App() {
     currentUser: currentUser,
     onSwitch: setPage
   }), page === 'chat' && React.createElement(ChatScreen, {
-    currentUser: currentUser
+    currentUser: currentUser,
+    alvo: alvoChat
   }), page === 'meetings' && React.createElement(MeetingsScreen, null), page === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
   }), page === 'drive' && React.createElement(DriveScreen, null), page === 'calendar' && React.createElement(CalendarScreen, null), page === 'tasks' && React.createElement(TasksScreen, null), page === 'seguimento' && React.createElement(SeguimentoScreen, null), page === 'directory' && React.createElement(DirectoryScreen, null), page === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
-  }), page === 'notifications' && React.createElement(NotificationsScreen, null)))), isMobile && React.createElement(MobileNav, {
+  }), page === 'notifications' && React.createElement(NotificationsScreen, {
+    onAbrir: abrirNotificacao
+  })))), isMobile && React.createElement(MobileNav, {
     current: page,
     setCurrent: setPage,
     isAdmin: isAdmin,
