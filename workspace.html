@@ -1272,6 +1272,13 @@ function bspNormalizarCamada(nome, viva){
   if (typeof c.ordem !== 'number') c.ordem = 99;
   return c;
 }
+/* Quem, da equipa, alcanca de facto este canal. E a unica contagem
+   honesta: a lista fixa dos CHANNELS traz um "members: 1" de fabrico, e
+   contar a equipa inteira apresentava os 21 colaboradores como membros de
+   um grupo privado de tres. */
+function bspMembrosCanal(canal, equipa){
+  return (equipa || []).filter(u => bspVeCanal(u, canal));
+}
 function bspVeCanal(u, canal){
   if (!u || !canal) return false;
   /* Grupos privados: só os membros escolhidos. A Direcção vê tudo. */
@@ -5795,6 +5802,8 @@ function ChatScreen({
   const typingTimer = React.useRef(null);
   const isDM = !!dmId;
   const activeChannel = !isDM ? CHANNELS.find(c => c.id === channelId) || CHANNELS[0] : null;
+  const equipaToda = (state.team && state.team.length) ? state.team : USERS;
+  const nMembros = activeChannel ? bspMembrosCanal(activeChannel, equipaToda).length : 0;
   const dmList = USERS.filter(u => u.id !== currentUser.id).map(u => ({
     id: [currentUser.id, u.id].sort().join('_'),
     userId: u.id
@@ -6311,7 +6320,7 @@ function ChatScreen({
       overflow: 'hidden',
       textOverflow: 'ellipsis'
     }
-  }, activeChannel.desc, " · ", activeChannel.members, " membros"))) : React.createElement(React.Fragment, null, React.createElement(Avatar, {
+  }, activeChannel.desc, " · ", nMembros, nMembros === 1 ? " membro" : " membros"))) : React.createElement(React.Fragment, null, React.createElement(Avatar, {
     user: dmUser,
     size: 36,
     showStatus: true
@@ -6979,7 +6988,8 @@ function ChannelInfo({
   const {
     state
   } = useStore();
-  const team = state.team && state.team.length ? state.team : USERS;
+  const equipa = state.team && state.team.length ? state.team : USERS;
+  const team = bspMembrosCanal(channel, equipa);
   const files = (state.driveFiles || []).slice(0, 5);
   return React.createElement("div", null, React.createElement(Section, {
     title: "Sobre"
