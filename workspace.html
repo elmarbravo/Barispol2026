@@ -2944,6 +2944,43 @@ Object.assign(window, {
   BarispolLogo
 });
 const STORAGE_KEY = 'bsp-workspace-v1';
+/* "agora", "há 12 min", "07:43", "ontem 19:10", "2 set 14:32".
+   Quanto mais recente, mais util e o tempo decorrido; a partir de umas
+   horas, o que interessa e a hora a que foi.
+
+   As notificacoes gravadas antes desta versao trazem a palavra "agora"
+   escrita a letra. Essas mostram-se como estao — nao ha data nenhuma
+   para inventar. */
+const BSP_MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+function bspQuando(ts) {
+  const t = String(ts == null ? '' : ts);
+  if (!t) return '';
+  const d = new Date(t);
+  if (isNaN(d.getTime())) return t;
+  const dif = Date.now() - d.getTime();
+  if (dif < 0) return bspHoraDe(d);
+  if (dif < 60000) return 'agora';
+  if (dif < 3600000) return 'há ' + Math.floor(dif / 60000) + ' min';
+  const hoje = new Date();
+  const mesmoDia = x => x.getFullYear() === hoje.getFullYear() && x.getMonth() === hoje.getMonth() && x.getDate() === hoje.getDate();
+  if (mesmoDia(d)) return bspHoraDe(d);
+  const ontem = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 1);
+  if (d.getFullYear() === ontem.getFullYear() && d.getMonth() === ontem.getMonth() && d.getDate() === ontem.getDate()) {
+    return 'ontem ' + bspHoraDe(d);
+  }
+  const ano = d.getFullYear() !== hoje.getFullYear() ? ' ' + d.getFullYear() : '';
+  return d.getDate() + ' ' + BSP_MESES[d.getMonth()] + ano + ' ' + bspHoraDe(d);
+}
+function bspHoraDe(d) {
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+/* A data por extenso, para o "title" — passar o rato por cima diz o dia
+   e a hora certos, sem tirar o "há 12 min" de quem so quer o relance. */
+function bspQuandoCompleto(ts) {
+  const d = new Date(String(ts || ''));
+  if (isNaN(d.getTime())) return '';
+  return d.getDate() + ' de ' + BSP_MESES[d.getMonth()] + ' de ' + d.getFullYear() + ', ' + bspHoraDe(d);
+}
 function fmtTs(iso) {
   try {
     const d = new Date(iso);
@@ -3918,14 +3955,16 @@ function StoreProvider({
       userId,
       action,
       meta,
-      ts: 'agora'
+      ts: new Date().toISOString()
     }, ...s.activityLog].slice(0, 50)
   });
   const pushNotif = (s, notif) => ({
     ...s,
     notifications: [{
       id: nextId('n'),
-      ts: 'agora',
+      /* Era a palavra "agora", escrita a letra, e ficava la para sempre:
+         uma notificacao de ontem as sete continuava a dizer "agora". */
+      ts: new Date().toISOString(),
       unread: true,
       ...notif
     }, ...s.notifications].slice(0, 30)
@@ -5596,8 +5635,9 @@ function DashboardScreen({
         fontSize: 10.5,
         color: 'var(--text-3)',
         marginTop: 3
-      }
-    }, a.ts)));
+      },
+      title: bspQuandoCompleto(a.ts)
+    }, bspQuando(a.ts))));
   }))));
 }
 Object.assign(window, {
@@ -12299,6 +12339,13 @@ function NotificationsScreen({
     actions
   } = useStore();
   const [filter, setFilter] = React.useState('todas');
+  /* "há 12 min" tem de continuar a contar enquanto o ecrã está aberto.
+     Sem isto ficava parado no minuto em que a página foi desenhada. */
+  const [, setMinuto] = React.useState(0);
+  React.useEffect(() => {
+    const t = setInterval(() => setMinuto(x => x + 1), 60000);
+    return () => clearInterval(t);
+  }, []);
   const [perm, setPerm] = React.useState('Notification' in window ? Notification.permission : 'unsupported');
   const [sound, setSound] = React.useState(localStorage.getItem('bsp_notif_sound') !== 'off');
   const all = state.notifications || [];
@@ -12642,8 +12689,9 @@ function NotificationsScreen({
         fontSize: 11,
         color: 'var(--text-3)',
         marginLeft: 'auto'
-      }
-    }, n.ts)), React.createElement("div", {
+      },
+      title: bspQuandoCompleto(n.ts)
+    }, bspQuando(n.ts))), React.createElement("div", {
       style: {
         fontSize: 13,
         color: 'var(--text-2)'
