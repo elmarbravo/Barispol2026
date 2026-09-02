@@ -6,7 +6,10 @@
 <script src="vendor/supabase.js"></script>
 <script>
 /* Saída de emergência: abrir o site com #reset (ou ?reset) limpa a ligação ao servidor. */
-(function(){ try { if ((location.hash + location.search).toLowerCase().indexOf('reset') !== -1) { localStorage.removeItem('bsp_supabase_cfg'); } } catch(e){} })();
+/* Tem de ser exacto. Procurar "reset" em qualquer sitio do endereco
+   apagava a ligacao a quem abrisse, por exemplo, um link para um grupo
+   cujo identificador calhasse conter essas cinco letras. */
+(function(){ try { var e = (location.hash + ' ' + location.search).toLowerCase(); if (/(^|[#?&\/])reset($|[=&\/\s])/.test(e)) { localStorage.removeItem('bsp_supabase_cfg'); } } catch(e){} })();
 </script>
 <title>Barispol Workspace · A sua equipa, conectada</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -3081,8 +3084,30 @@ function bspSendEmail(to, subject, html) {
     }).catch(() => {});
   } catch (e) {}
 }
-function bspEmailWrap(title, body) {
-  return '<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden">' + '<div style="background:#002060;color:#fff;padding:16px 20px;font-size:16px;font-weight:bold">Centro Médico Barispol — Workspace</div>' + '<div style="padding:20px;color:#0F172A"><h2 style="margin:0 0 10px;font-size:17px">' + title + '</h2>' + '<p style="margin:0;font-size:14px;line-height:1.6;color:#475569">' + body + '</p>' + '<p style="margin:18px 0 0;font-size:12px;color:#94A3B8">Abra o Workspace para responder. Este é um aviso automático.</p></div></div>';
+/* Endereco que abre o Workspace ja na conversa certa. O que vai depois do
+   cardinal e lido quando a pagina arranca.
+
+   Tirado do endereco actual e nao escrito a letra, para funcionar tambem
+   se o site mudar de sitio — e nas caixas de correio que reescrevem os
+   enderecos, um caminho errado nao se percebe ate alguem carregar. */
+function bspLigacaoPara(destino) {
+  let base = 'https://barispol.com/workspace.html';
+  try {
+    if (typeof location !== 'undefined' && location.origin && location.origin.indexOf('http') === 0) {
+      base = location.origin + location.pathname;
+    }
+  } catch (e) {}
+  return base + (destino ? '#/' + destino : '');
+}
+/* O botao azul do e-mail. Sem ele, "abra o Workspace" obrigava a pessoa a
+   ir procurar o site, entrar, e encontrar a conversa — tres passos entre
+   o aviso e a resposta. */
+function bspEmailBotao(destino, rotulo) {
+  const href = bspLigacaoPara(destino);
+  return '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:18px 0 0"><tr><td style="border-radius:8px;background:#002060">' + '<a href="' + href + '" style="display:inline-block;padding:11px 22px;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:8px">' + (rotulo || 'Abrir no Workspace') + '</a></td></tr></table>' + '<p style="margin:8px 0 0;font-size:11px;color:#94A3B8;word-break:break-all">' + href + '</p>';
+}
+function bspEmailWrap(title, body, destino, rotulo) {
+  return '<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden">' + '<div style="background:#002060;color:#fff;padding:16px 20px;font-size:16px;font-weight:bold">Centro Médico Barispol — Workspace</div>' + '<div style="padding:20px;color:#0F172A"><h2 style="margin:0 0 10px;font-size:17px">' + title + '</h2>' + '<p style="margin:0;font-size:14px;line-height:1.6;color:#475569">' + body + '</p>' + bspEmailBotao(destino, rotulo) + '<p style="margin:18px 0 0;font-size:12px;color:#94A3B8">Este é um aviso automático do Workspace.</p></div></div>';
 }
 let __bspClient = null;
 /* A ligacao ao servidor vem do servidor.js, definido uma vez para toda a
@@ -4182,7 +4207,8 @@ function StoreProvider({
             bspSendEmail(dest.email,
               '[Workspace] Nova mensagem de ' + nome,
               bspEmailWrap('Mensagem de ' + (rem.name || nome),
-                previa.replace(/</g, '&lt;') + (msg.text.length > 200 ? '…' : '')));
+                previa.replace(/</g, '&lt;') + (msg.text.length > 200 ? '…' : ''),
+                'chat/' + convKey, 'Responder a ' + nome));
           }
         }
       } catch (e) {}
@@ -8027,7 +8053,7 @@ function FeedScreen({
         enquete: 'Enquete',
         evento: 'Evento'
       }[post.type] || 'Nova publicação';
-      bspSendEmail(BSP_TEAM_EMAIL, '[Workspace] ' + tipoLabel + ' de ' + currentUser.name.split(' ')[0], bspEmailWrap(post.title || tipoLabel, String(post.body || '').slice(0, 400) + '<br><br><em>Publicado por ' + currentUser.name + ' no Feed do Workspace.</em>'));
+      bspSendEmail(BSP_TEAM_EMAIL, '[Workspace] ' + tipoLabel + ' de ' + currentUser.name.split(' ')[0], bspEmailWrap(post.title || tipoLabel, String(post.body || '').slice(0, 400) + '<br><br><em>Publicado por ' + currentUser.name + ' no Feed do Workspace.</em>', 'feed', 'Ver no Feed'));
     }
   }));
 }
@@ -10069,7 +10095,7 @@ function TaskComposer({
     who.forEach(id => {
       if (id === window.CURRENT_USER_ID) return;
       const u = USERS.find(x => x.id === id);
-      if (u && u.email) bspSendEmail(u.email, '[Workspace] Nova tarefa para si: ' + title.trim(), bspEmailWrap('Foi-lhe atribuída uma tarefa', (me ? me.name : 'Um colega') + ' atribuiu-lhe a tarefa “' + title.trim() + '”. Abra o Workspace para ver os detalhes.'));
+      if (u && u.email) bspSendEmail(u.email, '[Workspace] Nova tarefa para si: ' + title.trim(), bspEmailWrap('Foi-lhe atribuída uma tarefa', (me ? me.name : 'Um colega') + ' atribuiu-lhe a tarefa “' + title.trim() + '”.', 'tarefas', 'Ver a tarefa'));
     });
     onClose();
   };
@@ -17315,6 +17341,26 @@ function App() {
     else if (n.type === 'task') setPage('tasks');
     else if (n.type === 'file') setPage('drive');
     else setPage('chat');
+  }, []);
+  /* Quem vem de um e-mail traz o destino no endereco: #/chat/dm-u1_u5,
+     #/feed, #/tarefas. Aplica-se depois de entrar — antes disso ha o
+     ecra de login, e o endereco espera. Limpa-se a seguir, para um
+     refresh mais tarde nao voltar a saltar para la. */
+  React.useEffect(() => {
+    let h = '';
+    try { h = String(location.hash || '').replace(/^#\/?/, ''); } catch (e) {}
+    if (!h) return;
+    const partes = h.split('/');
+    const onde = partes[0];
+    if (onde === 'chat' && partes[1]) {
+      setAlvoChat({ conv: decodeURIComponent(partes.slice(1).join('/')), vez: Date.now() });
+      setPage('chat');
+    } else if (['feed', 'tarefas', 'agenda', 'drive', 'seguimento', 'chat'].indexOf(onde) !== -1) {
+      setPage({ tarefas: 'tasks', agenda: 'calendar' }[onde] || onde);
+    } else {
+      return;
+    }
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
   }, []);
   const isMobile = useIsMobile();
   const [moreOpen, setMoreOpen] = React.useState(false);

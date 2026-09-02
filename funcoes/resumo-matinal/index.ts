@@ -54,9 +54,20 @@ const escapar = (t: unknown) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string)
   );
 
+/* O botao que leva a pessoa ao sitio, em vez de a mandar procurar. */
+const SITIO = "https://barispol.com/workspace.html";
+function botao(destino: string, rotulo: string) {
+  const href = SITIO + "#/" + destino;
+  return (
+    '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:18px 0 0"><tr><td style="border-radius:8px;background:#002060">' +
+    '<a href="' + href + '" style="display:inline-block;padding:11px 22px;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:8px">' +
+    rotulo + "</a></td></tr></table>" +
+    '<p style="margin:8px 0 0;font-size:11px;color:#94A3B8;word-break:break-all">' + href + "</p>"
+  );
+}
 /* O mesmo cartao azul dos outros avisos, para nao parecer que vem de
    outro sitio qualquer. */
-function envelope(titulo: string, corpo: string) {
+function envelope(titulo: string, corpo: string, destino?: string, rotulo?: string) {
   return (
     '<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden">' +
     '<div style="background:#002060;color:#fff;padding:16px 20px;font-size:16px;font-weight:bold">Centro Médico Barispol — Workspace</div>' +
@@ -64,7 +75,8 @@ function envelope(titulo: string, corpo: string) {
     titulo +
     "</h2>" +
     corpo +
-    '<p style="margin:20px 0 0;font-size:12px;color:#94A3B8">Abra o Workspace para responder. Este é o resumo automático da manhã.</p></div></div>'
+    (destino ? botao(destino, rotulo || "Abrir no Workspace") : "") +
+    '<p style="margin:20px 0 0;font-size:12px;color:#94A3B8">Este é o resumo automático da manhã.</p></div></div>'
   );
 }
 
@@ -255,7 +267,9 @@ Deno.serve(async (req) => {
           '<p style="margin:0;font-size:14px;color:#475569">Tem <b>' +
           minhas.length +
           "</b> tarefa(s) por fechar:</p>" +
-          listaDeTarefas(minhas, false, equipa)
+          listaDeTarefas(minhas, false, equipa),
+        "tarefas",
+        "Ver as minhas tarefas"
       )
     );
     ok ? pessoais++ : falhas.push(u.email);
@@ -281,7 +295,9 @@ Deno.serve(async (req) => {
     const html = envelope(
       escapar(area) + " — " + lista.length + " em aberto",
       '<p style="margin:0;font-size:14px;color:#475569">O que a equipa tem em mãos esta manhã:</p>' +
-        listaDeTarefas(lista, true, equipa)
+        listaDeTarefas(lista, true, equipa),
+      "tarefas",
+      "Ver no Workspace"
     );
     for (const u of membros) {
       const ok = await enviar(u.email, escapar(area) + ": " + lista.length + " tarefa(s) em aberto", html);
