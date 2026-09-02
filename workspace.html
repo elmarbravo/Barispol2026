@@ -4307,6 +4307,14 @@ function StoreProvider({
         unread: false
       } : n)
     })),
+    apagarNotif: id => setState(s => ({
+      ...s,
+      notifications: (s.notifications || []).filter(n => n.id !== id)
+    })),
+    apagarNotifsLidas: () => setState(s => ({
+      ...s,
+      notifications: (s.notifications || []).filter(n => n.unread)
+    })),
     markAllNotifsRead: () => setState(s => ({
       ...s,
       notifications: s.notifications.map(n => ({
@@ -12397,7 +12405,16 @@ function NotificationsScreen({
     label: 'Feed',
     count: porLer('comunicado')
   }];
-  const list = filter === 'todas' ? all : all.filter(n => n.type === filter);
+  /* Uma notificacao lida deixa de estar na lista. Deixa-la la, so
+     desbotada, enche o ecra de coisas ja tratadas e esconde as que
+     interessam — que e o oposto do que uma lista de avisos serve.
+
+     Mas nao se apagam sozinhas: ficam atras de um botao, para quem
+     precisar de voltar atras. */
+  const [verLidas, setVerLidas] = React.useState(false);
+  const doTipo = filter === 'todas' ? all : all.filter(n => n.type === filter);
+  const list = verLidas ? doTipo : doTipo.filter(n => n.unread);
+  const lidas = doTipo.filter(n => !n.unread).length;
   function askPermission() {
     if (!('Notification' in window)) return;
     Notification.requestPermission().then(p => {
@@ -12567,11 +12584,24 @@ function NotificationsScreen({
       fontSize: 14,
       color: 'var(--text-1)'
     }
-  }, all.filter(n => n.unread).length, " não lidas"), React.createElement(Button, {
+  }, all.filter(n => n.unread).length, " não lidas", lidas ? React.createElement("button", {
+    onClick: () => setVerLidas(v => !v),
+    style: {
+      marginLeft: 10, background: 'transparent', border: 'none',
+      padding: 0, cursor: 'pointer', fontFamily: 'inherit',
+      fontSize: 12, fontWeight: 500, color: 'var(--accent-d)'
+    }
+  }, verLidas ? 'esconder as lidas' : 'ver as ' + lidas + ' já lidas') : null), React.createElement("div", {
+    style: { display: 'flex', gap: 6 }
+  }, verLidas && lidas ? React.createElement(Button, {
+    variant: "ghost",
+    size: "sm",
+    onClick: () => actions.apagarNotifsLidas()
+  }, "Apagar as lidas") : null, React.createElement(Button, {
     variant: "ghost",
     size: "sm",
     onClick: () => actions.markNotifsRead()
-  }, "Marcar todas como lidas")), React.createElement("div", {
+  }, "Marcar todas como lidas"))), React.createElement("div", {
     style: {
       flex: 1,
       overflow: 'auto'
@@ -12603,37 +12633,44 @@ function NotificationsScreen({
     style: {
       fontSize: 13
     }
-  }, "Sem notificações por agora.")), list.map((n, i) => {
+  }, verLidas ? 'Nada aqui.' : lidas ? 'Está tudo lido. As ' + lidas + ' que já viu ficam guardadas acima.' : 'Sem notificações por ler.')), list.map((n, i) => {
     const u = n.userId ? window.userById(n.userId) : null;
     const m = typeMeta[n.type] || typeMeta.message;
     const Ic = I[m.icon];
     /* Cada linha e agora um botao: leva a pessoa ao sitio de onde a
        notificacao veio e marca-a como lida. Ate aqui nao acontecia nada
        ao carregar — e nada no ecra dizia que assim era. */
-    return React.createElement("button", {
+    return React.createElement("div", {
       key: n.id,
+      style: {
+        display: 'flex',
+        alignItems: 'stretch',
+        background: n.unread ? 'rgba(0,163,224,.04)' : 'transparent',
+        borderBottom: i < list.length - 1 ? '1px solid var(--border)' : 'none'
+      },
+      className: "bsp-row-hover"
+    }, React.createElement("button", {
       onClick: () => {
         actions.markNotifRead(n.id);
         onAbrir && onAbrir(n);
       },
       title: "Abrir",
       style: {
-        padding: '16px 20px',
+        padding: '16px 8px 16px 20px',
         display: 'flex',
         gap: 14,
         alignItems: 'flex-start',
-        background: n.unread ? 'rgba(0,163,224,.04)' : 'transparent',
-        borderBottom: i < list.length - 1 ? '1px solid var(--border)' : 'none',
+        background: 'transparent',
         position: 'relative',
-        width: '100%',
+        flex: 1,
+        minWidth: 0,
         border: 'none',
         borderRadius: 0,
         textAlign: 'left',
         font: 'inherit',
         color: 'inherit',
         cursor: 'pointer'
-      },
-      className: "bsp-row-hover"
+      }
     }, n.unread && React.createElement("span", {
       style: {
         position: 'absolute',
@@ -12706,7 +12743,15 @@ function NotificationsScreen({
         fontSize: 12.5,
         color: 'var(--text-2)'
       }
-    }, n.preview)));
+    }, n.preview))), React.createElement("button", {
+      onClick: () => actions.apagarNotif(n.id),
+      title: "Apagar esta notificação",
+      style: {
+        flex: 'none', width: 40, border: 'none', background: 'transparent',
+        color: 'var(--text-3)', cursor: 'pointer', fontFamily: 'inherit',
+        fontSize: 16, lineHeight: 1, padding: '0 8px 0 0'
+      }
+    }, "\u00d7"));
   }))));
 }
 function AdminScreen({
