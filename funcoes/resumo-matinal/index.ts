@@ -101,13 +101,35 @@ function listaDeTarefas(tarefas: any[], mostrarQuem: boolean, equipa: any[]) {
   );
 }
 
+/* A chave do servidor mudou de nome quando o Supabase passou das chaves
+   antigas (anon / service_role, em formato JWT) para as novas
+   (publishable / secret). Depois de desligar as antigas, e a
+   SUPABASE_SECRET_KEY que vale; antes disso, a SUPABASE_SERVICE_ROLE_KEY.
+
+   Aceitam-se as duas, pela mesma razao por que se aceita um e-mail
+   antigo e um novo durante uma mudanca: para nada parar no intervalo. */
+const chaveServidor = () =>
+  Deno.env.get("SUPABASE_SECRET_KEY") ||
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const chavePublica = () =>
+  Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ||
+  Deno.env.get("SUPABASE_ANON_KEY") || "";
+/* Quem se apresenta com uma chave de servidor — a nova ou a antiga —
+   e o proprio servidor. */
+const ehChaveDoServidor = (t: string) =>
+  !!t && (t === Deno.env.get("SUPABASE_SECRET_KEY") ||
+          t === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
+const ehChavePublica = (t: string) =>
+  !!t && (t === Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ||
+          t === Deno.env.get("SUPABASE_ANON_KEY"));
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cabecalhos });
   if (req.method !== "POST") return responder({ erro: "Método não permitido." }, 405);
 
   const URL_SB = Deno.env.get("SUPABASE_URL")!;
-  const CHAVE_SERVICO = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const CHAVE_ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const CHAVE_SERVICO = chaveServidor();
+  const CHAVE_ANON = chavePublica();
   if (!URL_SB || !CHAVE_SERVICO) {
     return responder({ erro: "A função não tem acesso ao projecto." }, 500);
   }
@@ -121,10 +143,10 @@ Deno.serve(async (req) => {
 
   /* Quem pode mandar isto correr: o agendamento (chave service_role) ou
      um gestor a carregar no botão. */
-  let autorizado = testemunho === CHAVE_SERVICO;
+  let autorizado = ehChaveDoServidor(testemunho);
   if (!autorizado) {
-    if (testemunho === CHAVE_ANON) {
-      return responder({ erro: "A chave anónima não chega para enviar correio." }, 403);
+    if (ehChavePublica(testemunho)) {
+      return responder({ erro: "A chave pública não chega para enviar correio." }, 403);
     }
     const comSessao = createClient(URL_SB, CHAVE_ANON, {
       global: { headers: { Authorization: "Bearer " + testemunho } },

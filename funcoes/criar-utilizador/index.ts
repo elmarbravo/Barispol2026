@@ -33,13 +33,38 @@ const cabecalhos = {
 const responder = (corpo: unknown, estado = 200) =>
   new Response(JSON.stringify(corpo), { status: estado, headers: cabecalhos });
 
+/* A chave do servidor mudou de nome quando o Supabase passou das chaves
+   antigas (anon / service_role, em formato JWT) para as novas
+   (publishable / secret). Depois de desligar as antigas, e a
+   SUPABASE_SECRET_KEY que vale; antes disso, a SUPABASE_SERVICE_ROLE_KEY.
+
+   Aceitam-se as duas, pela mesma razao por que se aceita um e-mail
+   antigo e um novo durante uma mudanca: para nada parar no intervalo. */
+const chaveServidor = () =>
+  Deno.env.get("SUPABASE_SECRET_KEY") ||
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const chavePublica = () =>
+  Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ||
+  Deno.env.get("SUPABASE_ANON_KEY") || "";
+/* Quem se apresenta com uma chave de servidor — a nova ou a antiga —
+   e o proprio servidor. */
+const ehChaveDoServidor = (t: string) =>
+  !!t && (t === Deno.env.get("SUPABASE_SECRET_KEY") ||
+          t === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
+const ehChavePublica = (t: string) =>
+  !!t && (t === Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ||
+          t === Deno.env.get("SUPABASE_ANON_KEY"));
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cabecalhos });
   if (req.method !== "POST") return responder({ erro: "Método não permitido." }, 405);
 
   const URL_SB = Deno.env.get("SUPABASE_URL")!;
-  const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const SERVICE = chaveServidor();
+  const ANON = chavePublica();
+  if (!SERVICE || !ANON) {
+    return responder({ erro: "A função não tem as chaves do projecto." }, 500);
+  }
 
   // 1. Quem está a pedir? O testemunho vem do navegador de quem clicou.
   const auth = req.headers.get("Authorization") || "";

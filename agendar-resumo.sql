@@ -5,12 +5,19 @@
 --  Todo o resto fica como esta.
 --
 --  ONDE ARRANJAR A CHAVE:
---    No Supabase, barra da esquerda -> Project Settings -> API
---    -> "Project API keys" -> a linha service_role -> Reveal -> copiar.
+--    Project Settings -> API Keys
+--      · se ja existir o separador "Publishable and secret API keys":
+--        use uma chave "secret" (comeca por sb_secret_)
+--      · senao: separador "Legacy anon, service_role" -> a service_role
 --
 --  Essa chave contorna todas as regras da base de dados. Fica guardada
 --  DENTRO do proprio Supabase, nesta tarefa agendada, e nunca no site
---  nem no repositorio. Nao a envie por mensagem a ninguem.
+--  nem no repositorio.
+--
+--  NAO A ENVIE POR MENSAGEM A NINGUEM — nem por e-mail, nem por WhatsApp,
+--  nem numa conversa com uma assistente. Quem a tiver le e apaga tudo o
+--  que esta na base de dados, sem excepcao. Se alguma vez sair, tem de ser
+--  substituida no mesmo dia.
 -- ============================================================
 
 -- Para nao sair o mesmo e-mail duas vezes no mesmo dia. O agendamento
@@ -42,9 +49,14 @@ begin
     raise exception
       'Falta colar a chave service_role na linha 22. Encontra-a em Project Settings -> API -> service_role -> Reveal.';
   end if;
-  if chave not like 'eyJ%' then
+  -- As duas formas validas: a nova (sb_secret_...) e a antiga (eyJ...).
+  if chave not like 'sb_secret_%' and chave not like 'eyJ%' then
     raise exception
-      'Isso nao parece a chave service_role: ela comeca por "eyJ". Confirme que nao copiou a anon public nem a palavra-passe da base de dados.';
+      'Isso nao parece uma chave de servidor: ela comeca por "sb_secret_" ou por "eyJ". Confirme que nao copiou a publishable, a anon, nem a palavra-passe da base de dados.';
+  end if;
+  if chave like 'sb_publishable_%' then
+    raise exception
+      'Essa e a chave PUBLICA. Precisa da secret (sb_secret_...), que fica escondida atras de "Reveal".';
   end if;
 
   if exists (select 1 from cron.job where jobname = 'bsp-resumo-matinal') then
