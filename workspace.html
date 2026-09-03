@@ -51,11 +51,17 @@
      não haver rato. Como irmãos do texto, roubavam-lhe metade da largura:
      passam para o canto superior direito da linha, sobrepostos. */
   .bsp-msg-row { position: relative; }
-  body[data-mobile="true"] .bsp-msg-acts {
-    position: absolute; top: -2px; right: 0; z-index: 2;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 8px; padding: 1px 2px; }
-  body[data-mobile="true"] .bsp-msg-row > div:last-child { padding-right: 0; }
+  /* Sobrepostos ao canto, tapavam o cargo e o fim do texto — a mesma
+     coisa que se queria evitar, noutro sitio. Passam a aparecer so na
+     mensagem em que se tocou, numa linha propria por baixo do texto,
+     onde nao ha nada para tapar. */
+  body[data-mobile="true"] .bsp-msg-body { flex-wrap: wrap; }
+  body[data-mobile="true"] .bsp-msg-acts { display: none !important; }
+  body[data-mobile="true"] .bsp-msg-sel .bsp-msg-acts {
+    display: inline-flex !important; flex-basis: 100%; justify-content: flex-end;
+    margin-top: 4px; gap: 6px !important; }
+  body[data-mobile="true"] .bsp-msg-sel .bsp-msg-acts button { padding: 6px 8px !important; }
+  body[data-mobile="true"] .bsp-msg-sel > div:last-child { background: var(--surface-2); border-radius: 10px; margin: 0 -6px; padding: 4px 6px; }
 
   /* A caixa de escrita ocupava quase metade do ecrã: a barra de formatação
      e a legenda das teclas não fazem sentido num telemóvel. */
@@ -3651,6 +3657,47 @@ function StoreProvider({
        sincronizacao vai buscar o que e novo pelo numero da linha, e uma
        alteracao a uma publicacao antiga nunca chegaria aos outros
        aparelhos. Uma linha nova chega sempre. */
+    /* Poe o texto novo na mensagem certa, venha ele do tempo real (a
+       linha alterada) ou da linha de controlo que a sondagem apanha. As
+       linhas de controlo (leituras, reaccoes, edicoes) nunca sao
+       "editadas": ignoram-se. */
+    const aplicarEdicao = (sid, texto, convKey) => {
+      if (sid == null || texto == null) return;
+      if (String(texto).indexOf('\u200b') === 0) return;
+      setState(s => {
+        const chaves = convKey && s.channelMessages[convKey] ? [convKey] : Object.keys(s.channelMessages);
+        let mudou = false;
+        const cm = { ...s.channelMessages };
+        chaves.forEach(k => {
+          const arr = cm[k];
+          if (!arr || !arr.some(x => x.sid === sid)) return;
+          cm[k] = arr.map(x => {
+            if (x.sid !== sid || x.text === texto) return x;
+            mudou = true;
+            return Object.assign({}, x, { text: texto, editada: true });
+          });
+        });
+        return mudou ? { ...s, channelMessages: cm } : s;
+      });
+    };
+    /* A edicao viaja tambem como linha nova, para os aparelhos que so
+       tem a sondagem: \u200be\u200b<sid>\u200b<texto completo>. Tudo o que
+       vem depois do terceiro separador e o texto — que pode ele proprio
+       levar separadores, se trouxer um anexo. */
+    const aplicarEdicaoDeControlo = m => {
+      try {
+        /* Formato: SEP e SEP <sid> SEP <texto>. O primeiro SEP esta na
+           posicao 0; o segundo depois do "e"; o terceiro fecha o sid. */
+        const t = String(m.text);
+        const p1 = t.indexOf('\u200b', 1);
+        const p2 = p1 === -1 ? -1 : t.indexOf('\u200b', p1 + 1);
+        if (p2 === -1) return;
+        const sid = parseInt(t.slice(p1 + 1, p2), 10);
+        const texto = t.slice(p2 + 1);
+        if (!sid) return;
+        aplicarEdicao(sid, texto, m.conv_key);
+      } catch (e) {}
+    };
     const aplicarReaccaoPost = m => {
       try {
         const partes = String(m.text).split('\u200b');
@@ -3698,6 +3745,10 @@ function StoreProvider({
       }
       if (String(m.text || '').indexOf('\u200bp\u200b') === 0) {
         if (!(m.cid && syncRef.current.myCids.has(m.cid))) aplicarReaccaoPost(m);
+        return;
+      }
+      if (String(m.text || '').indexOf('\u200be\u200b') === 0) {
+        if (!(m.cid && syncRef.current.myCids.has(m.cid))) aplicarEdicaoDeControlo(m);
         return;
       }
       addMsg(m);
@@ -3762,6 +3813,13 @@ function StoreProvider({
           schema: 'public',
           table: 'messages'
         }, payload => ingest(payload.new)).on('postgres_changes', {
+          /* Uma mensagem editada e uma linha ALTERADA, nao uma nova. Sem
+             ouvir isto, quem tivesse tempo real ficava com o texto antigo
+             ate recarregar. */
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages'
+        }, payload => aplicarEdicao(payload.new && payload.new.id, payload.new && payload.new.text, payload.new && payload.new.conv_key)).on('postgres_changes', {
           event: 'DELETE',
           schema: 'public',
           table: 'messages'
@@ -4273,6 +4331,51 @@ function StoreProvider({
         }
       };
     }),
+    /* So o autor edita — e a regra do servidor (bsp_msg_editar) diz o
+       mesmo. O texto visivel muda; o anexo, se houver, fica onde estava:
+       editar o que se escreveu nao pode fazer desaparecer o ficheiro. */
+    editarMensagem: (convKey, msgId, novoVisivel) => {
+      let erro = null;
+      setState(s => {
+        const arr = s.channelMessages[convKey] || [];
+        const m = arr.find(x => x.id === msgId);
+        if (!m) return s;
+        if (m.userId !== window.CURRENT_USER_ID) { erro = 'Só quem escreveu a mensagem a pode editar.'; return s; }
+        const limpo = String(novoVisivel || '').trim();
+        if (!limpo) { erro = 'A mensagem não pode ficar vazia. Se quer tirá-la, apague-a.'; return s; }
+        const anexo = bspAnexoDaMensagem(m.text);
+        const cauda = anexo && String(m.text).indexOf(BSP_MARCA_ANEXO) !== -1
+          ? String(m.text).slice(String(m.text).indexOf(BSP_MARCA_ANEXO)) : '';
+        const texto = limpo + cauda;
+        if (texto === m.text) return s;
+        const cl = syncRef.current && syncRef.current.client;
+        if (m.sid && cl) {
+          try {
+            cl.from('messages').update({ text: texto }).eq('id', m.sid).then(r => {
+              /* Sem a regra de alterar no servidor, o update e recusado
+                 em silencio: 0 linhas, sem erro. Verifica-se e diz-se. */
+              if (r && r.error) window.__bspAvisar && window.__bspAvisar('O servidor não deixou editar: ' + r.error.message);
+            }, () => {});
+            const cid = 'e' + Date.now() + Math.floor(Math.random() * 999);
+            try { syncRef.current.myCids.add(cid); } catch (e) {}
+            cl.from('messages').insert({
+              conv_key: convKey,
+              user_id: window.CURRENT_USER_ID,
+              text: '\u200be\u200b' + m.sid + '\u200b' + texto,
+              cid
+            }).then(() => {}, () => {});
+          } catch (e) {}
+        }
+        return {
+          ...s,
+          channelMessages: {
+            ...s.channelMessages,
+            [convKey]: arr.map(x => x.id !== msgId ? x : Object.assign({}, x, { text: texto, editada: true }))
+          }
+        };
+      });
+      return erro;
+    },
     deleteMessage: (convKey, msgId) => setState(s => {
       const arr = s.channelMessages[convKey] || [];
       const m = arr.find(x => x.id === msgId);
@@ -6018,6 +6121,12 @@ function ChatScreen({
   const toast = useToast();
   const [thread, setThread] = React.useState(null);
   const [busca, setBusca] = React.useState(null);
+  /* A mensagem que esta a ser editada, e a que tem os botoes abertos no
+     telemovel (no computador aparecem ao passar o rato; no telemovel nao
+     ha rato, e mostra-los sempre tapava o texto). */
+  const [editando, setEditando] = React.useState(null);
+  const [accoesDe, setAccoesDe] = React.useState(null);
+  React.useEffect(() => { window.__bspAvisar = toast; return () => { if (window.__bspAvisar === toast) window.__bspAvisar = null; }; }, [toast]);
   const [winW, setWinW] = React.useState(typeof window !== 'undefined' ? window.innerWidth : 1400);
   React.useEffect(() => {
     const fn = () => setWinW(window.innerWidth);
@@ -6736,7 +6845,7 @@ function ChatScreen({
         gap: 12,
         marginTop: grouped ? 4 : 18
       },
-      className: "bsp-msg-row"
+      className: "bsp-msg-row" + (accoesDe === m.id ? " bsp-msg-sel" : "")
     }, React.createElement("div", {
       style: {
         width: 36,
@@ -6779,13 +6888,58 @@ function ChatScreen({
         fontSize: 11,
         color: 'var(--text-3)'
       }
-    }, m.ts)), React.createElement("div", {
+    }, m.ts, m.editada && React.createElement("em", {
+      style: { marginLeft: 6, fontStyle: 'italic', opacity: .8 }
+    }, "editada"))), React.createElement("div", {
+      className: "bsp-msg-body",
+      onClick: e => {
+        /* So o toque no texto abre os botoes; um toque num botao, numa
+           ligacao ou na caixa de edicao nao pode fecha-los. */
+        if (e.target.closest('button, a, textarea, input')) return;
+        setAccoesDe(v => v === m.id ? null : m.id);
+      },
       style: {
         display: 'flex',
         alignItems: 'flex-start',
         gap: 8
       }
-    }, React.createElement("div", {
+    }, editando && editando.id === m.id ? React.createElement("div", {
+      style: { flex: 1, minWidth: 0 }
+    }, React.createElement("textarea", {
+      autoFocus: true,
+      value: editando.texto,
+      onChange: e => setEditando(v => Object.assign({}, v, { texto: e.target.value })),
+      onKeyDown: e => {
+        if (e.key === 'Escape') setEditando(null);
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          const err = actions.editarMensagem(convKey, m.id, editando.texto);
+          if (err) toast(err); else setEditando(null);
+        }
+      },
+      rows: Math.min(8, Math.max(2, String(editando.texto).split('\n').length)),
+      style: {
+        width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
+        border: '1px solid var(--accent)', background: 'var(--surface)',
+        color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 14, lineHeight: 1.55, resize: 'vertical'
+      }
+    }), React.createElement("div", {
+      style: { display: 'flex', gap: 8, marginTop: 6, alignItems: 'center' }
+    }, React.createElement(Button, {
+      variant: "primary",
+      size: "sm",
+      onClick: () => {
+        const err = actions.editarMensagem(convKey, m.id, editando.texto);
+        if (err) toast(err); else setEditando(null);
+      }
+    }, "Guardar"), React.createElement(Button, {
+      variant: "ghost",
+      size: "sm",
+      onClick: () => setEditando(null)
+    }, "Cancelar"), React.createElement("span", {
+      className: "bsp-composer-tools",
+      style: { fontSize: 11, color: 'var(--text-3)' }
+    }, "Enter guarda · Esc cancela"))) : React.createElement("div", {
       style: {
         fontSize: 14,
         color: 'var(--text-1)',
@@ -6795,7 +6949,9 @@ function ChatScreen({
       }
     }, renderText(bspTextoVisivel(m.text)), React.createElement(AnexoMensagem, {
       a: bspAnexoDaMensagem(m.text)
-    })), React.createElement("div", {
+    }), grouped && m.editada && React.createElement("em", {
+      style: { fontSize: 11, color: 'var(--text-3)', marginLeft: 6 }
+    }, "editada")), React.createElement("div", {
       /* Os quatro botões passam a viver num grupo. No telemóvel são
          sempre visíveis (não há rato para o hover), e como irmãos do
          texto roubavam-lhe metade da largura. */
@@ -6871,7 +7027,27 @@ function ChatScreen({
       }
     }, React.createElement(I.Chat, {
       size: 13
-    }), (messagesByChan['th~' + convKey + '~' + m.sid] || []).length || ''), (isOwn || bspCamada(currentUser).podeGerirUtilizadores) && React.createElement("button", {
+    }), (messagesByChan['th~' + convKey + '~' + m.sid] || []).length || ''), isOwn && m.sid && React.createElement("button", {
+      className: "bsp-msg-del",
+      title: "Editar mensagem",
+      onClick: () => {
+        setEditando({ id: m.id, texto: bspTextoVisivel(m.text) });
+        setAccoesDe(null);
+      },
+      style: {
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        color: 'var(--text-3)',
+        padding: 2,
+        lineHeight: 0,
+        flex: 'none',
+        opacity: 0,
+        transition: 'opacity .15s'
+      }
+    }, React.createElement(I.Edit, {
+      size: 13
+    })), (isOwn || bspCamada(currentUser).podeGerirUtilizadores) && React.createElement("button", {
       className: "bsp-msg-del",
       title: "Apagar mensagem",
       onClick: () => {

@@ -68,6 +68,7 @@ drop policy if exists "bsp_msg_auth" on messages;
 drop policy if exists "bsp_msg_ler" on messages;
 drop policy if exists "bsp_msg_criar" on messages;
 drop policy if exists "bsp_msg_apagar" on messages;
+drop policy if exists "bsp_msg_editar" on messages;
 
 create policy "bsp_msg_ler" on messages for select
   to authenticated using (bsp_ve_conversa(conv_key));
@@ -78,6 +79,13 @@ create policy "bsp_msg_criar" on messages for insert
   );
 create policy "bsp_msg_apagar" on messages for delete
   to authenticated using (user_id = bsp_meu_id() or bsp_e_gestor());
+
+-- Alterar: so o autor. Quem pode apagar nao e quem pode reescrever — e
+-- reescrever o que outra pessoa disse e a pior das duas.
+create policy "bsp_msg_editar" on messages for update
+  to authenticated
+  using (user_id = bsp_meu_id())
+  with check (user_id = bsp_meu_id());
 
 -- 5. Feed: todos leem; cada um publica em seu nome; apaga o autor ou um gestor
 drop policy if exists "bsp_post_auth" on posts;

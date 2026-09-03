@@ -69,7 +69,14 @@ ecrã — o botão não aparece a quem não deve, mas o servidor não o pode
 impedir. A partir de agora, todos os novos ficam protegidos dos dois
 lados.
 
-### 4. O resumo matinal
+### 4. Correr o `editar-mensagens.sql`
+
+Sem nada para preencher. Traz a regra que deixa cada pessoa **editar as
+suas próprias mensagens** — e só as suas. Sem ela, o botão de editar
+aparece mas o servidor recusa em silêncio, e o texto novo fica só no
+aparelho de quem o escreveu.
+
+### 5. O resumo matinal
 
 Duas partes: a função que o escreve e o agendamento que a acorda.
 
@@ -94,7 +101,7 @@ que há mesmo alguma coisa.
 Em **Admin → Sistema** há o botão **«Enviar o resumo matinal agora»**, para
 o ver acontecer sem esperar pelo dia seguinte.
 
-### 5. Instalar a função `criar-utilizador`
+### 6. Instalar a função `criar-utilizador`
 
 Sem ela, acrescentar alguém em Admin → Utilizadores põe a pessoa no
 directório mas **não lhe cria a conta**: ela não consegue entrar.
@@ -126,7 +133,8 @@ a Europa Ocidental é a menos má.
 | 2 | [`INSTALAR-TUDO.sql`](INSTALAR-TUDO.sql) | Regras por conversa, camadas editáveis, CRM e tarefas pessoais |
 | 3 | [`ficheiros-pessoais.sql`](ficheiros-pessoais.sql) | Gaveta pessoal do Drive e anexos fechados na conversa |
 | 4 | [`FALTA-CORRER.sql`](FALTA-CORRER.sql) | Pastas na área pessoal, e quem pode apagar no Drive da equipa |
-| 5 | [`agendar-resumo.sql`](agendar-resumo.sql) | O resumo matinal por e-mail |
+| 5 | [`editar-mensagens.sql`](editar-mensagens.sql) | Editar a própria mensagem no Chat |
+| 6 | [`agendar-resumo.sql`](agendar-resumo.sql) | O resumo matinal por e-mail |
 
 O `INSTALAR-TUDO.sql` verifica se as tabelas base existem e pára com um aviso
 claro se o 1 ainda não tiver corrido.
