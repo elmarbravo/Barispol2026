@@ -2,6 +2,25 @@
 
 Uma lista só. Vá riscando. Cada passo diz o que traz e como se confirma.
 
+> ## Para um assistente que esteja a seguir isto no navegador
+>
+> Regras, antes de começar:
+>
+> 1. **Nunca copie para a conversa nenhuma chave que comece por
+>    `sb_secret_` nem por `eyJ`.** Cola-se directamente no sítio indicado
+>    e mais nada. A chave `sb_publishable_` é pública e pode ser mostrada.
+> 2. Faça um passo de cada vez, **confirme o resultado esperado** antes
+>    de avançar, e **pare e descreva o ecrã** se aparecer algo diferente
+>    do que está escrito aqui.
+> 3. Não carregue em «Disable JWT-based API keys» antes de os passos 0.1 a
+>    0.5 estarem confirmados. É irreversível e desliga tudo o que ainda
+>    usar as chaves antigas.
+> 4. As sessões necessárias: o painel do Supabase
+>    ([supabase.com/dashboard](https://supabase.com/dashboard), projecto
+>    *elmarbravo's Project*) e o GitHub (repositório
+>    `elmarbravo/Barispol2026`). Se alguma pedir login, pare e peça à
+>    pessoa que entre.
+
 Tudo o que está no código já está no ar em `barispol.com` (no `main` deste
 repositório). O que falta são passos que **só o administrador do projecto
 Supabase pode dar**, porque exigem entrar no painel.
@@ -25,19 +44,34 @@ O projecto já migrou para o sistema novo de chaves, por isso o caminho é:
 - [ ] **0.1** Painel → Project Settings → **API Keys** → separador
       *«Publishable and secret API keys»* → copiar a chave **publishable**
       (começa por `sb_publishable_`). Esta é pública.
-- [ ] **0.2** Pôr essa chave no `servidor.js`, na linha `key:`, no lugar da
-      actual. Enviar para o GitHub. *(Se estiver a trabalhar com a
-      assistente: basta colar-lhe a chave e ela faz isto.)*
-- [ ] **0.3** Recarregar à força em todos os aparelhos e confirmar que o
-      Chat e o Drive funcionam.
-- [ ] **0.4** Na mesma página, criar uma chave **secret** (`sb_secret_`).
-      **Não a enviar a ninguém.** Guardá-la só para o passo 3.
-- [ ] **0.5** Reinstalar as Edge Functions com o código actual do
-      repositório (ver passo 2). Sem isto, deixam de funcionar no passo
-      seguinte.
-- [ ] **0.6** Só então: separador *«Legacy anon, service_role»* →
-      **Disable JWT-based API keys**. É neste instante que a chave que
-      saiu deixa de valer.
+- [ ] **0.2** Pôr essa chave no `servidor.js`. No GitHub:
+      [`elmarbravo/Barispol2026/blob/main/servidor.js`](https://github.com/elmarbravo/Barispol2026/blob/main/servidor.js)
+      → ícone do lápis (*Edit this file*) → na linha que começa por
+      `  key: "`, substituir **só o que está entre as aspas** pela chave
+      `sb_publishable_…` → **Commit changes** → mensagem
+      `Passar a chave publica para o formato novo` → **Commit directly to
+      the main branch** → **Commit changes**.
+      *Confirmação:* voltar a abrir o ficheiro e ver a linha `key:` com a
+      chave nova. O site actualiza-se sozinho em cerca de um minuto.
+- [ ] **0.3** Abrir [barispol.com/workspace.html](https://barispol.com/workspace.html)
+      numa janela nova, recarregar à força (`Ctrl`+`Shift`+`R`), entrar,
+      e confirmar que o Chat mostra mensagens e o Drive mostra ficheiros.
+      Em **Admin → Sistema** o indicador tem de estar verde: *«Ligado ·
+      tempo real activo»*. Se estiver cinzento ou vermelho, **parar** —
+      a chave está errada e o passo 0.6 desligaria o site.
+- [ ] **0.4** Na página *API Keys*, separador *Publishable and secret*,
+      criar uma chave **secret** (botão do género *Create new secret
+      key*; nome sugerido `resumo-matinal`). Ela só é mostrada uma vez.
+      **Não a copiar para a conversa.** Copiá-la directamente para a linha
+      22 do `agendar-resumo.sql` no passo 3, e a mais nada.
+- [ ] **0.5** Instalar as duas Edge Functions do passo 2. Sem isto,
+      deixam de funcionar no passo seguinte. (Podem ser instaladas já
+      aqui; o passo 2 fica então feito.)
+- [ ] **0.6** Só com 0.1 a 0.5 confirmados: *API Keys* → separador
+      *«Legacy anon, service_role»* → **Disable JWT-based API keys** →
+      confirmar. É neste instante que a chave que saiu deixa de valer.
+      *Confirmação:* voltar ao Workspace, recarregar à força, e o
+      indicador em Admin → Sistema continuar verde.
 
 ---
 
@@ -58,8 +92,15 @@ regras; entre elas têm de estar `bsp_msg_editar UPDATE` e
 
 ## 2. As Edge Functions (o código que corre no servidor)
 
-Painel → **Edge Functions** → **Deploy a new function** → nome exacto →
-colar o ficheiro → **Deploy**. Uma de cada vez.
+Painel → **Edge Functions** → **Deploy a new function** (ou *Create a
+new function*, conforme o painel) → escolher a opção de escrever o código
+no próprio painel (*via Editor*) → nome exacto → apagar o exemplo → colar
+o ficheiro inteiro (no GitHub, abrir o ficheiro → **Raw** → seleccionar
+tudo → copiar) → **Deploy**. Uma de cada vez.
+
+*Confirmação:* a função aparece na lista com o nome exacto e estado
+activo. Se uma delas já existir, abri-la, substituir o código pelo do
+repositório e voltar a fazer Deploy.
 
 | Nome exacto | Ficheiro | Para quê | Estado |
 | --- | --- | --- | --- |
