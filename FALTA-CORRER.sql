@@ -9,6 +9,8 @@
 --    1. Pastas na area pessoal do Drive
 --    2. No Drive da equipa, so quem carregou (e quem tiver a
 --       permissao) e que apaga
+--    3. Editar a propria mensagem no Chat
+--    4. A Direccao (quem tiver a permissao) ve as tarefas pessoais
 --
 --  O agendamento do resumo matinal fica de fora, e esta no
 --  agendar-resumo.sql, porque esse precisa de uma coisa que so o
@@ -23,6 +25,9 @@ begin
   end if;
   if to_regprocedure('public.bsp_ve_conversa(text)') is null then
     raise exception 'Falta correr primeiro o INSTALAR-TUDO.sql.';
+  end if;
+  if to_regclass('public.tarefas_pessoais') is null then
+    raise exception 'Falta correr primeiro o INSTALAR-TUDO.sql (nao existe a tabela tarefas_pessoais).';
   end if;
 end $$;
 
@@ -125,6 +130,54 @@ create policy "bsp_drive_apagar" on storage.objects for delete
 
 
 -- ============================================================
+--  3. EDITAR A PROPRIA MENSAGEM
+-- ============================================================
+-- As mensagens tinham regras para ler, criar e apagar — e nenhuma para
+-- alterar. Sem esta, "editar" nao dava erro: o servidor recusava em
+-- silencio e o texto novo ficava so no aparelho de quem o escreveu.
+--
+-- So o autor. Quem pode apagar nao e quem pode reescrever, e reescrever
+-- o que outra pessoa disse e a pior das duas.
+
+drop policy if exists "bsp_msg_editar" on messages;
+create policy "bsp_msg_editar" on messages for update
+  to authenticated
+  using (user_id = bsp_meu_id())
+  with check (user_id = bsp_meu_id());
+
+
+-- ============================================================
+--  4. A DIRECCAO VE AS TAREFAS PESSOAIS
+-- ============================================================
+-- Uma tarefa pessoal era so do dono, sem excepcao. Passa a poder ser
+-- LIDA por quem estiver numa camada com a permissao "Ver as tarefas
+-- pessoais de todos" (Admin -> Permissoes). E a permissao da camada, nao
+-- o nome "Direccao" a letra.
+--
+-- A aplicacao avisa quem escreve uma tarefa pessoal de que camadas a
+-- podem ler. Continua a ser SO LEITURA: ninguem edita nem apaga a tarefa
+-- de outra pessoa.
+
+create or replace function bsp_ve_tarefas_de_todos() returns boolean
+language sql stable security definer set search_path = public as $f$
+  select exists (
+    select 1
+    from shared_state s,
+         jsonb_array_elements(coalesce(s.team, '[]'::jsonb)) e
+    where s.id = 1
+      and lower(e->>'email') = lower(coalesce(auth.jwt()->>'email', ''))
+      and (s.camadas -> (e->>'accessLevel') ->> 'podeVerTarefasPessoais')::boolean is true
+  )
+$f$;
+
+drop policy if exists "bsp_tp_ler" on tarefas_pessoais;
+create policy "bsp_tp_ler" on tarefas_pessoais for select
+  to authenticated using (
+    user_id = bsp_meu_id() or bsp_ve_tarefas_de_todos()
+  );
+
+
+-- ============================================================
 --  CONFERIR
 -- ============================================================
 -- Devem aparecer as duas colunas novas e as quatro regras da tabela.
@@ -141,4 +194,16 @@ select 'regra do armazenamento', policyname, cmd
 from pg_policies
 where schemaname = 'storage' and tablename = 'objects'
   and policyname like 'bsp_drive_%'
+union all
+select 'regra das mensagens', policyname, cmd
+from pg_policies
+where schemaname = 'public' and tablename = 'messages'
+union all
+select 'regra das tarefas pessoais', policyname, cmd
+from pg_policies
+where schemaname = 'public' and tablename = 'tarefas_pessoais'
 order by 1, 2;
+
+-- Deve aparecer, entre o resto:
+--   regra das mensagens         bsp_msg_editar   UPDATE
+--   regra das tarefas pessoais  bsp_tp_ler       SELECT

@@ -3,6 +3,10 @@
 O Barispol Workspace guarda tudo num projecto **Supabase**. Este guia é para
 quem administra: instalar de raiz, ou pôr em dia uma instalação que já existe.
 
+> **O que falta fazer, pela ordem certa, está em
+> [`O-QUE-FALTA.md`](O-QUE-FALTA.md).** Este guia é a referência completa;
+> aquele é a lista para ir riscando.
+
 **A ligação já não se configura em cada aparelho.** O endereço e a chave vivem
 no ficheiro `servidor.js`, definidos uma vez para toda a gente. Quem abrir o
 `barispol.com` entra já ligado.
@@ -59,9 +63,11 @@ nada se perde.
 ### 3. Correr o `FALTA-CORRER.sql`
 
 Um só ficheiro, **sem nada para preencher**. Traz as pastas na área
-pessoal do Drive e faz com que, no Drive da equipa, só quem carregou o
+pessoal do Drive; faz com que, no Drive da equipa, só quem carregou o
 ficheiro — e as camadas com a permissão **«Apagar ficheiros da equipa»** —
-o possam apagar.
+o possam apagar; deixa cada pessoa editar as suas próprias mensagens; e dá
+às camadas com a permissão **«Ver as tarefas pessoais de todos»** a
+leitura dessas tarefas.
 
 Uma ressalva que convém saber: os ficheiros que **já lá estão** não têm no
 armazenamento nada que diga quem os carregou. Neles, a regra é só a do
@@ -69,14 +75,7 @@ ecrã — o botão não aparece a quem não deve, mas o servidor não o pode
 impedir. A partir de agora, todos os novos ficam protegidos dos dois
 lados.
 
-### 4. Correr o `editar-mensagens.sql`
-
-Sem nada para preencher. Traz a regra que deixa cada pessoa **editar as
-suas próprias mensagens** — e só as suas. Sem ela, o botão de editar
-aparece mas o servidor recusa em silêncio, e o texto novo fica só no
-aparelho de quem o escreveu.
-
-### 5. O resumo matinal
+### 4. O resumo matinal
 
 Duas partes: a função que o escreve e o agendamento que a acorda.
 
@@ -101,7 +100,7 @@ que há mesmo alguma coisa.
 Em **Admin → Sistema** há o botão **«Enviar o resumo matinal agora»**, para
 o ver acontecer sem esperar pelo dia seguinte.
 
-### 6. Instalar a função `criar-utilizador`
+### 5. Instalar a função `criar-utilizador`
 
 Sem ela, acrescentar alguém em Admin → Utilizadores põe a pessoa no
 directório mas **não lhe cria a conta**: ela não consegue entrar.
@@ -132,9 +131,8 @@ a Europa Ocidental é a menos má.
 | 1 | [`supabase-configuracao.sql`](supabase-configuracao.sql) | Tabelas, armazenamento de ficheiros e tempo real |
 | 2 | [`INSTALAR-TUDO.sql`](INSTALAR-TUDO.sql) | Regras por conversa, camadas editáveis, CRM e tarefas pessoais |
 | 3 | [`ficheiros-pessoais.sql`](ficheiros-pessoais.sql) | Gaveta pessoal do Drive e anexos fechados na conversa |
-| 4 | [`FALTA-CORRER.sql`](FALTA-CORRER.sql) | Pastas na área pessoal, e quem pode apagar no Drive da equipa |
-| 5 | [`editar-mensagens.sql`](editar-mensagens.sql) | Editar a própria mensagem no Chat |
-| 6 | [`agendar-resumo.sql`](agendar-resumo.sql) | O resumo matinal por e-mail |
+| 4 | [`FALTA-CORRER.sql`](FALTA-CORRER.sql) | Pastas na área pessoal, quem apaga no Drive da equipa, editar mensagens, Direcção vê tarefas pessoais |
+| 5 | [`agendar-resumo.sql`](agendar-resumo.sql) | O resumo matinal por e-mail |
 
 O `INSTALAR-TUDO.sql` verifica se as tabelas base existem e pára com um aviso
 claro se o 1 ainda não tiver corrido.

@@ -1,5 +1,9 @@
 # Barispol Workspace — versão reconstruída
 
+> **Administra o servidor?** O que falta fazer, pela ordem certa, está em
+> [`O-QUE-FALTA.md`](O-QUE-FALTA.md). A referência completa está em
+> [`LIGAR-SERVIDOR-Supabase.md`](LIGAR-SERVIDOR-Supabase.md).
+
 Intranet da equipa do Centro Médico Barispol: mural, chat por canais, tarefas, calendário, drive partilhado, directório e administração.
 
 ## Estrutura
