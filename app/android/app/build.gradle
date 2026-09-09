@@ -9,8 +9,11 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         // Na nuvem (GitHub Actions) a versao vem do ambiente e sobe sozinha.
         // Sem ambiente, ficam os valores de sempre.
-        versionCode (System.getenv("ANDROID_VERSION_CODE") ?: "1").toInteger()
-        versionName (System.getenv("ANDROID_VERSION_NAME") ?: "1.0")
+        // Tem de ser com "=": sem ele, o Groovy le
+        // `versionCode (x).toInteger()` como `(versionCode(x)).toInteger()`
+        // — chama o setter, que devolve nulo, e rebenta com "Value is null".
+        versionCode = (System.getenv("ANDROID_VERSION_CODE") ?: "1").toInteger()
+        versionName = (System.getenv("ANDROID_VERSION_NAME") ?: "1.0")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
