@@ -158,9 +158,13 @@ Sai às 06h30 de Luanda, de segunda a sábado. Para o ver sem esperar:
 
 ## 6. Fora do alcance deste repositório
 
-- **A app nas lojas.** O projecto Capacitor está em [`app/`](app/), mas
-  compilar exige Android Studio (Android) e um Mac com Xcode (iPhone).
-  Instruções em [`app/LEIA-ME.md`](app/LEIA-ME.md).
+- **A app nas lojas — já não é «fora do alcance».** O GitHub compila a
+  app Android sozinho, na nuvem. O passo a passo, escrito para ser
+  seguido no navegador, está em
+  [`app/lojas/PUBLICAR.md`](app/lojas/PUBLICAR.md): primeiro a app nos
+  telemóveis da equipa (hoje), depois a Play Store. O iPhone continua a
+  depender de uma conta Apple paga e de configuração adicional; está lá
+  explicado, com a alternativa.
 - **Chamadas de grupo.** Duas pessoas ligam-se directamente; três ou mais
   precisam de um servidor a misturar som e imagem. Não se resolve com
   código: é um serviço a contratar (JaaS, do Jitsi, é o mais directo).

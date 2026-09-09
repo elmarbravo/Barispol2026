@@ -17,10 +17,31 @@ leva a versão nova. Não há código duplicado.
 - Script que sincroniza o site para dentro da app e, se quiser, semeia a ligação
   ao servidor para o utilizador não ter de a escrever
 
-## O que falta, e não pode ser feito aqui
+## Como se compila — na nuvem, sem instalar nada
 
-Esta máquina não tem SDK Android nem Xcode, e o iOS **só compila em macOS**.
-Os passos abaixo têm de correr noutro computador.
+O GitHub compila a app sozinho, num servidor dele, sempre que o site muda
+ou a pedido. Não é preciso Android Studio, Mac, nem computador próprio.
+
+| Fluxo (separador *Actions*) | Faz |
+| --- | --- |
+| **App Android** | Produz o APK de teste (instala-se directamente) e, havendo chave, o AAB assinado para a Play Store |
+| **App Android · gerar chave (uma vez)** | Cria a chave de assinatura e guarda-a **cifrada** no repositório |
+| **App iOS** | Compila num Mac da nuvem, sem assinatura — prova que o projecto está são |
+
+**O passo a passo completo, incluindo as lojas, está em
+[`lojas/PUBLICAR.md`](lojas/PUBLICAR.md).** Os textos da ficha da loja
+estão em [`lojas/FICHA.md`](lojas/FICHA.md).
+
+### A chave de assinatura Android
+
+Vive em `android/chave-de-envio.keystore.enc`, cifrada com AES-256 e uma
+frase que só existe no segredo `ANDROID_KEYSTORE_PASSWORD` do GitHub. O
+repositório é público e mesmo assim a chave não se lê sem a frase; e
+ninguém tem de descarregar nem colar ficheiros. **A frase é a chave da
+app para sempre**: guardá-la fora do GitHub, com cópia.
+
+O que está abaixo — Android Studio e Xcode — continua válido para quem
+preferir compilar num computador próprio, mas deixou de ser necessário.
 
 ---
 
@@ -31,17 +52,12 @@ cd app
 npm install
 ```
 
-### Ligar ao servidor (opcional, mas recomendado)
+### Ligação ao servidor
 
-Abra `servidor.json` e preencha com os dados do vosso projecto Supabase:
-
-```json
-{ "url": "https://xxxxxxxx.supabase.co", "key": "eyJ..." }
-```
-
-A chave é a **anon public** — nunca a `service_role`. Com isto preenchido, a app
-arranca já ligada e o utilizador só vê o ecrã de entrada. Deixando vazio, a app
-pede a ligação no primeiro arranque, como o site faz hoje.
+Já não há nada a preencher: a app leva o `servidor.js` da raiz do
+repositório, o mesmo que o site usa, e arranca ligada. O `servidor.json`
+só serve para quem quiser apontar a app a **outro** servidor; deixa-se
+vazio.
 
 ### Sincronizar
 
@@ -133,9 +149,10 @@ píxeis e não sofrem com isto; o problema é só o do iOS.
 - [ ] Testar uma chamada entre dois aparelhos reais, um Android e um iPhone
 - [ ] Confirmar que a autorização de câmara e microfone é pedida e funciona
 - [ ] Verificar o comportamento sem rede, e ao recuperar a rede
-- [ ] Criar a conta de demonstração para os revisores
+- [ ] Criar a conta de demonstração para os revisores (ver `lojas/FICHA.md`)
 - [ ] Substituir o ícone de 1024 por um gerado do vectorial
-- [ ] Guardar a chave de assinatura Android em local seguro e com cópia
+- [ ] Guardar a **frase** `ANDROID_KEYSTORE_PASSWORD` em local seguro e com cópia
+- [ ] A política de privacidade está em https://barispol.com/privacidade.html
 
 ## Estrutura
 
@@ -146,6 +163,7 @@ app/
   capacitor.config.json identificador, nome, esquema
   android/              projecto Android Studio
   ios/                  projecto Xcode
-  lojas/                ícone 512 para a ficha da Play Store
+  lojas/                ícone 512, textos da ficha (FICHA.md) e o passo a passo (PUBLICAR.md)
+  android/chave-de-envio.keystore.enc   chave de assinatura, cifrada (gerada pelo fluxo)
   www/                  gerado — não editar, não versionado
 ```

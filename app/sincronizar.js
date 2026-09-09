@@ -60,8 +60,13 @@ if (cfg.url && cfg.key) {
     console.error('servidor.json: o url deve ser https://xxxx.supabase.co, sem barra no fim.');
     process.exit(1);
   }
-  if (cfg.key.trim().indexOf('eyJ') !== 0) {
-    console.error('servidor.json: a chave deve ser a anon public, que comeca por eyJ. Nao use a service_role.');
+  const k = cfg.key.trim();
+  if (k.indexOf('sb_publishable_') !== 0 && k.indexOf('eyJ') !== 0) {
+    console.error('servidor.json: a chave deve ser a publica (sb_publishable_... ou, no formato antigo, eyJ...). Nunca a secret nem a service_role.');
+    process.exit(1);
+  }
+  if (k.indexOf('sb_secret_') === 0) {
+    console.error('servidor.json: essa e a chave SECRETA. Nunca pode entrar na app.');
     process.exit(1);
   }
   const semente = '<script>(function(){try{if(!localStorage.getItem("bsp_supabase_cfg"))' +
@@ -75,7 +80,10 @@ if (cfg.url && cfg.key) {
   fs.writeFileSync(alvo, html);
   console.log('ligacao ao servidor semeada a partir do servidor.json');
 } else {
-  console.log('servidor.json vazio — a app vai pedir a ligacao no primeiro arranque');
+  /* Desde que o servidor.js existe na raiz, a app leva a ligacao comum por
+     ele — o servidor.json passou a ser so para quem quiser apontar a app a
+     OUTRO servidor. Vazio e o normal. */
+  console.log('servidor.json vazio — a app usa a ligacao comum do servidor.js');
 }
 
 console.log(total + ' ficheiros copiados para www/');

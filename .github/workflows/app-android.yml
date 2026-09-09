@@ -1,0 +1,130 @@
+# Compila a app Android na nuvem, sem Android Studio nem computador
+# proprio. Corre sozinho quando o site muda, ou a pedido (Actions ->
+# App Android -> Run workflow).
+#
+# Produz sempre um APK DE TESTE, instalavel directamente nos telemoveis da
+# equipa. Se existir a chave de assinatura (ver app-android-chave.yml),
+# produz tambem o AAB assinado para a Play Store.
+#
+# Os ficheiros ficam em "Artifacts", no fim da pagina de cada execucao.
+
+name: App Android
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'workspace.html'
+      - 'servidor.js'
+      - 'vendor/**'
+      - 'app/**'
+      - '.github/workflows/app-android.yml'
+
+concurrency:
+  group: app-android
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: Compilar
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Dependências
+        working-directory: app
+        run: npm ci
+
+      - name: Sincronizar o site para dentro da app
+        working-directory: app
+        run: node sincronizar.js && npx cap sync android
+
+      # O numero de versao sobe sozinho a cada execucao. A Play Store
+      # exige que seja sempre maior do que o anterior.
+      - name: Versão
+        id: versao
+        run: |
+          echo "codigo=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+          echo "nome=1.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+      - name: APK de teste (instalável directamente)
+        working-directory: app/android
+        env:
+          ANDROID_VERSION_CODE: ${{ steps.versao.outputs.codigo }}
+          ANDROID_VERSION_NAME: ${{ steps.versao.outputs.nome }}
+        run: ./gradlew assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: barispol-teste-${{ steps.versao.outputs.nome }}-apk
+          path: app/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      # A chave de envio vive cifrada no repositorio (gerada uma vez pelo
+      # app-android-chave.yml). So se decifra com o segredo.
+      - name: Há chave de assinatura?
+        id: chave
+        env:
+          PW: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -f app/android/chave-de-envio.keystore.enc ] && [ -n "$PW" ]; then
+            echo "tem=sim" >> "$GITHUB_OUTPUT"
+          else
+            echo "tem=nao" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Só o APK de teste::Para o AAB da Play Store falta a chave de assinatura. Corra uma vez o fluxo 'App Android · gerar chave' com o segredo ANDROID_KEYSTORE_PASSWORD definido."
+          fi
+
+      - name: Decifrar a chave
+        if: steps.chave.outputs.tem == 'sim'
+        env:
+          PW: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 \
+            -in app/android/chave-de-envio.keystore.enc \
+            -out "$RUNNER_TEMP/chave-de-envio.keystore" -pass env:PW
+          echo "chave decifrada"
+
+      - name: AAB para a Play Store (assinado)
+        if: steps.chave.outputs.tem == 'sim'
+        working-directory: app/android
+        env:
+          ANDROID_VERSION_CODE: ${{ steps.versao.outputs.codigo }}
+          ANDROID_VERSION_NAME: ${{ steps.versao.outputs.nome }}
+          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/chave-de-envio.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: barispol
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: ./gradlew bundleRelease --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        if: steps.chave.outputs.tem == 'sim'
+        with:
+          name: barispol-play-${{ steps.versao.outputs.nome }}-aab
+          path: app/android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Apagar a chave decifrada
+        if: always()
+        run: rm -f "$RUNNER_TEMP/chave-de-envio.keystore"

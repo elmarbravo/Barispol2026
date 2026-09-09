@@ -1,0 +1,61 @@
+# Compila a app iOS num Mac da nuvem, para provar que o projecto compila.
+# A pedido (Actions -> App iOS -> Run workflow).
+#
+# SEM ASSINATURA: sai um binario que nao se instala em iPhones. Para
+# instalar (TestFlight) ou publicar (App Store) e preciso o Apple Developer
+# Program (anuidade) e os certificados dessa conta — ver app/LEIA-ME.md.
+# Este fluxo existe para que, quando essa conta existir, so falte a
+# assinatura e nao a compilacao.
+#
+# NOTA: escrito sem ter sido executado. A primeira corrida pode pedir
+# ajustes na versao do Xcode ou na resolucao de pacotes.
+
+name: App iOS
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ios:
+    name: Compilar sem assinatura
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Dependências
+        working-directory: app
+        run: npm ci
+
+      - name: Sincronizar o site para dentro da app
+        working-directory: app
+        run: node sincronizar.js && npx cap sync ios
+
+      - name: Xcode disponível
+        run: xcodebuild -version
+
+      - name: Compilar
+        working-directory: app/ios/App
+        run: |
+          xcodebuild \
+            -project App.xcodeproj -scheme App -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/derivados" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: barispol-ios-sem-assinatura
+          path: ${{ runner.temp }}/derivados/Build/Products/Release-iphoneos/App.app
+          if-no-files-found: error
+          retention-days: 14
