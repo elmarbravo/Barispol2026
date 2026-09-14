@@ -113,27 +113,60 @@ function listaDeTarefas(tarefas: any[], mostrarQuem: boolean, equipa: any[]) {
   );
 }
 
-/* A chave do servidor mudou de nome quando o Supabase passou das chaves
-   antigas (anon / service_role, em formato JWT) para as novas
-   (publishable / secret). Depois de desligar as antigas, e a
-   SUPABASE_SECRET_KEY que vale; antes disso, a SUPABASE_SERVICE_ROLE_KEY.
+/* Onde estao as chaves do projecto.
 
-   Aceitam-se as duas, pela mesma razao por que se aceita um e-mail
-   antigo e um novo durante uma mudanca: para nada parar no intervalo. */
-const chaveServidor = () =>
-  Deno.env.get("SUPABASE_SECRET_KEY") ||
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-const chavePublica = () =>
-  Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ||
-  Deno.env.get("SUPABASE_ANON_KEY") || "";
+   O Supabase injecta SUPABASE_SECRET_KEYS e SUPABASE_PUBLISHABLE_KEYS —
+   no plural, e com um dicionario JSON la dentro. As antigas
+   SUPABASE_SERVICE_ROLE_KEY e SUPABASE_ANON_KEY ainda existem, marcadas
+   como obsoletas, e desaparecem no dia em que se desligarem as chaves
+   JWT. O singular SUPABASE_SECRET_KEY nunca existiu: quem procurasse so
+   por ele tinha uma funcao que parecia instalada hoje e devolvia 500
+   amanha.
+
+   Le-se tudo, pela mesma razao por que se aceita um e-mail antigo e um
+   novo durante uma mudanca: para nada parar no intervalo. */
+const PREFIXO_DE_CHAVE = /^(sb_secret_|sb_publishable_|eyJ)/;
+
+const valoresDe = (nome: string): string[] => {
+  const cru = (Deno.env.get(nome) || "").trim();
+  if (!cru) return [];
+  if (!cru.startsWith("{") && !cru.startsWith("[")) {
+    return PREFIXO_DE_CHAVE.test(cru) ? [cru] : [];
+  }
+  /* Le chaves e valores: nao esta escrito em lado nenhum se a chave em si
+     e a etiqueta do dicionario ou o valor guardado nela. */
+  const recolher = (v: unknown): string[] =>
+    typeof v === "string"
+      ? [v]
+      : Array.isArray(v)
+        ? v.flatMap(recolher)
+        : v && typeof v === "object"
+          ? [...Object.keys(v as object), ...Object.values(v as object)].flatMap(recolher)
+          : [];
+  try {
+    return recolher(JSON.parse(cru)).filter((s) => PREFIXO_DE_CHAVE.test(s));
+  } catch {
+    return [];
+  }
+};
+
+const chavesServidor = (): string[] => [
+  ...valoresDe("SUPABASE_SECRET_KEYS"),
+  ...valoresDe("SUPABASE_SECRET_KEY"),
+  ...valoresDe("SUPABASE_SERVICE_ROLE_KEY"),
+];
+const chavesPublicas = (): string[] => [
+  ...valoresDe("SUPABASE_PUBLISHABLE_KEYS"),
+  ...valoresDe("SUPABASE_PUBLISHABLE_KEY"),
+  ...valoresDe("SUPABASE_ANON_KEY"),
+];
+
+const chaveServidor = () => chavesServidor()[0] || "";
+const chavePublica = () => chavesPublicas()[0] || "";
 /* Quem se apresenta com uma chave de servidor — a nova ou a antiga —
    e o proprio servidor. */
-const ehChaveDoServidor = (t: string) =>
-  !!t && (t === Deno.env.get("SUPABASE_SECRET_KEY") ||
-          t === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
-const ehChavePublica = (t: string) =>
-  !!t && (t === Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ||
-          t === Deno.env.get("SUPABASE_ANON_KEY"));
+const ehChaveDoServidor = (t: string) => !!t && chavesServidor().includes(t);
+const ehChavePublica = (t: string) => !!t && chavesPublicas().includes(t);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cabecalhos });
