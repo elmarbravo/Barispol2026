@@ -64,14 +64,32 @@ O projecto já migrou para o sistema novo de chaves, por isso o caminho é:
       key*; nome sugerido `resumo-matinal`). Ela só é mostrada uma vez.
       **Não a copiar para a conversa.** Copiá-la directamente para a linha
       22 do `agendar-resumo.sql` no passo 3, e a mais nada.
-- [ ] **0.5** Instalar as duas Edge Functions do passo 2. Sem isto,
+- [x] **0.5** Instalar as duas Edge Functions do passo 2. Sem isto,
       deixam de funcionar no passo seguinte. (Podem ser instaladas já
       aqui; o passo 2 fica então feito.)
-- [ ] **0.6** Só com 0.1 a 0.5 confirmados: *API Keys* → separador
+      **Feito em 11-09-2026.** As duas ficaram activas com os nomes
+      exactos.
+- [ ] **0.5-b** Em cada uma das três funções, separador *Settings*,
+      interruptor **«Verify JWT with legacy secret»**. Este interruptor
+      não estava previsto nesta lista e exige um JWT assinado pelo
+      segredo antigo — coisa que deixa de existir no 0.6.
+      - [x] `criar-utilizador` — desligado em 11-09-2026
+      - [x] `resumo-matinal` — desligado em 11-09-2026
+      - [ ] `bright-worker` — **deixar ligado até a função ter
+            verificação própria**. Ver
+            [`funcoes/bright-worker-ACRESCENTAR-verificacao.md`](funcoes/bright-worker-ACRESCENTAR-verificacao.md).
+            Sem isso, desligar o interruptor deixa um endereço aberto por
+            onde qualquer pessoa manda e-mails com o domínio da clínica.
+- [ ] **0.5-c** Publicar as correcções de leitura de chaves nas duas
+      funções e voltar a fazer Deploy de ambas. Ver a nota em baixo, no
+      passo 2.
+- [ ] **0.6** Só com 0.1 a 0.5-c confirmados: *API Keys* → separador
       *«Legacy anon, service_role»* → **Disable JWT-based API keys** →
       confirmar. É neste instante que a chave que saiu deixa de valer.
       *Confirmação:* voltar ao Workspace, recarregar à força, e o
-      indicador em Admin → Sistema continuar verde.
+      indicador em Admin → Sistema continuar verde; depois, em
+      **Admin → Sistema**, carregar em *«Enviar o resumo matinal agora»*
+      e confirmar que o e-mail chega.
 
 ---
 
@@ -111,8 +129,30 @@ repositório e voltar a fazer Deploy.
 - [ ] `criar-utilizador`
 - [ ] `resumo-matinal`
 
-As duas aceitam tanto as chaves antigas como as novas, por isso podem ser
-instaladas antes ou depois do passo 0.
+As duas podem ser instaladas antes ou depois do passo 0.
+
+> **Correcção de 11-09-2026.** Aqui dizia-se que as duas funções aceitavam
+> tanto as chaves antigas como as novas. Não era verdade. O código
+> procurava `SUPABASE_SECRET_KEY` e `SUPABASE_PUBLISHABLE_KEY`, no
+> singular. O Supabase injecta `SUPABASE_SECRET_KEYS` e
+> `SUPABASE_PUBLISHABLE_KEYS`, no plural e com um dicionário JSON lá
+> dentro. As funções aguentavam-se apenas pela segunda tentativa do
+> código, que caía nas variáveis antigas — as mesmas que o passo 0.6
+> apaga. No dia do 0.6 as duas passariam a responder *«A função não tem as
+> chaves do projecto»* com HTTP 500.
+>
+> Os ficheiros já estão corrigidos neste repositório: leem os nomes no
+> plural, tratam-nos como JSON e mantêm os antigos como recurso durante a
+> transição. **É preciso voltar a fazer Deploy das duas** para que a
+> correcção chegue ao servidor.
+
+> **A `bright-worker` não verifica quem a chama.** Recebe destinatário,
+> assunto e corpo, e envia. O interruptor do painel é a única barreira, e
+> essa cai no 0.6. Além disso, desde que o `servidor.js` passou a levar a
+> chave publicável, o Workspace chama-a com uma chave que o interruptor
+> recusa: o envio de e-mails a partir da aplicação está parado desde esse
+> momento, e sem dar erro visível. O que fazer está em
+> [`funcoes/bright-worker-ACRESCENTAR-verificacao.md`](funcoes/bright-worker-ACRESCENTAR-verificacao.md).
 
 ---
 
@@ -143,6 +183,38 @@ Sai às 06h30 de Luanda, de segunda a sábado. Para o ver sem esperar:
 - [ ] Recriar os grupos privados que se perderam. Foram criados num
       telemóvel enquanto ele estava em «modo local» e nunca chegaram ao
       servidor. Uma vez, em qualquer aparelho, chega.
+
+---
+
+## 4-b. O calendário — o que era e o que passou a dizer
+
+O ecrã de Início contava 2 eventos «hoje» e o Calendário respondia «0
+eventos agendados» no mesmo dia. Não era cache. São duas contas
+diferentes sobre os mesmos dados:
+
+- Um evento não tem data. Guarda `title`, `day` (0 a 6, de Segunda a
+  Domingo), `time`, `dur` e `cat`. Nada mais. Cada evento repete-se todas
+  as semanas no mesmo dia.
+- O Início pegava nos primeiros cinco eventos da lista inteira, sem
+  filtro, e chamava-lhes «hoje».
+- A lista «Próximos eventos» era ordenada só pela hora, misturados todos
+  os dias da semana.
+- A variável chama-se `todayEvents` mas guarda todos os eventos. O ecrã
+  de Início leu o nome à letra.
+
+**Decisão de 12-09-2026:** assumir a rotina semanal e dizê-lo no ecrã, em
+vez de acrescentar datas. Ficou assim:
+
+- No Início, «Próximos eventos» passou a «Rotina da semana», e cada linha
+  mostra o dia (`Qua · 11:00`).
+- O resumo deixou de dizer «hoje» e diz «na rotina da semana».
+- No Calendário, o título passou a «Rotina semanal da equipa», com uma
+  nota por baixo do quadro «Hoje» a explicar que os eventos se repetem
+  todas as semanas e que não há datas.
+
+Fica por decidir, se um dia for preciso marcar consultas em dias certos:
+acrescentar campo de data, navegação entre semanas e números de dia na
+grelha, com migração dos eventos que já lá estão.
 
 ---
 
