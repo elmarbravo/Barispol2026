@@ -3072,15 +3072,33 @@ function bspIncoming(title, body) {
 }
 const BSP_TEAM_EMAIL = 'empresa@barispol.com';
 const BSP_EMAIL_FN = 'bright-worker';
-function bspSendEmail(to, subject, html) {
+/* O testemunho de quem esta ligado neste aparelho.
+
+   A chave publica do servidor.js esta a vista de toda a gente — e por
+   isso que se chama publica. Se bastasse ela para mandar correio pela
+   funcao, qualquer pessoa que abrisse o ficheiro mandava e-mails com o
+   dominio da clinica. Vai o testemunho da sessao; a funcao ve quem e. */
+async function bspTestemunho() {
+  try {
+    const cl = bspGetClient();
+    if (!cl) return '';
+    const { data } = await cl.auth.getSession();
+    return data && data.session && data.session.access_token || '';
+  } catch (e) {
+    return '';
+  }
+}
+async function bspSendEmail(to, subject, html) {
   try {
     const cfg = bspGetCfg();
-    if (!cfg || !cfg.url || !cfg.key || !to) return;
+    if (!cfg || !cfg.url || !to) return;
+    const testemunho = await bspTestemunho();
+    if (!testemunho) return;
     fetch(cfg.url.replace(/\/$/, '') + '/functions/v1/' + BSP_EMAIL_FN, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + cfg.key
+        'Authorization': 'Bearer ' + testemunho
       },
       body: JSON.stringify({
         to,
@@ -5404,7 +5422,7 @@ function DashboardScreen({
     mm = String(now.getMinutes()).padStart(2, '0');
   const greeting = now.getHours() < 12 ? 'Bom dia' : now.getHours() < 19 ? 'Boa tarde' : 'Boa noite';
   const dateLine = dias[now.getDay()] + ' · ' + now.getDate() + ' de ' + meses[now.getMonth()] + ' · ' + hh + ':' + mm + ' WAT';
-  const summary = upcoming.length || unread || pendingTasks ? 'Tem ' + upcoming.length + ' ' + (upcoming.length === 1 ? 'evento' : 'eventos') + ' hoje, ' + unread + ' ' + (unread === 1 ? 'mensagem não lida' : 'mensagens não lidas') + ' e ' + pendingTasks + ' ' + (pendingTasks === 1 ? 'tarefa pendente' : 'tarefas pendentes') + '.' : 'Está tudo em dia. Comece por publicar um aviso ou agendar uma reunião.';
+  const summary = upcoming.length || unread || pendingTasks ? 'Tem ' + upcoming.length + ' ' + (upcoming.length === 1 ? 'evento' : 'eventos') + ' na rotina da semana, ' + unread + ' ' + (unread === 1 ? 'mensagem não lida' : 'mensagens não lidas') + ' e ' + pendingTasks + ' ' + (pendingTasks === 1 ? 'tarefa pendente' : 'tarefas pendentes') + '.' : 'Está tudo em dia. Comece por publicar um aviso ou agendar uma reunião.';
   const quick = [{
     icon: 'Megaphone',
     label: 'Publicar aviso',
@@ -5558,7 +5576,7 @@ function DashboardScreen({
       margin: 0,
       color: 'var(--text-1)'
     }
-  }, "Próximos eventos"), React.createElement("button", {
+  }, "Rotina da semana"), React.createElement("button", {
     onClick: () => onSwitch('calendar'),
     style: {
       fontSize: 12.5,
@@ -5573,7 +5591,7 @@ function DashboardScreen({
     icon: React.createElement(I.Cal, {
       size: 20
     }),
-    text: "Sem eventos agendados. Crie um no Calendário."
+    text: "Nada marcado na rotina da semana. Crie no Calendário."
   }) : upcoming.map(e => React.createElement("div", {
     key: e.id,
     style: {
@@ -5587,10 +5605,10 @@ function DashboardScreen({
       fontSize: 12.5,
       fontWeight: 700,
       color: 'var(--navy)',
-      width: 48,
+      width: 76,
       flex: 'none'
     }
-  }, e.time), React.createElement("div", {
+  }, ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'][e.day == null ? (new Date().getDay() + 6) % 7 : e.day] + ' · ' + e.time), React.createElement("div", {
     style: {
       fontSize: 13,
       color: 'var(--text-1)'
@@ -9327,7 +9345,7 @@ function CalendarScreen() {
       color: 'var(--text-1)',
       margin: 0
     }
-  }, "Calendário da equipa")), React.createElement(Badge, {
+  }, "Rotina semanal da equipa")), React.createElement(Badge, {
     tone: "accent"
   }, events.length, " ", events.length === 1 ? 'evento' : 'eventos')), React.createElement("div", {
     className: "bsp-cal-body",
@@ -9397,7 +9415,16 @@ function CalendarScreen() {
       color: 'var(--text-3)',
       marginTop: 2
     }
-  }, events.filter(e => (e.day == null ? todayIdx : e.day) === todayIdx).length, " eventos agendados"))), React.createElement(Card, {
+  }, events.filter(e => (e.day == null ? todayIdx : e.day) === todayIdx).length, " eventos agendados"), React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      color: 'var(--text-3)',
+      marginTop: 10,
+      lineHeight: 1.45,
+      borderTop: '1px solid var(--border)',
+      paddingTop: 10
+    }
+  }, "Esta grelha é uma rotina semanal. Cada evento repete-se todas as semanas no mesmo dia e à mesma hora. Não guarda datas, por isso não serve para marcar uma coisa num dia certo."))), React.createElement(Card, {
     pad: 0,
     style: {
       overflow: 'hidden',
@@ -14419,11 +14446,18 @@ function AdminServer() {
       return;
     }
     try {
+      const testemunho = await bspTestemunho();
+      if (!testemunho) {
+        add(false, 'A sua sessão expirou. Volte a entrar antes de testar.');
+        setDiag(lines);
+        setDiagBusy(false);
+        return;
+      }
       const r = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + cfg.key
+          'Authorization': 'Bearer ' + testemunho
         },
         body: JSON.stringify({
           to: dest,
@@ -14687,11 +14721,16 @@ function AdminServer() {
         return;
       }
       try {
+        const testemunho = await bspTestemunho();
+        if (!testemunho) {
+          window.alert('A sua sessão expirou. Volte a entrar antes de testar.');
+          return;
+        }
         const r = await fetch(cfg.url.replace(/\/$/, '') + '/functions/v1/' + BSP_EMAIL_FN, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + cfg.key
+            'Authorization': 'Bearer ' + testemunho
           },
           body: JSON.stringify({
             to: BSP_TEAM_EMAIL,
