@@ -2983,6 +2983,22 @@ function bspQuando(ts) {
 function bspHoraDe(d) {
   return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
 }
+/* Carimbo das mensagens do chat e do feed. As mensagens vinham do servidor
+   ja reduzidas a "HH:MM" e a data perdia-se ao carregar: uma mensagem de
+   ha tres dias parecia de hoje. Agora guarda-se o instante completo em
+   "iso" e formata-se ao mostrar. Hoje: so a hora. Ontem: "ontem 19:10".
+   Antes disso: "2 set 14:32" (com o ano, se nao for este). */
+function bspQuandoChat(iso, alternativa) {
+  const d = new Date(String(iso || ''));
+  if (!iso || isNaN(d.getTime())) return alternativa || '';
+  const hoje = new Date();
+  const mesmoDia = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  if (mesmoDia(d, hoje)) return bspHoraDe(d);
+  const ontem = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 1);
+  if (mesmoDia(d, ontem)) return 'ontem ' + bspHoraDe(d);
+  const ano = d.getFullYear() !== hoje.getFullYear() ? ' ' + d.getFullYear() : '';
+  return d.getDate() + ' ' + BSP_MESES[d.getMonth()] + ano + ' ' + bspHoraDe(d);
+}
 /* A data por extenso, para o "title" — passar o rato por cima diz o dia
    e a hora certos, sem tirar o "há 12 min" de quem so quer o relance. */
 function bspQuandoCompleto(ts) {
@@ -3513,7 +3529,8 @@ function StoreProvider({
           ...s.channelMessages,
           [m.conv_key]: arr.map(x => x.cid === m.cid ? {
             ...x,
-            sid: m.id
+            sid: m.id,
+            iso: m.created_at || x.iso
           } : x)
         }
       };
@@ -3524,7 +3541,8 @@ function StoreProvider({
         cid: m.cid,
         userId: m.user_id,
         text: m.text,
-        ts: fmtTs(m.created_at)
+        ts: fmtTs(m.created_at),
+        iso: m.created_at
       });
       return {
         ...s,
@@ -3554,6 +3572,7 @@ function StoreProvider({
           title: p.title,
           body: p.body,
           ts: fmtTs(p.created_at),
+          iso: p.created_at,
           reactions: {},
           comments: 0
         }, ...s.feedPosts]
@@ -4252,6 +4271,7 @@ function StoreProvider({
             id: nextId('m'),
             cid,
             ts: nowTime(),
+            iso: new Date().toISOString(),
             ...msg
           }]
         }
@@ -5917,7 +5937,7 @@ function TopicoPanel({
         marginLeft: 6,
         fontSize: 11
       }
-    }, mm.ts)), React.createElement("div", {
+    }, bspQuandoChat(mm.iso, mm.ts))), React.createElement("div", {
       style: {
         fontSize: 13,
         color: 'var(--text-1)',
@@ -6880,7 +6900,7 @@ function ChatScreen({
         transition: 'opacity .15s'
       },
       className: "bsp-msg-ts"
-    }, m.ts)), React.createElement("div", {
+    }, bspQuandoChat(m.iso, m.ts))), React.createElement("div", {
       style: {
         flex: 1,
         minWidth: 0
@@ -8028,7 +8048,7 @@ function FeedScreen({
       color: 'var(--text-3)',
       marginTop: 2
     }
-  }, window.userById(p.userId).name, " · ", p.ts)))))), React.createElement(Card, {
+  }, window.userById(p.userId).name, " · ", bspQuandoChat(p.iso, p.ts))))))), React.createElement(Card, {
     pad: 16
   }, React.createElement("h3", {
     style: {
@@ -8709,7 +8729,7 @@ function FeedPost({
       fontSize: 11.5,
       color: 'var(--text-3)'
     }
-  }, u.role, " · ", u.dept, " · ", post.ts)), canDelete ? React.createElement("button", {
+  }, u.role, " · ", u.dept, " · ", bspQuandoChat(post.iso, post.ts))), canDelete ? React.createElement("button", {
     className: "bsp-iconbtn",
     title: "Apagar publicação",
     onClick: () => {
@@ -10100,7 +10120,7 @@ function ActiveCallView({
         fontWeight: 400,
         marginLeft: 4
       }
-    }, m.ts)), React.createElement("div", {
+    }, bspQuandoChat(m.iso, m.ts))), React.createElement("div", {
       style: {
         fontSize: 12.5,
         color: 'rgba(255,255,255,.8)'
@@ -14428,7 +14448,10 @@ function AdminServer() {
     const add = (ok, msg) => lines.push((ok === null ? '• ' : ok ? '✅ ' : '❌ ') + msg);
     setDiagBusy(true);
     setDiag(['A testar…']);
-    const dest = (testTo.trim() || saved && BSP_TEAM_EMAIL || '').trim();
+    /* Por omissao o teste vai para quem carregou, nao para a lista da
+       equipa toda — um teste nao e para incomodar 21 pessoas. */
+    const eu = window.userById && window.userById(window.CURRENT_USER_ID);
+    const dest = (testTo.trim() || (eu && eu.email) || BSP_TEAM_EMAIL || '').trim();
     add(null, 'Destino do teste: ' + (dest || '(vazio)'));
     if (!cfg || !cfg.url || !cfg.key) {
       add(false, 'Servidor não ligado (URL/chave em falta). Ligue acima primeiro.');
@@ -14747,7 +14770,7 @@ function AdminServer() {
     style: {
       display: 'none'
     }
-  }, "old"), saved ? React.createElement("input", {
+  }, "old"), efectiva ? React.createElement("input", {
     value: testTo,
     onChange: e => setTestTo(e.target.value),
     placeholder: 'Email para teste (ex.: ' + BSP_TEAM_EMAIL + ')',
@@ -14761,7 +14784,7 @@ function AdminServer() {
       marginRight: 8,
       marginBottom: 8
     }
-  }) : null, saved ? React.createElement("button", {
+  }) : null, efectiva ? React.createElement("button", {
     onClick: runDiag,
     style: {
       padding: '10px 18px',
@@ -14775,7 +14798,7 @@ function AdminServer() {
       fontFamily: 'inherit',
       marginRight: 8
     }
-  }, diagBusy ? '🔍 A testar…' : '📧 Diagnosticar email') : null, saved ? React.createElement("button", {
+  }, diagBusy ? '🔍 A testar…' : '📧 Diagnosticar email') : null, efectiva ? React.createElement("button", {
     onClick: sendReminders,
     style: {
       padding: '10px 18px',
@@ -15161,12 +15184,16 @@ function TurnCard() {
   }), React.createElement("input", {
     style: inp,
     placeholder: "Utilizador (se o servidor pedir)",
+    autoComplete: "off",
+    name: "turn-utilizador",
     value: utilizador,
     onChange: e => setUtilizador(e.target.value)
   }), React.createElement("input", {
     style: inp,
     type: "password",
     placeholder: "Senha (se o servidor pedir)",
+    autoComplete: "new-password",
+    name: "turn-credencial",
     value: senha,
     onChange: e => setSenha(e.target.value)
   }), React.createElement(Button, {

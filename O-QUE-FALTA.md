@@ -80,9 +80,22 @@ O projecto já migrou para o sistema novo de chaves, por isso o caminho é:
             [`funcoes/bright-worker-ACRESCENTAR-verificacao.md`](funcoes/bright-worker-ACRESCENTAR-verificacao.md).
             Sem isso, desligar o interruptor deixa um endereço aberto por
             onde qualquer pessoa manda e-mails com o domínio da clínica.
-- [ ] **0.5-c** Publicar as correcções de leitura de chaves nas duas
+- [x] **0.5-c** Publicar as correcções de leitura de chaves nas duas
       funções e voltar a fazer Deploy de ambas. Ver a nota em baixo, no
-      passo 2.
+      passo 2. **Feito em 14-09-2026** — `criar-utilizador` e
+      `resumo-matinal` publicadas com o código do repositório, `sha256`
+      conferido antes de cada Deploy.
+- [x] **0.5-d** Teste de e-mail em Admin → Sistema, 14-09-2026: **HTTP
+      200**, o Resend aceitou o envio. O envio a partir da aplicação,
+      parado desde 07-09, voltou. Nota: este teste passa pela
+      `bright-worker` com o testemunho da sessão, que hoje ainda é um JWT
+      assinado pelo segredo antigo — é por isso que o cadeado a deixa
+      passar. Depois do 0.6 deixa de passar; o 0.5-b mantém-se
+      obrigatório.
+- [ ] **0.5-e** Testar a leitura das chaves no plural nas duas funções.
+      O teste de e-mail não as exercita. O caminho mais directo é
+      «Enviar o resumo matinal agora» em Admin → Sistema — mas envia
+      e-mails reais a toda a equipa, por isso é decisão da Direcção.
 - [ ] **0.6** Só com 0.1 a 0.5-c confirmados: *API Keys* → separador
       *«Legacy anon, service_role»* → **Disable JWT-based API keys** →
       confirmar. É neste instante que a chave que saiu deixa de valer.

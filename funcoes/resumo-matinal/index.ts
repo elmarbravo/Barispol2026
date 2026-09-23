@@ -162,6 +162,15 @@ const chavesPublicas = (): string[] => [
 ];
 
 const chaveServidor = () => chavesServidor()[0] || "";
+/* De onde veio a chave que esta a ser usada — so o nome da variavel,
+   nunca o valor. Serve para confirmar, antes de desligar as chaves JWT,
+   que a leitura no plural esta a funcionar. */
+const fonteChaveServidor = (): string => {
+  for (const nome of ["SUPABASE_SECRET_KEYS", "SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"]) {
+    if (valoresDe(nome).length) return nome;
+  }
+  return "";
+};
 const chavePublica = () => chavesPublicas()[0] || "";
 /* Quem se apresenta com uma chave de servidor — a nova ou a antiga —
    e o proprio servidor. */
@@ -222,7 +231,7 @@ Deno.serve(async (req) => {
       const m = String(jaFoi.message || "").toLowerCase();
       const jaSaiu = jaFoi.code === "23505" || /duplicate key|already exists/.test(m);
       if (jaSaiu) {
-        return responder({ ok: true, enviados: 0, nota: "O resumo de hoje já tinha saído." });
+        return responder({ ok: true, enviados: 0, nota: "O resumo de hoje já tinha saído.", fonte_chave: fonteChaveServidor() });
       }
       if (/relation|does not exist|schema cache/.test(m)) {
         return responder({
@@ -250,7 +259,11 @@ Deno.serve(async (req) => {
     for (const t of tarefas[col] || []) pendentes.push({ ...t, onde: col });
   }
 
-  const doDia = eventos.filter((e: any) => !e.date || String(e.date) === hoje);
+  /* Os eventos nao tem data: tem dia da semana (0 = Segunda). A aplicacao
+     mostra-os assim e o resumo tem de contar da mesma maneira, senao
+     anuncia todos os eventos todos os dias. */
+  const diaSemana = (new Date().getUTCDay() + 6) % 7;
+  const doDia = eventos.filter((e: any) => (e.day == null ? diaSemana : Number(e.day)) === diaSemana);
   const blocoDia = doDia.length
     ? '<p style="margin:0 0 6px;font-size:14px;color:#0F172A"><b>Hoje na agenda</b></p><ul style="padding-left:18px;margin:0 0 16px">' +
       doDia
@@ -345,5 +358,6 @@ Deno.serve(async (req) => {
     pessoais,
     deEquipa,
     falhas: falhas.length ? falhas : undefined,
+    fonte_chave: fonteChaveServidor(),
   });
 });
