@@ -14920,31 +14920,37 @@ function AdminRoles() {
   }));
 }
 function AdminActivity() {
-  const all = [...ACTIVITY_LOG, {
-    id: 'al7',
-    userId: 'u7',
-    action: 'editou escala',
-    meta: 'Escala_Junho_2026_DRAFT.xlsx',
-    ts: 'há 3 h'
-  }, {
-    id: 'al8',
-    userId: 'u5',
-    action: 'criou evento',
-    meta: 'Onboarding nova recepcionista',
-    ts: 'há 4 h'
-  }, {
-    id: 'al9',
-    userId: 'u11',
-    action: 'partilhou ficheiro',
-    meta: 'Inventario_Farmacia_Mai.xlsx · com #clínica',
-    ts: 'há 5 h'
-  }, {
-    id: 'al10',
-    userId: 'u1',
-    action: 'aprovou contrato',
-    meta: 'Contrato_Fornecedor_Roche_v2.docx',
-    ts: 'há 6 h'
-  }];
+  /* So actividade real, com data exacta (24-09-2026). Aqui havia quatro
+     entradas inventadas, escritas no codigo ("editou escala", "aprovou
+     contrato"...), que nunca mudavam. Agora: as publicacoes do mural,
+     vindas do servidor, e as accoes registadas neste aparelho que tenham
+     data (tarefas, ficheiros, eventos, canais). */
+  const { state } = useStore();
+  const all = React.useMemo(() => {
+    const dataDe = x => { const t = new Date(String(x || '')).getTime(); return isNaN(t) ? 0 : t; };
+    const tipoPost = { comunicado: 'publicou comunicado', reconhecimento: 'publicou reconhecimento', enquete: 'publicou enquete', evento: 'publicou evento' };
+    const dosPosts = (state.feedPosts || []).filter(p => dataDe(p.iso)).map(p => ({
+      id: 'adm-' + p.id, userId: p.userId, action: tipoPost[p.type] || 'publicou no feed',
+      meta: p.title || String(p.body || '').replace(/\[anexo:[^\]]*\]/g, '').slice(0, 60), ts: p.iso
+    }));
+    const doRegisto = (state.activityLog || []).filter(a => dataDe(a.ts) && String(a.action || '').indexOf('publicou') !== 0);
+    return dosPosts.concat(doRegisto).sort((a, b) => dataDe(b.ts) - dataDe(a.ts)).slice(0, 100);
+  }, [state.feedPosts, state.activityLog]);
+  const exportar = () => {
+    const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+    const linhas = [['Data', 'Pessoa', 'Acção', 'Detalhe'].map(q).join(';')].concat(all.map(a => {
+      const u = window.userById(a.userId);
+      return [bspQuando(a.ts), u ? u.name : '', a.action, a.meta || ''].map(q).join(';');
+    }));
+    try {
+      const blob = new Blob(['\ufeff' + linhas.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+      const el = document.createElement('a');
+      el.href = URL.createObjectURL(blob);
+      el.download = 'registo-actividade-' + new Date().toISOString().slice(0, 10) + '.csv';
+      document.body.appendChild(el); el.click(); el.remove();
+      setTimeout(() => URL.revokeObjectURL(el.href), 2000);
+    } catch (e) {}
+  };
   return React.createElement(Card, {
     pad: 0
   }, React.createElement("div", {
@@ -14962,10 +14968,13 @@ function AdminActivity() {
   }, "Registo de actividade (audit log)"), React.createElement(Button, {
     variant: "ghost",
     size: "sm",
+    onClick: exportar,
     icon: React.createElement(I.Download, {
       size: 13
     })
-  }, "Exportar")), all.map((a, i) => {
+  }, "Exportar")), all.length === 0 && React.createElement("div", {
+    style: { padding: '18px 20px', fontSize: 13, color: 'var(--text-3)' }
+  }, "Sem actividade registada."), all.map((a, i) => {
     const u = window.userById(a.userId);
     return React.createElement("div", {
       key: a.id,
@@ -15006,9 +15015,10 @@ function AdminActivity() {
     }, a.meta)), React.createElement("span", {
       style: {
         fontSize: 11.5,
-        color: 'var(--text-3)'
+        color: 'var(--text-3)',
+        whiteSpace: 'nowrap'
       }
-    }, a.ts));
+    }, bspQuando(a.ts)));
   }));
 }
 function AdminServer() {

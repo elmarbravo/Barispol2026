@@ -481,6 +481,25 @@ automáticas por área de info@barispol.ao).
 
 ---
 
+## 3-j. Comunicado do iPhone, anexos e registo de actividade (24-09-2026)
+
+- [x] Comunicado «Workspace no iPhone» publicado no Feed e enviado por
+      e-mail, com a imagem **anexada**, aos 17 colaboradores @barispol.com
+      (a pedido do Elmar). O primeiro envio conjunto bateu no limite da
+      Resend (10 por segundo): 6 foram reenviados à parte.
+- [x] `bright-worker` versão 7: aceita o código do agendamento (como o
+      servidor) e **anexos**, só do servidor e só de ficheiros do próprio
+      site (`https://barispol.com/...`).
+- [x] Admin → Registo de actividade: apagadas as 4 entradas inventadas que
+      estavam no código («editou escala», «aprovou contrato»…). Mostra só
+      actividade real, com data exacta (publicações do servidor e acções
+      deste aparelho com data). O botão «Exportar» passou a descarregar
+      um CSV.
+- Atenção a envios em lote pela Resend: no máximo 10 por segundo. A
+  `resumo-matinal` envia um de cada vez, por isso não é afectada.
+
+---
+
 ## 4. Em cada aparelho
 
 - [ ] Recarregar à força (telemóvel: fechar o separador e reabrir;

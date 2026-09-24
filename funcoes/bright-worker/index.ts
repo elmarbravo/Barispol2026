@@ -12,6 +12,10 @@
 //     (shared_state.team) ou empresa@barispol.com. E o caso das mensagens
 //     directas, das tarefas atribuidas e das publicacoes no mural.
 //   · chave publica ou nada                    -> recusado
+//   · codigo do agendamento (x-bsp-agendamento, o do cofre, desde
+//     24-09-2026) -> como a chave do servidor: e o servidor a enviar.
+// ANEXOS (desde 24-09-2026): so do servidor, e so ficheiros do proprio
+// site (https://barispol.com/...). A Resend vai busca-los ao endereco.
 // Assim ninguem usa esta funcao para mandar correio com o dominio da
 // clinica a quem esta fora dela.
 
@@ -67,6 +71,8 @@ const chavePublica = () => chavesPublicas()[0] || "";
 const ehChaveDoServidor = (t: string) => !!t && chavesServidor().includes(t);
 const ehChavePublica = (t: string) => !!t && chavesPublicas().includes(t);
 
+const SITIO_ANEXOS = "https://barispol.com/";
+
 const recusar = (erro: string, estado: number) =>
   new Response(JSON.stringify({ erro }),
     { status: estado, headers: { ...cors, "Content-Type": "application/json" } });
@@ -76,8 +82,22 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return recusar("Método não permitido.", 405);
 
   const testemunho = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-  if (!testemunho) return recusar("Sem autorização.", 401);
-  if (ehChavePublica(testemunho)) return recusar("A chave pública não chega para enviar correio.", 403);
+  const codigoAgendamento = (req.headers.get("x-bsp-agendamento") || "").trim();
+  if (!testemunho && !codigoAgendamento) return recusar("Sem autorização.", 401);
+  if (!codigoAgendamento && ehChavePublica(testemunho)) return recusar("A chave pública não chega para enviar correio.", 403);
+
+  /* O codigo do agendamento conta como o servidor. Quem confere e a base
+     de dados, que so responde sim ou nao. */
+  let doServidor = ehChaveDoServidor(testemunho);
+  if (!doServidor && codigoAgendamento) {
+    const URL_SB = Deno.env.get("SUPABASE_URL") || "";
+    const SERVICO = chaveServidor();
+    if (!URL_SB || !SERVICO) return recusar("A função não tem as chaves do projecto.", 500);
+    const admin = createClient(URL_SB, SERVICO, { auth: { persistSession: false } });
+    const { data: confere } = await admin.rpc("bsp_resumo_codigo_confere", { codigo: codigoAgendamento });
+    if (confere !== true) return recusar("Código do agendamento inválido.", 403);
+    doServidor = true;
+  }
 
   let pedido: any;
   try {
@@ -87,7 +107,19 @@ Deno.serve(async (req) => {
   }
   const { to, subject, html } = pedido || {};
 
-  if (!ehChaveDoServidor(testemunho)) {
+  /* Anexos: so do servidor, so do proprio site. */
+  let anexos: { filename: string; path: string }[] | undefined;
+  if (Array.isArray(pedido && pedido.attachments) && pedido.attachments.length) {
+    if (!doServidor) return recusar("Só o servidor envia anexos.", 403);
+    anexos = [];
+    for (const a of pedido.attachments.slice(0, 3)) {
+      const caminho = String(a && a.path || "");
+      if (caminho.indexOf(SITIO_ANEXOS) !== 0) return recusar("Anexos só do site barispol.com.", 403);
+      anexos.push({ filename: String(a.filename || "anexo").slice(0, 120), path: caminho });
+    }
+  }
+
+  if (!doServidor) {
     const URL_SB = Deno.env.get("SUPABASE_URL") || "";
     const SERVICO = chaveServidor();
     const ANON = chavePublica();
@@ -127,6 +159,7 @@ Deno.serve(async (req) => {
         to: [to],
         subject: subject,
         html: html,
+        ...(anexos ? { attachments: anexos } : {}),
       }),
     });
     const data = await r.json();
