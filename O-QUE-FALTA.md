@@ -231,6 +231,37 @@ grelha, com migração dos eventos que já lá estão.
 
 ---
 
+## 4-c. Verificação de 23/24-09-2026 (feita directamente no servidor)
+
+- A regra `bsp_msg_editar` (passo 1) não existia: editar a própria
+  mensagem falhava em silêncio. **Aplicada em 23-09-2026.** As restantes
+  regras do `FALTA-CORRER.sql` já estavam no servidor.
+- **O resumo matinal nunca saiu.** O agendamento `bsp-resumo-matinal`
+  falha todas as manhãs com `invalid URL "<PROJECTO>/functions/v1/..."`:
+  o `agendar-resumo.sql` foi corrido com os campos por preencher. Resolve-se
+  com os passos 0.4 e 3 (a chave `secret` é criada e colada pelo
+  administrador, e mais ninguém).
+- 21 pessoas no directório, 21 contas: ninguém fica sem acesso.
+- 9 pessoas sem departamento e com o cargo «Colaborador(a)» — por
+  preencher em Admin → Utilizadores.
+- No telemóvel, as janelas (editar utilizador, novo evento…) ficavam por
+  baixo das barras de cima e de baixo, e o botão Guardar escondido.
+  Passaram a abrir em ecrã inteiro no telemóvel.
+- Departamento **Radiologia** acrescentado. O departamento que uma pessoa
+  já tem nunca desaparece da lista ao editar, mesmo que não esteja entre
+  os previstos.
+- O botão Chat (barra de baixo no telemóvel e barra lateral no computador)
+  passou a mostrar quantas mensagens estão por ler, somando os canais que
+  a pessoa vê e as suas conversas directas.
+- No chat apareciam textos como «l745» ou «e747A Neusa não tem perfil».
+  São linhas internas (recibo de leitura, edição, reacção) que a aplicação
+  grava na tabela das mensagens e devia esconder. Quando a mesma linha
+  chegava duas vezes — pelo tempo real e pela sondagem — a segunda passava
+  sem filtro. Passaram a ficar sempre escondidas, e deixaram de contar para
+  o número de mensagens por ler.
+
+---
+
 ## 5. Por testar a sério (nunca foi feito)
 
 - [ ] **Uma chamada entre dois aparelhos reais.** A lógica foi verificada,

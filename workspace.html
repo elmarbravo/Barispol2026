@@ -1166,6 +1166,10 @@ const DEPARTMENTS = [{
   name: 'Farmácia',
   color: '#7C3AED'
 }, {
+  id: 'radiologia',
+  name: 'Radiologia',
+  color: '#475569'
+}, {
   id: 'marketing',
   name: 'Marketing',
   color: '#DB2777'
@@ -1309,6 +1313,35 @@ function bspVeCanal(u, canal){
   const c = bspCamada(u);
   if (!c || c.canais === '*') return true;
   return c.canais.indexOf(canal.dept ? canal.dept : null) !== -1;
+}
+
+/* Mensagens por ler em todo o Chat — canais que a pessoa ve e conversas
+   directas em que entra. A mesma conta dos numeros ao lado de cada nome,
+   somada, para o botao Chat da barra de baixo e da barra lateral. Antes
+   o botao nao mostrava nada: so quem abria o Chat dava pelas mensagens. */
+function bspTotalPorLer(state, eu) {
+  if (!state || !eu) return 0;
+  const porConversa = state.channelMessages || {};
+  const leituras = state.leituras || {};
+  let total = 0;
+  for (const chave of Object.keys(porConversa)) {
+    if (chave.indexOf('dm-') === 0) {
+      if (chave.slice(3).split('_').indexOf(eu.id) === -1) continue;
+    } else {
+      const canal = CHANNELS.find(c => c.id === chave);
+      if (!canal || !bspVeCanal(eu, canal)) continue;
+    }
+    const lido = (leituras[chave] || {})[eu.id] || 0;
+    for (const m of porConversa[chave] || []) {
+      if (bspLinhaDeControlo(m.text)) continue;
+      if (m.userId !== eu.id && (m.sid || 0) > lido) total++;
+    }
+  }
+  return total;
+}
+function useChatPorLer(eu) {
+  const { state } = useStore();
+  return bspTotalPorLer(state, eu || (window.userById && window.userById(window.CURRENT_USER_ID)));
 }
 
 const CHANNELS = [{
@@ -2462,6 +2495,7 @@ function Sidebar({
   const sActiveBg = isNavyBg ? 'rgba(255,255,255,.12)' : 'rgba(0,32,96,.07)';
   const sActiveBar = 'var(--accent)';
   const sBorder = isNavyBg ? 'rgba(255,255,255,.10)' : 'var(--border)';
+  const chatPorLer = useChatPorLer(currentUser);
   return React.createElement("aside", {
     style: {
       width: W,
@@ -2566,7 +2600,10 @@ function Sidebar({
       flexDirection: 'column',
       gap: 1
     }
-  }, NAV_ITEMS.map(item => {
+  }, NAV_ITEMS.map(itemBase => {
+    const item = itemBase.id === 'chat' && chatPorLer > 0 ? Object.assign({}, itemBase, {
+      badge: chatPorLer > 99 ? '99+' : chatPorLer
+    }) : itemBase;
     if (item.adminOnly && !bspCamada(currentUser).podeGerirUtilizadores) return null;
     const active = current === item.id;
     const IconComp = I[item.icon];
@@ -3323,6 +3360,16 @@ async function bspDeleteFromStorage(caminho) {
    quem alcanca a conversa — a mesma fechadura, sem uma segunda copia
    noutro sitio. */
 const BSP_MARCA_ANEXO = '\u200bf\u200b';
+/* Linhas de controlo que viajam na tabela das mensagens mas nunca sao
+   mensagens: leitura (l), reaccao (r), reaccao a publicacao (p) e edicao
+   (e). Os anexos (f) sao mensagens verdadeiras e ficam de fora disto.
+   Quando a mesma linha chegava duas vezes — pelo tempo real e pela
+   sondagem — a segunda passava sem filtro e aparecia no chat como
+   "l745" ou "e747A Neusa nao tem perfil". */
+function bspLinhaDeControlo(texto) {
+  const t = String(texto || '');
+  return t.length > 2 && t.charAt(0) === '\u200b' && t.charAt(2) === '\u200b' && 'lrpe'.indexOf(t.charAt(1)) !== -1;
+}
 /* As mensagens antigas — as que dizem apenas «Partilhei o ficheiro "X" no
    Drive» — nao carregam caminho nenhum: nessa altura o ficheiro era
    copiado para o Drive da equipa e a mensagem era so texto. O ficheiro
@@ -3521,7 +3568,7 @@ function StoreProvider({
     }
     syncRef.current.client = client;
     const seen = syncRef.current.seen;
-    const addMsg = m => setState(s => {
+    const addMsg = m => bspLinhaDeControlo(m && m.text) ? undefined : setState(s => {
       const arr = s.channelMessages[m.conv_key] ? [...s.channelMessages[m.conv_key]] : [];
       if (m.cid && arr.some(x => x.cid === m.cid)) return {
         ...s,
@@ -4638,17 +4685,21 @@ function Modal({
     return () => window.removeEventListener('keydown', fn);
   }, [open, onClose]);
   if (!open) return null;
-  return React.createElement("div", {
+  /* A janela desenha-se directamente no <body>. Dentro da aplicacao ficava
+     por baixo da barra de cima e da barra de baixo no telemovel: via-se so
+     uma faixa do formulario e o botao Guardar ficava escondido. */
+  const estreito = typeof window !== 'undefined' && window.innerWidth < 640;
+  const janela = React.createElement("div", {
     style: {
       position: 'fixed',
       inset: 0,
-      zIndex: 9999,
+      zIndex: 100000,
       background: 'rgba(15,23,42,.55)',
       backdropFilter: 'blur(2px)',
       display: 'flex',
-      alignItems: 'center',
+      alignItems: estreito ? 'stretch' : 'center',
       justifyContent: 'center',
-      padding: 20,
+      padding: estreito ? 0 : 20,
       animation: 'bsp-fade .15s ease-out'
     },
     onClick: onClose
@@ -4656,10 +4707,12 @@ function Modal({
     onClick: e => e.stopPropagation(),
     style: {
       background: 'var(--surface)',
-      borderRadius: 14,
+      borderRadius: estreito ? 0 : 14,
       width: '100%',
-      maxWidth: width,
-      maxHeight: '90vh',
+      maxWidth: estreito ? '100%' : width,
+      height: estreito ? '100dvh' : 'auto',
+      maxHeight: estreito ? '100dvh' : '90dvh',
+      paddingTop: estreito ? 'env(safe-area-inset-top)' : 0,
       overflow: 'hidden',
       display: 'flex',
       flexDirection: 'column',
@@ -4698,12 +4751,14 @@ function Modal({
   }, children), footer && React.createElement("div", {
     style: {
       padding: '14px 20px',
+      paddingBottom: estreito ? 'calc(14px + env(safe-area-inset-bottom))' : 14,
       borderTop: '1px solid var(--border)',
       display: 'flex',
       justifyContent: 'flex-end',
       gap: 8
     }
   }, footer)));
+  return ReactDOM.createPortal ? ReactDOM.createPortal(janela, document.body) : janela;
 }
 function FormField({
   label,
@@ -6204,7 +6259,7 @@ function ChatScreen({
     const arr = messagesByChan[chave] || [];
     const lido = ((state.leituras || {})[chave] || {})[currentUser.id] || 0;
     let n = 0;
-    for (const m of arr) if (m.userId !== currentUser.id && (m.sid || 0) > lido) n++;
+    for (const m of arr) if (!bspLinhaDeControlo(m.text) && m.userId !== currentUser.id && (m.sid || 0) > lido) n++;
     return n;
   }, [messagesByChan, state.leituras, currentUser.id]);
   const dmList = USERS.filter(u => u.id !== currentUser.id).map(u => {
@@ -6214,7 +6269,7 @@ function ChatScreen({
   const activeDm = isDM ? dmList.find(d => d.id === dmId) : null;
   const dmUser = activeDm ? window.userById(activeDm.userId) : null;
   const convKey = isDM ? `dm-${dmId}` : channelId;
-  const messages = messagesByChan[convKey] || [];
+  const messages = (messagesByChan[convKey] || []).filter(m => !bspLinhaDeControlo(m.text));
   /* Recibo de leitura: ao ter a conversa aberta, regista até onde leu. */
   const ultimoLidoRef = React.useRef({});
   React.useEffect(() => {
@@ -13613,7 +13668,10 @@ function AdminUserModal({
     }].concat(DEPARTMENTS.map(d => ({
       value: d.name,
       label: d.name
-    })))
+    }))).concat(dept && !DEPARTMENTS.some(d => d.name === dept) ? [{
+      value: dept,
+      label: dept
+    }] : [])
   })), React.createElement(FormField, {
     label: "Acesso"
   }, React.createElement(Select, {
@@ -15418,6 +15476,7 @@ function MobileNav({
   isAdmin,
   onMore
 }) {
+  const chatPorLer = useChatPorLer();
   const items = [{
     id: 'dashboard',
     label: 'Início',
@@ -15439,13 +15498,38 @@ function MobileNav({
     className: "bsp-mnav"
   }, items.map(it => {
     const Ico = I[it.icon];
+    const n = it.id === 'chat' ? chatPorLer : 0;
     return React.createElement("button", {
       key: it.id,
       "data-on": current === it.id,
-      onClick: () => setCurrent(it.id)
+      onClick: () => setCurrent(it.id),
+      "aria-label": n ? it.label + ', ' + n + ' por ler' : it.label
+    }, React.createElement("span", {
+      style: {
+        position: 'relative',
+        display: 'inline-flex'
+      }
     }, React.createElement(Ico, {
       size: 20
-    }), it.label);
+    }), n > 0 && React.createElement("span", {
+      style: {
+        position: 'absolute',
+        top: -6,
+        right: -10,
+        background: '#DC2626',
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: 700,
+        lineHeight: '16px',
+        minWidth: 16,
+        height: 16,
+        padding: '0 4px',
+        borderRadius: 999,
+        textAlign: 'center',
+        border: '2px solid var(--surface)',
+        boxSizing: 'content-box'
+      }
+    }, n > 99 ? '99+' : n)), it.label);
   }), React.createElement("button", {
     "data-on": ['feed', 'meetings', 'drive', 'admin', 'notifications', 'directory'].includes(current),
     onClick: onMore
