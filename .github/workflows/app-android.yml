@@ -47,7 +47,13 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      # Por omissao esta accao pede o pacote "tools", que ja nao existe nas
+      # cmdline-tools actuais (16.0): o sdkmanager falhava e o fluxo parava
+      # aqui, sem APK (24-09-2026). So o platform-tools; o resto o Gradle
+      # vai buscar.
       - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
 
       - uses: gradle/actions/setup-gradle@v4
 

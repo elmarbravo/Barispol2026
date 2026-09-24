@@ -389,6 +389,22 @@ automáticas por área de info@barispol.ao).
 
 ---
 
+## 3-f. App Android (24-09-2026)
+
+- [x] O fluxo «App Android» falhava em todas as execuções: o
+      `android-actions/setup-android@v3` pedia o pacote `tools`, que já
+      não existe nas `cmdline-tools` 16.0. Corrigido em
+      `.github/workflows/app-android.yml` (`packages: 'platform-tools'`).
+- O APK de teste não precisa da chave de assinatura: sai a cada
+  alteração do site, em Actions → «App Android» → Artifacts. A chave
+  (`app/lojas/PUBLICAR.md`, passos 1.1 e 1.2, só o Elmar) só é precisa
+  para a Play Store.
+- Atenção: o APK de teste é assinado com uma chave de depuração que muda
+  a cada compilação. Para instalar uma versão nova, pode ser preciso
+  desinstalar a anterior.
+
+---
+
 ## 4. Em cada aparelho
 
 - [ ] Recarregar à força (telemóvel: fechar o separador e reabrir;

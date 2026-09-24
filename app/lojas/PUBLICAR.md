@@ -17,6 +17,12 @@ qualquer programa instalado: tudo acontece no GitHub e nas lojas.
 
 ## Fase 1 — A app nos telemóveis da equipa (hoje, sem loja)
 
+> **24-09-2026.** O fluxo «App Android» falhava em todas as execuções,
+> logo no início (o `setup-android` pedia o pacote `tools`, que já não
+> existe). Corrigido no próprio fluxo. **O APK de teste não precisa da
+> chave**: sai sozinho a cada alteração do site. A chave (1.1 e 1.2) só
+> é precisa para o AAB da Play Store (fase 2).
+
 Um APK instalável directamente. Serve para a equipa começar a usar a app
 e para tirar as capturas de ecrã da loja.
 
