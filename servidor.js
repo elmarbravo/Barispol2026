@@ -15,8 +15,11 @@
  * regras de segurança da base de dados, e essas exigem sessão iniciada.
  *
  * A chave service_role NUNCA entra aqui. Essa contorna todas as regras.
+ *
+ * 24-09-2026: projecto "Barispol" na organização da conta
+ * elmar.bravo@barispol.com (antes: ferqkmfntcockmhviscf).
  */
 window.BSP_SERVIDOR = {
-  url: "https://ferqkmfntcockmhviscf.supabase.co",
-  key: "sb_publishable_TNiBJ_POOWhaDsEtwnMwgg_I7LUHUbQ"
+  url: "https://gnqleaxrtuerlcrriqqs.supabase.co",
+  key: "sb_publishable_z60zTAYUVEbDwn4TxBIr-g_5gYXthfL"
 };
