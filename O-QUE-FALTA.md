@@ -59,11 +59,10 @@ O projecto já migrou para o sistema novo de chaves, por isso o caminho é:
       Em **Admin → Sistema** o indicador tem de estar verde: *«Ligado ·
       tempo real activo»*. Se estiver cinzento ou vermelho, **parar** —
       a chave está errada e o passo 0.6 desligaria o site.
-- [ ] **0.4** Na página *API Keys*, separador *Publishable and secret*,
-      criar uma chave **secret** (botão do género *Create new secret
-      key*; nome sugerido `resumo-matinal`). Ela só é mostrada uma vez.
-      **Não a copiar para a conversa.** Copiá-la directamente para a linha
-      22 do `agendar-resumo.sql` no passo 3, e a mais nada.
+- [x] **0.4** ~~Criar uma chave **secret** para o resumo matinal.~~
+      **Deixou de ser preciso em 24-09-2026.** O agendamento passou a
+      usar um código gerado pela própria base de dados e guardado no
+      cofre (Vault). Ver o passo 3.
 - [x] **0.5** Instalar as duas Edge Functions do passo 2. Sem isto,
       deixam de funcionar no passo seguinte. (Podem ser instaladas já
       aqui; o passo 2 fica então feito.)
@@ -169,22 +168,45 @@ As duas podem ser instaladas antes ou depois do passo 0.
 
 ---
 
-## 3. O resumo matinal — um ficheiro com UMA linha a mudar
+## 3. O resumo matinal — agendado sem chave secreta
 
-- [ ] **SQL Editor** → colar [`agendar-resumo.sql`](agendar-resumo.sql).
-      Antes de **Run**, mudar **só a linha 22**: substituir `COLE_AQUI`
-      pela chave **secret** do passo 0.4, mantendo as aspas.
+- [x] **Feito em 24-09-2026, directamente no servidor**, com
+      [`agendar-resumo-sem-chave.sql`](agendar-resumo-sem-chave.sql).
+      Não há nada para colar:
+      - a base de dados gerou um código aleatório e guardou-o no cofre
+        (Vault), com o nome `bsp_resumo_agendamento`;
+      - o agendamento `bsp-resumo-matinal` vai buscá-lo ao cofre no
+        momento em que corre e envia-o no cabeçalho `x-bsp-agendamento`.
+        O código não fica escrito no agendamento;
+      - a função `resumo-matinal` (versão 5) confere-o pela
+        `bsp_resumo_codigo_confere`, que só a chave do servidor pode
+        chamar e que responde apenas sim ou não.
 
-O ficheiro recusa correr se a chave não estiver lá, ou se for a pública
-por engano. No fim, a coluna `para_onde` tem de mostrar o endereço do
-projecto.
+      O agendamento antigo, com `<PROJECTO>` por preencher, foi
+      substituído. O `agendar-resumo.sql` já não é preciso. A chave
+      service_role continua a ser aceite, por isso quem o correr com a
+      chave não estraga nada.
 
-Sai às 06h30 de Luanda, de segunda a sábado. Para o ver sem esperar:
-**Admin → Sistema → «Enviar o resumo matinal agora»**.
+      *Confirmado em 24-09-2026:* com o código certo, HTTP 200 («O resumo
+      de hoje já tinha saído», porque o dia foi marcado antes do teste
+      para não sair correio). Com um código errado, HTTP 403.
+      `fonte_chave` = `SUPABASE_SECRET_KEYS`.
 
-> Já foi corrido uma vez com `<PROJECTO>` e `<SERVICE>` por preencher —
-> ficou um agendamento activo que falha em silêncio. Correr o ficheiro
-> outra vez, com a chave, substitui-o.
+- [ ] **Os e-mails em si ainda devem falhar.** A função pede cada envio à
+      `bright-worker` com a chave que encontra, e essa chave é a nova
+      (`sb_secret_…`, porque `fonte_chave` = `SUPABASE_SECRET_KEYS`). A
+      `bright-worker` tem a verificação de JWT ligada, que só aceita
+      chaves JWT. O mais provável é o resumo correr e todos os endereços
+      aparecerem em `falhas`. Resolve-se com o ponto da `bright-worker`
+      no passo 2 (verificação própria, e depois desligar o interruptor).
+      O botão «Enviar o resumo matinal agora» passa pelo mesmo caminho.
+
+Sai às 06h30 de Luanda, de segunda a sábado. Para ver como correu:
+
+```sql
+select status_code, content, created from net._http_response
+order by created desc limit 5;
+```
 
 ---
 
@@ -237,10 +259,10 @@ grelha, com migração dos eventos que já lá estão.
   mensagem falhava em silêncio. **Aplicada em 23-09-2026.** As restantes
   regras do `FALTA-CORRER.sql` já estavam no servidor.
 - **O resumo matinal nunca saiu.** O agendamento `bsp-resumo-matinal`
-  falha todas as manhãs com `invalid URL "<PROJECTO>/functions/v1/..."`:
-  o `agendar-resumo.sql` foi corrido com os campos por preencher. Resolve-se
-  com os passos 0.4 e 3 (a chave `secret` é criada e colada pelo
-  administrador, e mais ninguém).
+  falhava todas as manhãs com `invalid URL "<PROJECTO>/functions/v1/..."`:
+  o `agendar-resumo.sql` foi corrido com os campos por preencher.
+  **Substituído em 24-09-2026** por um agendamento sem chave secreta
+  (passo 3). Falta a `bright-worker` para os e-mails saírem.
 - 21 pessoas no directório, 21 contas: ninguém fica sem acesso.
 - 9 pessoas sem departamento e com o cargo «Colaborador(a)» — por
   preencher em Admin → Utilizadores.

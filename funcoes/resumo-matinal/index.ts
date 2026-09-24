@@ -25,17 +25,18 @@
 //   3. Cole este ficheiro e faca Deploy
 //   4. Correr o resumo-matinal.sql, que marca a hora a que isto acontece
 //
-// SEGURANCA: so aceita quem se apresente com a chave service_role (e o
-// caso do agendamento) ou com a sessao de alguem que a plataforma
-// reconheca como gestor (e o caso do botao "Enviar agora"). Com a chave
-// anonima sozinha nao envia nada — senao qualquer pessoa podia fazer
-// chegar correio a clinica inteira.
+// SEGURANCA: so aceita tres coisas. O codigo do agendamento, no cabecalho
+// x-bsp-agendamento, que a base de dados gera e guarda no cofre (ver o
+// agendar-resumo-sem-chave.sql). A chave service_role. Ou a sessao de
+// alguem que a plataforma reconheca como gestor (e o caso do botao
+// "Enviar agora"). Com a chave anonima sozinha nao envia nada — senao
+// qualquer pessoa podia fazer chegar correio a clinica inteira.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const cabecalhos = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, content-type",
+  "Access-Control-Allow-Headers": "authorization, content-type, x-bsp-agendamento",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Content-Type": "application/json",
 };
@@ -189,15 +190,23 @@ Deno.serve(async (req) => {
   }
 
   const testemunho = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-  if (!testemunho) return responder({ erro: "Sem autorização." }, 401);
+  const codigoAgendamento = (req.headers.get("x-bsp-agendamento") || "").trim();
+  if (!testemunho && !codigoAgendamento) return responder({ erro: "Sem autorização." }, 401);
 
   const admin = createClient(URL_SB, CHAVE_SERVICO, {
     auth: { persistSession: false },
   });
 
-  /* Quem pode mandar isto correr: o agendamento (chave service_role) ou
-     um gestor a carregar no botão. */
-  let autorizado = ehChaveDoServidor(testemunho);
+  /* Quem pode mandar isto correr: o agendamento (o codigo do cofre, ou a
+     chave service_role) ou um gestor a carregar no botão. O codigo nunca
+     sai da base de dados: quem confere e ela, e so responde sim ou nao. */
+  let autorizado = false;
+  if (codigoAgendamento) {
+    const { data: confere } = await admin.rpc("bsp_resumo_codigo_confere", { codigo: codigoAgendamento });
+    if (confere !== true) return responder({ erro: "Código do agendamento inválido." }, 403);
+    autorizado = true;
+  }
+  if (!autorizado) autorizado = ehChaveDoServidor(testemunho);
   if (!autorizado) {
     if (ehChavePublica(testemunho)) {
       return responder({ erro: "A chave pública não chega para enviar correio." }, 403);

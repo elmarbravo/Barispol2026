@@ -39,8 +39,12 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 - `funcoes/` guarda o código das Edge Functions:
   - `criar-utilizador`: verificação de JWT desligada, tem autenticação
     própria.
-  - `resumo-matinal`: verificação de JWT desligada. A versão 4 devolve
-    `fonte_chave` e filtra os eventos pelo dia da semana.
+  - `resumo-matinal`: verificação de JWT desligada. Devolve
+    `fonte_chave` e filtra os eventos pelo dia da semana. A versão 5
+    (24-09-2026) aceita o código do agendamento no cabeçalho
+    `x-bsp-agendamento`, guardado no Vault como `bsp_resumo_agendamento`
+    e conferido por `bsp_resumo_codigo_confere` (ver
+    `agendar-resumo-sem-chave.sql`). Nunca mostrar esse código.
   - `bright-worker` (nome «notify-email», envia pela Resend): verificação
     de JWT ligada e **sem autenticação própria**. O bloco a acrescentar
     está em `funcoes/bright-worker-ACRESCENTAR-verificacao.md`.
@@ -85,11 +89,10 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 
 ## Por fazer
 
-1. **Resumo matinal (só o Elmar):** passo 0.4 (criar a chave secreta) e
-   passo 3 (colá-la na linha 22 de `agendar-resumo.sql`). O agendamento
-   `bsp-resumo-matinal` falha todas as manhãs com `invalid URL`.
-2. Testar `fonte_chave` com o botão «Enviar o resumo matinal agora»
-   (Admin → Sistema). O resultado decide se o passo 0.6 é seguro.
+1. **Resumo matinal:** agendado sem chave secreta em 24-09-2026 (passo 3
+   do `O-QUE-FALTA.md`). `fonte_chave` = `SUPABASE_SECRET_KEYS`. Os
+   e-mails só saem quando a `bright-worker` aceitar essa chave (ponto 3).
+2. Ver amanhã a resposta do agendamento em `net._http_response`.
 3. `bright-worker`: acrescentar a autenticação própria, desligar a
    verificação de JWT e só depois pensar no 0.6, com autorização.
 4. Departamento e cargo de 9 pessoas: Cassia Peixoto, Catarina Ndundu
