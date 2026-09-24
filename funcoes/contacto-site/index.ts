@@ -4,7 +4,7 @@
 // clinica recebe por e-mail, sem depender so do WhatsApp.
 //
 // O que faz: guarda a mensagem em contactos_site e envia-a pela Resend,
-// com o remetente geral@barispol.com, SO para info@barispol.ao (a caixa da clinica, pedido do Elmar 25-09-2026). Se o
+// com o remetente geral@barispol.com, SO para geral@barispol.com (o endereco que os pacientes usam, decisao do Elmar 25-09-2026). Se o
 // paciente deixar o e-mail, entra como "responder a". Nunca envia nada
 // ao paciente nem a mais ninguem: o destino esta fixo aqui.
 //
@@ -27,7 +27,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import nodemailer from "npm:nodemailer@6.9.14";
 
-const DESTINO = "info@barispol.ao";
+const DESTINO = "geral@barispol.com";
 const ORIGENS = ["https://barispol.com", "https://www.barispol.com"];
 const POR_LIGACAO_HORA = 3;
 const TOTAL_HORA = 30;

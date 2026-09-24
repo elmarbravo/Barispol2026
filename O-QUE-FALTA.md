@@ -570,33 +570,53 @@ Verificado no projecto novo, a 24-09-2026 às 23h40:
 
 ---
 
-## 3-m. Caixa de contacto do site (25-09-2026)
+## 3-m. Site novo e caixa de contacto (25-09-2026)
 
-O paciente escreve no site o que quiser e a mensagem chega por e-mail a
-**info@barispol.ao**. O WhatsApp fica como alternativa.
+O barispol.com foi refeito no estilo de empresa internacional (skill
+site-humanizado-corporativo):
+- fundo claro, com faixas escuras só no topo, numa chamada e no rodapé;
+- listas com linhas finas, texto sem travessões nem gerúndios;
+- menu «Menu» no telemóvel;
+- fotografias reais: a sala de espera vazia e a fachada.
 
+O `index.html` gera-se com `ferramentas/gerar-site.py` a partir de
+`ferramentas/modelo-site.html`. Para mudar serviços, análises, seguros
+ou perguntas, editar o gerador e correr
+`python3 ferramentas/gerar-site.py`.
+
+**Caixa de contacto:** o paciente escreve o que quiser e a mensagem
+chega por e-mail a **geral@barispol.com**, o endereço que os pacientes
+usam (decisão do Elmar, 25-09-2026). O WhatsApp fica como alternativa.
 - [x] Tabela `contactos_site` (`contactos-site.sql`), aplicada no projecto
       novo. Só a Direcção e a Coordenação lêem. Limpeza ao fim de 12
       meses (`bsp-limpeza-contactos`).
-- [x] Função `contacto-site` (`funcoes/contacto-site/index.ts`), versão 3,
+- [x] Função `contacto-site` (`funcoes/contacto-site/index.ts`), versão 4,
       sem verificação de JWT e com protecções próprias:
       - só aceita pedidos de barispol.com;
       - tem um campo escondido que só os robôs preenchem;
       - aceita 3 mensagens por hora por ligação e 30 por hora no total.
-      Envia só para info@barispol.ao e nunca escreve ao paciente.
+      Envia só para geral@barispol.com e nunca escreve ao paciente.
 - [x] Testado a 25-09-2026: origem errada recusada (403), robô ignorado,
-      mensagem sem contacto recusada, 2 mensagens «TESTE» enviadas.
-- [ ] **Sair de info@barispol.ao pelo SMTP da caixa:** o Elmar cola no
-      painel (Edge Functions → Secrets) `SMTP_HOST`, `SMTP_USER` =
-      info@barispol.ao, `SMTP_PASS` e, se preciso, `SMTP_PORT` = 465 e
-      `SMTP_FROM`. As funções **não podem usar as portas 25 e 587**. Se
-      o servidor da caixa só aceitar a 587 (caso do Microsoft 365), fica a
-      Resend. Nesse caso, verificar o domínio barispol.ao na Resend. Até
-      lá, sai pela Resend, de geral@barispol.com.
-- [ ] Confirmar que os 2 e-mails «TESTE» chegaram a info@barispol.ao, e
-      não ao lixo electrónico.
-- [ ] Publicar o site novo (rascunho) com a caixa de contacto, depois de
-      confirmados os contactos e os seguros.
+      mensagem sem contacto recusada, mensagens «TESTE» enviadas.
+- [ ] **Envio pelo SMTP da caixa (opcional):** o Elmar cola no painel
+      (Edge Functions → Secrets) `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` e,
+      se preciso, `SMTP_PORT` = 465 e `SMTP_FROM`. As funções **não podem
+      usar as portas 25 e 587**. Sem os segredos, sai pela Resend, de
+      geral@barispol.com.
+
+**Seguros e planos de saúde:** a lista vem da facturação do MetaGest
+(`crm.mg_facturas`, grupo de cliente «Seguradora», desde 2022) e do que
+o Elmar confirmou. São 22 nomes. Ficam de fora:
+- o BNA e o Fundo de Pensões do BNA (por decisão do Elmar);
+- a Quinta do Pinhão e os Funcionários da Barispol;
+- a Caixa Social de Catoca, a SONILS (sem facturas desde 2024) e
+  clientes particulares ou empresas que não são seguradoras.
+A Medicare foi confirmada pelo Elmar, mas não aparece na facturação.
+- [ ] Confirmar a Medicare e se a Caixa Social de Catoca deve entrar.
+- [ ] Fotografias da equipa e dos serviços, com autorização. A fotografia
+      da sala de espera com utentes **não** se usa: mostra pessoas e
+      crianças identificáveis.
+- [ ] Rever `contacto.html` e `ecografia.html` no mesmo estilo.
 
 ---
 

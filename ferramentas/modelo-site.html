@@ -54,60 +54,7 @@
 }
 </script>
 <script type="application/ld+json">
-{
- "@context": "https://schema.org",
- "@type": "FAQPage",
- "mainEntity": [
-  {
-   "@type": "Question",
-   "name": "Preciso de marcação para fazer análises?",
-   "acceptedAnswer": {
-    "@type": "Answer",
-    "text": "Não. Pode vir directamente ao laboratório dentro do horário. A marcação pelo WhatsApp reduz a espera."
-   }
-  },
-  {
-   "@type": "Question",
-   "name": "Quanto tempo demora o resultado?",
-   "acceptedAnswer": {
-    "@type": "Answer",
-    "text": "A maioria das análises fica pronta no próprio dia. Quando um exame segue para um laboratório externo, indicamos o prazo no momento da colheita."
-   }
-  },
-  {
-   "@type": "Question",
-   "name": "Qual é o horário?",
-   "acceptedAnswer": {
-    "@type": "Answer",
-    "text": "Abrimos todos os dias, das 07:30 às 22:00. Também aos fins de semana e feriados."
-   }
-  },
-  {
-   "@type": "Question",
-   "name": "As ecografias precisam de marcação?",
-   "acceptedAnswer": {
-    "@type": "Answer",
-    "text": "Sim. Marcamos as ecografias com antecedência, pelo WhatsApp ou por telefone."
-   }
-  },
-  {
-   "@type": "Question",
-   "name": "Têm farmácia no local?",
-   "acceptedAnswer": {
-    "@type": "Answer",
-    "text": "Sim. A farmácia interna entrega a medicação prescrita logo a seguir à consulta."
-   }
-  },
-  {
-   "@type": "Question",
-   "name": "Onde ficamos?",
-   "acceptedAnswer": {
-    "@type": "Answer",
-    "text": "No Bairro Bom Sossego, Casa 186, em Camama, Luanda. Junto ao Hospital Materno Infantil Azancot de Menezes."
-   }
-  }
- ]
-}
+{{FAQ_LD}}
 </script>
 
 <style>
@@ -322,7 +269,7 @@ footer .marca-rodape img{width:52px;height:52px;background:#fff;border-radius:50
       <p class="etiqueta">Camama, Luanda</p>
       <h1>Análises clínicas e consultas em Camama</h1>
       <p>Fazemos análises, consultas e exames de imagem no mesmo sítio. Abrimos todos os dias, das 07:30 às 22:00.</p>
-      <a class="botao botao-claro" href="https://wa.me/244946373631?text=Ol%C3%A1%2C%20gostaria%20de%20marcar." target="_blank" rel="noopener" data-wa="servico_00">Marcar pelo WhatsApp</a>
+      <a class="botao botao-claro" href="{{MARCAR}}" target="_blank" rel="noopener" data-wa="servico_00">Marcar pelo WhatsApp</a>
     </div>
     <img class="foto-abertura" src="assets/sala-de-espera.webp" width="1179" height="1066" alt="Sala de espera do Centro Médico Barispol, com luz natural">
   </div>
@@ -361,15 +308,7 @@ footer .marca-rodape img{width:52px;height:52px;background:#fff;border-radius:50
       <p>Escolha o serviço e envie-nos uma mensagem. A recepção confirma a hora.</p>
     </div>
     <div class="lista">
-      <div class="linha"><h3>Análises clínicas</h3><div><p>Laboratório próprio. Não precisa de marcação. A maioria dos resultados fica pronta no mesmo dia.</p><p class="mais"><a href="#analises">Ver os grupos de análises</a></p></div></div>
-      <div class="linha"><h3>Clínica geral</h3><div><p>Consulta marcada ou no próprio dia. Pedimos os exames certos e passamos a receita.</p><p class="mais"><a href="https://wa.me/244946373631?text=Ol%C3%A1%2C%20gostaria%20de%20marcar%20uma%20consulta%20de%20cl%C3%ADnica%20geral." target="_blank" rel="noopener" data-wa="servico_11">Marcar consulta</a></p></div></div>
-      <div class="linha"><h3>Pediatria</h3><div><p>Primeira consulta, puericultura e consultas de rotina.</p><p class="mais"><a href="https://wa.me/244946373631?text=Ol%C3%A1%2C%20gostaria%20de%20marcar%20uma%20consulta%20de%20pediatria." target="_blank" rel="noopener" data-wa="servico_12">Marcar consulta</a></p></div></div>
-      <div class="linha"><h3>Ginecologia e obstetrícia</h3><div><p>Consultas de rotina e acompanhamento da gravidez.</p><p class="mais"><a href="https://wa.me/244946373631?text=Ol%C3%A1%2C%20gostaria%20de%20marcar%20uma%20consulta%20de%20ginecologia." target="_blank" rel="noopener" data-wa="servico_13">Marcar consulta</a></p></div></div>
-      <div class="linha"><h3>Ecografia</h3><div><p>Ecografias obstétricas e gerais, com marcação prévia e leitura por imagiologista.</p><p class="mais"><a href="ecografia.html">Tipos de ecografia e preparação</a></p></div></div>
-      <div class="linha"><h3>Raio-X</h3><div><p>Com marcação prévia.</p><p class="mais"><a href="https://wa.me/244946373631?text=Ol%C3%A1%2C%20gostaria%20de%20marcar%20um%20raio-X." target="_blank" rel="noopener" data-wa="servico_07">Marcar exame</a></p></div></div>
-      <div class="linha"><h3>Outras especialidades</h3><div><p>Cardiologia, cirurgia, ortopedia e urologia. Indicamos os dias de consulta de cada médico.</p><p class="mais"><a href="https://wa.me/244946373631?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20os%20dias%20de%20consulta%20de%20uma%20especialidade." target="_blank" rel="noopener">Perguntar</a></p></div></div>
-      <div class="linha"><h3>Enfermagem</h3><div><p>Tratamentos e cuidados de enfermagem.</p><p class="mais"><a href="https://wa.me/244946373631?text=Ol%C3%A1%2C%20gostaria%20de%20servi%C3%A7os%20de%20enfermagem." target="_blank" rel="noopener">Perguntar</a></p></div></div>
-      <div class="linha"><h3>Farmácia interna</h3><div><p>Levante a medicação prescrita logo a seguir à consulta.</p></div></div>
+{{SERVICOS}}
     </div>
   </div>
 </section>
@@ -382,16 +321,9 @@ footer .marca-rodape img{width:52px;height:52px;background:#fff;border-radius:50
       <p>Diga-nos o motivo e indicamos o grupo certo. Não precisa de marcação dentro do horário.</p>
     </div>
     <div class="lista">
-      <div class="linha"><h3>Análises da grávida<span>Acompanhamento pré-natal, do primeiro trimestre ao parto.</span></h3><div><p>Hemograma completo, grupo sanguíneo e factor Rh, glicemia em jejum, urina II e urocultura, VDRL (sífilis), teste de HIV, hepatite B e C, toxoplasmose IgG e IgM, citomegalovírus, beta-HCG.</p><p class="mais"><a href="https://wa.me/244946373631?text=Ol%C3%A1%2C%20gostaria%20de%20marcar%20o%20grupo%20de%20an%C3%A1lises%3A%20An%C3%A1lises%20da%20gr%C3%A1vida." target="_blank" rel="noopener" data-wa="servico_10">Marcar este grupo</a></p></div></div>
-      <div class="linha"><h3>Pré-operatório<span>O conjunto que o cirurgião ou o anestesista costuma pedir.</span></h3><div><p>Hemograma completo, tempo de coagulação, tempo de protrombina (TP e INR), grupo sanguíneo e factor Rh, glicemia em jejum, ureia e creatinina, TGO/AST e TGP/ALT, teste de HIV, hepatite B e C, raio-X do tórax.</p><p class="mais"><a href="https://wa.me/244946373631?text=Ol%C3%A1%2C%20gostaria%20de%20marcar%20o%20grupo%20de%20an%C3%A1lises%3A%20Pr%C3%A9-operat%C3%B3rio." target="_blank" rel="noopener" data-wa="servico_10">Marcar este grupo</a></p></div></div>
-      <div class="linha"><h3>Check-up geral<span>Uma vez por ano, para quem se sente bem.</span></h3><div><p>Hemograma completo, glicemia em jejum, colesterol total, HDL e LDL, triglicéridos, ureia e creatinina, ácido úrico, TGO/AST e TGP/ALT, urina II, velocidade de sedimentação.</p><p class="mais"><a href="https://wa.me/244946373631?text=Ol%C3%A1%2C%20gostaria%20de%20marcar%20o%20grupo%20de%20an%C3%A1lises%3A%20Check-up%20geral." target="_blank" rel="noopener" data-wa="servico_10">Marcar este grupo</a></p></div></div>
-      <div class="linha"><h3>Febre e infecção<span>Para febre, dores no corpo ou mal-estar sem causa aparente.</span></h3><div><p>Gota espessa (pesquisa de plasmódio), teste rápido de malária, teste de dengue NS1, teste rápido de chikungunya, reacção de Widal (febre tifóide), proteína C reactiva, PCR (identificação de bactérias), hemograma completo.</p><p class="mais"><a href="https://wa.me/244946373631?text=Ol%C3%A1%2C%20gostaria%20de%20marcar%20o%20grupo%20de%20an%C3%A1lises%3A%20Febre%20e%20infec%C3%A7%C3%A3o." target="_blank" rel="noopener" data-wa="servico_10">Marcar este grupo</a></p></div></div>
-      <div class="linha"><h3>Diabetes e controlo metabólico<span>Para quem já tem diagnóstico ou casos na família.</span></h3><div><p>Glicemia em jejum, hemoglobina glicada (HbA1c), colesterol total, HDL e LDL, triglicéridos, creatinina, microalbuminúria, ácido úrico.</p><p class="mais"><a href="https://wa.me/244946373631?text=Ol%C3%A1%2C%20gostaria%20de%20marcar%20o%20grupo%20de%20an%C3%A1lises%3A%20Diabetes%20e%20controlo%20metab%C3%B3lico." target="_blank" rel="noopener" data-wa="servico_10">Marcar este grupo</a></p></div></div>
-      <div class="linha"><h3>Saúde da mulher<span>Rotina ginecológica e queixas frequentes.</span></h3><div><p>Exsudado vaginal, urocultura com antibiograma, hemograma completo, ferro e ferritina, TSH e T4 livre, beta-HCG, teste rápido de gravidez.</p><p class="mais"><a href="https://wa.me/244946373631?text=Ol%C3%A1%2C%20gostaria%20de%20marcar%20o%20grupo%20de%20an%C3%A1lises%3A%20Sa%C3%BAde%20da%20mulher." target="_blank" rel="noopener" data-wa="servico_10">Marcar este grupo</a></p></div></div>
-      <div class="linha"><h3>Saúde do homem<span>A partir dos 40 anos, ou com queixas urinárias.</span></h3><div><p>PSA total e PSA livre, espermograma, glicemia em jejum, colesterol total, HDL e LDL, ureia e creatinina, urina II.</p><p class="mais"><a href="https://wa.me/244946373631?text=Ol%C3%A1%2C%20gostaria%20de%20marcar%20o%20grupo%20de%20an%C3%A1lises%3A%20Sa%C3%BAde%20do%20homem." target="_blank" rel="noopener" data-wa="servico_10">Marcar este grupo</a></p></div></div>
-      <div class="linha"><h3>Admissão e atestado<span>Para emprego, bolsa, viagem ou renovação de documentos.</span></h3><div><p>Hemograma completo, análise de urina, exame de fezes, VDRL (sífilis), teste de HIV, hepatite B, glicemia em jejum, raio-X do tórax.</p><p class="mais"><a href="https://wa.me/244946373631?text=Ol%C3%A1%2C%20gostaria%20de%20marcar%20o%20grupo%20de%20an%C3%A1lises%3A%20Admiss%C3%A3o%20e%20atestado." target="_blank" rel="noopener" data-wa="servico_10">Marcar este grupo</a></p></div></div>
+{{GRUPOS}}
     </div>
-    <p class="nota">Procura uma análise que não está aqui? Fazemos muitas outras, como hormonas, marcadores tumorais e culturas com antibiograma. <a class="ligacao" href="https://wa.me/244946373631?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20se%20fazem%20uma%20an%C3%A1lise%20espec%C3%ADfica." target="_blank" rel="noopener" data-wa="servico_10">Pergunte-nos pelo WhatsApp</a>.</p>
+    <p class="nota">Procura uma análise que não está aqui? Fazemos muitas outras, como hormonas, marcadores tumorais e culturas com antibiograma. <a class="ligacao" href="{{WA_ANALISES}}" target="_blank" rel="noopener" data-wa="servico_10">Pergunte-nos pelo WhatsApp</a>.</p>
   </div>
 </section>
 
@@ -432,28 +364,7 @@ footer .marca-rodape img{width:52px;height:52px;background:#fff;border-radius:50
       <p>Trabalhamos com estas seguradoras e planos de saúde. Se o seu não está na lista, escreva-nos. Confirmamos a cobertura antes da marcação.</p>
     </div>
     <ul class="seguros">
-        <li>Aliança Seguros</li>
-        <li>BIC Seguros</li>
-        <li>ENSA Seguros</li>
-        <li>Fidelidade Angola</li>
-        <li>Fortaleza Seguros</li>
-        <li>Giant Seguros</li>
-        <li>Global Seguros</li>
-        <li>Liberty &amp; Trevo Seguros</li>
-        <li>Medicare</li>
-        <li>Mediplus</li>
-        <li>Mundial Seguros</li>
-        <li>Nossa Seguros</li>
-        <li>Prefira Seguros</li>
-        <li>Protteja Seguros</li>
-        <li>Sanlam Angola</li>
-        <li>Saúde Mais</li>
-        <li>Sol Seguros</li>
-        <li>STAS Seguros</li>
-        <li>Super Seguros</li>
-        <li>Tranquilidade</li>
-        <li>Unisaúde</li>
-        <li>Viva Seguros</li>
+{{SEGUROS}}
     </ul>
   </div>
 </section>
@@ -484,7 +395,7 @@ footer .marca-rodape img{width:52px;height:52px;background:#fff;border-radius:50
       <h2>Precisa de análises ou de uma consulta?</h2>
       <p>Envie-nos o nome, o serviço e a data. A recepção confirma a hora.</p>
     </div>
-    <a class="botao botao-claro" href="https://wa.me/244946373631?text=Ol%C3%A1%2C%20gostaria%20de%20marcar." target="_blank" rel="noopener" data-wa="servico_00">Marcar pelo WhatsApp</a>
+    <a class="botao botao-claro" href="{{MARCAR}}" target="_blank" rel="noopener" data-wa="servico_00">Marcar pelo WhatsApp</a>
   </div>
 </div>
 
@@ -495,12 +406,7 @@ footer .marca-rodape img{width:52px;height:52px;background:#fff;border-radius:50
       <h2>Perguntas frequentes</h2>
     </div>
     <div class="perguntas">
-      <details><summary>Preciso de marcação para fazer análises?</summary><p>Não. Pode vir directamente ao laboratório dentro do horário. A marcação pelo WhatsApp reduz a espera.</p></details>
-      <details><summary>Quanto tempo demora o resultado?</summary><p>A maioria das análises fica pronta no próprio dia. Quando um exame segue para um laboratório externo, indicamos o prazo no momento da colheita.</p></details>
-      <details><summary>Qual é o horário?</summary><p>Abrimos todos os dias, das 07:30 às 22:00. Também aos fins de semana e feriados.</p></details>
-      <details><summary>As ecografias precisam de marcação?</summary><p>Sim. Marcamos as ecografias com antecedência, pelo WhatsApp ou por telefone.</p></details>
-      <details><summary>Têm farmácia no local?</summary><p>Sim. A farmácia interna entrega a medicação prescrita logo a seguir à consulta.</p></details>
-      <details><summary>Onde ficamos?</summary><p>No Bairro Bom Sossego, Casa 186, em Camama, Luanda. Junto ao Hospital Materno Infantil Azancot de Menezes.</p></details>
+{{FAQ}}
     </div>
   </div>
 </section>

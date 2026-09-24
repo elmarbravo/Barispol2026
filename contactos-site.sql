@@ -3,7 +3,7 @@
 -- (gnqleaxrtuerlcrriqqs) no mesmo dia. Pode correr-se mais do que uma vez.
 --
 -- O paciente escreve no site o que quiser. A funcao contacto-site guarda a
--- mensagem aqui e envia-a por e-mail para info@barispol.ao. Nunca envia
+-- mensagem aqui e envia-a por e-mail para geral@barispol.com. Nunca envia
 -- nada ao paciente.
 --
 -- Ninguem escreve nesta tabela pela chave publica: so a funcao, com a
