@@ -28,6 +28,13 @@
 // Os dois avisam que o WhatsApp deixa em breve de ser o canal interno.
 // Sai um e-mail por endereco, para ninguem ver os enderecos dos outros.
 // Todos os envios desta funcao vao so para enderecos @barispol.com.
+//
+// AVISO DE MENSAGENS DIRECTAS (desde 24-09-2026), "tipo": "mensagens", a
+// cada minuto (bsp-avisos-mensagens). So avisa por e-mail quem recebeu uma
+// mensagem directa ha mais de 5 minutos, nao respondeu nem a leu, e esta
+// offline (sem sinal de presenca ha mais de 2 minutos). Varias mensagens do
+// mesmo colega vao num so e-mail. O que ja foi avisado fica em
+// avisos_mensagens, para nunca avisar duas vezes.
 // Cada tipo tem o seu registo por dia: lembretes_enviados e
 // coletivos_enviados.
 //
@@ -256,7 +263,7 @@ Deno.serve(async (req) => {
 
   const corpo = await req.json().catch(() => ({} as any));
   const forcar = corpo && corpo.forcar === true;
-  const tipo = corpo && (corpo.tipo === "lembrete" || corpo.tipo === "coletivo") ? corpo.tipo : "resumo";
+  const tipo = corpo && (corpo.tipo === "lembrete" || corpo.tipo === "coletivo" || corpo.tipo === "mensagens") ? corpo.tipo : "resumo";
   const lembrete = tipo !== "resumo";
 
   /* Uma vez por dia. O agendamento pode disparar mais do que uma vez —
@@ -265,7 +272,7 @@ Deno.serve(async (req) => {
      frente disto, que é para isso que serve. */
   const hoje = new Date().toISOString().slice(0, 10);
   const registo = ({ resumo: "resumos_enviados", lembrete: "lembretes_enviados", coletivo: "coletivos_enviados" } as Record<string, string>)[tipo];
-  if (!forcar) {
+  if (!forcar && tipo !== "mensagens") {
     const { error: jaFoi } = await admin
       .from(registo)
       .insert({ dia: hoje });
@@ -350,6 +357,106 @@ Deno.serve(async (req) => {
       return false;
     }
   };
+
+  /* Mensagens directas por responder, a quem esta offline. */
+  if (tipo === "mensagens") {
+    const agoraMs = Date.now();
+    const desde = new Date(agoraMs - 60 * 60000).toISOString();
+    const ate = new Date(agoraMs - 5 * 60000).toISOString();
+    /* As linhas de controlo (leitura, edicao, reaccoes) nao sao mensagens;
+       os anexos sao. */
+    const controlo = (t: unknown) => {
+      const x = String(t || "");
+      return x.length > 2 && x.charAt(0) === "\u200b" && x.charAt(2) === "\u200b" && "lrpe".indexOf(x.charAt(1)) !== -1;
+    };
+    const textoVisivel = (t: unknown) => {
+      const x = String(t || "");
+      if (x.indexOf("\u200bf\u200b") === 0) return "📎 Enviou um anexo.";
+      return x.replace(/\u200b/g, "");
+    };
+    const { data: candidatas, error: e1 } = await admin
+      .from("messages")
+      .select("id, conv_key, user_id, text, created_at")
+      .like("conv_key", "dm-%")
+      .gte("created_at", desde)
+      .lte("created_at", ate)
+      .order("id", { ascending: true })
+      .limit(500);
+    if (e1) return responder({ erro: "Não foi possível ler as mensagens: " + e1.message }, 500);
+    const reais = (candidatas || []).filter((m: any) => !controlo(m.text));
+    if (!reais.length) return responder({ ok: true, tipo, avisados: 0 });
+
+    const ids = reais.map((m: any) => m.id);
+    const { data: jaAvisadas } = await admin.from("avisos_mensagens").select("msg_id").in("msg_id", ids);
+    const avisadas = new Set((jaAvisadas || []).map((r: any) => r.msg_id));
+    const porAvisar = reais.filter((m: any) => !avisadas.has(m.id));
+    if (!porAvisar.length) return responder({ ok: true, tipo, avisados: 0 });
+
+    /* Tudo o que o destinatario escreveu depois, na mesma conversa —
+       resposta ou recibo de leitura — quer dizer que ja viu. */
+    const convs = Array.from(new Set(porAvisar.map((m: any) => m.conv_key)));
+    const menorId = Math.min(...porAvisar.map((m: any) => m.id));
+    const { data: depois } = await admin
+      .from("messages")
+      .select("id, conv_key, user_id")
+      .in("conv_key", convs)
+      .gt("id", menorId);
+    const { data: presencas } = await admin.from("presenca").select("user_id, visto_em");
+    const vistoEm = new Map((presencas || []).map((r: any) => [r.user_id, new Date(r.visto_em).getTime()]));
+    const online = (id: string) => (vistoEm.get(id) || 0) > agoraMs - 2 * 60000;
+
+    const grupos = new Map<string, any[]>();
+    const semAviso: number[] = [];
+    for (const m of porAvisar) {
+      const par = String(m.conv_key).slice(3).split("_");
+      const para = par.find((x) => x && x !== m.user_id);
+      if (!para) { semAviso.push(m.id); continue; }
+      const viu = (depois || []).some((d: any) => d.conv_key === m.conv_key && d.user_id === para && d.id > m.id);
+      if (viu) { semAviso.push(m.id); continue; }
+      if (online(para)) continue; // ainda pode responder; volta a ver no minuto seguinte
+      const chave = para + "|" + m.conv_key;
+      if (!grupos.has(chave)) grupos.set(chave, []);
+      grupos.get(chave)!.push(m);
+    }
+    /* O que ja nao precisa de aviso fica marcado, para nao voltar a ser visto. */
+    if (semAviso.length) await admin.from("avisos_mensagens").upsert(semAviso.map((id) => ({ msg_id: id, enviado: false })));
+
+    let avisados = 0;
+    const falhasMsg: string[] = [];
+    for (const [chave, lista] of grupos) {
+      const [paraId, conv] = chave.split("|");
+      const dest = equipa.find((u: any) => u && u.id === paraId);
+      const rem = equipa.find((u: any) => u && u.id === lista[0].user_id);
+      const ids2 = lista.map((m: any) => m.id);
+      if (!dest || !daClinica(dest.email)) {
+        await admin.from("avisos_mensagens").upsert(ids2.map((id: number) => ({ msg_id: id, enviado: false })));
+        continue;
+      }
+      const nomeRem = rem ? String(rem.name || "Um colega") : "Um colega";
+      const primeiro = nomeRem.split(" ")[0];
+      const itens = lista.slice(-5).map((m: any) => {
+        const d = new Date(m.created_at);
+        const hora = d.toLocaleString("pt-PT", { timeZone: "Africa/Luanda", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+        const t = textoVisivel(m.text);
+        return '<li style="margin-bottom:8px"><span style="color:#94A3B8;font-size:12px">' + escapar(hora) + "</span><br>" +
+          escapar(t.length > 300 ? t.slice(0, 300) + "…" : t).replace(/\n/g, "<br>") + "</li>";
+      }).join("");
+      const html = envelope(
+        "Mensagem de " + escapar(nomeRem),
+        paragrafo(escapar(primeiro) + " enviou-lhe " + (lista.length === 1 ? "uma mensagem" : lista.length + " mensagens") + " no Workspace, ainda por ler:") +
+          '<ul style="padding-left:18px;margin:6px 0 0;font-family:' + FONTE + ';font-size:15px;line-height:1.5;color:' + MARINHO + '">' + itens + "</ul>",
+        "chat/" + conv,
+        "Responder a " + escapar(primeiro),
+        "Aviso enviado porque a mensagem ficou 5 minutos por ler e estava offline."
+      );
+      const ok = await enviar(dest.email, "[Workspace] " + primeiro + " enviou-lhe " + (lista.length === 1 ? "uma mensagem" : lista.length + " mensagens"), html);
+      if (ok) {
+        avisados++;
+        await admin.from("avisos_mensagens").upsert(ids2.map((id: number) => ({ msg_id: id, enviado: true })));
+      } else falhasMsg.push(dest.email);
+    }
+    return responder({ ok: true, tipo, avisados, falhas: falhasMsg.length ? falhasMsg : undefined });
+  }
 
   /* O lembrete vai para toda a gente, tenha ou nao tarefas: um e-mail por
      pessoa, tratada pelo nome. Curto: serve para a pessoa abrir o

@@ -319,6 +319,46 @@ Pedido do Elmar. Aplicado no servidor com
 
 ---
 
+## 3-d. Envio de 24-09-2026 à tarde
+
+- [x] **E-mails programados enviados agora**, a pedido do Elmar: lembrete
+      e aviso colectivo, 17 destinatários cada, sem falhas (HTTP 200). É a
+      primeira prova do caminho completo: agendamento → função →
+      `bright-worker` → Resend.
+- [x] **Aviso por e-mail das mensagens directas só depois de 5 minutos,
+      sem resposta e com a pessoa offline** (pedido do Elmar). Aplicado
+      com [`avisos-mensagens.sql`](avisos-mensagens.sql) e a
+      `resumo-matinal` versão 8 (tipo `mensagens`, agendamento
+      `bsp-avisos-mensagens` a cada minuto).
+      - O Workspace deixou de enviar o e-mail no momento da mensagem.
+      - Presença: com o Workspace aberto e à vista, a aplicação regista
+        «estou aqui» a cada minuto (tabela `presenca`). Sem sinal há mais
+        de 2 minutos = offline.
+      - Resposta ou recibo de leitura do destinatário na mesma conversa =
+        já viu, não há e-mail.
+      - Várias mensagens do mesmo colega vão num só e-mail. O que já foi
+        tratado fica em `avisos_mensagens` (as 124+ mensagens que já
+        existiam foram marcadas, para não sair nenhum aviso atrasado).
+      - Só para endereços @barispol.com.
+      - Limpeza semanal (`bsp-limpeza-registos`, domingo 03h00 UTC).
+      - *Confirmado:* a função responde HTTP 200 com 0 avisos.
+      - [ ] Por confirmar com duas pessoas reais: mandar uma mensagem a
+        alguém com o Workspace fechado e ver o e-mail 5–6 minutos depois.
+- [x] **Som das notificações dentro da plataforma.** Criava-se um som novo
+      a cada aviso, e os browsers bloqueiam som que não venha de um toque
+      da pessoa: não se ouvia nada. Agora há um só leitor de som,
+      desbloqueado no primeiro toque ou clique na página, e o volume
+      subiu de 7% para 25%. No iPhone, o botão de silêncio lateral
+      continua a calar o som.
+      - [ ] Por confirmar num aparelho real (o browser de teste não aplica
+        o bloqueio de som).
+- [x] **Botões sem acção:** no painel do contacto de uma conversa
+      directa (ligar, vídeo, e-mail) e no Directório (mensagem, chamada,
+      vídeo). Agora ligam, abrem a conversa ou o e-mail. *Confirmado* num
+      browser de teste.
+
+---
+
 ## 4. Em cada aparelho
 
 - [ ] Recarregar à força (telemóvel: fechar o separador e reabrir;

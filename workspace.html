@@ -3075,34 +3075,71 @@ function loadInitial() {
   };
 }
 const StoreContext = React.createContext(null);
+/* O som das notificacoes.
+
+   Antes criava-se um AudioContext novo a cada aviso. Os browsers (Chrome,
+   Safari, telemoveis) so deixam tocar som depois de a pessoa tocar na
+   pagina: um contexto criado quando chega uma mensagem nasce "suspenso" e
+   nao se ouve nada. Agora ha um so contexto, desbloqueado no primeiro
+   toque, clique ou tecla, e retomado antes de cada aviso. O volume era
+   7% — quase inaudivel; passou a 25%. */
+let __bspAudio = null;
+function bspAudio() {
+  try {
+    if (!__bspAudio) {
+      const C = window.AudioContext || window.webkitAudioContext;
+      if (!C) return null;
+      __bspAudio = new C();
+    }
+    return __bspAudio;
+  } catch (e) {
+    return null;
+  }
+}
+function bspDesbloquearSom() {
+  const ctx = bspAudio();
+  if (!ctx) return;
+  try {
+    if (ctx.state === 'suspended') ctx.resume();
+    /* Um instante de silencio: o Safari do iPhone so conta o desbloqueio
+       se alguma coisa tocar dentro do proprio toque. */
+    const b = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = b;
+    src.connect(ctx.destination);
+    src.start(0);
+  } catch (e) {}
+}
+if (typeof window !== 'undefined') {
+  ['pointerdown', 'touchstart', 'keydown'].forEach(ev => window.addEventListener(ev, bspDesbloquearSom, { capture: true, passive: true }));
+}
 function bspPlayChime() {
   try {
     if (localStorage.getItem('bsp_notif_sound') === 'off') return;
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const o = ctx.createOscillator(),
-      g = ctx.createGain();
-    o.connect(g);
-    g.connect(ctx.destination);
-    o.type = 'sine';
-    o.frequency.setValueAtTime(880, ctx.currentTime);
-    o.frequency.setValueAtTime(660, ctx.currentTime + .12);
-    g.gain.setValueAtTime(.0001, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(.07, ctx.currentTime + .02);
-    g.gain.exponentialRampToValueAtTime(.0001, ctx.currentTime + .5);
-    o.start();
-    o.stop(ctx.currentTime + .55);
   } catch (e) {}
-}
-function bspBrowserNotify(title, body) {
+  const ctx = bspAudio();
+  if (!ctx) return;
+  const tocar = () => {
+    try {
+      const t0 = ctx.currentTime;
+      [[880, 0], [1320, 0.14]].forEach(([freq, atraso]) => {
+        const o = ctx.createOscillator(),
+          g = ctx.createGain();
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.type = 'sine';
+        o.frequency.setValueAtTime(freq, t0 + atraso);
+        g.gain.setValueAtTime(0.0001, t0 + atraso);
+        g.gain.exponentialRampToValueAtTime(0.25, t0 + atraso + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + atraso + 0.45);
+        o.start(t0 + atraso);
+        o.stop(t0 + atraso + 0.5);
+      });
+    } catch (e) {}
+  };
   try {
-    if (!('Notification' in window) || Notification.permission !== 'granted') return;
-    if (!document.hidden) return;
-    new Notification(title, {
-      body: body || '',
-      icon: typeof BSP_LOGO_URI !== 'undefined' ? BSP_LOGO_URI : undefined,
-      badge: undefined,
-      tag: 'bsp-' + Date.now()
-    });
+    if (ctx.state === 'suspended') ctx.resume().then(tocar, () => {});
+    else tocar();
   } catch (e) {}
 }
 function bspIncoming(title, body) {
@@ -4030,8 +4067,25 @@ function StoreProvider({
            o que ficou para trás, em vez de esperar pelo próximo ciclo —
            era isto que dava a sensação de as mensagens não chegarem. */
         syncRef.current.aoVoltar = () => {
-          if (!document.hidden && !cancelled) verificar();
+          if (!document.hidden && !cancelled) {
+            verificar();
+            sinalPresenca();
+          }
         };
+        /* "Estou aqui", a cada minuto, so com o Workspace a vista. O servidor
+           usa isto para saber se a pessoa esta offline antes de lhe mandar
+           um e-mail por uma mensagem directa por ler. */
+        const sinalPresenca = () => {
+          try {
+            if (document.hidden || !window.CURRENT_USER_ID || window.CURRENT_USER_ID === 'self') return;
+            client.from('presenca').upsert({
+              user_id: window.CURRENT_USER_ID,
+              visto_em: new Date().toISOString()
+            }).then(() => {}, () => {});
+          } catch (e) {}
+        };
+        sinalPresenca();
+        syncRef.current.presenca = setInterval(sinalPresenca, 60000);
         document.addEventListener('visibilitychange', syncRef.current.aoVoltar);
         window.addEventListener('focus', syncRef.current.aoVoltar);
         window.addEventListener('online', syncRef.current.aoVoltar);
@@ -4050,6 +4104,7 @@ function StoreProvider({
       cancelled = true;
       try {
         if (syncRef.current.poll) clearTimeout(syncRef.current.poll);
+        if (syncRef.current.presenca) clearInterval(syncRef.current.presenca);
       } catch (e) {}
       try {
         if (syncRef.current.aoVoltar) {
@@ -4352,27 +4407,11 @@ function StoreProvider({
           }).then(() => {}, () => {});
         } catch (e) {}
       }
-      /* Aviso por e-mail nas mensagens directas: quem recebe fica a saber,
-         mesmo sem o Workspace aberto. Canais não enviam e-mail de propósito —
-         um canal movimentado encheria a caixa de toda a gente. */
-      try {
-        if (String(convKey).indexOf('dm-') === 0 && msg && msg.text) {
-          /* a chave é dm-<idA>_<idB>; o destinatário é o id que não é o remetente */
-          const par = String(convKey).slice(3).split('_');
-          const paraId = par.find(x => x && x !== msg.userId);
-          const dest = (USERS || []).find(x => x.id === paraId);
-          const rem = (USERS || []).find(x => x.id === msg.userId);
-          if (dest && dest.email && rem && dest.id !== rem.id) {
-            const nome = (rem.name || 'Um colega').split(' ')[0];
-            const previa = String(msg.text).slice(0, 200);
-            bspSendEmail(dest.email,
-              '[Workspace] Nova mensagem de ' + nome,
-              bspEmailWrap('Mensagem de ' + (rem.name || nome),
-                previa.replace(/</g, '&lt;') + (msg.text.length > 200 ? '…' : ''),
-                'chat/' + convKey, 'Responder a ' + nome));
-          }
-        }
-      } catch (e) {}
+      /* O aviso por e-mail das mensagens directas deixou de sair daqui
+         (24-09-2026). Quem decide agora e o servidor (resumo-matinal, tipo
+         "mensagens", a cada minuto): so avisa se a mensagem ficar 5
+         minutos sem resposta nem leitura e a pessoa estiver offline. Ver
+         avisos-mensagens.sql. */
     },
     marcarLido: (convKey, sid) => {
       const cl = syncRef.current && syncRef.current.client;
@@ -7661,9 +7700,22 @@ function ChannelInfo({
     f: f
   })))));
 }
+/* Abrir a conversa directa com alguem, a partir de qualquer ecra. O App
+   publica window.bspAbrirConversa; sem ele, fica o endereco. */
+function bspConversaCom(outroId) {
+  const eu = window.CURRENT_USER_ID;
+  if (!outroId || !eu || outroId === eu) return;
+  const conv = 'dm-' + [eu, outroId].sort().join('_');
+  if (typeof window.bspAbrirConversa === 'function') window.bspAbrirConversa(conv);
+  else location.hash = '#/chat/' + conv;
+}
 function DmInfo({
   user
 }) {
+  /* Os tres botoes eram so desenhos, sem accao (24-09-2026). Agora:
+     chamada, videochamada e e-mail para a pessoa. */
+  const c = useChamadas();
+  const euMesmo = user && user.id === window.CURRENT_USER_ID;
   return React.createElement("div", null, React.createElement("div", {
     style: {
       textAlign: 'center',
@@ -7697,16 +7749,26 @@ function DmInfo({
       gap: 8,
       marginTop: 14
     }
-  }, React.createElement("button", {
-    className: "bsp-iconbtn"
+  }, !euMesmo && React.createElement("button", {
+    className: "bsp-iconbtn",
+    title: "Ligar",
+    "aria-label": "Ligar a " + user.name,
+    onClick: () => c.chamar(user.id, false)
   }, React.createElement(I.Phone, {
     size: 14
-  })), React.createElement("button", {
-    className: "bsp-iconbtn"
+  })), !euMesmo && React.createElement("button", {
+    className: "bsp-iconbtn",
+    title: "Videochamada",
+    "aria-label": "Videochamada com " + user.name,
+    onClick: () => c.chamar(user.id, true)
   }, React.createElement(I.Video, {
     size: 14
-  })), React.createElement("button", {
-    className: "bsp-iconbtn"
+  })), user.email && React.createElement("a", {
+    className: "bsp-iconbtn",
+    title: "Enviar e-mail",
+    "aria-label": "Enviar e-mail a " + user.name,
+    href: 'mailto:' + user.email,
+    style: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'inherit' }
   }, React.createElement(I.Mail, {
     size: 14
   })))), React.createElement("div", {
@@ -12129,6 +12191,9 @@ function DriveScreen() {
   }))));
 }
 function DirectoryScreen() {
+  /* Os botoes de mensagem, chamada e video de cada pessoa nao faziam
+     nada (24-09-2026). */
+  const chamadas = useChamadas();
   const [filter, setFilter] = React.useState('todos');
   const [view, setView] = React.useState('grid');
   const [showOrg, setShowOrg] = React.useState(false);
@@ -12384,31 +12449,34 @@ function DirectoryScreen() {
       paddingTop: 10,
       borderTop: '1px solid var(--border)'
     }
-  }, React.createElement("button", {
+  }, u.id !== window.CURRENT_USER_ID && React.createElement("button", {
     className: "bsp-iconbtn",
     style: {
       flex: 1,
       height: 30
     },
-    title: "Mensagem"
+    title: "Mensagem",
+    onClick: () => bspConversaCom(u.id)
   }, React.createElement(I.Chat, {
     size: 13
-  })), React.createElement("button", {
+  })), u.id !== window.CURRENT_USER_ID && React.createElement("button", {
     className: "bsp-iconbtn",
     style: {
       flex: 1,
       height: 30
     },
-    title: "Chamada"
+    title: "Chamada",
+    onClick: () => chamadas.chamar(u.id, false)
   }, React.createElement(I.Phone, {
     size: 13
-  })), React.createElement("button", {
+  })), u.id !== window.CURRENT_USER_ID && React.createElement("button", {
     className: "bsp-iconbtn",
     style: {
       flex: 1,
       height: 30
     },
-    title: "Vídeo"
+    title: "Vídeo",
+    onClick: () => chamadas.chamar(u.id, true)
   }, React.createElement(I.Video, {
     size: 13
   }))))))) : React.createElement(Card, {
@@ -12496,16 +12564,20 @@ function DirectoryScreen() {
       justifyContent: 'flex-end',
       gap: 4
     }
-  }, React.createElement("button", {
+  }, u.id !== window.CURRENT_USER_ID && React.createElement("button", {
     className: "bsp-iconbtn",
+    title: "Mensagem",
+    onClick: () => bspConversaCom(u.id),
     style: {
       width: 28,
       height: 28
     }
   }, React.createElement(I.Chat, {
     size: 13
-  })), React.createElement("button", {
+  })), u.id !== window.CURRENT_USER_ID && React.createElement("button", {
     className: "bsp-iconbtn",
+    title: "Vídeo",
+    onClick: () => chamadas.chamar(u.id, true),
     style: {
       width: 28,
       height: 28
@@ -17738,6 +17810,14 @@ function App() {
      valor para que carregar duas vezes na mesma notificacao volte a
      mandar o Chat para la. */
   const [alvoChat, setAlvoChat] = React.useState(null);
+  /* Para os botoes "Mensagem" fora do Chat (Directorio, perfis). */
+  React.useEffect(() => {
+    window.bspAbrirConversa = conv => {
+      setAlvoChat({ conv: conv, vez: Date.now() });
+      setPage('chat');
+    };
+    return () => { window.bspAbrirConversa = null; };
+  }, []);
   const abrirNotificacao = React.useCallback(n => {
     if (!n) return;
     if (n.conv) {

@@ -86,6 +86,13 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   nome) e `coletivo` (12h00, seg/qua/sex, «Olá, equipa»). Registos por
   dia: `resumos_enviados`, `lembretes_enviados`, `coletivos_enviados`.
   Todos só para endereços @barispol.com (versão 7).
+- Tipo `mensagens` da `resumo-matinal` (versão 8, a cada minuto): e-mail
+  de mensagem directa só após 5 min sem resposta/leitura e com a pessoa
+  offline (tabela `presenca`, sinal a cada minuto). Registo em
+  `avisos_mensagens`. O Workspace já não envia esse e-mail directamente.
+- Som das notificações: um só `AudioContext` (`bspAudio`), desbloqueado
+  no primeiro toque (`bspDesbloquearSom`). Nunca criar um por aviso.
+- Abrir uma conversa directa de qualquer ecrã: `bspConversaCom(id)`.
 - Calendário (opção C, aprovada): os eventos são rotina semanal. Cada
   evento tem um dia da semana e repete-se todas as semanas nesse dia.
 
@@ -110,7 +117,8 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 
 1. **Resumo matinal:** agendado sem chave secreta em 24-09-2026 (passo 3
    do `O-QUE-FALTA.md`). `fonte_chave` = `SUPABASE_SECRET_KEYS`.
-2. Confirmar os primeiros envios reais a 25-09-2026 em
+2. Os envios reais já funcionam (lembrete e colectivo, 24-09-2026, 17
+   destinatários). Confirmar os agendados a 25-09-2026 em
    `net._http_response`: resumo 06h30, lembrete 07h30 (`lembrados` = 17),
    colectivo 12h00. Sem `falhas`.
 3. Passo 0.6: só com autorização expressa do Elmar. Antes, testar a
