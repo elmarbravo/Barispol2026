@@ -93,6 +93,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 - Som das notificações: um só `AudioContext` (`bspAudio`), desbloqueado
   no primeiro toque (`bspDesbloquearSom`). Nunca criar um por aviso.
 - Abrir uma conversa directa de qualquer ecrã: `bspConversaCom(id)`.
+- Relatórios por área: ecrã `relatorios` (`RelatoriosScreen`), perguntas em
+  `BSP_RELATORIOS`, respostas na tabela `relatorios_area`
+  (`relatorios-area.sql`). Sem nomes de utentes.
 - Calendário (opção C, aprovada): os eventos são rotina semanal. Cada
   evento tem um dia da semana e repete-se todas as semanas nesse dia.
 

@@ -2443,6 +2443,11 @@ const NAV_ITEMS = [{
   icon: 'Heart',
   badge: null
 }, {
+  id: 'relatorios',
+  label: 'Relatórios',
+  icon: 'File',
+  badge: null
+}, {
   id: 'admin',
   label: 'Admin',
   icon: 'Shield',
@@ -2823,6 +2828,7 @@ function Topbar({
     drive: 'Drive',
     calendar: 'Calendário',
     tasks: 'Tarefas',
+    relatorios: 'Relatórios do dia',
     directory: 'Directório',
     admin: 'Painel de Administração',
     notifications: 'Notificações'
@@ -12190,6 +12196,254 @@ function DriveScreen() {
     }].concat(pessoais.pastas.map(x => ({ value: x, label: x })))
   }))));
 }
+/* RELATORIOS PADRAO POR AREA (24-09-2026, pedido do Elmar).
+
+   Cada area enviava por e-mail um relatorio em texto livre, cada pessoa a
+   sua maneira. Aqui fica um formulario igual para todos, quase todo de
+   escolha multipla e contagens, tirado do que esses e-mails ja dizem. As
+   respostas ficam na tabela relatorios_area (ver relatorios-area.sql).
+   Cada pessoa ve os seus; a Direccao e a Coordenacao vem todos e sabem que
+   areas ainda nao entregaram.
+
+   Nunca se pedem nomes de pacientes: so contagens e escolhas.
+
+   Tipos de campo: 'escolha' (uma opcao), 'varias' (varias opcoes),
+   'numero' e 'texto' (observacao curta, opcional). */
+const BSP_OCORRENCIAS = ['Nenhuma', 'Reclamação de utente', 'Falha de sistema / MetaGest', 'Falha de internet ou energia', 'Falta de material', 'Atraso ou ausência de colega', 'Outra (ver observação)'];
+const BSP_RELATORIOS = [{
+  id: 'rececao',
+  nome: 'Recepção / Caixa',
+  campos: [
+    { id: 'turno', tipo: 'escolha', rotulo: 'Fecho', opcoes: ['Turno das 08h às 17h', 'Dia completo (07h às 22h)', 'Turno da noite'] },
+    { id: 'utentes', tipo: 'numero', rotulo: 'Utentes atendidos' },
+    { id: 'novos', tipo: 'numero', rotulo: 'Dos quais, novos utentes' },
+    { id: 'fecho_caixa', tipo: 'escolha', rotulo: 'Fecho de caixa', opcoes: ['Enviado', 'Por enviar'] },
+    { id: 'tpa', tipo: 'escolha', rotulo: 'Fecho do TPA', opcoes: ['Enviado', 'Por enviar', 'Sem movimento no TPA'] },
+    { id: 'mapas', tipo: 'escolha', rotulo: 'Mapas dos médicos em serviço', opcoes: ['Todos entregues', 'Alguns em falta', 'Nenhum entregue'] },
+    { id: 'marcacoes', tipo: 'escolha', rotulo: 'Estado das marcações do dia (compareceu, faltou, cancelou, remarcado)', opcoes: ['Todas actualizadas', 'Algumas por actualizar', 'Nenhuma actualizada'] },
+    { id: 'documentos', tipo: 'varias', rotulo: 'Documentos por regularizar no MetaGest', opcoes: ['Nenhum', 'Anulação / nota de crédito por emitir', 'Factura a crédito por emitir', 'Rascunho por eliminar ou submeter', 'Documento em duplicado'] },
+    { id: 'ocorrencias', tipo: 'varias', rotulo: 'Ocorrências', opcoes: BSP_OCORRENCIAS },
+    { id: 'obs', tipo: 'texto', rotulo: 'Observação (opcional, sem nomes de utentes)' }
+  ]
+}, {
+  id: 'farmacia',
+  nome: 'Farmácia',
+  campos: [
+    { id: 'turno', tipo: 'escolha', rotulo: 'Fecho', opcoes: ['1.º fecho (turno da manhã)', '2.º fecho (fecho do dia)'] },
+    { id: 'anexos', tipo: 'varias', rotulo: 'Enviado com este fecho', opcoes: ['Fecho de caixa', 'Fecho do TPA', 'Relatório diário', 'Receitas internas'] },
+    { id: 'receitas', tipo: 'numero', rotulo: 'Receitas internas' },
+    { id: 'supridas', tipo: 'escolha', rotulo: 'Receitas internas supridas', opcoes: ['Todas', 'Parcialmente', 'Nenhuma', 'Não houve receitas'] },
+    { id: 'rupturas', tipo: 'escolha', rotulo: 'Rupturas de stock', opcoes: ['Nenhuma', 'Sim, de medicamentos', 'Sim, de material', 'Sim, de ambos'] },
+    { id: 'avarias', tipo: 'varias', rotulo: 'Avarias', opcoes: ['Nenhuma', 'Computador ou periféricos', 'TPA', 'Frigorífico / conservação', 'Outra (ver observação)'] },
+    { id: 'inventario', tipo: 'escolha', rotulo: 'Inventário semanal', opcoes: ['Não se aplica hoje', 'Enviado', 'Por enviar'] },
+    { id: 'ocorrencias', tipo: 'varias', rotulo: 'Ocorrências', opcoes: BSP_OCORRENCIAS },
+    { id: 'obs', tipo: 'texto', rotulo: 'Observação (opcional, sem nomes de utentes)' }
+  ]
+}, {
+  id: 'laboratorio',
+  nome: 'Laboratório',
+  campos: [
+    { id: 'pacientes', tipo: 'numero', rotulo: 'Pacientes atendidos' },
+    { id: 'exames', tipo: 'numero', rotulo: 'Exames realizados' },
+    { id: 'requisicoes', tipo: 'escolha', rotulo: 'Requisições do dia', opcoes: ['Todas pagas e processadas', 'Algumas por pagar', 'Algumas por processar', 'Sem requisições'] },
+    { id: 'resultados', tipo: 'escolha', rotulo: 'Resultados', opcoes: ['Todos entregues', 'Alguns pendentes', 'Todos pendentes'] },
+    { id: 'requisicoes_anexo', tipo: 'escolha', rotulo: 'Requisições digitalizadas enviadas', opcoes: ['Sim', 'Por enviar'] },
+    { id: 'equipamentos', tipo: 'escolha', rotulo: 'Equipamentos', opcoes: ['Todos operacionais', 'Algum com avaria', 'Algum em manutenção'] },
+    { id: 'reagentes', tipo: 'escolha', rotulo: 'Reagentes e consumíveis', opcoes: ['Suficientes', 'Stock baixo', 'Em ruptura'] },
+    { id: 'ocorrencias', tipo: 'varias', rotulo: 'Ocorrências', opcoes: BSP_OCORRENCIAS },
+    { id: 'obs', tipo: 'texto', rotulo: 'Observação (opcional, sem nomes de utentes)' }
+  ]
+}, {
+  id: 'imagiologia',
+  nome: 'Imagiologia (Raio-X e Ecografia)',
+  campos: [
+    { id: 'movimento', tipo: 'escolha', rotulo: 'Como decorreu o turno', opcoes: ['Calmo', 'Normal', 'Muito movimentado'] },
+    { id: 'pacientes', tipo: 'numero', rotulo: 'Pacientes atendidos' },
+    { id: 'raiox', tipo: 'numero', rotulo: 'Exames de Raio-X' },
+    { id: 'ecografias', tipo: 'numero', rotulo: 'Ecografias' },
+    { id: 'tipos', tipo: 'varias', rotulo: 'Tipos de exame feitos', opcoes: ['Tórax', 'Membros', 'Coluna', 'Abdómen', 'Crânio', 'Ecografia obstétrica', 'Ecografia abdominal / pélvica', 'Outra ecografia'] },
+    { id: 'aparelhos', tipo: 'escolha', rotulo: 'Aparelhos', opcoes: ['Todos operacionais', 'Algum com avaria', 'Algum em manutenção'] },
+    { id: 'consumiveis', tipo: 'escolha', rotulo: 'Películas e consumíveis', opcoes: ['Suficientes', 'Stock baixo', 'Em ruptura'] },
+    { id: 'ocorrencias', tipo: 'varias', rotulo: 'Ocorrências', opcoes: BSP_OCORRENCIAS },
+    { id: 'obs', tipo: 'texto', rotulo: 'Observação (opcional, sem nomes de utentes)' }
+  ]
+}, {
+  id: 'enfermagem',
+  nome: 'Enfermagem',
+  campos: [
+    { id: 'turno', tipo: 'escolha', rotulo: 'Turno', opcoes: ['Manhã', 'Tarde', 'Noite', 'Dia completo'] },
+    { id: 'movimento', tipo: 'escolha', rotulo: 'Como decorreu o turno', opcoes: ['Calmo', 'Normal', 'Muito movimentado'] },
+    { id: 'intercorrencias', tipo: 'escolha', rotulo: 'Intercorrências', opcoes: ['Nenhuma', 'Ligeiras', 'Graves (ver observação)'] },
+    { id: 'consultas', tipo: 'numero', rotulo: 'Consultas apoiadas' },
+    { id: 'im', tipo: 'numero', rotulo: 'Injecções intramusculares' },
+    { id: 'ev', tipo: 'numero', rotulo: 'Injecções endovenosas' },
+    { id: 'observacoes', tipo: 'numero', rotulo: 'Observações' },
+    { id: 'nebulizacoes', tipo: 'numero', rotulo: 'Nebulizações' },
+    { id: 'curativos', tipo: 'numero', rotulo: 'Curativos' },
+    { id: 'material', tipo: 'varias', rotulo: 'Material em falta', opcoes: ['Nenhum', 'Máscaras de nebulização', 'Seringas e agulhas', 'Luvas', 'Soros', 'Material de penso', 'Outro (ver observação)'] },
+    { id: 'relatorio_anexo', tipo: 'escolha', rotulo: 'Folha de registo enviada', opcoes: ['Sim', 'Por enviar'] },
+    { id: 'obs', tipo: 'texto', rotulo: 'Observação (opcional, sem nomes de utentes)' }
+  ]
+}];
+/* O formulario que abre por omissao: pelo cargo, e depois pelo departamento. */
+function bspAreaDe(u) {
+  const t = ((u && u.role) || '') + ' ' + ((u && u.dept) || '');
+  const x = t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  if (/laborat|analista/.test(x)) return 'laboratorio';
+  if (/farmac/.test(x)) return 'farmacia';
+  if (/enferm/.test(x)) return 'enfermagem';
+  if (/radiolog|raio|ecograf|imagiolog/.test(x)) return 'imagiologia';
+  if (/recep|caixa/.test(x)) return 'rececao';
+  return 'rececao';
+}
+/* O dia de Luanda, em AAAA-MM-DD. */
+function bspHojeLuanda() {
+  const d = new Date(Date.now() + 60 * 60000);
+  return d.toISOString().slice(0, 10);
+}
+function bspRespostaTexto(campo, v) {
+  if (v == null || v === '' || (Array.isArray(v) && !v.length)) return null;
+  return Array.isArray(v) ? v.join(', ') : String(v);
+}
+function RelatorioResumo({ rel }) {
+  const def = BSP_RELATORIOS.find(a => a.id === rel.area);
+  const u = window.userById && window.userById(rel.user_id);
+  const linhas = (def ? def.campos : []).map(c => [c, bspRespostaTexto(c, (rel.respostas || {})[c.id])]).filter(x => x[1] != null);
+  return React.createElement("div", {
+    style: { border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', background: 'var(--surface)' }
+  }, React.createElement("div", {
+    style: { display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 6, marginBottom: 8 }
+  }, React.createElement("strong", { style: { fontSize: 13.5, color: 'var(--text-1)' } }, def ? def.nome : rel.area, rel.turno ? ' · ' + rel.turno : ''), React.createElement("span", {
+    style: { fontSize: 11.5, color: 'var(--text-3)', whiteSpace: 'nowrap' }
+  }, (u ? u.name.split(' ').slice(0, 2).join(' ') + ' · ' : '') + bspQuando(rel.created_at))), React.createElement("div", {
+    style: { display: 'grid', gridTemplateColumns: 'minmax(120px, 42%) 1fr', gap: '4px 12px', fontSize: 12.5 }
+  }, linhas.map(([c, t]) => React.createElement(React.Fragment, { key: c.id }, React.createElement("span", { style: { color: 'var(--text-3)' } }, c.rotulo), React.createElement("span", { style: { color: 'var(--text-1)', whiteSpace: 'pre-wrap' } }, t)))));
+}
+function RelatoriosScreen() {
+  const toast = useToast();
+  const eu = window.userById && window.userById(window.CURRENT_USER_ID);
+  const gestor = !!(eu && bspCamada(eu).podeGerirUtilizadores);
+  const [area, setArea] = React.useState(bspAreaDe(eu));
+  const [resp, setResp] = React.useState({});
+  const [aEnviar, setAEnviar] = React.useState(false);
+  const [lista, setLista] = React.useState([]);
+  const [estado, setEstado] = React.useState('a-carregar');
+  const [dia, setDia] = React.useState(bspHojeLuanda());
+  const [tick, setTick] = React.useState(0);
+  const def = BSP_RELATORIOS.find(a => a.id === area) || BSP_RELATORIOS[0];
+  React.useEffect(() => { setResp({}); }, [area]);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) { setEstado('sem-servidor'); return; }
+    let vivo = true;
+    setEstado('a-carregar');
+    (async () => {
+      /* O servidor decide o que chega: os meus, ou todos para quem gere. */
+      const r = await cl.from('relatorios_area').select('*').eq('dia', dia).order('created_at', { ascending: false });
+      if (!vivo) return;
+      if (r.error) { setEstado(/relation|does not exist|schema cache/i.test(r.error.message || '') ? 'sem-tabela' : 'erro'); return; }
+      setLista(r.data || []);
+      setEstado('pronto');
+    })();
+    return () => { vivo = false; };
+  }, [dia, tick]);
+  const definir = (id, v) => setResp(r => Object.assign({}, r, { [id]: v }));
+  const alternar = (campo, op) => setResp(r => {
+    const act = Array.isArray(r[campo.id]) ? r[campo.id] : [];
+    let nov = act.indexOf(op) !== -1 ? act.filter(x => x !== op) : act.concat(op);
+    /* "Nenhum/Nenhuma" exclui as outras escolhas, e vice-versa. */
+    const nada = campo.opcoes[0];
+    if (/^Nenhu/.test(nada)) nov = op === nada ? (nov.indexOf(nada) !== -1 ? [nada] : []) : nov.filter(x => x !== nada);
+    return Object.assign({}, r, { [campo.id]: nov });
+  });
+  const obrigatorios = def.campos.filter(c => c.tipo !== 'texto');
+  const faltam = obrigatorios.filter(c => {
+    const v = resp[c.id];
+    return v == null || v === '' || (Array.isArray(v) && !v.length);
+  });
+  const enviar = async () => {
+    if (aEnviar) return;
+    if (faltam.length) { toast('Falta responder: ' + faltam.map(c => c.rotulo).slice(0, 3).join(', ') + (faltam.length > 3 ? '…' : '') + '.'); return; }
+    const cl = bspGetClient();
+    if (!cl) { toast('O servidor não está ligado.'); return; }
+    setAEnviar(true);
+    const limpo = {};
+    def.campos.forEach(c => {
+      const v = resp[c.id];
+      if (c.tipo === 'numero') limpo[c.id] = Math.max(0, parseInt(v, 10) || 0);
+      else if (c.tipo === 'texto') { if (String(v || '').trim()) limpo[c.id] = String(v).trim().slice(0, 1000); }
+      else limpo[c.id] = v;
+    });
+    const r = await cl.from('relatorios_area').insert({
+      area: def.id,
+      dia: bspHojeLuanda(),
+      turno: typeof limpo.turno === 'string' ? limpo.turno : null,
+      user_id: window.CURRENT_USER_ID,
+      respostas: limpo
+    });
+    setAEnviar(false);
+    if (r.error) { toast('Não foi possível enviar: ' + (r.error.message || 'erro')); return; }
+    toast('Relatório enviado.');
+    setResp({});
+    setDia(bspHojeLuanda());
+    setTick(t => t + 1);
+  };
+  const chip = (activo, rotulo, onClick) => React.createElement("button", {
+    key: rotulo,
+    type: "button",
+    onClick,
+    "aria-pressed": activo,
+    style: {
+      padding: '7px 12px', borderRadius: 999, fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit',
+      border: '1px solid ' + (activo ? 'var(--accent-d)' : 'var(--border)'),
+      background: activo ? 'var(--accent-soft)' : 'var(--surface)',
+      color: activo ? 'var(--accent-d)' : 'var(--text-2)', fontWeight: activo ? 700 : 500
+    }
+  }, rotulo);
+  const campo = c => React.createElement("div", { key: c.id, style: { marginBottom: 16 } }, React.createElement("div", {
+    style: { fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)', marginBottom: 7 }
+  }, c.rotulo, c.tipo === 'varias' ? React.createElement("span", { style: { fontWeight: 400, color: 'var(--text-3)' } }, ' · pode escolher várias') : null), c.tipo === 'escolha' ? React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } }, c.opcoes.map(op => chip(resp[c.id] === op, op, () => definir(c.id, op)))) : c.tipo === 'varias' ? React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } }, c.opcoes.map(op => chip(Array.isArray(resp[c.id]) && resp[c.id].indexOf(op) !== -1, op, () => alternar(c, op)))) : c.tipo === 'numero' ? React.createElement("input", {
+    type: "number", min: 0, inputMode: "numeric", value: resp[c.id] == null ? '' : resp[c.id],
+    onChange: e => definir(c.id, e.target.value),
+    style: { width: 120, height: 38, padding: '0 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 14, fontFamily: 'inherit' }
+  }) : React.createElement("textarea", {
+    rows: 3, value: resp[c.id] || '', maxLength: 1000,
+    onChange: e => definir(c.id, e.target.value),
+    style: { width: '100%', boxSizing: 'border-box', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 13.5, fontFamily: 'inherit', resize: 'vertical' }
+  }));
+  const porArea = {};
+  lista.forEach(r => { (porArea[r.area] = porArea[r.area] || []).push(r); });
+  const emFalta = BSP_RELATORIOS.filter(a => !porArea[a.id]);
+  return React.createElement("div", {
+    style: { height: '100%', overflow: 'auto', padding: 'var(--density-pad, 20px)' }
+  }, React.createElement("div", {
+    style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, alignItems: 'start', maxWidth: 1200 }
+  }, React.createElement(Card, null, React.createElement("h3", {
+    style: { fontSize: 15, fontWeight: 700, margin: '0 0 4px', color: 'var(--text-1)' }
+  }, "Relatório do dia"), React.createElement("p", {
+    style: { fontSize: 12.5, color: 'var(--text-3)', margin: '0 0 14px' }
+  }, bspDiaExtenso(new Date().toISOString()), ". Escolha a área e responda. Não escreva nomes de utentes."), React.createElement("div", {
+    style: { display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 18 }
+  }, BSP_RELATORIOS.map(a => chip(area === a.id, a.nome, () => setArea(a.id)))), def.campos.map(campo), React.createElement(Button, {
+    variant: "primary",
+    onClick: enviar,
+    disabled: aEnviar
+  }, aEnviar ? 'A enviar…' : 'Enviar relatório'), faltam.length ? React.createElement("span", {
+    style: { marginLeft: 10, fontSize: 12, color: 'var(--text-3)' }
+  }, 'Faltam ' + faltam.length + ' resposta' + (faltam.length === 1 ? '' : 's') + '.') : null), React.createElement(Card, null, React.createElement("div", {
+    style: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }
+  }, React.createElement("h3", {
+    style: { fontSize: 15, fontWeight: 700, margin: 0, color: 'var(--text-1)' }
+  }, gestor ? 'Relatórios recebidos' : 'Os meus relatórios'), React.createElement("input", {
+    type: "date", value: dia, max: bspHojeLuanda(), onChange: e => e.target.value && setDia(e.target.value),
+    "aria-label": "Dia",
+    style: { height: 34, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit' }
+  })), gestor && estado === 'pronto' && React.createElement("div", {
+    style: { fontSize: 12.5, marginBottom: 12, color: emFalta.length ? '#B45309' : 'var(--text-2)' }
+  }, emFalta.length ? 'Em falta: ' + emFalta.map(a => a.nome).join(', ') + '.' : 'Todas as áreas entregaram.'), estado === 'a-carregar' ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'A carregar…') : estado === 'sem-servidor' ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'O servidor não está ligado neste aparelho.') : estado !== 'pronto' ? React.createElement("div", { style: { fontSize: 12.5, color: '#B91C1C' } }, 'Não foi possível ler os relatórios.') : !lista.length ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Sem relatórios neste dia.') : React.createElement("div", {
+    style: { display: 'flex', flexDirection: 'column', gap: 10 }
+  }, lista.map(r => React.createElement(RelatorioResumo, { key: r.id, rel: r }))))));
+}
 function DirectoryScreen() {
   /* Os botoes de mensagem, chamada e video de cada pessoa nao faziam
      nada (24-09-2026). */
@@ -15595,6 +15849,7 @@ function MobileTopbar({
     drive: 'Drive',
     calendar: 'Calendário',
     tasks: 'Tarefas',
+    relatorios: 'Relatórios',
     admin: 'Admin',
     notifications: 'Notificações',
     directory: 'Directório'
@@ -15696,7 +15951,7 @@ function MobileNav({
       }
     }, n > 99 ? '99+' : n)), it.label);
   }), React.createElement("button", {
-    "data-on": ['feed', 'meetings', 'drive', 'admin', 'notifications', 'directory'].includes(current),
+    "data-on": ['feed', 'meetings', 'drive', 'admin', 'notifications', 'directory', 'relatorios'].includes(current),
     onClick: onMore
   }, React.createElement(I.MoreH, {
     size: 20
@@ -15870,6 +16125,10 @@ function MobileMore({
     id: 'drive',
     label: 'Drive',
     icon: 'Drive'
+  }, {
+    id: 'relatorios',
+    label: 'Relatórios',
+    icon: 'File'
   }, {
     id: 'notifications',
     label: 'Notificações',
@@ -17843,7 +18102,7 @@ function App() {
     if (onde === 'chat' && partes[1]) {
       setAlvoChat({ conv: decodeURIComponent(partes.slice(1).join('/')), vez: Date.now() });
       setPage('chat');
-    } else if (['feed', 'tarefas', 'agenda', 'drive', 'seguimento', 'chat'].indexOf(onde) !== -1) {
+    } else if (['feed', 'tarefas', 'agenda', 'drive', 'seguimento', 'chat', 'relatorios'].indexOf(onde) !== -1) {
       setPage({ tarefas: 'tasks', agenda: 'calendar' }[onde] || onde);
     } else {
       return;
@@ -17937,7 +18196,7 @@ function App() {
   }), page === 'meetings' && React.createElement(MeetingsScreen, null), page === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), page === 'drive' && React.createElement(DriveScreen, null), page === 'calendar' && React.createElement(CalendarScreen, null), page === 'tasks' && React.createElement(TasksScreen, null), page === 'seguimento' && React.createElement(SeguimentoScreen, null), page === 'directory' && React.createElement(DirectoryScreen, null), page === 'admin' && React.createElement(AdminScreen, {
+  }), page === 'drive' && React.createElement(DriveScreen, null), page === 'calendar' && React.createElement(CalendarScreen, null), page === 'tasks' && React.createElement(TasksScreen, null), page === 'seguimento' && React.createElement(SeguimentoScreen, null), page === 'relatorios' && React.createElement(RelatoriosScreen, null), page === 'directory' && React.createElement(DirectoryScreen, null), page === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
   }), page === 'notifications' && React.createElement(NotificationsScreen, {
     onAbrir: abrirNotificacao

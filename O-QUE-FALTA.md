@@ -359,6 +359,36 @@ Pedido do Elmar. Aplicado no servidor com
 
 ---
 
+## 3-e. Relatórios padrão por área (24-09-2026)
+
+Pedido do Elmar: relatórios de escolha múltipla por área, com base nos
+e-mails diários que cada área envia (lidos na caixa do Elmar: Laboratório,
+Raio-X, Farmácia, Enfermagem, fechos da Recepção, e as análises
+automáticas por área de info@barispol.ao).
+
+- [x] Novo ecrã **Relatórios** (menu lateral; no telemóvel em «Mais»).
+      Cinco formulários: Recepção / Caixa, Farmácia, Laboratório,
+      Imagiologia (Raio-X e Ecografia), Enfermagem. Quase tudo escolha
+      múltipla e contagens; uma observação curta opcional. Nunca pede
+      nomes de utentes. As perguntas estão em `BSP_RELATORIOS`, no
+      `workspace.html`.
+- [x] O formulário abre na área da pessoa (pelo cargo e departamento).
+- [x] Tabela `relatorios_area` ([`relatorios-area.sql`](relatorios-area.sql)):
+      cada pessoa vê os seus; a Direcção e a Coordenação vêem todos, por
+      dia, com a lista das áreas **em falta**. Só se envia em nome
+      próprio. *Confirmado no servidor* (transacção desfeita): autor vê,
+      em nome de outro recusado, colega não vê, Direcção vê.
+- [x] *Confirmado* num browser de teste (telemóvel e computador): o
+      formulário marca as escolhas e não deixa enviar com respostas em
+      falta.
+- [ ] Por decidir: se, ao enviar, o relatório deve também seguir por
+      e-mail para a Direcção Clínica e a DAF (como hoje), e se os anexos
+      (Excel, PDF das requisições) passam a ir pelo Drive.
+- [ ] A Solange e a Gizela (Farmácia) estão sem departamento: o
+      formulário abre-lhes pela Recepção até isso ser preenchido.
+
+---
+
 ## 4. Em cada aparelho
 
 - [ ] Recarregar à força (telemóvel: fechar o separador e reabrir;
