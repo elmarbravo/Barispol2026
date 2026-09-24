@@ -1,0 +1,104 @@
+# Barispol2026 — contexto para o assistente
+
+Este ficheiro é lido automaticamente pelo Claude Code em cada tarefa. Tem as
+regras aprovadas pelo Elmar Bravo e o estado do projecto. O passo a passo do
+servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
+
+## Regras (aprovadas pelo Elmar, não negociáveis)
+
+1. Nunca escrever, pedir, mostrar nem guardar no repositório nenhuma chave
+   que comece por `sb_secret_` nem por `eyJ`, nem palavras-passe. A chave
+   secreta é criada e colada pelo Elmar, e mais ninguém. A chave
+   `sb_publishable_` é pública e pode aparecer.
+2. Nunca carregar em «Disable JWT-based API keys» (passo 0.6) sem
+   autorização expressa do Elmar na própria conversa.
+3. Nenhum e-mail sai para terceiros sem aprovação prévia do Elmar.
+4. Dados privados da clínica (nomes de pacientes, facturação) não saem do
+   servidor e não entram no repositório.
+5. Língua: português de Portugal, sem o Acordo Ortográfico de 1990, sem
+   gerúndio. Frases curtas, verbos concretos.
+6. A pessoa jurídica é sempre «Clínica Barispol, Lda.», NIF 5000999687.
+   «Centro Médico Barispol» é só a marca.
+7. Marca: Titillium Web (com Segoe UI/Arial de recurso). Cores:
+   azul-marinho #292F58 e #273069, azul #2291CE.
+8. Antes de cada alteração, dizer o que se vai fazer. Depois, dizer o que
+   se confirmou. Se o ecrã ou o código não corresponder ao descrito, parar
+   e descrever.
+9. Sempre que se mexe no código, actualizar `O-QUE-FALTA.md` na mesma
+   alteração.
+
+## O que é
+
+- `barispol.com` é servido pelo GitHub Pages a partir de `main` (ficheiro
+  `CNAME`). Um commit em `main` publica o site.
+- `workspace.html` é a intranet da equipa: mural, chat, tarefas,
+  calendário, drive, directório e administração. Uma só página em React
+  (versão UMD, `React.createElement`, sem compilação), com cerca de 626 KB.
+- `servidor.js` liga ao Supabase: projecto `ferqkmfntcockmhviscf`, chave
+  publicável «barispol» (`sb_publishable_TNiBJ_…`).
+- `funcoes/` guarda o código das Edge Functions:
+  - `criar-utilizador`: verificação de JWT desligada, tem autenticação
+    própria.
+  - `resumo-matinal`: verificação de JWT desligada. A versão 4 devolve
+    `fonte_chave` e filtra os eventos pelo dia da semana.
+  - `bright-worker` (nome «notify-email», envia pela Resend): verificação
+    de JWT ligada e **sem autenticação própria**. O bloco a acrescentar
+    está em `funcoes/bright-worker-ACRESCENTAR-verificacao.md`.
+- As funções lêem as chaves de `SUPABASE_SECRET_KEYS` e
+  `SUPABASE_PUBLISHABLE_KEYS` (plural, dicionários JSON). Os nomes antigos
+  `SUPABASE_SERVICE_ROLE_KEY` e `SUPABASE_ANON_KEY` só servem de recurso.
+
+## Pormenores do código que já causaram erros
+
+- Linhas de controlo na tabela `messages`, com o separador `​`:
+  - `​l​<id>` é um recibo de leitura
+  - `​e​<id>​<texto>` é uma edição
+  - `​r…` e `​p…` são reacções
+  
+  Nunca se mostram nem contam como por ler: usar `bspLinhaDeControlo()`.
+  A excepção é `​f…`, que é um anexo e portanto uma mensagem real.
+- As datas no chat usam `bspQuandoChat(iso, alternativa)`, alimentada por
+  `created_at`.
+- O contador do botão Chat vem de `bspTotalPorLer()` e `useChatPorLer()`.
+- `Modal` abre por `ReactDOM.createPortal` no `body`, com zIndex 100000.
+  Abaixo de 640 px ocupa o ecrã inteiro.
+- Departamentos em `DEPARTMENTS` (inclui `radiologia`). O departamento
+  actual de uma pessoa nunca desaparece do selector.
+- O envio de e-mail pela aplicação usa o token da sessão
+  (`bspTestemunho`).
+- Calendário (opção C, aprovada): os eventos são rotina semanal. Cada
+  evento tem um dia da semana e repete-se todas as semanas nesse dia.
+
+## Decisões aprovadas
+
+- Chave publicável «barispol» em `servidor.js` (07-09-2026).
+- Calendário com o texto da opção C (rotina semanal).
+- Datas nos chats, e não apenas horas.
+- Número de mensagens por ler no botão Chat.
+- Janelas em ecrã inteiro no telemóvel.
+- Departamento Radiologia.
+- Linhas de controlo escondidas, sem apagar dados.
+- Regra `bsp_msg_editar`: só o autor edita a sua mensagem (aplicada em
+  23-09-2026).
+- A separação da equipa por áreas deve basear-se na caixa de correio da
+  Barispol, e não no directório.
+
+## Por fazer
+
+1. **Resumo matinal (só o Elmar):** passo 0.4 (criar a chave secreta) e
+   passo 3 (colá-la na linha 22 de `agendar-resumo.sql`). O agendamento
+   `bsp-resumo-matinal` falha todas as manhãs com `invalid URL`.
+2. Testar `fonte_chave` com o botão «Enviar o resumo matinal agora»
+   (Admin → Sistema). O resultado decide se o passo 0.6 é seguro.
+3. `bright-worker`: acrescentar a autenticação própria, desligar a
+   verificação de JWT e só depois pensar no 0.6, com autorização.
+4. Departamento e cargo de 9 pessoas: Cassia Peixoto, Catarina Ndundu
+   Baptista, Filomena Silva, Gizela Joaquim, Juliana Lourenço (Supervisora
+   da Recepção), Osvaldo Pacheco, Paulo Manuel, Rosa Queirós e Solange
+   Orlando. Ficam em `shared_state.team`.
+5. Decidir se se cria o canal `#radiologia`.
+6. Tarefas a partir de e-mails, no Workspace de cada pessoa. Falta decidir
+   entre uma caixa por pessoa e uma caixa partilhada; a via recomendada é
+   o Power Automate.
+7. Nunca testado: uma chamada entre dois aparelhos reais e a importação
+   de um CSV do MetaGest.
