@@ -523,6 +523,10 @@ automáticas por área de info@barispol.ao).
       altura do texto). Sino com o número de notificações no topo.
 - [x] **CRM (Seguimento) no telemóvel:** estava só na barra lateral do
       computador. Passou a estar em «Mais», com o título certo no topo.
+- [x] **Eliminar relatórios:** botão «Eliminar» em cada relatório
+      recebido, com confirmação. Aparece a quem o servidor deixa apagar
+      (`bsp_rel_apagar`): o autor, no próprio dia; a Direcção e a
+      Coordenação, sempre. Se o servidor recusar, a pessoa vê o aviso.
 - [x] Reposta a função `bspBrowserNotify` (aviso do sistema com a página
       escondida). Foi apagada por engano no envio do som, mais cedo no
       mesmo dia, e cada mensagem recebida dava erro a seguir ao som.

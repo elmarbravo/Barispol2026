@@ -12611,8 +12611,13 @@ function bspRespostaTexto(campo, v) {
   if (v == null || v === '' || (Array.isArray(v) && !v.length)) return null;
   return Array.isArray(v) ? v.join(', ') : String(v);
 }
-function RelatorioResumo({ rel }) {
+function RelatorioResumo({ rel, onApagar }) {
   const def = BSP_RELATORIOS.find(a => a.id === rel.area);
+  /* Eliminar (24-09-2026). As mesmas regras do servidor (bsp_rel_apagar):
+     o autor, no proprio dia; a Direccao e a Coordenacao, sempre. */
+  const euR = window.userById && window.userById(window.CURRENT_USER_ID);
+  const podeApagar = !!onApagar && (!!(euR && bspCamada(euR).podeGerirUtilizadores) ||
+    (rel.user_id === window.CURRENT_USER_ID && rel.dia === bspHojeLuanda()));
   const u = window.userById && window.userById(rel.user_id);
   const linhas = (def ? def.campos : []).map(c => [c, bspRespostaTexto(c, (rel.respostas || {})[c.id])]).filter(x => x[1] != null);
   return React.createElement("div", {
@@ -12623,7 +12628,16 @@ function RelatorioResumo({ rel }) {
     style: { fontSize: 11.5, color: 'var(--text-3)', whiteSpace: 'nowrap' }
   }, (u ? u.name.split(' ').slice(0, 2).join(' ') + ' · ' : '') + bspQuando(rel.created_at))), React.createElement("div", {
     style: { display: 'grid', gridTemplateColumns: 'minmax(120px, 42%) 1fr', gap: '4px 12px', fontSize: 12.5 }
-  }, linhas.map(([c, t]) => React.createElement(React.Fragment, { key: c.id }, React.createElement("span", { style: { color: 'var(--text-3)' } }, c.rotulo), React.createElement("span", { style: { color: 'var(--text-1)', whiteSpace: 'pre-wrap' } }, t)))));
+  }, linhas.map(([c, t]) => React.createElement(React.Fragment, { key: c.id }, React.createElement("span", { style: { color: 'var(--text-3)' } }, c.rotulo), React.createElement("span", { style: { color: 'var(--text-1)', whiteSpace: 'pre-wrap' } }, t)))), podeApagar && React.createElement("div", {
+    style: { display: 'flex', justifyContent: 'flex-end', marginTop: 10 }
+  }, React.createElement("button", {
+    onClick: () => onApagar(rel),
+    style: {
+      display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8,
+      border: '1px solid rgba(220,38,38,.35)', background: 'transparent', color: '#DC2626',
+      fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer'
+    }
+  }, React.createElement(I.Trash, { size: 13 }), "Eliminar")));
 }
 function RelatoriosScreen() {
   const toast = useToast();
@@ -12656,6 +12670,19 @@ function RelatoriosScreen() {
     })();
     return () => { vivo = false; };
   }, [dia, tick]);
+  const apagar = async rel => {
+    const def0 = BSP_RELATORIOS.find(a => a.id === rel.area);
+    if (!window.confirm('Eliminar o relatório de ' + (def0 ? def0.nome : rel.area) + ' de ' + bspQuando(rel.created_at) + '? Não se pode desfazer.')) return;
+    const cl = bspGetClient();
+    if (!cl) { toast('O servidor não está ligado.'); return; }
+    /* O servidor so apaga o que as regras deixam: sem linha devolvida,
+       nao apagou. */
+    const r = await cl.from('relatorios_area').delete().eq('id', rel.id).select('id');
+    if (r.error) { toast('Não foi possível eliminar: ' + (r.error.message || 'erro')); return; }
+    if (!r.data || !r.data.length) { toast('Sem permissão para eliminar este relatório.'); return; }
+    setLista(l => l.filter(x => x.id !== rel.id));
+    toast('Relatório eliminado.');
+  };
   const definir = (id, v) => setResp(r => Object.assign({}, r, { [id]: v }));
   const alternar = (campo, op) => setResp(r => {
     const act = Array.isArray(r[campo.id]) ? r[campo.id] : [];
@@ -12763,7 +12790,7 @@ function RelatoriosScreen() {
     style: { fontSize: 12.5, marginBottom: 12, color: emFalta.length ? '#B45309' : 'var(--text-2)' }
   }, emFalta.length ? 'Em falta: ' + emFalta.map(a => a.nome).join(', ') + '.' : (gestor ? 'Todas as áreas entregaram.' : 'Todas as áreas médicas entregaram.')), estado === 'a-carregar' ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'A carregar…') : estado === 'sem-servidor' ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'O servidor não está ligado neste aparelho.') : estado !== 'pronto' ? React.createElement("div", { style: { fontSize: 12.5, color: '#B91C1C' } }, 'Não foi possível ler os relatórios.') : !lista.length ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Sem relatórios neste dia.') : React.createElement("div", {
     style: { display: 'flex', flexDirection: 'column', gap: 10 }
-  }, lista.map(r => React.createElement(RelatorioResumo, { key: r.id, rel: r }))))));
+  }, lista.map(r => React.createElement(RelatorioResumo, { key: r.id, rel: r, onApagar: apagar }))))));
 }
 function DirectoryScreen() {
   /* Os botoes de mensagem, chamada e video de cada pessoa nao faziam
