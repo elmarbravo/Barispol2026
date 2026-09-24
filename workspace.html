@@ -12591,7 +12591,7 @@ const BSP_RELATORIOS = [{
    · Direccao Clinica (BSP_RELATORIOS_DIRECCAO_CLINICA): as areas medicas.
    · Cada relatorio segue tambem por e-mail para BSP_RELATORIOS_EMAIL. */
 const BSP_RELATORIOS_MEDICOS = ['laboratorio', 'imagiologia', 'enfermagem'];
-const BSP_RELATORIOS_EMAIL = ['u2']; // Arlete Tatiana Tchinguli
+const BSP_RELATORIOS_EMAIL = []; // desde 25-09-2026 o e-mail sai do servidor: superior hierarquico, cc adm@ (areas de saude tambem DireccaoClinica@)
 const BSP_RELATORIOS_DIRECCAO_CLINICA = ['u14']; // Osvaldo Pacheco (igual a bsp_le_areas_medicas no servidor)
 /* O formulario que abre por omissao: pelo cargo, e depois pelo departamento. */
 function bspAreaDe(u) {
@@ -12602,7 +12602,7 @@ function bspAreaDe(u) {
   if (/enferm/.test(x)) return 'enfermagem';
   if (/radiolog|raio|ecograf|imagiolog/.test(x)) return 'imagiologia';
   if (/recep|caixa/.test(x)) return 'rececao';
-  return 'rececao';
+  return null;
 }
 /* O dia de Luanda, em AAAA-MM-DD. */
 function bspHojeLuanda() {
@@ -12648,14 +12648,18 @@ function RelatoriosScreen() {
   const clinico = !gestor && !!eu && BSP_RELATORIOS_DIRECCAO_CLINICA.indexOf(eu.id) !== -1;
   /* As areas que esta pessoa acompanha, para a lista "em falta". */
   const areasQueLe = gestor ? BSP_RELATORIOS : clinico ? BSP_RELATORIOS.filter(a => BSP_RELATORIOS_MEDICOS.indexOf(a.id) !== -1) : [];
-  const [area, setArea] = React.useState(bspAreaDe(eu));
+  /* Cada pessoa so ve o formulario da sua area (25-09-2026): o enfermeiro
+     so ve Enfermagem. A Direccao e a Coordenacao continuam a ver todos. */
+  const minhaArea = bspAreaDe(eu);
+  const areasMinhas = gestor ? BSP_RELATORIOS : BSP_RELATORIOS.filter(a => a.id === minhaArea);
+  const [area, setArea] = React.useState(minhaArea || (areasMinhas[0] && areasMinhas[0].id) || null);
   const [resp, setResp] = React.useState({});
   const [aEnviar, setAEnviar] = React.useState(false);
   const [lista, setLista] = React.useState([]);
   const [estado, setEstado] = React.useState('a-carregar');
   const [dia, setDia] = React.useState(bspHojeLuanda());
   const [tick, setTick] = React.useState(0);
-  const def = BSP_RELATORIOS.find(a => a.id === area) || BSP_RELATORIOS[0];
+  const def = areasMinhas.find(a => a.id === area) || areasMinhas[0] || null;
   React.useEffect(() => { setResp({}); }, [area]);
   React.useEffect(() => {
     const cl = bspGetClient();
@@ -12694,13 +12698,13 @@ function RelatoriosScreen() {
     if (/^Nenhu/.test(nada)) nov = op === nada ? (nov.indexOf(nada) !== -1 ? [nada] : []) : nov.filter(x => x !== nada);
     return Object.assign({}, r, { [campo.id]: nov });
   });
-  const obrigatorios = def.campos.filter(c => c.tipo !== 'texto');
+  const obrigatorios = def ? def.campos.filter(c => c.tipo !== 'texto') : [];
   const faltam = obrigatorios.filter(c => {
     const v = resp[c.id];
     return v == null || v === '' || (Array.isArray(v) && !v.length);
   });
   const enviar = async () => {
-    if (aEnviar) return;
+    if (aEnviar || !def) return;
     if (faltam.length) { toast('Falta responder: ' + faltam.map(c => c.rotulo).slice(0, 3).join(', ') + (faltam.length > 3 ? '…' : '') + '.'); return; }
     const cl = bspGetClient();
     if (!cl) { toast('O servidor não está ligado.'); return; }
@@ -12772,9 +12776,9 @@ function RelatoriosScreen() {
     style: { fontSize: 15, fontWeight: 700, margin: '0 0 4px', color: 'var(--text-1)' }
   }, "Relatório do dia"), React.createElement("p", {
     style: { fontSize: 12.5, color: 'var(--text-3)', margin: '0 0 14px' }
-  }, bspDiaExtenso(new Date().toISOString()), ". Escolha a área e responda. Não escreva nomes de utentes."), React.createElement("div", {
+  }, bspDiaExtenso(new Date().toISOString()), ". " + (def ? (areasMinhas.length > 1 ? 'Escolha a área e responda.' : 'Relatório de ' + def.nome + '.') : 'O seu perfil não tem relatório de área.') + " Não escreva nomes de utentes."), areasMinhas.length > 1 && React.createElement("div", {
     style: { display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 18 }
-  }, BSP_RELATORIOS.map(a => chip(area === a.id, a.nome, () => setArea(a.id)))), def.campos.map(campo), React.createElement(Button, {
+  }, areasMinhas.map(a => chip(area === a.id, a.nome, () => setArea(a.id)))), def && def.campos.map(campo), def && React.createElement(Button, {
     variant: "primary",
     onClick: enviar,
     disabled: aEnviar
