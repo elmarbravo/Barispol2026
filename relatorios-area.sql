@@ -26,9 +26,47 @@ drop policy if exists "bsp_rel_criar"  on relatorios_area;
 drop policy if exists "bsp_rel_mudar"  on relatorios_area;
 drop policy if exists "bsp_rel_apagar" on relatorios_area;
 
--- Cada pessoa ve os seus; a Direccao e a Coordenacao vem todos.
+-- A camada de quem esta ligado (Direccao, Coordenacao, Clinica, Operacoes).
+create or replace function public.bsp_minha_camada()
+returns text
+language sql
+stable security definer
+set search_path to 'public'
+as $$
+  select e->>'accessLevel'
+  from shared_state s, jsonb_array_elements(coalesce(s.team, '[]'::jsonb)) e
+  where s.id = 1
+    and lower(e->>'email') = lower(coalesce(auth.jwt()->>'email', ''))
+  limit 1
+$$;
+revoke all on function public.bsp_minha_camada() from public, anon;
+grant execute on function public.bsp_minha_camada() to authenticated;
+
+-- A Direccao Clinica: le os relatorios das areas medicas.
+-- Osvaldo Pacheco (u14), decisao do Elmar de 24-09-2026.
+create or replace function public.bsp_le_areas_medicas()
+returns boolean
+language sql
+stable security definer
+set search_path to 'public'
+as $$
+  select coalesce(bsp_meu_id() = any (array['u14']), false)
+$$;
+revoke all on function public.bsp_le_areas_medicas() from public, anon;
+grant execute on function public.bsp_le_areas_medicas() to authenticated;
+
+-- Quem le (decisao do Elmar, 24-09-2026):
+--   · cada pessoa, os seus;
+--   · a Direccao Geral e a Coordenacao (Elmar, Arlete), todos;
+--   · a Direccao Clinica (Osvaldo), os das areas medicas (Laboratorio,
+--     Imagiologia, Enfermagem).
+-- A Arlete recebe ainda cada relatorio por e-mail.
 create policy "bsp_rel_ler" on relatorios_area for select to authenticated
-  using (user_id = bsp_meu_id() or bsp_e_gestor());
+  using (
+    user_id = bsp_meu_id()
+    or bsp_e_gestor()
+    or (area in ('laboratorio', 'imagiologia', 'enfermagem') and bsp_le_areas_medicas())
+  );
 -- So em nome proprio.
 create policy "bsp_rel_criar" on relatorios_area for insert to authenticated
   with check (user_id = bsp_meu_id());

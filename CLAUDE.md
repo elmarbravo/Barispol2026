@@ -95,7 +95,10 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 - Abrir uma conversa directa de qualquer ecrã: `bspConversaCom(id)`.
 - Relatórios por área: ecrã `relatorios` (`RelatoriosScreen`), perguntas em
   `BSP_RELATORIOS`, respostas na tabela `relatorios_area`
-  (`relatorios-area.sql`). Sem nomes de utentes.
+  (`relatorios-area.sql`). Sem nomes de utentes. Lêem: Direcção e
+  Coordenação tudo; Direcção Clínica (Osvaldo Pacheco, u14,
+  `BSP_RELATORIOS_DIRECCAO_CLINICA` / `bsp_le_areas_medicas()`) as áreas
+  médicas; a Arlete (u2) recebe cada um por e-mail.
 - Calendário (opção C, aprovada): os eventos são rotina semanal. Cada
   evento tem um dia da semana e repete-se todas as semanas nesse dia.
 

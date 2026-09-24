@@ -381,9 +381,23 @@ automáticas por área de info@barispol.ao).
 - [x] *Confirmado* num browser de teste (telemóvel e computador): o
       formulário marca as escolhas e não deixa enviar com respostas em
       falta.
-- [ ] Por decidir: se, ao enviar, o relatório deve também seguir por
-      e-mail para a Direcção Clínica e a DAF (como hoje), e se os anexos
-      (Excel, PDF das requisições) passam a ir pelo Drive.
+- [x] **Quem lê** (decisão do Elmar, 24-09-2026): a Direcção Geral
+      (Elmar) e a Coordenação (Arlete) lêem tudo; a **Direcção Clínica —
+      Osvaldo Pacheco (u14)** — lê Laboratório, Imagiologia e Enfermagem;
+      cada pessoa lê os seus. A **Arlete recebe cada relatório por
+      e-mail** (`BSP_RELATORIOS_EMAIL`). No servidor:
+      `bsp_le_areas_medicas()`. *Confirmado* (transacção desfeita): o
+      Osvaldo vê o Laboratório e não a Recepção; uma médica não vê.
+- [x] Ficha do Osvaldo: cargo «Director Clínico», departamento «Clínica».
+      A camada continua «Operações» (mudar mexe noutras permissões; fica
+      para decisão do Elmar).
+- [ ] A **Catarina Ndundu Baptista** saiu da lista da equipa
+      (`shared_state.team`, agora 21 pessoas) mas mantém a conta de
+      acesso. Sem estar na lista, entra mas não é reconhecida. Não se sabe
+      quem a retirou (não há histórico). Repor ou apagar a conta: decisão
+      do Elmar.
+- [ ] Por decidir: se os anexos (Excel, PDF das requisições) passam a ir
+      pelo Drive.
 - [ ] A Solange e a Gizela (Farmácia) estão sem departamento: o
       formulário abre-lhes pela Recepção até isso ser preenchido.
 

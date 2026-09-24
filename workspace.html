@@ -12285,6 +12285,14 @@ const BSP_RELATORIOS = [{
     { id: 'obs', tipo: 'texto', rotulo: 'Observação (opcional, sem nomes de utentes)' }
   ]
 }];
+/* Quem le (decisao do Elmar, 24-09-2026). A regra verdadeira esta no
+   servidor (relatorios-area.sql); isto so decide o que o ecra mostra.
+   · Direccao e Coordenacao: todas as areas.
+   · Direccao Clinica (BSP_RELATORIOS_DIRECCAO_CLINICA): as areas medicas.
+   · Cada relatorio segue tambem por e-mail para BSP_RELATORIOS_EMAIL. */
+const BSP_RELATORIOS_MEDICOS = ['laboratorio', 'imagiologia', 'enfermagem'];
+const BSP_RELATORIOS_EMAIL = ['u2']; // Arlete Tatiana Tchinguli
+const BSP_RELATORIOS_DIRECCAO_CLINICA = ['u14']; // Osvaldo Pacheco (igual a bsp_le_areas_medicas no servidor)
 /* O formulario que abre por omissao: pelo cargo, e depois pelo departamento. */
 function bspAreaDe(u) {
   const t = ((u && u.role) || '') + ' ' + ((u && u.dept) || '');
@@ -12323,6 +12331,9 @@ function RelatoriosScreen() {
   const toast = useToast();
   const eu = window.userById && window.userById(window.CURRENT_USER_ID);
   const gestor = !!(eu && bspCamada(eu).podeGerirUtilizadores);
+  const clinico = !gestor && !!eu && BSP_RELATORIOS_DIRECCAO_CLINICA.indexOf(eu.id) !== -1;
+  /* As areas que esta pessoa acompanha, para a lista "em falta". */
+  const areasQueLe = gestor ? BSP_RELATORIOS : clinico ? BSP_RELATORIOS.filter(a => BSP_RELATORIOS_MEDICOS.indexOf(a.id) !== -1) : [];
   const [area, setArea] = React.useState(bspAreaDe(eu));
   const [resp, setResp] = React.useState({});
   const [aEnviar, setAEnviar] = React.useState(false);
@@ -12383,6 +12394,18 @@ function RelatoriosScreen() {
     });
     setAEnviar(false);
     if (r.error) { toast('Não foi possível enviar: ' + (r.error.message || 'erro')); return; }
+    /* Copia por e-mail para quem a Direccao escolheu (a Arlete). */
+    try {
+      const linhas = def.campos.map(c => [c.rotulo, bspRespostaTexto(c, limpo[c.id])]).filter(x => x[1] != null);
+      const corpo = '<b>' + bspEmailTexto(def.nome) + '</b> · enviado por ' + bspEmailTexto(eu ? eu.name : 'colega') + ' · ' + bspEmailTexto(bspDataExacta(new Date())) +
+        '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:12px 0 0;width:100%;border-collapse:collapse">' +
+        linhas.map(([k, v]) => '<tr><td style="padding:5px 10px 5px 0;vertical-align:top;color:#5A6180;font-size:13px;border-bottom:1px solid #E7EBF3">' + bspEmailTexto(k) + '</td><td style="padding:5px 0;vertical-align:top;color:#292F58;font-size:13px;border-bottom:1px solid #E7EBF3">' + bspEmailTexto(v) + '</td></tr>').join('') +
+        '</table>';
+      BSP_RELATORIOS_EMAIL.forEach(id => {
+        const d = window.userById && window.userById(id);
+        if (d && d.email && id !== window.CURRENT_USER_ID) bspSendEmail(d.email, '[Relatório] ' + def.nome + ' — ' + bspDataExacta(new Date()) + (eu ? ' — ' + eu.name.split(' ')[0] : ''), bspEmailWrap('Relatório do dia: ' + bspEmailTexto(def.nome), corpo, 'relatorios', 'Ver no Workspace'));
+      });
+    } catch (e) {}
     toast('Relatório enviado.');
     setResp({});
     setDia(bspHojeLuanda());
@@ -12413,7 +12436,7 @@ function RelatoriosScreen() {
   }));
   const porArea = {};
   lista.forEach(r => { (porArea[r.area] = porArea[r.area] || []).push(r); });
-  const emFalta = BSP_RELATORIOS.filter(a => !porArea[a.id]);
+  const emFalta = areasQueLe.filter(a => !porArea[a.id]);
   return React.createElement("div", {
     style: { height: '100%', overflow: 'auto', padding: 'var(--density-pad, 20px)' }
   }, React.createElement("div", {
@@ -12434,13 +12457,13 @@ function RelatoriosScreen() {
     style: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }
   }, React.createElement("h3", {
     style: { fontSize: 15, fontWeight: 700, margin: 0, color: 'var(--text-1)' }
-  }, gestor ? 'Relatórios recebidos' : 'Os meus relatórios'), React.createElement("input", {
+  }, gestor ? 'Relatórios recebidos' : clinico ? 'Relatórios das áreas médicas' : 'Os meus relatórios'), React.createElement("input", {
     type: "date", value: dia, max: bspHojeLuanda(), onChange: e => e.target.value && setDia(e.target.value),
     "aria-label": "Dia",
     style: { height: 34, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit' }
-  })), gestor && estado === 'pronto' && React.createElement("div", {
+  })), areasQueLe.length > 0 && estado === 'pronto' && React.createElement("div", {
     style: { fontSize: 12.5, marginBottom: 12, color: emFalta.length ? '#B45309' : 'var(--text-2)' }
-  }, emFalta.length ? 'Em falta: ' + emFalta.map(a => a.nome).join(', ') + '.' : 'Todas as áreas entregaram.'), estado === 'a-carregar' ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'A carregar…') : estado === 'sem-servidor' ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'O servidor não está ligado neste aparelho.') : estado !== 'pronto' ? React.createElement("div", { style: { fontSize: 12.5, color: '#B91C1C' } }, 'Não foi possível ler os relatórios.') : !lista.length ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Sem relatórios neste dia.') : React.createElement("div", {
+  }, emFalta.length ? 'Em falta: ' + emFalta.map(a => a.nome).join(', ') + '.' : (gestor ? 'Todas as áreas entregaram.' : 'Todas as áreas médicas entregaram.')), estado === 'a-carregar' ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'A carregar…') : estado === 'sem-servidor' ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'O servidor não está ligado neste aparelho.') : estado !== 'pronto' ? React.createElement("div", { style: { fontSize: 12.5, color: '#B91C1C' } }, 'Não foi possível ler os relatórios.') : !lista.length ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Sem relatórios neste dia.') : React.createElement("div", {
     style: { display: 'flex', flexDirection: 'column', gap: 10 }
   }, lista.map(r => React.createElement(RelatorioResumo, { key: r.id, rel: r }))))));
 }
