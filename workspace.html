@@ -2468,9 +2468,10 @@ const NAV_ITEMS = [{
   badge: null
 }, {
   id: 'seguimento',
-  label: 'Seguimento',
+  label: 'CRM',
   icon: 'Heart',
-  badge: null
+  badge: null,
+  crmOnly: true
 }, {
   id: 'relatorios',
   label: 'Relatórios',
@@ -2639,6 +2640,7 @@ function Sidebar({
       badge: chatPorLer > 99 ? '99+' : chatPorLer
     }) : itemBase;
     if (item.adminOnly && !bspCamada(currentUser).podeGerirUtilizadores) return null;
+    if (item.crmOnly && !bspVeCrm(currentUser)) return null;
     const active = current === item.id;
     const IconComp = I[item.icon];
     return React.createElement("button", {
@@ -2892,7 +2894,7 @@ function Topbar({
       fontSize: 12.5,
       color: 'var(--text-3)'
     }
-  }, current === 'dashboard' && 'Bom dia, ' + currentUser.name.split(' ')[0], current === 'chat' && CHANNELS.filter(c => bspVeCanal(currentUser, c)).length + ' canais', current === 'meetings' && 'Reuniões da equipa', current === 'feed' && 'Mural de avisos', current === 'drive' && 'Ficheiros partilhados', current === 'calendar' && 'O seu calendário', current === 'tasks' && 'Quadro de tarefas', current === 'seguimento' && 'Utentes por recuperar', current === 'admin' && ('Camada: ' + bspCamadaNome(currentUser)))), React.createElement("div", {
+  }, current === 'dashboard' && 'Bom dia, ' + currentUser.name.split(' ')[0], current === 'chat' && CHANNELS.filter(c => bspVeCanal(currentUser, c)).length + ' canais', current === 'meetings' && 'Reuniões da equipa', current === 'feed' && 'Mural de avisos', current === 'drive' && 'Ficheiros partilhados', current === 'calendar' && 'O seu calendário', current === 'tasks' && 'Quadro de tarefas', current === 'seguimento' && 'Pedidos, recuperação e resultados', current === 'admin' && ('Camada: ' + bspCamadaNome(currentUser)))), React.createElement("div", {
     style: {
       flex: 1,
       display: 'flex',
@@ -16212,7 +16214,7 @@ function MobileTopbar({
     drive: 'Drive',
     calendar: 'Calendário',
     tasks: 'Tarefas',
-    seguimento: 'Seguimento',
+    seguimento: 'CRM',
     relatorios: 'Relatórios',
     admin: 'Admin',
     notifications: 'Notificações',
@@ -16493,6 +16495,7 @@ function MobileMore({
   current,
   setCurrent,
   isAdmin,
+  veCrm,
   onClose,
   onLogout
 }) {
@@ -16508,7 +16511,7 @@ function MobileMore({
     /* O CRM. Estava na barra lateral do computador mas faltava aqui
        (24-09-2026). */
     id: 'seguimento',
-    label: 'Seguimento',
+    label: 'CRM',
     icon: 'Heart'
   }, {
     id: 'relatorios',
@@ -16524,6 +16527,10 @@ function MobileMore({
     label: 'Admin',
     icon: 'Shield'
   });
+  if (!veCrm) {
+    const k = items.findIndex(x => x.id === 'seguimento');
+    if (k !== -1) items.splice(k, 1);
+  }
   return React.createElement("div", {
     className: "bsp-mdrawer-back",
     onClick: onClose
@@ -18375,6 +18382,336 @@ function SeguimentoScreen() {
   }));
 }
 
+/* ═══ CRM (25-09-2026) ══════════════════════════════════════════════════
+   Os pedidos que chegam pelo WhatsApp, do primeiro contacto até à
+   factura. Os dados vêm da base (esquema crm): as conversas da SendPulse
+   e as facturas do MetaGest são cruzadas pelo telefone. Aqui só se
+   acrescenta o que a equipa fez a cada pedido.
+
+   Só a gestão (Direcção, Coordenação) e a recepção vêem este ecrã. A
+   base de dados aplica a mesma regra (crm.pode_ver_crm), por isso
+   esconder o botão é só arrumação: quem não pode, não recebe dados. */
+
+function bspVeCrm(u) {
+  if (!u) return false;
+  const nivel = String(u.accessLevel || '');
+  if (nivel === 'Direcção' || nivel === 'Coordenação') return true;
+  const dept = String(u.dept || '');
+  return dept === 'Recepção' || dept === 'Comercial';
+}
+
+const BSP_CRM_ESTADOS = [
+  { id: 'Novo',         cor: '#B54708', fundo: 'rgba(181,71,8,.10)' },
+  { id: 'Em contacto',  cor: '#14448F', fundo: 'rgba(20,68,143,.10)' },
+  { id: 'Marcado',      cor: '#06713F', fundo: 'rgba(6,113,63,.10)' },
+  { id: 'Compareceu',   cor: '#06713F', fundo: 'rgba(6,113,63,.18)' },
+  { id: 'Perdido',      cor: '#B42318', fundo: 'rgba(180,35,24,.10)' },
+  { id: 'Não é doente', cor: '#64748B', fundo: 'rgba(100,116,139,.12)' }
+];
+const bspCrmEstado = id => BSP_CRM_ESTADOS.find(e => e.id === id) || BSP_CRM_ESTADOS[0];
+
+function bspCrmKz(v) {
+  const n = Number(v || 0);
+  return n.toLocaleString('pt-PT', { maximumFractionDigits: 0 }) + ' Kz';
+}
+function bspCrmQuando(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleString('pt-PT', { timeZone: 'Africa/Luanda', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+function bspCrmTel(t) {
+  return String(t || '').replace(/\D/g, '');
+}
+function bspCrmFaltaServidor(msg) {
+  return /function|does not exist|schema cache|not find/i.test(String(msg || ''));
+}
+
+function CrmScreen() {
+  const [aba, setAba] = React.useState('pedidos');
+  const aba_ = (id, txt) => React.createElement("button", {
+    key: id, onClick: () => setAba(id),
+    style: {
+      padding: '9px 16px', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+      fontSize: 13.5, fontWeight: 700, background: 'transparent',
+      color: aba === id ? 'var(--accent-d)' : 'var(--text-2)',
+      borderBottom: '2px solid ' + (aba === id ? 'var(--accent)' : 'transparent')
+    }
+  }, txt);
+  return React.createElement("div", {
+    style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' }
+  }, React.createElement("div", {
+    style: { display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', flex: 'none', overflowX: 'auto' }
+  }, aba_('pedidos', 'Pedidos do WhatsApp'), aba_('recuperar', 'Recuperar utentes'), aba_('resultados', 'Resultados')),
+  React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: 'hidden' } },
+    aba === 'pedidos' && React.createElement(CrmPedidos, null),
+    aba === 'recuperar' && React.createElement(SeguimentoScreen, null),
+    aba === 'resultados' && React.createElement(CrmResultados, null)));
+}
+
+function CrmPedidos() {
+  const toast = useToast();
+  const [dias, setDias] = React.useState(30);
+  const [filtro, setFiltro] = React.useState('abertos');
+  const [origem, setOrigem] = React.useState('todas');
+  const [busca, setBusca] = React.useState('');
+  const [linhas, setLinhas] = React.useState([]);
+  const [estado, setEstado] = React.useState('a-carregar');
+  const [erro, setErro] = React.useState('');
+  const [tick, setTick] = React.useState(0);
+  const [nota, setNota] = React.useState(null);
+
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) { setEstado('sem-servidor'); return; }
+    let vivo = true;
+    setEstado('a-carregar');
+    (async () => {
+      const r = await cl.rpc('crm_pedidos', { p_dias: dias });
+      if (!vivo) return;
+      if (r.error) {
+        setEstado(bspCrmFaltaServidor(r.error.message) ? 'sem-funcao' : 'erro');
+        setErro(r.error.message || '');
+        return;
+      }
+      setLinhas(r.data || []);
+      setEstado('pronto');
+    })();
+    return () => { vivo = false; };
+  }, [dias, tick]);
+
+  async function registar(l, novo, texto) {
+    const cl = bspGetClient();
+    const r = await cl.rpc('crm_registar', { p_pedido: l.id, p_estado: novo, p_nota: texto || null });
+    if (r.error) { toast('Não foi possível guardar: ' + r.error.message); return false; }
+    toast(novo + ' · ' + String(l.paciente_nome || l.nome_whatsapp || '').split(' ')[0]);
+    setTick(t => t + 1);
+    return true;
+  }
+
+  const abertos = ['Novo', 'Em contacto'];
+  const contagem = {};
+  BSP_CRM_ESTADOS.forEach(e => contagem[e.id] = 0);
+  linhas.forEach(l => { contagem[l.estado] = (contagem[l.estado] || 0) + 1; });
+
+  const visiveis = linhas.filter(l => {
+    if (filtro === 'abertos' && abertos.indexOf(l.estado) === -1) return false;
+    if (filtro !== 'abertos' && filtro !== 'todos' && l.estado !== filtro) return false;
+    if (origem !== 'todas' && l.origem !== origem) return false;
+    const q = busca.trim().toLowerCase();
+    if (!q) return true;
+    return [l.paciente_nome, l.nome_whatsapp, l.telefone, l.servico, l.primeira_mensagem]
+      .some(x => String(x || '').toLowerCase().indexOf(q) !== -1);
+  });
+
+  const chip = (on, cor, fundo) => ({
+    padding: '7px 13px', borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit',
+    fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap',
+    border: '1px solid ' + (on ? (cor || 'var(--accent-d)') : 'var(--border)'),
+    background: on ? (fundo || 'var(--accent-soft)') : 'transparent',
+    color: on ? (cor || 'var(--accent-d)') : 'var(--text-2)'
+  });
+  const vazio = txt => React.createElement("div", {
+    style: { padding: '48px 20px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13.5, lineHeight: 1.6, maxWidth: 480, margin: '0 auto' }
+  }, txt);
+
+  const esperaTxt = l => {
+    if (l.resposta_humana_min == null) return { t: 'sem resposta da recepção', cor: '#B42318' };
+    const m = Number(l.resposta_humana_min);
+    const t = m < 60 ? Math.round(m) + ' min' : m < 1440 ? Math.round(m / 60) + ' h' : Math.round(m / 1440) + ' dias';
+    return { t: 'recepção respondeu em ' + t, cor: m > 15 ? '#B54708' : '#06713F' };
+  };
+
+  return React.createElement("div", {
+    style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' }
+  },
+  React.createElement("p", {
+    style: { fontSize: 12.5, color: 'var(--text-2)', margin: 0, lineHeight: 1.5, flex: 'none' }
+  }, "Cada linha é uma pessoa que escreveu para o WhatsApp da clínica. O estado muda sozinho quando a recepção responde, quando se marca e quando a pessoa aparece facturada no MetaGest. Pode acertá-lo à mão e deixar uma nota."),
+  React.createElement("div", {
+    style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', flex: 'none' }
+  }, [7, 30, 90, 365].map(d => React.createElement("button", {
+    key: d, onClick: () => setDias(d), style: chip(dias === d)
+  }, d === 365 ? 'Último ano' : 'Últimos ' + d + ' dias')),
+    React.createElement("select", {
+      value: origem, onChange: e => setOrigem(e.target.value),
+      style: { height: 34, padding: '0 8px', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-2)', fontSize: 12.5, fontFamily: 'inherit' }
+    }, React.createElement("option", { value: 'todas' }, 'Todas as origens'),
+       React.createElement("option", { value: 'Anúncio' }, 'Anúncio'),
+       React.createElement("option", { value: 'Orgânico' }, 'Orgânico')),
+    React.createElement("span", { style: { flex: 1 } }),
+    React.createElement("input", {
+      value: busca, onChange: e => setBusca(e.target.value), placeholder: "Procurar nome, telefone ou serviço",
+      style: { height: 34, padding: '0 12px', borderRadius: 9, minWidth: 220, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }
+    })),
+  linhas.length > 0 && React.createElement("div", {
+    style: { display: 'flex', gap: 8, flexWrap: 'wrap', flex: 'none' }
+  }, React.createElement("button", { onClick: () => setFiltro('abertos'), style: chip(filtro === 'abertos') },
+      "Por tratar ", React.createElement("span", { style: { opacity: .65 } }, (contagem['Novo'] || 0) + (contagem['Em contacto'] || 0))),
+    React.createElement("button", { onClick: () => setFiltro('todos'), style: chip(filtro === 'todos') },
+      "Todos ", React.createElement("span", { style: { opacity: .65 } }, linhas.length)),
+    BSP_CRM_ESTADOS.map(e => React.createElement("button", {
+      key: e.id, onClick: () => setFiltro(e.id), style: chip(filtro === e.id, e.cor, e.fundo)
+    }, e.id, " ", React.createElement("span", { style: { opacity: .65 } }, contagem[e.id] || 0)))),
+  React.createElement(Card, { pad: 0, style: { flex: 1, overflow: 'auto', minHeight: 0 } },
+    estado === 'a-carregar' ? vazio('A carregar…')
+    : estado === 'sem-servidor' ? vazio('O servidor não está ligado neste aparelho.')
+    : estado === 'sem-funcao' ? vazio('O CRM está a ser ligado ao servidor. Volte a abrir daqui a pouco.')
+    : estado === 'erro' ? vazio('Não foi possível carregar. ' + erro)
+    : !visiveis.length ? vazio(linhas.length ? 'Nenhum pedido com este filtro.' : 'Sem pedidos neste período.')
+    : visiveis.map((l, i) => {
+      const est = bspCrmEstado(l.estado);
+      const esp = esperaTxt(l);
+      const tel = bspCrmTel(l.telefone);
+      const nome = l.paciente_nome || l.nome_whatsapp || ('+' + tel);
+      return React.createElement("div", {
+        key: l.id, className: "bsp-row-hover",
+        style: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 12, padding: '14px 18px', alignItems: 'center', borderBottom: i < visiveis.length - 1 ? '1px solid var(--border)' : 'none' }
+      }, React.createElement("div", { style: { minWidth: 0 } },
+        React.createElement("div", { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
+          React.createElement("span", { style: { fontSize: 14, fontWeight: 600, color: 'var(--text-1)' } }, nome),
+          React.createElement("span", { style: { fontSize: 11.5, fontWeight: 700, color: l.origem === 'Anúncio' ? '#7A2E9E' : 'var(--text-3)' } }, l.origem),
+          l.servico && l.servico !== 'Não identificado' && React.createElement("span", { style: { fontSize: 11.5, color: 'var(--accent-d)', fontWeight: 600 } }, l.servico)),
+        React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 3, lineHeight: 1.5 } },
+          bspCrmQuando(l.inicio), ' · ',
+          React.createElement("span", { style: { color: esp.cor, fontWeight: 600 } }, esp.t),
+          l.compareceu_em ? ' · facturado ' + bspCrmKz(l.valor_facturado) : '',
+          l.pediu_preco ? ' · pediu preço' : ''),
+        l.primeira_mensagem && React.createElement("div", {
+          style: { fontSize: 12.5, color: 'var(--text-2)', marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }
+        }, '“' + l.primeira_mensagem + '”'),
+        l.ultima_nota && React.createElement("div", {
+          style: { fontSize: 12, color: 'var(--text-2)', marginTop: 4, fontStyle: 'italic' }
+        }, 'Nota: ' + l.ultima_nota)),
+      React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 8, flex: 'none', flexWrap: 'wrap', justifyContent: 'flex-end' } },
+        React.createElement(Badge, { tone: "outline", size: "xs", style: { color: est.cor, background: est.fundo, borderColor: est.cor } }, est.id),
+        tel && React.createElement("a", {
+          href: 'https://wa.me/' + tel, target: '_blank', rel: 'noopener', title: 'Abrir a conversa no WhatsApp',
+          style: { height: 34, padding: '0 10px', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--surface-2)', color: '#128C7E', display: 'inline-flex', alignItems: 'center', fontSize: 12.5, fontWeight: 700, textDecoration: 'none' }
+        }, 'WhatsApp'),
+        tel && React.createElement("a", {
+          href: 'tel:+' + tel, title: 'Ligar',
+          style: { width: 34, height: 34, borderRadius: 9, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--accent-d)', display: 'grid', placeItems: 'center' }
+        }, React.createElement(I.Phone, { size: 15 })),
+        React.createElement("select", {
+          value: l.estado, onChange: e => registar(l, e.target.value, ''), title: 'Mudar o estado',
+          style: { height: 34, padding: '0 8px', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-2)', fontSize: 12.5, fontFamily: 'inherit', cursor: 'pointer' }
+        }, BSP_CRM_ESTADOS.map(e => React.createElement("option", { key: e.id, value: e.id }, e.id))),
+        React.createElement("button", {
+          onClick: () => setNota({ l: l, texto: '' }), title: 'Escrever uma nota',
+          style: { width: 34, height: 34, borderRadius: 9, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-2)', display: 'grid', placeItems: 'center', cursor: 'pointer' }
+        }, React.createElement(I.Edit, { size: 15 }))));
+    })),
+  nota && React.createElement("div", {
+    onClick: () => setNota(null),
+    style: { position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', display: 'grid', placeItems: 'center', zIndex: 60, padding: 16 }
+  }, React.createElement("div", {
+    onClick: e => e.stopPropagation(),
+    style: { width: '100%', maxWidth: 440, background: 'var(--surface)', borderRadius: 14, padding: 20, border: '1px solid var(--border)' }
+  }, React.createElement("h3", { style: { margin: '0 0 6px', fontSize: 16, color: 'var(--text-1)' } }, 'Nota sobre ' + (nota.l.paciente_nome || nota.l.nome_whatsapp || 'este pedido')),
+    React.createElement("p", { style: { margin: '0 0 10px', fontSize: 12.5, color: 'var(--text-2)' } }, 'Fica guardada com o seu nome e a hora. Por exemplo: "liguei, não atendeu" ou "marcou ecografia para terça".'),
+    React.createElement("textarea", {
+      autoFocus: true, rows: 4, value: nota.texto, onChange: e => setNota({ l: nota.l, texto: e.target.value }),
+      style: { width: '100%', boxSizing: 'border-box', padding: 10, borderRadius: 9, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-1)', fontSize: 13.5, fontFamily: 'inherit', resize: 'vertical' }
+    }),
+    React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 } },
+      React.createElement("button", {
+        onClick: () => setNota(null),
+        style: { padding: '8px 14px', borderRadius: 9, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, color: 'var(--text-2)' }
+      }, 'Cancelar'),
+      React.createElement("button", {
+        onClick: async () => { if (!nota.texto.trim()) return; const ok = await registar(nota.l, nota.l.estado, nota.texto.trim()); if (ok) setNota(null); },
+        style: { padding: '8px 16px', borderRadius: 9, border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700 }
+      }, 'Guardar nota')))));
+}
+
+function CrmResultados() {
+  const [dias, setDias] = React.useState(30);
+  const [dados, setDados] = React.useState(null);
+  const [estado, setEstado] = React.useState('a-carregar');
+  const [erro, setErro] = React.useState('');
+
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) { setEstado('sem-servidor'); return; }
+    let vivo = true;
+    setEstado('a-carregar');
+    (async () => {
+      const r = await cl.rpc('crm_resultados', { p_dias: dias });
+      if (!vivo) return;
+      if (r.error) {
+        setEstado(bspCrmFaltaServidor(r.error.message) ? 'sem-funcao' : 'erro');
+        setErro(r.error.message || '');
+        return;
+      }
+      setDados(r.data || {});
+      setEstado('pronto');
+    })();
+    return () => { vivo = false; };
+  }, [dias]);
+
+  const chip = on => ({
+    padding: '7px 13px', borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600,
+    border: '1px solid ' + (on ? 'var(--accent-d)' : 'var(--border)'),
+    background: on ? 'var(--accent-soft)' : 'transparent', color: on ? 'var(--accent-d)' : 'var(--text-2)'
+  });
+  const pct = (a, b) => b ? Math.round(100 * a / b) + '%' : '—';
+  const cartao = (titulo, valor, sub) => React.createElement(Card, { key: titulo, style: { padding: 16, minWidth: 150, flex: '1 1 150px' } },
+    React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', fontWeight: 600 } }, titulo),
+    React.createElement("div", { style: { fontSize: 24, fontWeight: 800, color: 'var(--text-1)', marginTop: 4 } }, valor),
+    sub && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-2)', marginTop: 2 } }, sub));
+  const th = { textAlign: 'left', padding: '8px 10px', fontSize: 12, color: 'var(--text-3)', fontWeight: 700, borderBottom: '1px solid var(--border)' };
+  const td = { padding: '8px 10px', fontSize: 13, color: 'var(--text-1)', borderBottom: '1px solid var(--border)' };
+
+  let corpo;
+  if (estado === 'a-carregar') corpo = 'A carregar…';
+  else if (estado === 'sem-servidor') corpo = 'O servidor não está ligado neste aparelho.';
+  else if (estado === 'sem-funcao') corpo = 'O CRM está a ser ligado ao servidor. Volte a abrir daqui a pouco.';
+  else if (estado === 'erro') corpo = 'Não foi possível carregar. ' + erro;
+  else {
+    const t = dados.total || {};
+    const origens = dados.por_origem || [];
+    const servicos = dados.por_servico || [];
+    corpo = React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 14 } },
+      React.createElement("div", { style: { display: 'flex', gap: 12, flexWrap: 'wrap' } },
+        cartao('Pedidos', t.pedidos || 0, 'doentes que escreveram'),
+        cartao('Respondidos pela recepção', pct(t.respondidos, t.pedidos), (t.respondidos || 0) + ' pedidos'),
+        cartao('Resposta em 15 min', pct(t.em_15_min, t.pedidos), 'meta: todos'),
+        cartao('Marcados', pct(t.marcados, t.pedidos), (t.marcados || 0) + ' pedidos'),
+        cartao('Vieram à clínica', pct(t.compareceram, t.pedidos), (t.compareceram || 0) + ' pessoas'),
+        cartao('Facturado', bspCrmKz(t.valor), 'nos 30 dias após o contacto')),
+      React.createElement(Card, { pad: 0, style: { overflow: 'auto' } },
+        React.createElement("table", { style: { width: '100%', borderCollapse: 'collapse' } },
+          React.createElement("thead", null, React.createElement("tr", null,
+            ['Origem', 'Pedidos', 'Respondidos', 'Marcados', 'Vieram', 'Conversão', 'Facturado'].map(h => React.createElement("th", { key: h, style: th }, h)))),
+          React.createElement("tbody", null, origens.map(o => React.createElement("tr", { key: o.origem },
+            React.createElement("td", { style: Object.assign({}, td, { fontWeight: 700 }) }, o.origem),
+            React.createElement("td", { style: td }, o.pedidos),
+            React.createElement("td", { style: td }, o.respondidos),
+            React.createElement("td", { style: td }, o.marcados),
+            React.createElement("td", { style: td }, o.compareceram),
+            React.createElement("td", { style: td }, pct(o.compareceram, o.pedidos)),
+            React.createElement("td", { style: td }, bspCrmKz(o.valor))))))),
+      React.createElement(Card, { pad: 0, style: { overflow: 'auto' } },
+        React.createElement("table", { style: { width: '100%', borderCollapse: 'collapse' } },
+          React.createElement("thead", null, React.createElement("tr", null,
+            ['Serviço pedido', 'Pedidos', 'Vieram', 'Conversão', 'Facturado'].map(h => React.createElement("th", { key: h, style: th }, h)))),
+          React.createElement("tbody", null, servicos.map(s => React.createElement("tr", { key: s.servico },
+            React.createElement("td", { style: Object.assign({}, td, { fontWeight: 600 }) }, s.servico),
+            React.createElement("td", { style: td }, s.pedidos),
+            React.createElement("td", { style: td }, s.compareceram),
+            React.createElement("td", { style: td }, pct(s.compareceram, s.pedidos)),
+            React.createElement("td", { style: td }, bspCrmKz(s.valor))))))));
+  }
+
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'auto' } },
+    React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+      [7, 30, 90, 365].map(d => React.createElement("button", { key: d, onClick: () => setDias(d), style: chip(dias === d) },
+        d === 365 ? 'Último ano' : 'Últimos ' + d + ' dias'))),
+    typeof corpo === 'string'
+      ? React.createElement("div", { style: { padding: '48px 20px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13.5 } }, corpo)
+      : corpo);
+}
+
 /* Rede por baixo de cada ecra.
    Ate aqui, um erro de desenho em qualquer ecra deixava um rectangulo
    branco e mais nada — nem no ecra, nem para quem tinha de o arranjar.
@@ -18613,7 +18950,7 @@ function App() {
   }), page === 'meetings' && React.createElement(MeetingsScreen, null), page === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), page === 'drive' && React.createElement(DriveScreen, null), page === 'calendar' && React.createElement(CalendarScreen, null), page === 'tasks' && React.createElement(TasksScreen, null), page === 'seguimento' && React.createElement(SeguimentoScreen, null), page === 'relatorios' && React.createElement(RelatoriosScreen, null), page === 'directory' && React.createElement(DirectoryScreen, null), page === 'admin' && React.createElement(AdminScreen, {
+  }), page === 'drive' && React.createElement(DriveScreen, null), page === 'calendar' && React.createElement(CalendarScreen, null), page === 'tasks' && React.createElement(TasksScreen, null), page === 'seguimento' && (bspVeCrm(currentUser) ? React.createElement(CrmScreen, null) : null), page === 'relatorios' && React.createElement(RelatoriosScreen, null), page === 'directory' && React.createElement(DirectoryScreen, null), page === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
   }), page === 'notifications' && React.createElement(NotificationsScreen, {
     onAbrir: abrirNotificacao
@@ -18626,6 +18963,7 @@ function App() {
     current: page,
     setCurrent: setPage,
     isAdmin: isAdmin,
+    veCrm: bspVeCrm(currentUser),
     onClose: () => setMoreOpen(false),
     onLogout: doLogout
   }), React.createElement(TweaksPanelWrap, {
