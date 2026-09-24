@@ -235,6 +235,11 @@ e a `resumo-matinal` versão 6.
       equipa»), com o mesmo aviso sobre o WhatsApp. Sai um e-mail por
       endereço, para ninguém ver os endereços dos colegas. Os dias foram
       escolhidos pelo assistente; mudam-se na linha do `cron.schedule`.
+- [x] **Só para endereços @barispol.com** (decisão do Elmar, 24-09-2026,
+      `resumo-matinal` versão 7). Vale para o resumo, o lembrete e o
+      colectivo. Das 22 pessoas, 17 têm endereço da clínica; as 5 com
+      endereço pessoal (Gmail, Hotmail) deixam de receber estes e-mails,
+      mas continuam na equipa e nas listas de tarefas.
 - [x] Cada tipo tem o seu registo por dia (`lembretes_enviados`,
       `coletivos_enviados`), para não sair duas vezes.
       *Confirmado em 24-09-2026:* os dois tipos respondem HTTP 200 com o
@@ -243,7 +248,7 @@ e a `resumo-matinal` versão 6.
 - [ ] **Confirmar os primeiros envios reais**: lembrete a 25-09 às 07h30;
       colectivo a 25-09 (sexta) às 12h00. Consulta: `select status_code,
       content from net._http_response order by created desc limit 5;` —
-      `lembrados` deve ser 22 e sem `falhas`.
+      `lembrados` deve ser 17 e sem `falhas`.
 
 **Novo visual de todos os e-mails** (resumo, lembrete, colectivo e os da
 aplicação: mural, mensagens directas, tarefas, testes): logotipo do site
@@ -251,6 +256,21 @@ aplicação: mural, mensagens directas, tarefas, testes): logotipo do site
 #292F58, botão #273069, rodapé com «Clínica Barispol, Lda. · NIF
 5000999687». Fonte Dax, pedida pelo Elmar, com Titillium Web, Segoe UI e
 Arial de recurso: a Dax só aparece a quem a tiver instalada.
+
+**Datas exactas em todo o lado** (pedido do Elmar, 24-09-2026): chat,
+mural, notificações, «Actividade recente», Drive — sempre «24 set 2026,
+13:41». Antes via-se «agora», «há 12 min» ou só a hora.
+- As publicações e os ficheiros da equipa guardavam a palavra «Agora»
+  em vez da data. Passaram a guardar o instante (`iso`, `criado`).
+- Cópias antigas guardadas no aparelho recebem a data do servidor quando
+  este as volta a enviar.
+- A «Actividade recente» usa as publicações do servidor (iguais em todos
+  os aparelhos, com data). As entradas antigas sem data, gravadas só com
+  «agora», deixam de aparecer.
+- O único ficheiro do Drive da equipa sem data recebeu a data do
+  armazenamento (1 set 2026, 17:10).
+- Por confirmar num aparelho real: abrir o Workspace e ver a
+  «Actividade recente» e o chat com datas.
 
 **Mural:** o e-mail de uma publicação cortava o texto aos 400 caracteres
 e juntava os parágrafos numa linha. Passou a levar o texto inteiro, com

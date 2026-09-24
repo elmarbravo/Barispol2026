@@ -2990,51 +2990,33 @@ Object.assign(window, {
   BarispolLogo
 });
 const STORAGE_KEY = 'bsp-workspace-v1';
-/* "agora", "há 12 min", "07:43", "ontem 19:10", "2 set 14:32".
-   Quanto mais recente, mais util e o tempo decorrido; a partir de umas
-   horas, o que interessa e a hora a que foi.
+/* Datas exactas em todo o lado, por pedido do Elmar (24-09-2026):
+   "24 set 2026, 13:41". Antes mostrava-se "agora", "há 12 min" ou so a
+   hora, e uma coisa de ontem parecia de hoje.
 
-   As notificacoes gravadas antes desta versao trazem a palavra "agora"
-   escrita a letra. Essas mostram-se como estao — nao ha data nenhuma
-   para inventar. */
+   O que foi gravado antes sem data nenhuma (a palavra "agora" escrita a
+   letra) nao tem data para mostrar: aparece em branco, em vez de mentir. */
 const BSP_MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+function bspDataExacta(d) {
+  return d.getDate() + ' ' + BSP_MESES[d.getMonth()] + ' ' + d.getFullYear() + ', ' + bspHoraDe(d);
+}
 function bspQuando(ts) {
   const t = String(ts == null ? '' : ts);
   if (!t) return '';
   const d = new Date(t);
-  if (isNaN(d.getTime())) return t;
-  const dif = Date.now() - d.getTime();
-  if (dif < 0) return bspHoraDe(d);
-  if (dif < 60000) return 'agora';
-  if (dif < 3600000) return 'há ' + Math.floor(dif / 60000) + ' min';
-  const hoje = new Date();
-  const mesmoDia = x => x.getFullYear() === hoje.getFullYear() && x.getMonth() === hoje.getMonth() && x.getDate() === hoje.getDate();
-  if (mesmoDia(d)) return bspHoraDe(d);
-  const ontem = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 1);
-  if (d.getFullYear() === ontem.getFullYear() && d.getMonth() === ontem.getMonth() && d.getDate() === ontem.getDate()) {
-    return 'ontem ' + bspHoraDe(d);
-  }
-  const ano = d.getFullYear() !== hoje.getFullYear() ? ' ' + d.getFullYear() : '';
-  return d.getDate() + ' ' + BSP_MESES[d.getMonth()] + ano + ' ' + bspHoraDe(d);
+  if (isNaN(d.getTime())) return /^agora$/i.test(t.trim()) ? '' : t;
+  return bspDataExacta(d);
 }
 function bspHoraDe(d) {
   return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
 }
-/* Carimbo das mensagens do chat e do feed. As mensagens vinham do servidor
-   ja reduzidas a "HH:MM" e a data perdia-se ao carregar: uma mensagem de
-   ha tres dias parecia de hoje. Agora guarda-se o instante completo em
-   "iso" e formata-se ao mostrar. Hoje: so a hora. Ontem: "ontem 19:10".
-   Antes disso: "2 set 14:32" (com o ano, se nao for este). */
+/* Carimbo das mensagens do chat, do feed e dos ficheiros. Guarda-se o
+   instante completo em "iso" e mostra-se a data exacta. Sem "iso" (coisas
+   antigas), mostra-se o que houver, menos a palavra "agora". */
 function bspQuandoChat(iso, alternativa) {
   const d = new Date(String(iso || ''));
-  if (!iso || isNaN(d.getTime())) return alternativa || '';
-  const hoje = new Date();
-  const mesmoDia = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-  if (mesmoDia(d, hoje)) return bspHoraDe(d);
-  const ontem = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 1);
-  if (mesmoDia(d, ontem)) return 'ontem ' + bspHoraDe(d);
-  const ano = d.getFullYear() !== hoje.getFullYear() ? ' ' + d.getFullYear() : '';
-  return d.getDate() + ' ' + BSP_MESES[d.getMonth()] + ano + ' ' + bspHoraDe(d);
+  if (!iso || isNaN(d.getTime())) return /^agora$/i.test(String(alternativa || '').trim()) ? '' : alternativa || '';
+  return bspDataExacta(d);
 }
 /* A data por extenso, para o "title" — passar o rato por cima diz o dia
    e a hora certos, sem tirar o "há 12 min" de quem so quer o relance. */
@@ -3044,12 +3026,8 @@ function bspQuandoCompleto(ts) {
   return d.getDate() + ' de ' + BSP_MESES[d.getMonth()] + ' de ' + d.getFullYear() + ', ' + bspHoraDe(d);
 }
 function fmtTs(iso) {
-  try {
-    const d = new Date(iso);
-    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-  } catch (e) {
-    return '';
-  }
+  const d = new Date(String(iso || ''));
+  return isNaN(d.getTime()) ? '' : bspDataExacta(d);
 }
 function loadInitial() {
   try {
@@ -3594,7 +3572,15 @@ function StoreProvider({
           } : x)
         }
       };
-      if (arr.some(x => x.sid === m.id)) return s;
+      /* Ja ca estava: so lhe falta, as vezes, a data do servidor (copias
+         antigas guardadas no aparelho so com a hora). */
+      if (arr.some(x => x.sid === m.id)) return arr.some(x => x.sid === m.id && !x.iso && m.created_at) ? {
+        ...s,
+        channelMessages: {
+          ...s.channelMessages,
+          [m.conv_key]: arr.map(x => x.sid === m.id && !x.iso ? { ...x, iso: m.created_at } : x)
+        }
+      } : s;
       arr.push({
         id: 'm-srv-' + m.id,
         sid: m.id,
@@ -3617,10 +3603,14 @@ function StoreProvider({
         ...s,
         feedPosts: s.feedPosts.map(x => x.cid === p.cid ? {
           ...x,
-          sid: p.id
+          sid: p.id,
+          iso: p.created_at || x.iso
         } : x)
       };
-      if (s.feedPosts.some(x => x.sid === p.id)) return s;
+      if (s.feedPosts.some(x => x.sid === p.id)) return s.feedPosts.some(x => x.sid === p.id && !x.iso && p.created_at) ? {
+        ...s,
+        feedPosts: s.feedPosts.map(x => x.sid === p.id && !x.iso ? { ...x, iso: p.created_at } : x)
+      } : s;
       return {
         ...s,
         feedPosts: [{
@@ -4182,7 +4172,7 @@ function StoreProvider({
         feedPosts: [{
           id: nextId('p'),
           cid,
-          ts: 'Agora',
+          iso: new Date().toISOString(),
           reactions: {},
           comments: 0,
           ...post
@@ -4296,7 +4286,7 @@ function StoreProvider({
       ...s,
       driveFiles: [{
         id: nextId('f'),
-        modified: 'Agora',
+        criado: new Date().toISOString(),
         ...file,
         type: (file && file.type) || fileKind(file && file.name).k
       }, ...s.driveFiles]
@@ -5500,7 +5490,27 @@ function DashboardScreen({
   } = useStore();
   const upcoming = (state.todayEvents || []).slice(0, 5);
   const myTasks = [...(state.tasks.todo || []), ...(state.tasks.doing || []), ...(state.tasks.review || [])].filter(tk => (tk.assignees || []).includes(currentUser.id));
-  const recent = (state.activityLog || []).slice(0, 6);
+  /* Actividade recente com data exacta. As publicacoes vem do servidor,
+     com a data em que foram feitas, e sao iguais em todos os aparelhos.
+     O resto (tarefas, ficheiros, eventos) vem do registo deste aparelho,
+     so o que tem data: o que foi gravado antes com a palavra "agora" nao
+     tem data nenhuma e deixa de aparecer. */
+  const recent = React.useMemo(() => {
+    const dataDe = x => {
+      const t = new Date(String(x || '')).getTime();
+      return isNaN(t) ? 0 : t;
+    };
+    const tipoPost = { comunicado: 'publicou comunicado', reconhecimento: 'publicou reconhecimento', enquete: 'publicou enquete', evento: 'publicou evento' };
+    const dosPosts = (state.feedPosts || []).filter(p => dataDe(p.iso)).map(p => ({
+      id: 'act-' + p.id,
+      userId: p.userId,
+      action: tipoPost[p.type] || 'publicou no feed',
+      meta: p.title || String(p.body || '').replace(/\[anexo:[^\]]*\]/g, '').slice(0, 40),
+      ts: p.iso
+    }));
+    const doRegisto = (state.activityLog || []).filter(a => dataDe(a.ts) && String(a.action || '').indexOf('publicou') !== 0);
+    return dosPosts.concat(doRegisto).sort((a, b) => dataDe(b.ts) - dataDe(a.ts)).slice(0, 6);
+  }, [state.feedPosts, state.activityLog]);
   const unread = (state.notifications || []).filter(n => n.unread).length;
   const pendingTasks = (state.tasks.todo || []).length + (state.tasks.doing || []).length + (state.tasks.review || []).length;
   const now = new Date();
@@ -7780,7 +7790,7 @@ function FileMini({
       fontSize: 10.5,
       color: 'var(--text-3)'
     }
-  }, f.size, " · ", f.modified)));
+  }, f.size, " · ", bspQuandoChat(f.criado, f.modified))));
 }
 /* O cartao que se ve na conversa quando a mensagem traz um ficheiro.
    Se for imagem, mostra-a; se nao, um botao para abrir. */
@@ -11885,7 +11895,7 @@ function DriveScreen() {
       style: { display: 'block', fontSize: 11, color: 'var(--text-3)' }
     }, [f.pasta_mesmo ? 'Pasta' : f.size, dono ? dono.name.split(' ')[0] : null,
         aProcurar && f.pessoal && f.dentroDe ? 'em ' + f.dentroDe : null,
-        f.modified].filter(Boolean).join(' · ')))), f.pessoal && f.meu && React.createElement("button", {
+        bspQuandoChat(f.criado, f.modified)].filter(Boolean).join(' · ')))), f.pessoal && f.meu && React.createElement("button", {
       className: "bsp-iconbtn",
       title: "Mudar o nome",
       onClick: () => setRenomear(f),

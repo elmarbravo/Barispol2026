@@ -27,6 +27,7 @@
 //     sexta (bsp-aviso-coletivo).
 // Os dois avisam que o WhatsApp deixa em breve de ser o canal interno.
 // Sai um e-mail por endereco, para ninguem ver os enderecos dos outros.
+// Todos os envios desta funcao vao so para enderecos @barispol.com.
 // Cada tipo tem o seu registo por dia: lembretes_enviados e
 // coletivos_enviados.
 //
@@ -300,6 +301,12 @@ Deno.serve(async (req) => {
   if (error || !linha) return responder({ erro: "Não foi possível ler os dados." }, 500);
 
   const equipa: any[] = Array.isArray(linha.team) ? linha.team : [];
+  /* Os e-mails automaticos so vao para enderecos da clinica
+     (@barispol.com), por decisao do Elmar de 24-09-2026. Quem tem um
+     endereco pessoal continua na equipa e aparece nas listas dos colegas,
+     mas nao recebe estes e-mails. */
+  const daClinica = (email: unknown) => /@barispol\.com$/i.test(String(email || "").trim());
+  const destinatarios = equipa.filter((u: any) => u && daClinica(u.email));
   const tarefas: any = linha.tasks || {};
   const eventos: any[] = Array.isArray(linha.events) ? linha.events : [];
 
@@ -360,8 +367,7 @@ Deno.serve(async (req) => {
       "Abrir o Chat do Workspace",
       "Aviso a toda a equipa."
     );
-    for (const u of equipa) {
-      if (!u || !u.email) continue;
+    for (const u of destinatarios) {
       const nome = String(u.name || "").split(" ")[0];
       const ok = tipo === "coletivo"
         ? await enviar(u.email, "Equipa Barispol: o Workspace é o nosso canal", coletivo)
@@ -394,8 +400,7 @@ Deno.serve(async (req) => {
   const falhas: string[] = [];
 
   // 1. A cada pessoa, o que é dela.
-  for (const u of equipa) {
-    if (!u || !u.email) continue;
+  for (const u of destinatarios) {
     const minhas = pendentes.filter((t) => (t.assignees || []).includes(u.id));
     if (!minhas.length) continue;
     const nome = String(u.name || "").split(" ")[0];
@@ -431,7 +436,7 @@ Deno.serve(async (req) => {
     }
   }
   for (const [area, lista] of areas) {
-    const membros = equipa.filter((u: any) => u && u.email && u.dept === area);
+    const membros = destinatarios.filter((u: any) => u.dept === area);
     if (!membros.length) continue;
     const html = envelope(
       escapar(area) + " — " + lista.length + " em aberto",

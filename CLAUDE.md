@@ -66,8 +66,10 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   
   Nunca se mostram nem contam como por ler: usar `bspLinhaDeControlo()`.
   A excepção é `​f…`, que é um anexo e portanto uma mensagem real.
-- As datas no chat usam `bspQuandoChat(iso, alternativa)`, alimentada por
-  `created_at`.
+- Datas exactas em todo o lado («24 set 2026, 13:41»), nunca «agora» nem
+  «há x min» (pedido do Elmar, 24-09-2026). `bspDataExacta`, `bspQuando`,
+  `bspQuandoChat(iso, alternativa)` e `fmtTs` dão todas esse formato.
+  Tudo o que se cria guarda o instante (`iso`, `criado`, `ts` ISO).
 - O contador do botão Chat vem de `bspTotalPorLer()` e `useChatPorLer()`.
 - `Modal` abre por `ReactDOM.createPortal` no `body`, com zIndex 100000.
   Abaixo de 640 px ocupa o ecrã inteiro.
@@ -81,6 +83,7 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   (06h30, seg–sáb), `lembrete` (07h30, todos os dias, um por pessoa pelo
   nome) e `coletivo` (12h00, seg/qua/sex, «Olá, equipa»). Registos por
   dia: `resumos_enviados`, `lembretes_enviados`, `coletivos_enviados`.
+  Todos só para endereços @barispol.com (versão 7).
 - Calendário (opção C, aprovada): os eventos são rotina semanal. Cada
   evento tem um dia da semana e repete-se todas as semanas nesse dia.
 
@@ -103,7 +106,7 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 1. **Resumo matinal:** agendado sem chave secreta em 24-09-2026 (passo 3
    do `O-QUE-FALTA.md`). `fonte_chave` = `SUPABASE_SECRET_KEYS`.
 2. Confirmar os primeiros envios reais a 25-09-2026 em
-   `net._http_response`: resumo 06h30, lembrete 07h30 (`lembrados` = 22),
+   `net._http_response`: resumo 06h30, lembrete 07h30 (`lembrados` = 17),
    colectivo 12h00. Sem `falhas`.
 3. Passo 0.6: só com autorização expressa do Elmar. Antes, testar a
    `criar-utilizador` (0.5-e).
