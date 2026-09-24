@@ -463,6 +463,21 @@ automáticas por área de info@barispol.ao).
 
 ---
 
+## 3-i. Menções com «@» no chat (24-09-2026)
+
+- [x] O «@» não fazia nada: o botão só escrevia o símbolo. Agora, ao
+      escrever «@» (ou carregar no botão), aparece a lista das pessoas da
+      conversa, filtrada pelo que se escreve («@ar» → as Arletes).
+      Escolhe-se com o toque, o rato, as setas, Enter ou Tab; entra
+      «@Nome Apelido», realçado a azul na mensagem.
+- [x] Quem é mencionado recebe o aviso como «Menção» («mencionou-o em
+      #geral»), em vez de «Mensagem».
+- *Confirmado* num browser de teste: «@ar» mostra as duas Arletes;
+  Enter escreve «@Arlete Tatiana »; o botão «@» abre a lista.
+- [ ] Por confirmar com duas pessoas reais: a notificação de menção.
+
+---
+
 ## 4. Em cada aparelho
 
 - [ ] Recarregar à força (telemóvel: fechar o separador e reabrir;

@@ -93,6 +93,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 - Som das notificações: um só `AudioContext` (`bspAudio`), desbloqueado
   no primeiro toque (`bspDesbloquearSom`). Nunca criar um por aviso.
 - Abrir uma conversa directa de qualquer ecrã: `bspConversaCom(id)`.
+- Menções no chat: lista em `ChatScreen` (`detectarMencao`,
+  `candidatosMencao`, `escolherMencao`); escreve «@Nome Apelido». O
+  `notifMsg` marca como `mention` quem aparece assim no texto.
 - A app (Capacitor 8, `app/`) abre `https://barispol.com/workspace.html`
   (`server.url`): actualiza-se com o site. Sem internet mostra
   `sem-ligacao.html`. O APK sai em Actions → «App Android» → Artifacts.

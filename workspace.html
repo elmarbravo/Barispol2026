@@ -3710,7 +3710,18 @@ function StoreProvider({
         if (cn && eu && !bspVeCanal(eu, cn)) return;
       }
       const where = (emTopico ? 'num tópico ' : '') + (isDm ? 'mensagem direta' : 'em #' + chave.replace('c-', ''));
-      setState(s => pushNotif(s, {
+      /* Mencionado com "@Nome Apelido" (os dois primeiros nomes, como a
+         lista de mencoes os escreve): o aviso passa a "Menção". */
+      const euM = window.userById && window.userById(window.CURRENT_USER_ID);
+      const meuNome = euM ? String(euM.name).split(' ').slice(0, 2).join(' ').toLowerCase() : '';
+      const mencionado = !!meuNome && String(m.text || '').toLowerCase().indexOf('@' + meuNome) !== -1;
+      setState(s => pushNotif(s, mencionado ? {
+        type: 'mention',
+        userId: m.user_id,
+        conv: chave,
+        text: 'mencionou-o ' + (isDm ? 'numa mensagem direta' : where),
+        preview: bspTextoVisivel(m.text).slice(0, 90)
+      } : {
         type: 'message',
         userId: m.user_id,
         /* Sem isto, carregar na notificacao nao tinha para onde ir. */
@@ -6303,6 +6314,10 @@ function ChatScreen({
   } = useStore();
   const messagesByChan = state.channelMessages;
   const [draft, setDraft] = React.useState('');
+  /* Mencoes (24-09-2026): ao escrever "@", aparece a lista das pessoas
+     desta conversa. Antes o "@" nao fazia nada. */
+  const [mencao, setMencao] = React.useState(null); // { q, ini, fim }
+  const [mencaoSel, setMencaoSel] = React.useState(0);
   const [typing, setTyping] = React.useState(false);
   const [drawer, setDrawer] = React.useState(false);
   const [grupoModal, setGrupoModal] = React.useState(false);
@@ -6412,6 +6427,27 @@ function ChatScreen({
   React.useEffect(() => {
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [messages.length, convKey]);
+  function detectarMencao(texto, pos) {
+    const antes = String(texto).slice(0, pos);
+    const m = antes.match(/(^|\s)@([^\s@]{0,24})$/);
+    return m ? { q: m[2], ini: pos - m[2].length - 1, fim: pos } : null;
+  }
+  const semAcentos = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const candidatosMencao = !mencao ? [] : (isDM ? (dmUser ? [dmUser] : []) : USERS.filter(u => u.id !== currentUser.id && (!activeChannel || bspVeCanal(u, activeChannel))))
+    .filter(u => !mencao.q || semAcentos(u.name).split(' ').some(p => p.indexOf(semAcentos(mencao.q)) === 0) || semAcentos(u.name).indexOf(semAcentos(mencao.q)) === 0)
+    .slice(0, 6);
+  function escolherMencao(u) {
+    if (!mencao || !u) return;
+    const nome = String(u.name).split(' ').slice(0, 2).join(' ');
+    const novo = draft.slice(0, mencao.ini) + '@' + nome + ' ' + draft.slice(mencao.fim);
+    const cursor = mencao.ini + nome.length + 2;
+    setDraft(novo);
+    setMencao(null);
+    setTimeout(() => {
+      const ta = taRef.current;
+      if (ta) { ta.focus(); try { ta.setSelectionRange(cursor, cursor); } catch (e) {} }
+    }, 0);
+  }
   function send() {
     const text = draft.trim();
     if (!text) return;
@@ -7370,11 +7406,37 @@ function ChatScreen({
       background: 'var(--surface)',
       display: 'flex',
       flexDirection: 'column',
-      transition: 'border-color .15s'
+      transition: 'border-color .15s',
+      position: 'relative'
     },
     onFocusCapture: e => e.currentTarget.style.borderColor = 'var(--accent)',
     onBlurCapture: e => e.currentTarget.style.borderColor = 'var(--border)'
+  }, mencao && candidatosMencao.length > 0 && React.createElement("div", {
+    role: "listbox",
+    "aria-label": "Mencionar",
+    style: {
+      position: 'absolute', left: 8, right: 8, bottom: 'calc(100% + 6px)', zIndex: 20,
+      background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
+      boxShadow: '0 10px 30px rgba(15,23,42,.18)', overflow: 'hidden', maxWidth: 380
+    }
   }, React.createElement("div", {
+    style: { padding: '8px 12px 4px', fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--text-3)' }
+  }, "Mencionar"), candidatosMencao.map((u, i) => React.createElement("button", {
+    key: u.id,
+    type: "button",
+    role: "option",
+    "aria-selected": i === mencaoSel,
+    onMouseDown: e => { e.preventDefault(); escolherMencao(u); },
+    onMouseEnter: () => setMencaoSel(i),
+    style: {
+      display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '8px 12px', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
+      background: i === mencaoSel ? 'var(--accent-soft)' : 'transparent'
+    }
+  }, React.createElement(Avatar, { user: u, size: 26 }), React.createElement("span", { style: { minWidth: 0 } }, React.createElement("span", {
+    style: { display: 'block', fontSize: 13.5, fontWeight: 600, color: 'var(--text-1)' }
+  }, u.name), React.createElement("span", {
+    style: { display: 'block', fontSize: 11.5, color: 'var(--text-3)' }
+  }, [u.role, u.dept].filter(Boolean).join(' · ')))))), React.createElement("div", {
     className: "bsp-composer-tools",
     style: {
       display: 'flex',
@@ -7424,13 +7486,24 @@ function ChatScreen({
   }, renderText(draft))), React.createElement("textarea", {
     ref: taRef,
     value: draft,
-    onChange: e => setDraft(e.target.value),
+    onChange: e => {
+      setDraft(e.target.value);
+      setMencao(detectarMencao(e.target.value, e.target.selectionStart));
+      setMencaoSel(0);
+    },
     onKeyDown: e => {
+      if (mencao && candidatosMencao.length) {
+        if (e.key === 'ArrowDown') { e.preventDefault(); setMencaoSel(i => (i + 1) % candidatosMencao.length); return; }
+        if (e.key === 'ArrowUp') { e.preventDefault(); setMencaoSel(i => (i - 1 + candidatosMencao.length) % candidatosMencao.length); return; }
+        if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); escolherMencao(candidatosMencao[Math.min(mencaoSel, candidatosMencao.length - 1)]); return; }
+        if (e.key === 'Escape') { e.preventDefault(); setMencao(null); return; }
+      }
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         send();
       }
     },
+    onBlur: () => setTimeout(() => { if (document.activeElement !== taRef.current) setMencao(null); }, 200),
     placeholder: isDM ? `Mensagem para ${dmUser.name.split(' ')[0]}...` : `Mensagem em #${activeChannel.name}...`,
     style: {
       width: '100%',
@@ -7527,8 +7600,14 @@ function ChatScreen({
     },
     title: "Mencionar",
     onClick: () => {
-      setDraft(d => d + (d && !d.endsWith(' ') ? ' @' : '@'));
-      if (taRef.current) taRef.current.focus();
+      const novo = draft + (draft && !draft.endsWith(' ') ? ' @' : '@');
+      setDraft(novo);
+      setMencao({ q: '', ini: novo.length - 1, fim: novo.length });
+      setMencaoSel(0);
+      setTimeout(() => {
+        const ta = taRef.current;
+        if (ta) { ta.focus(); try { ta.setSelectionRange(novo.length, novo.length); } catch (e) {} }
+      }, 0);
     }
   }, "@")), React.createElement("div", {
     style: {
