@@ -20,7 +20,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 6. A pessoa jurídica é sempre «Clínica Barispol, Lda.», NIF 5000999687.
    «Centro Médico Barispol» é só a marca.
 7. Marca: Titillium Web (com Segoe UI/Arial de recurso). Cores:
-   azul-marinho #292F58 e #273069, azul #2291CE.
+   azul-marinho #292F58 e #273069, azul #2291CE. Nos e-mails, a fonte é
+   Dax (pedido do Elmar, 24-09-2026), com Titillium Web, Segoe UI e Arial
+   de recurso, e o logotipo `assets/logo-barispol.png` no topo.
 8. Antes de cada alteração, dizer o que se vai fazer. Depois, dizer o que
    se confirmou. Se o ecrã ou o código não corresponder ao descrito, parar
    e descrever.
@@ -72,7 +74,13 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 - Departamentos em `DEPARTMENTS` (inclui `radiologia`). O departamento
   actual de uma pessoa nunca desaparece do selector.
 - O envio de e-mail pela aplicação usa o token da sessão
-  (`bspTestemunho`).
+  (`bspTestemunho`). O cartão é `bspEmailWrap`, igual ao `envelope` da
+  `resumo-matinal`. Texto escrito por alguém passa por `bspEmailTexto`
+  (sem HTML, com mudanças de linha, sem cortes).
+- A `resumo-matinal` tem três tipos (campo `tipo` do corpo): resumo
+  (06h30, seg–sáb), `lembrete` (07h30, todos os dias, um por pessoa pelo
+  nome) e `coletivo` (12h00, seg/qua/sex, «Olá, equipa»). Registos por
+  dia: `resumos_enviados`, `lembretes_enviados`, `coletivos_enviados`.
 - Calendário (opção C, aprovada): os eventos são rotina semanal. Cada
   evento tem um dia da semana e repete-se todas as semanas nesse dia.
 
@@ -94,9 +102,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 
 1. **Resumo matinal:** agendado sem chave secreta em 24-09-2026 (passo 3
    do `O-QUE-FALTA.md`). `fonte_chave` = `SUPABASE_SECRET_KEYS`.
-2. Confirmar o primeiro envio real na manhã de 25-09-2026 em
-   `net._http_response` (`pessoais`/`deEquipa` acima de zero, sem
-   `falhas`).
+2. Confirmar os primeiros envios reais a 25-09-2026 em
+   `net._http_response`: resumo 06h30, lembrete 07h30 (`lembrados` = 22),
+   colectivo 12h00. Sem `falhas`.
 3. Passo 0.6: só com autorização expressa do Elmar. Antes, testar a
    `criar-utilizador` (0.5-e).
 4. Departamento e cargo de 9 pessoas: Cassia Peixoto, Catarina Ndundu

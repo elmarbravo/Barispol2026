@@ -77,6 +77,48 @@ begin
   );
 end $$;
 
+-- 4. Avisos a toda a equipa (24-09-2026). A mesma funcao, com "tipo" no
+--    corpo. Cada tipo tem o seu registo por dia, para nao sair duas vezes.
+create table if not exists lembretes_enviados (
+  dia date primary key,
+  criado_em timestamptz default now()
+);
+alter table lembretes_enviados enable row level security;
+create table if not exists coletivos_enviados (
+  dia date primary key,
+  criado_em timestamptz default now()
+);
+alter table coletivos_enviados enable row level security;
+-- Sem isto a API so ve as tabelas novas mais tarde, e a funcao responde
+-- "Falta a tabela".
+notify pgrst, 'reload schema';
+
+do $$
+declare
+  comando text := $cmd$
+    select net.http_post(
+      url     := 'https://ferqkmfntcockmhviscf.supabase.co/functions/v1/resumo-matinal',
+      headers := jsonb_build_object(
+                   'Content-Type', 'application/json',
+                   'x-bsp-agendamento', (select decrypted_secret from vault.decrypted_secrets
+                                         where name = 'bsp_resumo_agendamento' limit 1)),
+      body    := '{"tipo":"%s"}'::jsonb
+    );
+  $cmd$;
+begin
+  if exists (select 1 from cron.job where jobname = 'bsp-lembrete-diario') then
+    perform cron.unschedule('bsp-lembrete-diario');
+  end if;
+  -- 07h30 em Luanda (UTC+1), todos os dias. Um e-mail por pessoa, pelo nome.
+  perform cron.schedule('bsp-lembrete-diario', '30 6 * * *', format(comando, 'lembrete'));
+
+  if exists (select 1 from cron.job where jobname = 'bsp-aviso-coletivo') then
+    perform cron.unschedule('bsp-aviso-coletivo');
+  end if;
+  -- 12h00 em Luanda, segunda, quarta e sexta. A mesma mensagem para todos.
+  perform cron.schedule('bsp-aviso-coletivo', '0 11 * * 1,3,5', format(comando, 'coletivo'));
+end $$;
+
 -- ============================================================
 --  CONFERIR
 -- ============================================================
@@ -85,7 +127,7 @@ select jobname   as tarefa,
        active    as activa,
        substring(command from 'https://[^'']+') as para_onde
 from cron.job
-where jobname = 'bsp-resumo-matinal';
+where jobname in ('bsp-resumo-matinal', 'bsp-lembrete-diario', 'bsp-aviso-coletivo');
 
 -- Amanha de manha:
 -- select status, return_message, start_time

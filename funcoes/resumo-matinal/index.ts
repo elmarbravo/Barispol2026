@@ -19,6 +19,17 @@
 // Leva tambem as escalas fixadas no mural e o que esta marcado para hoje,
 // que e o que se quer saber antes de comecar o dia.
 //
+// AVISOS A TODA A EQUIPA (desde 24-09-2026), pelo campo "tipo" do corpo:
+//   · "lembrete": um e-mail por pessoa, tratada pelo nome, para entrar no
+//     Workspace. 07h30 de Luanda, todos os dias (bsp-lembrete-diario).
+//   · "coletivo": a mesma mensagem para todos («Olá, equipa»), sobre o
+//     Workspace como canal interno. 12h00 de Luanda, segunda, quarta e
+//     sexta (bsp-aviso-coletivo).
+// Os dois avisam que o WhatsApp deixa em breve de ser o canal interno.
+// Sai um e-mail por endereco, para ninguem ver os enderecos dos outros.
+// Cada tipo tem o seu registo por dia: lembretes_enviados e
+// coletivos_enviados.
+//
 // COMO INSTALAR (uma vez):
 //   1. No Supabase: Edge Functions -> Deploy a new function
 //   2. Nome exacto: resumo-matinal
@@ -55,31 +66,53 @@ const escapar = (t: unknown) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string)
   );
 
+/* A marca: as cores do logotipo e a fonte Dax, com Titillium Web, Segoe UI
+   e Arial de recurso. A Dax so aparece a quem a tiver instalada — um
+   e-mail nao leva fontes consigo, e o Gmail e o Outlook ignoram as da
+   rede. O logotipo vem do proprio site. */
+const MARINHO = "#292F58";
+const MARINHO_BOTAO = "#273069";
+const AZUL = "#2291CE";
+const FONTE = "Dax,'Dax Pro','Titillium Web','Segoe UI',Arial,sans-serif";
+const LOGOTIPO = "https://barispol.com/assets/logo-barispol.png";
+
 /* O botao que leva a pessoa ao sitio, em vez de a mandar procurar. */
 const SITIO = "https://barispol.com/workspace.html";
 function botao(destino: string, rotulo: string) {
   const href = SITIO + "#/" + destino;
   return (
-    '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:18px 0 0"><tr><td style="border-radius:8px;background:#002060">' +
-    '<a href="' + href + '" style="display:inline-block;padding:11px 22px;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:8px">' +
+    '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0 0"><tr><td style="border-radius:8px;background:' + MARINHO_BOTAO + '">' +
+    '<a href="' + href + '" style="display:inline-block;padding:12px 26px;font-family:' + FONTE + ';font-size:15px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:8px">' +
     rotulo + "</a></td></tr></table>" +
-    '<p style="margin:8px 0 0;font-size:11px;color:#94A3B8;word-break:break-all">' + href + "</p>"
+    '<p style="margin:8px 0 0;font-family:' + FONTE + ';font-size:11px;color:#94A3B8;word-break:break-all">' + href + "</p>"
   );
 }
-/* O mesmo cartao azul dos outros avisos, para nao parecer que vem de
-   outro sitio qualquer. */
-function envelope(titulo: string, corpo: string, destino?: string, rotulo?: string) {
+/* O cartao de todos os e-mails desta funcao: logotipo em cima, a linha
+   azul da marca, texto em azul-marinho, e a pessoa juridica no fim. */
+function envelope(titulo: string, corpo: string, destino?: string, rotulo?: string, rodape?: string) {
   return (
-    '<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden">' +
-    '<div style="background:#002060;color:#fff;padding:16px 20px;font-size:16px;font-weight:bold">Centro Médico Barispol — Workspace</div>' +
-    '<div style="padding:20px;color:#0F172A"><h2 style="margin:0 0 12px;font-size:17px">' +
+    '<div style="background:#F3F6FB;padding:24px 12px">' +
+    '<div style="font-family:' + FONTE + ';max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #DFE6F0;border-radius:12px;overflow:hidden">' +
+    '<div style="padding:22px 20px 16px;text-align:center;background:#ffffff">' +
+    '<img src="' + LOGOTIPO + '" width="84" height="86" alt="Centro Médico Barispol" style="display:inline-block;border:0;width:84px;height:auto">' +
+    "</div>" +
+    '<div style="height:4px;background:' + AZUL + ';line-height:4px;font-size:0">&nbsp;</div>' +
+    '<div style="padding:24px 24px 26px;color:' + MARINHO + '"><h2 style="margin:0 0 14px;font-family:' + FONTE + ';font-size:20px;font-weight:bold;color:' + MARINHO + '">' +
     titulo +
     "</h2>" +
     corpo +
     (destino ? botao(destino, rotulo || "Abrir no Workspace") : "") +
-    '<p style="margin:20px 0 0;font-size:12px;color:#94A3B8">Este é o resumo automático da manhã.</p></div></div>'
+    "</div>" +
+    '<div style="padding:14px 24px;background:' + MARINHO + ';color:#ffffff;font-family:' + FONTE + ';font-size:12px;line-height:1.5">' +
+    "<b>Centro Médico Barispol</b> — Workspace<br>" +
+    '<span style="color:#C9D3E6">' + (rodape || "Este é o resumo automático da manhã.") + " Clínica Barispol, Lda. · NIF 5000999687</span>" +
+    "</div></div></div>"
   );
 }
+
+/* Paragrafo de texto corrido, na fonte e na cor da marca. */
+const paragrafo = (t: string, fim = false) =>
+  '<p style="margin:0' + (fim ? "" : " 0 12px") + ";font-family:" + FONTE + ";font-size:15px;line-height:1.6;color:" + MARINHO + '">' + t + "</p>";
 
 function listaDeTarefas(tarefas: any[], mostrarQuem: boolean, equipa: any[]) {
   const nomeDe = (id: string) => {
@@ -222,15 +255,18 @@ Deno.serve(async (req) => {
 
   const corpo = await req.json().catch(() => ({} as any));
   const forcar = corpo && corpo.forcar === true;
+  const tipo = corpo && (corpo.tipo === "lembrete" || corpo.tipo === "coletivo") ? corpo.tipo : "resumo";
+  const lembrete = tipo !== "resumo";
 
   /* Uma vez por dia. O agendamento pode disparar mais do que uma vez —
      por uma repetição, por uma reinstalação — e ninguém quer o mesmo
      e-mail três vezes antes do café. O botão "Enviar agora" passa à
      frente disto, que é para isso que serve. */
   const hoje = new Date().toISOString().slice(0, 10);
+  const registo = ({ resumo: "resumos_enviados", lembrete: "lembretes_enviados", coletivo: "coletivos_enviados" } as Record<string, string>)[tipo];
   if (!forcar) {
     const { error: jaFoi } = await admin
-      .from("resumos_enviados")
+      .from(registo)
       .insert({ dia: hoje });
     if (jaFoi) {
       /* Só a chave repetida quer dizer "já saiu hoje". Qualquer outro
@@ -240,11 +276,16 @@ Deno.serve(async (req) => {
       const m = String(jaFoi.message || "").toLowerCase();
       const jaSaiu = jaFoi.code === "23505" || /duplicate key|already exists/.test(m);
       if (jaSaiu) {
-        return responder({ ok: true, enviados: 0, nota: "O resumo de hoje já tinha saído.", fonte_chave: fonteChaveServidor() });
+        return responder({
+          ok: true,
+          enviados: 0,
+          nota: lembrete ? "O aviso (" + tipo + ") de hoje já tinha saído." : "O resumo de hoje já tinha saído.",
+          fonte_chave: fonteChaveServidor(),
+        });
       }
       if (/relation|does not exist|schema cache/.test(m)) {
         return responder({
-          erro: "Falta a tabela resumos_enviados. Corra o agendar-resumo.sql no SQL Editor.",
+          erro: "Falta a tabela " + registo + ". Corra o agendar-resumo-sem-chave.sql no SQL Editor.",
         }, 500);
       }
       return responder({ erro: "Não foi possível registar o envio: " + jaFoi.message }, 500);
@@ -274,11 +315,11 @@ Deno.serve(async (req) => {
   const diaSemana = (new Date().getUTCDay() + 6) % 7;
   const doDia = eventos.filter((e: any) => (e.day == null ? diaSemana : Number(e.day)) === diaSemana);
   const blocoDia = doDia.length
-    ? '<p style="margin:0 0 6px;font-size:14px;color:#0F172A"><b>Hoje na agenda</b></p><ul style="padding-left:18px;margin:0 0 16px">' +
+    ? '<p style="margin:0 0 6px;font-size:14px;color:#292F58"><b>Hoje na agenda</b></p><ul style="padding-left:18px;margin:0 0 16px">' +
       doDia
         .map(
           (e: any) =>
-            '<li style="margin-bottom:4px;font-size:14px;color:#475569">' +
+            '<li style="margin-bottom:4px;font-size:14px;color:#292F58">' +
             (e.time ? "<b>" + escapar(e.time) + "</b> · " : "") +
             escapar(e.title) +
             "</li>"
@@ -303,6 +344,51 @@ Deno.serve(async (req) => {
     }
   };
 
+  /* O lembrete vai para toda a gente, tenha ou nao tarefas: um e-mail por
+     pessoa, tratada pelo nome. Curto: serve para a pessoa abrir o
+     Workspace antes de comecar o dia, e avisa que o WhatsApp deixa em
+     breve de ser o canal interno. */
+  if (lembrete) {
+    let lembrados = 0;
+    const falhasLembrete: string[] = [];
+    const coletivo = envelope(
+      "Olá, equipa.",
+      paragrafo("O Workspace é o nosso ponto de encontro. Entrem todos os dias: é lá que estão as mensagens, as tarefas e a agenda da clínica.") +
+        paragrafo("<b>Em breve deixaremos de usar o WhatsApp</b> para a comunicação interna. Usem já o Chat do Workspace para falar com os colegas e com as equipas.") +
+        paragrafo("Se tiverem dificuldade em entrar, falem com a Administração.", true),
+      "chat",
+      "Abrir o Chat do Workspace",
+      "Aviso a toda a equipa."
+    );
+    for (const u of equipa) {
+      if (!u || !u.email) continue;
+      const nome = String(u.name || "").split(" ")[0];
+      const ok = tipo === "coletivo"
+        ? await enviar(u.email, "Equipa Barispol: o Workspace é o nosso canal", coletivo)
+        : await enviar(
+          u.email,
+          "Bom dia — o Workspace espera por si",
+          envelope(
+            "Bom dia, " + escapar(nome) + ".",
+            paragrafo("Antes de começar o dia, entre no Workspace. Veja as mensagens, as tarefas e a agenda de hoje.") +
+              paragrafo("<b>Em breve deixaremos de usar o WhatsApp</b> para a comunicação interna. As conversas da equipa passam a ser feitas no Chat do Workspace.", true),
+            "chat",
+            "Entrar no Workspace",
+            "Lembrete diário."
+          )
+        );
+      ok ? lembrados++ : falhasLembrete.push(u.email);
+    }
+    return responder({
+      ok: true,
+      dia: hoje,
+      tipo,
+      lembrados,
+      falhas: falhasLembrete.length ? falhasLembrete : undefined,
+      fonte_chave: fonteChaveServidor(),
+    });
+  }
+
   let pessoais = 0;
   let deEquipa = 0;
   const falhas: string[] = [];
@@ -319,7 +405,7 @@ Deno.serve(async (req) => {
       envelope(
         "Bom dia, " + escapar(nome) + ".",
         blocoDia +
-          '<p style="margin:0;font-size:14px;color:#475569">Tem <b>' +
+          '<p style="margin:0;font-size:14px;color:#292F58">Tem <b>' +
           minhas.length +
           "</b> tarefa(s) por fechar:</p>" +
           listaDeTarefas(minhas, false, equipa),
@@ -349,7 +435,7 @@ Deno.serve(async (req) => {
     if (!membros.length) continue;
     const html = envelope(
       escapar(area) + " — " + lista.length + " em aberto",
-      '<p style="margin:0;font-size:14px;color:#475569">O que a equipa tem em mãos esta manhã:</p>' +
+      '<p style="margin:0;font-size:14px;color:#292F58">O que a equipa tem em mãos esta manhã:</p>' +
         listaDeTarefas(lista, true, equipa),
       "tarefas",
       "Ver no Workspace"

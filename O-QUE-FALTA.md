@@ -220,6 +220,44 @@ order by created desc limit 5;
 
 ---
 
+## 3-b. Avisos a toda a equipa por e-mail (24-09-2026)
+
+Pedido pelo Elmar em 24-09-2026. Feito directamente no servidor, com o
+bloco 4 do [`agendar-resumo-sem-chave.sql`](agendar-resumo-sem-chave.sql)
+e a `resumo-matinal` versão 6.
+
+- [x] **Lembrete diário** (`bsp-lembrete-diario`): 07h30 de Luanda,
+      todos os dias, domingo incluído. Um e-mail por pessoa, tratada pelo
+      primeiro nome: entrar no Workspace, e o aviso de que em breve
+      deixaremos de usar o WhatsApp para a comunicação interna.
+- [x] **Aviso colectivo** (`bsp-aviso-coletivo`): 12h00 de Luanda,
+      segunda, quarta e sexta. A mesma mensagem para todos («Olá,
+      equipa»), com o mesmo aviso sobre o WhatsApp. Sai um e-mail por
+      endereço, para ninguém ver os endereços dos colegas. Os dias foram
+      escolhidos pelo assistente; mudam-se na linha do `cron.schedule`.
+- [x] Cada tipo tem o seu registo por dia (`lembretes_enviados`,
+      `coletivos_enviados`), para não sair duas vezes.
+      *Confirmado em 24-09-2026:* os dois tipos respondem HTTP 200 com o
+      código do agendamento (o dia foi marcado antes, para não sair
+      correio).
+- [ ] **Confirmar os primeiros envios reais**: lembrete a 25-09 às 07h30;
+      colectivo a 25-09 (sexta) às 12h00. Consulta: `select status_code,
+      content from net._http_response order by created desc limit 5;` —
+      `lembrados` deve ser 22 e sem `falhas`.
+
+**Novo visual de todos os e-mails** (resumo, lembrete, colectivo e os da
+aplicação: mural, mensagens directas, tarefas, testes): logotipo do site
+(`assets/logo-barispol.png`) no topo, linha azul #2291CE, texto em
+#292F58, botão #273069, rodapé com «Clínica Barispol, Lda. · NIF
+5000999687». Fonte Dax, pedida pelo Elmar, com Titillium Web, Segoe UI e
+Arial de recurso: a Dax só aparece a quem a tiver instalada.
+
+**Mural:** o e-mail de uma publicação cortava o texto aos 400 caracteres
+e juntava os parágrafos numa linha. Passou a levar o texto inteiro, com
+as mudanças de linha (`bspEmailTexto` no `workspace.html`).
+
+---
+
 ## 4. Em cada aparelho
 
 - [ ] Recarregar à força (telemóvel: fechar o separador e reabrir;
