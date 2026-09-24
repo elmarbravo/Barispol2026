@@ -3053,6 +3053,10 @@ function loadInitial() {
           ...u
         }));
         if (!parsed.extraChannels) parsed.extraChannels = [];
+        /* Versoes anteriores a 24-09-2026 gravavam avisos com o texto das
+           linhas internas (recibos de leitura, edicoes): apareciam como
+           "l745" ou "e747A Neusa...". Saem ao arrancar. */
+        if (Array.isArray(parsed.notifications)) parsed.notifications = parsed.notifications.filter(n => !(n && bspLinhaDeControlo(n.preview)));
         /* Instalações anteriores às camadas editáveis arrancam com as
            quatro originais, em vez de ficarem sem nenhuma. */
         if (!parsed.camadas || !Object.keys(parsed.camadas).length) parsed.camadas = JSON.parse(JSON.stringify(CAMADAS));
@@ -5970,7 +5974,8 @@ function TopicoPanel({
   const fimRef = React.useRef(null);
   if (!thread) return null;
   const tKey = 'th~' + thread.convKey + '~' + thread.sid;
-  const msgs = state.channelMessages[tKey] || [];
+  /* Sem as linhas internas (leitura, edicao, reaccao): apareciam como texto estranho. */
+  const msgs = (state.channelMessages[tKey] || []).filter(m => !bspLinhaDeControlo(m.text));
   function enviar() {
     const t = texto.trim();
     if (!t) return;
@@ -6388,7 +6393,7 @@ function ChatScreen({
       const lista = messagesByChan[k] || [];
       for (const mm of lista) {
         if (resultados.length >= 30) break;
-        if (mm.text && normTxt(bspTextoVisivel(mm.text)).indexOf(q) !== -1) resultados.push({
+        if (mm.text && !bspLinhaDeControlo(mm.text) && normTxt(bspTextoVisivel(mm.text)).indexOf(q) !== -1) resultados.push({
           k: k,
           rotulo: rotulo,
           mm: mm
@@ -7225,7 +7230,7 @@ function ChatScreen({
       }
     }, React.createElement(I.Chat, {
       size: 13
-    }), (messagesByChan['th~' + convKey + '~' + m.sid] || []).length || ''), isOwn && m.sid && React.createElement("button", {
+    }), (messagesByChan['th~' + convKey + '~' + m.sid] || []).filter(x => !bspLinhaDeControlo(x.text)).length || ''), isOwn && m.sid && React.createElement("button", {
       className: "bsp-msg-del",
       title: "Editar mensagem",
       onClick: () => {
@@ -8800,7 +8805,7 @@ function FeedPost({
   const toast = useToast();
   const me = window.userById(window.CURRENT_USER_ID);
   const pk = 'post-' + (post.sid || post.id);
-  const comments = state.channelMessages[pk] || [];
+  const comments = (state.channelMessages[pk] || []).filter(m => !bspLinhaDeControlo(m.text));
   const [showComments, setShowComments] = React.useState(false);
   const [cDraft, setCDraft] = React.useState('');
   const canDelete = post.userId === window.CURRENT_USER_ID || (me && bspCamada(me).podeGerirUtilizadores);
@@ -13102,7 +13107,7 @@ function NotificationsScreen({
   }, []);
   const [perm, setPerm] = React.useState('Notification' in window ? Notification.permission : 'unsupported');
   const [sound, setSound] = React.useState(localStorage.getItem('bsp_notif_sound') !== 'off');
-  const all = state.notifications || [];
+  const all = (state.notifications || []).filter(n => !(n && bspLinhaDeControlo(n.preview)));
   const typeMeta = {
     mention: {
       icon: 'Chat',

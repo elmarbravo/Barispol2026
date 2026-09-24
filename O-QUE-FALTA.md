@@ -432,6 +432,22 @@ automáticas por área de info@barispol.ao).
 
 ---
 
+## 3-g. «As mensagens aparecem codificadas» (Arlete, 24-09-2026)
+
+- No servidor as mensagens estão em texto normal. O que aparece
+  «codificado» são as linhas internas (recibos de leitura, edições,
+  reacções), que as versões anteriores deixavam passar.
+- [x] Filtro `bspLinhaDeControlo` também nos tópicos, no contador de
+      respostas, na pesquisa do chat e nos comentários do mural.
+- [x] As notificações antigas gravadas no aparelho com o texto dessas
+      linhas («l745», «e747A Neusa…») saem ao abrir o Workspace.
+      *Confirmado* num browser de teste.
+- [ ] Pedir à Arlete que recarregue à força (computador: Ctrl+Shift+R;
+      telemóvel: fechar o separador e reabrir). Se continuar, pedir uma
+      captura do sítio onde aparece.
+
+---
+
 ## 4. Em cada aparelho
 
 - [ ] Recarregar à força (telemóvel: fechar o separador e reabrir;
