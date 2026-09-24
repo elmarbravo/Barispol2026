@@ -521,6 +521,8 @@ automáticas por área de info@barispol.ao).
       WhatsApp) e tem uma seta para voltar. A conversa ocupa o ecrã, com
       a caixa de escrever sempre em baixo (antes o cartão encolhia à
       altura do texto). Sino com o número de notificações no topo.
+- [x] **CRM (Seguimento) no telemóvel:** estava só na barra lateral do
+      computador. Passou a estar em «Mais», com o título certo no topo.
 - [x] Reposta a função `bspBrowserNotify` (aviso do sistema com a página
       escondida). Foi apagada por engano no envio do som, mais cedo no
       mesmo dia, e cada mensagem recebida dava erro a seguir ao som.
