@@ -10,8 +10,15 @@
     "limitsNavigationsToAppBoundDomains": false
   },
   "server": {
+    "url": "https://barispol.com/workspace.html",
     "androidScheme": "https",
-    "iosScheme": "https"
+    "iosScheme": "https",
+    "allowNavigation": [
+      "barispol.com",
+      "*.barispol.com",
+      "*.supabase.co"
+    ],
+    "errorPath": "sem-ligacao.html"
   },
   "plugins": {
     "CapacitorHttp": {

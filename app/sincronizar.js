@@ -86,4 +86,26 @@ if (cfg.url && cfg.key) {
   console.log('servidor.json vazio — a app usa a ligacao comum do servidor.js');
 }
 
+/* Desde 24-09-2026 a app abre o barispol.com (capacitor.config.json,
+   server.url): cada alteracao do site chega aos telemoveis sem instalar
+   nada. A copia em www/ fica como reserva do Capacitor, e esta pagina
+   aparece quando nao ha internet. */
+fs.writeFileSync(path.join(DESTINO, 'sem-ligacao.html'), `<!doctype html>
+<html lang="pt-PT"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sem ligação</title>
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:#F3F6FB;color:#292F58;font-family:'Titillium Web','Segoe UI',Arial,sans-serif;text-align:center;padding:24px;box-sizing:border-box}
+  h1{font-size:20px;margin:0 0 8px}
+  p{font-size:15px;line-height:1.5;margin:0 0 20px;color:#5A6180}
+  button{background:#273069;color:#fff;border:0;border-radius:10px;padding:12px 26px;font-size:15px;font-weight:700;font-family:inherit}
+</style></head>
+<body><div>
+  <h1>Sem ligação à internet</h1>
+  <p>O Workspace do Centro Médico Barispol precisa de internet.<br>Verifique os dados móveis ou o Wi-Fi.</p>
+  <button onclick="location.href='https://barispol.com/workspace.html'">Tentar de novo</button>
+</div></body></html>
+`);
+total++;
 console.log(total + ' ficheiros copiados para www/');

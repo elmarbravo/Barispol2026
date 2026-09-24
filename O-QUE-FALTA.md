@@ -416,6 +416,19 @@ automáticas por área de info@barispol.ao).
 - Atenção: o APK de teste é assinado com uma chave de depuração que muda
   a cada compilação. Para instalar uma versão nova, pode ser preciso
   desinstalar a anterior.
+- [x] **A app actualiza-se sozinha** (decisão do Elmar, 24-09-2026). Em
+      `app/capacitor.config.json`, `server.url` passou a
+      `https://barispol.com/workspace.html`: a app abre o site, e cada
+      alteração chega aos telemóveis sem instalar nada. Sem internet
+      aparece `sem-ligacao.html` (criada pelo `sincronizar.js`), com
+      «Tentar de novo». O APK instala-se **uma vez**; só é preciso outro
+      se mudar a parte nativa (ícone, permissões, nome).
+- Quem instalou o APK 1.15 ou anterior tem de instalar uma vez o
+  seguinte, porque esses ainda levavam a cópia fixa do site.
+- A sessão da app antiga não passa para a nova: é preciso entrar outra
+  vez com e-mail e palavra-passe.
+- [ ] Por confirmar num Android real: entrar, receber mensagens, fazer
+      uma chamada (microfone) e ver a página sem internet.
 
 ---
 

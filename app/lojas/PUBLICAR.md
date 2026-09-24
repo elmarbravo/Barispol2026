@@ -55,8 +55,11 @@ e para tirar as capturas de ecrã da loja.
       desconhecida»* → instalar. Abre já ligada ao servidor; só pede
       e-mail e palavra-passe.
 
-A partir daqui, **sempre que o site mudar, o APK e o AAB refazem-se
-sozinhos** — basta ir buscá-los aos Artifacts da execução mais recente.
+**Desde 24-09-2026 a app abre o barispol.com** (`server.url` no
+`capacitor.config.json`): as alterações do site chegam aos telemóveis
+sozinhas. O APK só se volta a instalar se mudar a parte nativa (ícone,
+nome, permissões). O APK e o AAB continuam a refazer-se a cada alteração,
+nos Artifacts da execução mais recente.
 
 ---
 
