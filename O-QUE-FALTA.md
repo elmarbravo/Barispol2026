@@ -570,6 +570,36 @@ Verificado no projecto novo, a 24-09-2026 às 23h40:
 
 ---
 
+## 3-m. Caixa de contacto do site (25-09-2026)
+
+O paciente escreve no site o que quiser e a mensagem chega por e-mail a
+**info@barispol.ao**. O WhatsApp fica como alternativa.
+
+- [x] Tabela `contactos_site` (`contactos-site.sql`), aplicada no projecto
+      novo. Só a Direcção e a Coordenação lêem. Limpeza ao fim de 12
+      meses (`bsp-limpeza-contactos`).
+- [x] Função `contacto-site` (`funcoes/contacto-site/index.ts`), versão 3,
+      sem verificação de JWT e com protecções próprias:
+      - só aceita pedidos de barispol.com;
+      - tem um campo escondido que só os robôs preenchem;
+      - aceita 3 mensagens por hora por ligação e 30 por hora no total.
+      Envia só para info@barispol.ao e nunca escreve ao paciente.
+- [x] Testado a 25-09-2026: origem errada recusada (403), robô ignorado,
+      mensagem sem contacto recusada, 2 mensagens «TESTE» enviadas.
+- [ ] **Sair de info@barispol.ao pelo SMTP da caixa:** o Elmar cola no
+      painel (Edge Functions → Secrets) `SMTP_HOST`, `SMTP_USER` =
+      info@barispol.ao, `SMTP_PASS` e, se preciso, `SMTP_PORT` = 465 e
+      `SMTP_FROM`. As funções **não podem usar as portas 25 e 587**. Se
+      o servidor da caixa só aceitar a 587 (caso do Microsoft 365), fica a
+      Resend. Nesse caso, verificar o domínio barispol.ao na Resend. Até
+      lá, sai pela Resend, de geral@barispol.com.
+- [ ] Confirmar que os 2 e-mails «TESTE» chegaram a info@barispol.ao, e
+      não ao lixo electrónico.
+- [ ] Publicar o site novo (rascunho) com a caixa de contacto, depois de
+      confirmados os contactos e os seguros.
+
+---
+
 ## 4. Em cada aparelho
 
 - [ ] Recarregar à força (telemóvel: fechar o separador e reabrir;
