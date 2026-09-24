@@ -66,7 +66,7 @@ begin
     '30 5 * * 1-6',   -- 06h30 em Luanda (UTC+1), de segunda a sabado
     $cmd$
     select net.http_post(
-      url     := 'https://ferqkmfntcockmhviscf.supabase.co/functions/v1/resumo-matinal',
+      url     := 'https://gnqleaxrtuerlcrriqqs.supabase.co/functions/v1/resumo-matinal',
       headers := jsonb_build_object(
                    'Content-Type', 'application/json',
                    'x-bsp-agendamento', (select decrypted_secret from vault.decrypted_secrets
@@ -97,7 +97,7 @@ do $$
 declare
   comando text := $cmd$
     select net.http_post(
-      url     := 'https://ferqkmfntcockmhviscf.supabase.co/functions/v1/resumo-matinal',
+      url     := 'https://gnqleaxrtuerlcrriqqs.supabase.co/functions/v1/resumo-matinal',
       headers := jsonb_build_object(
                    'Content-Type', 'application/json',
                    'x-bsp-agendamento', (select decrypted_secret from vault.decrypted_secrets

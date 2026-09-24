@@ -48,7 +48,7 @@ begin
   end if;
   perform cron.schedule('bsp-avisos-mensagens', '* * * * *', $cmd$
     select net.http_post(
-      url     := 'https://ferqkmfntcockmhviscf.supabase.co/functions/v1/resumo-matinal',
+      url     := 'https://gnqleaxrtuerlcrriqqs.supabase.co/functions/v1/resumo-matinal',
       headers := jsonb_build_object(
                    'Content-Type', 'application/json',
                    'x-bsp-agendamento', (select decrypted_secret from vault.decrypted_secrets

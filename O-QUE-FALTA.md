@@ -541,6 +541,35 @@ automáticas por área de info@barispol.ao).
 
 ---
 
+## 3-l. Projecto Supabase novo (24-09-2026)
+
+O Workspace passou para o projecto **Barispol** (`gnqleaxrtuerlcrriqqs`,
+eu-west-3), numa organização nova. O `servidor.js` aponta para ele e
+apaga dos aparelhos a ligação antiga guardada.
+
+Verificado no projecto novo, a 24-09-2026 às 23h40:
+- [x] Tabelas do Workspace, 21 utilizadores, Vault com o código do
+      agendamento e a chave da Resend.
+- [x] Funções activas: `bright-worker`, `resumo-matinal`,
+      `criar-utilizador`.
+- [x] Agendamentos `bsp-…` (resumo, lembrete, colectivo, avisos de
+      mensagens, limpeza) apontam para o projecto novo. 32 chamadas em
+      30 minutos, todas com resposta 200.
+- [x] Os ficheiros SQL deste repositório passaram a apontar para o
+      projecto novo.
+- [ ] Apagar a função `mig-recebe` (Edge Functions → mig-recebe →
+      Delete) quando a cópia dos ficheiros do Drive acabar. Só aceita
+      pedidos com o código da migração, que caduca a 27-09-2026, mas
+      grava ficheiros e palavras-passe.
+- [ ] Confirmar no painel da organização antiga que o projecto
+      `ferqkmfntcockmhviscf` está pausado, ou que os agendamentos `bsp-…`
+      estão desligados. Se não estiverem, a equipa recebe os e-mails da
+      manhã a dobrar.
+- [ ] 25-09-2026: confirmar os envios da manhã em `net._http_response`
+      do projecto **novo**.
+
+---
+
 ## 4. Em cada aparelho
 
 - [ ] Recarregar à força (telemóvel: fechar o separador e reabrir;

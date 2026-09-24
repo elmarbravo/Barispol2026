@@ -36,8 +36,11 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 - `workspace.html` é a intranet da equipa: mural, chat, tarefas,
   calendário, drive, directório e administração. Uma só página em React
   (versão UMD, `React.createElement`, sem compilação), com cerca de 626 KB.
-- `servidor.js` liga ao Supabase: projecto `ferqkmfntcockmhviscf`, chave
-  publicável «barispol» (`sb_publishable_TNiBJ_…`).
+- `servidor.js` liga ao Supabase: projecto **Barispol**
+  `gnqleaxrtuerlcrriqqs` (eu-west-3), na organização da conta
+  elmar.bravo@barispol.com, chave publicável `sb_publishable_z60zTAY…`.
+  Desde 24-09-2026. O projecto antigo `ferqkmfntcockmhviscf` já não se
+  usa: o `servidor.js` apaga dos aparelhos a ligação antiga guardada.
 - `funcoes/` guarda o código das Edge Functions:
   - `criar-utilizador`: verificação de JWT desligada, tem autenticação
     própria.
@@ -121,6 +124,8 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 ## Decisões aprovadas
 
 - Chave publicável «barispol» em `servidor.js` (07-09-2026).
+- Mudança para o projecto Supabase «Barispol» (`gnqleaxrtuerlcrriqqs`),
+  numa organização nova (24-09-2026).
 - Calendário com o texto da opção C (rotina semanal).
 - Datas nos chats, e não apenas horas.
 - Número de mensagens por ler no botão Chat.
@@ -137,6 +142,10 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 
 ## Por fazer
 
+0. **Migração (24-09-2026):** apagar a função `mig-recebe` do projecto
+   novo quando a cópia dos ficheiros acabar (o código dela caduca a
+   27-09-2026). Confirmar que o projecto antigo está pausado ou sem os
+   agendamentos `bsp-…`, para não haver e-mails a dobrar.
 1. **Resumo matinal:** agendado sem chave secreta em 24-09-2026 (passo 3
    do `O-QUE-FALTA.md`). `fonte_chave` = `SUPABASE_SECRET_KEYS`.
 2. Os envios reais já funcionam (lembrete e colectivo, 24-09-2026, 17

@@ -40,7 +40,7 @@ declare
   -- ↓↓↓ COLE A CHAVE service_role AQUI, ENTRE AS ASPAS ↓↓↓
   chave text := 'COLE_AQUI';
   -- ↑↑↑ e mais nada ↑↑↑
-  projecto text := 'https://ferqkmfntcockmhviscf.supabase.co';
+  projecto text := 'https://gnqleaxrtuerlcrriqqs.supabase.co';
 begin
   -- Travao: mais vale parar aqui do que ficar com um agendamento activo
   -- que falha todas as manhas em silencio. Foi o que aconteceu da
