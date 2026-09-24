@@ -391,11 +391,11 @@ automáticas por área de info@barispol.ao).
 - [x] Ficha do Osvaldo: cargo «Director Clínico», departamento «Clínica».
       A camada continua «Operações» (mudar mexe noutras permissões; fica
       para decisão do Elmar).
-- [ ] A **Catarina Ndundu Baptista** saiu da lista da equipa
-      (`shared_state.team`, agora 21 pessoas) mas mantém a conta de
-      acesso. Sem estar na lista, entra mas não é reconhecida. Não se sabe
-      quem a retirou (não há histórico). Repor ou apagar a conta: decisão
-      do Elmar.
+- [x] **Catarina Ndundu Baptista eliminada** (decisão do Elmar,
+      24-09-2026). Já tinha saído da lista da equipa; a conta de acesso
+      (criada e usada só a 29-08-2026, sem ficheiros) foi apagada.
+      *Confirmado:* 21 pessoas na equipa, 21 contas, nenhuma conta fora da
+      equipa.
 - [ ] Por decidir: se os anexos (Excel, PDF das requisições) passam a ir
       pelo Drive.
 - [ ] A Solange e a Gizela (Farmácia) estão sem departamento: o

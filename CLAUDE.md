@@ -129,10 +129,11 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
    colectivo 12h00. Sem `falhas`.
 3. Passo 0.6: só com autorização expressa do Elmar. Antes, testar a
    `criar-utilizador` (0.5-e).
-4. Departamento e cargo de 9 pessoas: Cassia Peixoto, Catarina Ndundu
-   Baptista, Filomena Silva, Gizela Joaquim, Juliana Lourenço (Supervisora
-   da Recepção), Osvaldo Pacheco, Paulo Manuel, Rosa Queirós e Solange
-   Orlando. Ficam em `shared_state.team`.
+4. Departamento e cargo de 7 pessoas: Cassia Peixoto, Filomena Silva,
+   Gizela Joaquim, Juliana Lourenço (Supervisora da Recepção), Paulo
+   Manuel, Rosa Queirós e Solange Orlando. Ficam em `shared_state.team`.
+   (Osvaldo Pacheco: Director Clínico, Clínica. Catarina Ndundu Baptista:
+   eliminada a 24-09-2026.)
 5. Decidir se se cria o canal `#radiologia`.
 6. Tarefas a partir de e-mails, no Workspace de cada pessoa. Falta decidir
    entre uma caixa por pessoa e uma caixa partilhada; a via recomendada é
