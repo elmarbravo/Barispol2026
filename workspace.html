@@ -9039,7 +9039,8 @@ function FeedPost({
         marginBottom: 14,
         whiteSpace: 'pre-wrap'
       }
-    }, texts.join('\n')), files.map(name => {
+      /* Ligacoes clicaveis e imagens por ligacao, como no chat (24-09-2026). */
+    }, renderText(texts.join('\n'))), files.map(name => {
       const f = (state.driveFiles || []).find(x => x.name === name);
       const isImg = /\.(png|jpe?g|gif|webp)$/i.test(name);
       if (isImg && f && (f.path || f.dataUrl)) return React.createElement(FicheiroImg, {

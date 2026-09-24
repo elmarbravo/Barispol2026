@@ -475,6 +475,9 @@ automáticas por área de info@barispol.ao).
 - *Confirmado* num browser de teste: «@ar» mostra as duas Arletes;
   Enter escreve «@Arlete Tatiana »; o botão «@» abre a lista.
 - [ ] Por confirmar com duas pessoas reais: a notificação de menção.
+- [x] Feed: o texto das publicações passou a mostrar ligações clicáveis e
+      imagens por ligação (como o chat). Publicado no Feed, a pedido do
+      Elmar, o comunicado «Workspace no iPhone» com a imagem dos passos.
 
 ---
 
