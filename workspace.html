@@ -1190,7 +1190,7 @@ const CAMADAS = {
     ordem: 2,
     desc: 'Coordenação, recursos humanos e apoio à direcção. Vê todos os canais e gere pessoas e tarefas, sem mexer na configuração do servidor.',
     canais: '*', admin: 'sem-sistema',
-    podeGerirUtilizadores: true, podeVerSistema: false, podeVerTarefasPessoais: false,
+    podeGerirUtilizadores: true, podeVerSistema: false, podeVerTarefasPessoais: true,
     podeApagarFicheiros: true
   },
   'Clínica': {
@@ -10354,6 +10354,9 @@ function TaskComposer({
   const [prio, setPrio] = React.useState('media');
   const [who, setWho] = React.useState([]);
   const [pessoal, setPessoal] = React.useState(false);
+  /* Direccao e Coordenacao delegam: escolhem para quem e a tarefa privada. */
+  const podeDelegar = !!bspCamada(window.userById(window.CURRENT_USER_ID)).podeVerTarefasPessoais;
+  const [paraQuem, setParaQuem] = React.useState(window.CURRENT_USER_ID);
   /* Quem escreve tem de saber quem pode ler. Lido das camadas vivas, para
      o aviso acompanhar o que estiver ligado em Admin -> Permissões. */
   const camadasQueVeem = React.useMemo(() => {
@@ -10367,6 +10370,7 @@ function TaskComposer({
       setPrio(editTask ? editTask.priority || 'media' : 'media');
       setWho(editTask ? editTask.assignees || [] : []);
       setPessoal(false);
+      setParaQuem(window.CURRENT_USER_ID);
     }
   }, [open, defaultCol, editTask]);
   const submit = () => {
@@ -10388,12 +10392,17 @@ function TaskComposer({
       /* Uma tarefa pessoal não tem responsáveis: é sua e mais de ninguém. */
       assignees: pessoal ? [] : who,
       pessoal: pessoal,
+      dono: pessoal && podeDelegar && paraQuem ? paraQuem : undefined,
       tags: [],
       due: '',
       proj: ''
     });
     const me = window.userById(window.CURRENT_USER_ID);
-    who.forEach(id => {
+    if (pessoal && podeDelegar && paraQuem && paraQuem !== window.CURRENT_USER_ID) {
+      const u = USERS.find(x => x.id === paraQuem);
+      if (u && u.email) bspSendEmail(u.email, '[Workspace] Nova tarefa para si: ' + title.trim(), bspEmailWrap('Foi-lhe delegada uma tarefa', bspEmailTexto((me ? me.name : 'A Direcção') + ' delegou-lhe a tarefa “' + title.trim() + '”. Só você, a Direcção e a Coordenação a vêem.'), 'tarefas', 'Ver a tarefa'));
+    }
+    if (!pessoal) who.forEach(id => {
       if (id === window.CURRENT_USER_ID) return;
       const u = USERS.find(x => x.id === id);
       if (u && u.email) bspSendEmail(u.email, '[Workspace] Nova tarefa para si: ' + title.trim(), bspEmailWrap('Foi-lhe atribuída uma tarefa', (me ? me.name : 'Um colega') + ' atribuiu-lhe a tarefa “' + title.trim() + '”.', 'tarefas', 'Ver a tarefa'));
@@ -10451,7 +10460,7 @@ function TaskComposer({
       fontWeight: 600,
       color: 'var(--text-1)'
     }
-  }, "Só para mim"), React.createElement("span", {
+  }, podeDelegar ? "Tarefa privada" : "Só para mim"), React.createElement("span", {
     style: {
       display: 'block',
       fontSize: 11.5,
@@ -10459,11 +10468,31 @@ function TaskComposer({
       lineHeight: 1.5,
       marginTop: 2
     }
-  }, pessoal
+  }, pessoal && podeDelegar
+    ? 'Não vai para o quadro da equipa. Só a pessoa escolhida e as camadas ' + camadasQueVeem.join(' e ') + ' a vêem.'
+    : pessoal
     ? (camadasQueVeem.length
         ? 'Fica guardada em seu nome e sai do quadro da equipa. ' + (camadasQueVeem.length === 1 ? 'A camada ' : 'As camadas ') + camadasQueVeem.join(' e ') + (camadasQueVeem.length === 1 ? ' pode lê-la.' : ' podem lê-la.')
         : 'Fica guardada em seu nome. Ninguém mais a vê — nem sequer chega aos aparelhos dos outros.')
-    : 'Todos os colegas vêem esta tarefa no quadro da equipa.'))), React.createElement("div", null, React.createElement("label", {
+    : 'Todos os colegas vêem esta tarefa no quadro da equipa.'))), pessoal && podeDelegar && !editTask && React.createElement("div", null, React.createElement("label", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: 'var(--text-2)',
+      display: 'block',
+      marginBottom: 6
+    }
+  }, "Para quem"), React.createElement(Select, {
+    value: paraQuem,
+    onChange: setParaQuem,
+    options: [{
+      value: window.CURRENT_USER_ID,
+      label: 'Para mim'
+    }].concat(USERS.filter(u => u.id !== window.CURRENT_USER_ID).slice().sort((a, b) => String(a.name).localeCompare(String(b.name), 'pt')).map(u => ({
+      value: u.id,
+      label: u.name + (u.dept ? ' — ' + u.dept : '')
+    })))
+  })), React.createElement("div", null, React.createElement("label", {
     style: {
       fontSize: 12,
       fontWeight: 600,
@@ -10808,8 +10837,10 @@ function useTarefasPessoais() {
   const criar = React.useCallback(async (coluna, dados) => {
     const cl = bspGetClient();
     if (!cl) return 'O servidor não está ligado.';
+    /* A Direccao e a Coordenacao podem pôr a tarefa na lista de outra
+       pessoa (delegar). O servidor recusa a quem nao pode. */
     const r = await cl.from('tarefas_pessoais').insert({
-      user_id: window.CURRENT_USER_ID || null,
+      user_id: dados.dono || window.CURRENT_USER_ID || null,
       coluna: coluna,
       titulo: dados.title,
       prioridade: dados.priority || 'media',
@@ -10849,6 +10880,8 @@ function useTarefasPessoais() {
         /* Quando não é minha, é porque a minha camada pode ver as dos
            outros. Mostrar de quem é, senão aparecia uma tarefa sem dono. */
         dono: meu ? null : (window.userById(t.user_id) || {}).name || 'Colega',
+        /* Quem a delegou, quando nao foi o proprio dono. */
+        delegadaPor: t.criada_por && t.criada_por !== t.user_id ? ((window.userById(t.criada_por) || {}).name || 'Colega') : null,
         title: t.titulo,
         priority: t.prioridade,
         due: t.prazo || '',
@@ -10919,9 +10952,9 @@ function TasksScreen() {
     }
     if (ePessoal(dragId)) {
       const t = (board[dragFrom] || []).find(x => x.id === dragId);
-      /* Só o dono mexe. O servidor recusaria de qualquer forma; travar
+      /* Só o dono mexe, ou quem delega (Direcção e Coordenação). O servidor recusaria de qualquer forma; travar
          aqui evita que pareça avariado. */
-      if (t && t.dono) {
+      if (t && t.dono && !bspCamada(window.userById(window.CURRENT_USER_ID)).podeVerTarefasPessoais) {
         toast('A tarefa pessoal de ' + t.dono + ' só pode ser movida por ' + String(t.dono).split(' ')[0] + '.');
         reset();
         return;
@@ -10941,7 +10974,7 @@ function TasksScreen() {
     if (!to) return;
     if (ePessoal(taskId)) {
       const t = (board[fromCol] || []).find(x => x.id === taskId);
-      if (t && t.dono) {
+      if (t && t.dono && !bspCamada(window.userById(window.CURRENT_USER_ID)).podeVerTarefasPessoais) {
         toast('A tarefa pessoal de ' + t.dono + ' só pode ser movida por ' + String(t.dono).split(' ')[0] + '.');
         return;
       }
@@ -11200,7 +11233,7 @@ function TasksScreen() {
     onNext: () => move(c.id, tk.id, 1),
     onDelete: () => {
       if (!ePessoal(tk.id)) return actions.deleteTask(c.id, tk.id);
-      if (tk.dono) return toast('A tarefa pessoal de ' + tk.dono + ' só pode ser apagada por quem a escreveu.');
+      if (tk.dono && !bspCamada(window.userById(window.CURRENT_USER_ID)).podeVerTarefasPessoais) return toast('A tarefa pessoal de ' + tk.dono + ' só pode ser apagada por quem a escreveu.');
       pess.apagar(idReal(tk.id));
     },
     onEdit: () => setComposer({
@@ -11293,7 +11326,7 @@ function TaskCard({
       background: prioMeta.c
     }
   }), prioMeta.l.toUpperCase()), t.pessoal && React.createElement("span", {
-    title: t.dono ? ('Tarefa pessoal de ' + t.dono) : 'Só você vê esta tarefa',
+    title: (t.dono ? 'Tarefa privada de ' + t.dono : 'Tarefa privada sua') + (t.delegadaPor ? ' · delegada por ' + t.delegadaPor : ''),
     style: {
       display: 'inline-flex',
       alignItems: 'center',
@@ -11309,7 +11342,7 @@ function TaskCard({
     }
   }, React.createElement(I.Lock, {
     size: 10
-  }), t.dono ? String(t.dono).split(' ')[0].toUpperCase() : "SÓ EU"), (t.tags || []).slice(0, 2).map(tag => React.createElement(Badge, {
+  }), t.dono ? String(t.dono).split(' ')[0].toUpperCase() : t.delegadaPor ? 'DE ' + String(t.delegadaPor).split(' ')[0].toUpperCase() : "SÓ EU"), (t.tags || []).slice(0, 2).map(tag => React.createElement(Badge, {
     key: tag,
     tone: tagColors[tag] || 'default',
     size: "xs"

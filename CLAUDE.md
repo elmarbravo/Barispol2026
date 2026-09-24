@@ -100,6 +100,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   23-09-2026).
 - A separação da equipa por áreas deve basear-se na caixa de correio da
   Barispol, e não no directório.
+- Direcção e Coordenação vêem as tarefas privadas de todos e delegam
+  (criam na lista de outra pessoa). Regras em `tarefas-delegar.sql`,
+  função `bsp_ve_tarefas_pessoais()`, coluna `criada_por` (24-09-2026).
 
 ## Por fazer
 

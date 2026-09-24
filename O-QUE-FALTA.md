@@ -278,6 +278,34 @@ as mudanças de linha (`bspEmailTexto` no `workspace.html`).
 
 ---
 
+## 3-c. Direcção e Coordenação vêem e delegam tarefas (24-09-2026)
+
+Pedido do Elmar. Aplicado no servidor com
+[`tarefas-delegar.sql`](tarefas-delegar.sql).
+
+- [x] As tarefas privadas (`tarefas_pessoais`) eram só do dono: nem a
+      Direcção as via, apesar de o Workspace dizer o contrário. Agora a
+      Direcção e a Coordenação vêem as de todos, criam na lista de outra
+      pessoa (delegam), movem e apagam. Os colegas da Clínica e das
+      Operações continuam a ver só as suas.
+- [x] Nova função `bsp_ve_tarefas_pessoais()`, com a mesma lógica da
+      `bsp_e_gestor`, lida na camada da pessoa (`podeVerTarefasPessoais`).
+      As camadas gravadas passaram a ter essa opção ligada na Direcção e
+      na Coordenação e desligada nas outras.
+- [x] Coluna `criada_por`: quem delegou. Ninguém consegue gravar uma
+      tarefa em nome de outro.
+- [x] No Workspace: «Tarefa privada» com o campo «Para quem» para a
+      Direcção e a Coordenação; e-mail à pessoa a quem se delega; o cartão
+      mostra de quem é e quem a delegou.
+- *Confirmado no servidor em 24-09-2026*, dentro de uma transacção
+  desfeita no fim: a Direcção delega a alguém das Operações; essa pessoa
+  vê a tarefa; outro colega das Operações não a vê; alguém das Operações
+  que tente delegar é recusado.
+- [ ] Por confirmar num aparelho real: delegar uma tarefa e vê-la no
+      telemóvel da pessoa.
+
+---
+
 ## 4. Em cada aparelho
 
 - [ ] Recarregar à força (telemóvel: fechar o separador e reabrir;
