@@ -93,6 +93,16 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 - Som das notificações: um só `AudioContext` (`bspAudio`), desbloqueado
   no primeiro toque (`bspDesbloquearSom`). Nunca criar um por aviso.
 - Abrir uma conversa directa de qualquer ecrã: `bspConversaCom(id)`.
+- Chamadas: `bspToqueChamada('recebida' | 'a-chamar')`, sempre com som,
+  mesmo com o som das notificações desligado.
+- Notificações de mensagens lidas saem com `bspSemNotifsLidas(s)`. Esta
+  função só corre quando a leitura muda. Comentários do Feed (conversa
+  `post-<id>`) geram notificações com `post`: abrem a publicação, nunca
+  o Chat.
+- Imagens abrem em `bspVerImagem(url, nome)` (o `VisorImagem`), nunca
+  com `window.open`: na app, isso prende o Workspace.
+- No telemóvel, `main > div` tem altura automática. O Chat é a excepção
+  (classe `bsp-chat-ecra`) e abre na lista de conversas.
 - Menções no chat: lista em `ChatScreen` (`detectarMencao`,
   `candidatosMencao`, `escolherMencao`); escreve «@Nome Apelido». O
   `notifMsg` marca como `mention` quem aparece assim no texto.

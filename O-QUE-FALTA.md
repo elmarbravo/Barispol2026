@@ -500,6 +500,41 @@ automáticas por área de info@barispol.ao).
 
 ---
 
+## 3-k. Telemóvel, chamadas com som, notificações e imagens (24-09-2026)
+
+- [x] **Notificações lidas saem da lista.** Uma notificação de mensagem
+      ou menção sai quando a conversa dela já não tem nada por ler. Se
+      ler noutro aparelho, sai também neste (pelo recibo de leitura).
+- [x] **Comentários no Feed** (os parabéns à Funcionária do Mês): a
+      notificação abria o Chat num canal «#post-17» que não existe.
+      Agora abre o Feed na própria publicação, com os comentários à
+      vista. O mesmo vale para as notificações de novas publicações.
+- [x] **Chamadas com som.** Quem recebe ouve um toque logo, e depois a
+      cada 3 segundos, com vibração no Android. Quem liga ouve o sinal
+      de chamada. Toca mesmo com o som das notificações desligado.
+- [x] **Imagens do chat:** abrem num visor dentro do Workspace, à medida
+      do ecrã, com «Fechar» e «Guardar». Fecham também com o botão
+      Voltar do Android. Antes abria-se o original numa janela nova, e
+      na app isso substituía o Workspace sem forma de voltar. As imagens
+      do Feed abrem no mesmo visor.
+- [x] **Telemóvel:** o Chat abre na lista de conversas (como no
+      WhatsApp) e tem uma seta para voltar. A conversa ocupa o ecrã, com
+      a caixa de escrever sempre em baixo (antes o cartão encolhia à
+      altura do texto). Sino com o número de notificações no topo.
+- [x] Reposta a função `bspBrowserNotify` (aviso do sistema com a página
+      escondida). Foi apagada por engano no envio do som, mais cedo no
+      mesmo dia, e cada mensagem recebida dava erro a seguir ao som.
+- [ ] **Avisos com a app fechada** (como o WhatsApp): ainda não. Precisa
+      de notificações push. No Android isso passa pelo Firebase Cloud
+      Messaging: um projecto Firebase da clínica, criado pelo Elmar, e o
+      ficheiro `google-services.json` na app. No iPhone (ecrã principal)
+      usa-se Web Push, que o iOS 16.4 ou superior aceita. Até lá, o
+      e-mail após 5 minutos offline (3-d) cobre as mensagens directas.
+- [ ] Confirmar num telemóvel real: o toque de uma chamada a entrar e a
+      sair, e o visor de imagens na app Android.
+
+---
+
 ## 4. Em cada aparelho
 
 - [ ] Recarregar à força (telemóvel: fechar o separador e reabrir;

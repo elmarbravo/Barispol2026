@@ -24,6 +24,9 @@
 <style id="bsp-responsive">
   body[data-mobile="true"] main { overflow-y: auto !important; overflow-x: hidden !important; -webkit-overflow-scrolling: touch; padding: 12px 12px 84px !important; }
   body[data-mobile="true"] main > div { height: auto !important; min-height: 0 !important; overflow: visible !important; }
+  /* O Chat e a excepcao: ocupa o ecra, as mensagens deslizam dentro e a
+     caixa de escrever fica sempre em baixo (24-09-2026). */
+  body[data-mobile="true"] main > div.bsp-chat-ecra { height: 100% !important; overflow: hidden !important; }
   body[data-mobile="true"] .bsp-stack-mobile { grid-template-columns: 1fr !important; }
   body[data-mobile="true"] .bsp-hide-mobile { display: none !important; }
   .bsp-mnav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 900; display: none;
@@ -1346,6 +1349,24 @@ function bspTotalPorLer(state, eu) {
     }
   }
   return total;
+}
+/* Notificacoes de mensagens ja lidas saem da lista geral (pedido do
+   Elmar, 24-09-2026: «as mensagens depois de lidas apaga das
+   notificacoes gerais»). Uma notificacao de mensagem ou mencao sai
+   quando a conversa dela ja nao tem nada por ler. So corre quando a
+   leitura muda, nunca quando a notificacao nasce. */
+function bspSemNotifsLidas(s) {
+  const eu = window.CURRENT_USER_ID;
+  const antes = s && s.notifications || [];
+  if (!eu || !antes.length) return s;
+  const lv = s.leituras || {};
+  const porConversa = s.channelMessages || {};
+  const porLerEm = chave => {
+    const lido = (lv[chave] || {})[eu] || 0;
+    return (porConversa[chave] || []).some(m => !bspLinhaDeControlo(m.text) && m.userId !== eu && (m.sid || 0) > lido);
+  };
+  const depois = antes.filter(n => !(n && (n.type === 'message' || n.type === 'mention') && n.conv && !porLerEm(n.conv)));
+  return depois.length === antes.length ? s : Object.assign({}, s, { notifications: depois });
 }
 function useChatPorLer(eu) {
   const { state } = useStore();
@@ -3160,6 +3181,56 @@ function bspPlayChime() {
     else tocar();
   } catch (e) {}
 }
+/* Aviso do sistema com a pagina escondida. Tinha desaparecido por
+   engano a 24-09-2026 (commit do som): cada mensagem recebida dava erro
+   logo a seguir ao som. */
+function bspBrowserNotify(title, body) {
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    if (!document.hidden) return;
+    new Notification(title, {
+      body: body || '',
+      icon: typeof BSP_LOGO_URI !== 'undefined' ? BSP_LOGO_URI : undefined,
+      tag: 'bsp-' + Date.now()
+    });
+  } catch (e) {}
+}
+/* Toques das chamadas (pedido do Elmar, 24-09-2026: «ao chamar coloque
+   algum som, esta mudo»). Nao dependem do interruptor do som das
+   notificacoes: uma chamada toca sempre.
+     'recebida' -> tres notas ascendentes, duas vezes, bem audiveis
+     'a-chamar' -> o sinal de chamada europeu (425 Hz, 1 s), mais baixo */
+function bspToqueChamada(tipo) {
+  const ctx = bspAudio();
+  if (!ctx) return;
+  const tocar = () => {
+    try {
+      const t0 = ctx.currentTime;
+      const notas = tipo === 'a-chamar'
+        ? [[425, 0, 1.0, 0.12]]
+        : [[660, 0, 0.18, 0.4], [880, 0.2, 0.18, 0.4], [990, 0.4, 0.3, 0.4],
+           [660, 0.9, 0.18, 0.4], [880, 1.1, 0.18, 0.4], [990, 1.3, 0.3, 0.4]];
+      notas.forEach(([freq, atraso, dura, vol]) => {
+        const o = ctx.createOscillator(),
+          g = ctx.createGain();
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.type = tipo === 'a-chamar' ? 'sine' : 'triangle';
+        o.frequency.setValueAtTime(freq, t0 + atraso);
+        g.gain.setValueAtTime(0.0001, t0 + atraso);
+        g.gain.exponentialRampToValueAtTime(vol, t0 + atraso + 0.02);
+        g.gain.setValueAtTime(vol, t0 + atraso + dura - 0.05);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + atraso + dura);
+        o.start(t0 + atraso);
+        o.stop(t0 + atraso + dura + 0.02);
+      });
+    } catch (e) {}
+  };
+  try {
+    if (ctx.state === 'suspended') ctx.resume().then(tocar, () => {});
+    else tocar();
+  } catch (e) {}
+}
 function bspIncoming(title, body) {
   bspPlayChime();
   bspBrowserNotify(title, body);
@@ -3505,14 +3576,105 @@ function bspPostReagir(reaccoes, emoji, quem) {
   else delete r['__user_' + emoji];
   return r;
 }
+/* Visor de imagens dentro do Workspace (pedido do Elmar, 24-09-2026:
+   «as imagens enviadas no chat abrem muito grande e na app colam a
+   app»). Antes abria-se o ficheiro original noutra janela; na app isso
+   trocava o Workspace pela imagem, sem forma de voltar. Agora a imagem
+   ajusta-se ao ecra e fecha-se com o X, com um toque fora, com Esc ou
+   com o botao Voltar do Android. */
+const BSP_IMAGEM = /\.(png|jpe?g|gif|webp)([?#]|$)/i;
+function bspVerImagem(url, nome) {
+  try {
+    window.dispatchEvent(new CustomEvent('bsp-ver-imagem', { detail: { url: url, nome: nome || '' } }));
+  } catch (e) {
+    window.open(url, '_blank', 'noopener');
+  }
+}
+function VisorImagem() {
+  const [img, setImg] = React.useState(null);
+  const comHistorico = React.useRef(false);
+  const fechar = React.useCallback(() => {
+    setImg(null);
+    if (comHistorico.current) {
+      comHistorico.current = false;
+      try { history.back(); } catch (e) {}
+    }
+  }, []);
+  React.useEffect(() => {
+    const abrir = e => {
+      setImg(e.detail);
+      try {
+        history.pushState({ bspVisor: 1 }, '');
+        comHistorico.current = true;
+      } catch (er) {}
+    };
+    const voltar = () => {
+      if (!comHistorico.current) return;
+      comHistorico.current = false;
+      setImg(null);
+    };
+    const tecla = e => { if (e.key === 'Escape') fechar(); };
+    window.addEventListener('bsp-ver-imagem', abrir);
+    window.addEventListener('popstate', voltar);
+    window.addEventListener('keydown', tecla);
+    return () => {
+      window.removeEventListener('bsp-ver-imagem', abrir);
+      window.removeEventListener('popstate', voltar);
+      window.removeEventListener('keydown', tecla);
+    };
+  }, [fechar]);
+  if (!img) return null;
+  const botao = {
+    height: 40, padding: '0 16px', borderRadius: 20, border: 'none',
+    background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 14, fontWeight: 600,
+    fontFamily: 'inherit', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', textDecoration: 'none'
+  };
+  return ReactDOM.createPortal(React.createElement("div", {
+    onClick: fechar,
+    style: {
+      position: 'fixed', inset: 0, zIndex: 100001, background: 'rgba(6,10,20,.92)',
+      display: 'flex', flexDirection: 'column'
+    }
+  }, React.createElement("div", {
+    onClick: e => e.stopPropagation(),
+    style: {
+      display: 'flex', alignItems: 'center', gap: 10,
+      padding: 'calc(env(safe-area-inset-top, 0px) + 10px) 14px 10px'
+    }
+  }, React.createElement("span", {
+    style: { flex: 1, minWidth: 0, color: '#fff', fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+  }, img.nome), React.createElement("a", {
+    href: img.url, download: img.nome || 'imagem', target: '_blank', rel: 'noopener noreferrer', style: botao
+  }, "Guardar"), React.createElement("button", {
+    onClick: fechar, style: botao, "aria-label": "Fechar"
+  }, "✕ Fechar")), React.createElement("div", {
+    style: {
+      flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '0 10px calc(env(safe-area-inset-bottom, 0px) + 14px)'
+    }
+  }, React.createElement("img", {
+    src: img.url,
+    alt: img.nome || 'imagem',
+    onClick: e => e.stopPropagation(),
+    style: { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 6, touchAction: 'pinch-zoom' }
+  }))), document.body);
+}
 async function bspAbrirFicheiro(f, aoFalhar) {
   let motivo = '';
   if (f && f.path) {
     const url = await bspSignedUrl(f.path, 0, m => { motivo = m; });
+    if (url && BSP_IMAGEM.test(f.name || f.path || '')) {
+      bspVerImagem(url, f.name);
+      return true;
+    }
     if (url) {
       window.open(url, '_blank', 'noopener');
       return true;
     }
+  }
+  if (f && f.dataUrl && BSP_IMAGEM.test(f.name || '')) {
+    bspVerImagem(f.dataUrl, f.name);
+    return true;
   }
   if (f && f.dataUrl) {
     const a = document.createElement('a');
@@ -3697,6 +3859,22 @@ function StoreProvider({
       const name = u ? u.name : 'Colega';
       /* Nos tópicos, a regra de quem pode ver é a da conversa-mãe. */
       let chave = String(m.conv_key || '');
+      /* Comentario numa publicacao do Feed (conversa "post-<id>"). Antes
+         saia como «mensagem em #post-17» e abria o Chat num canal que nao
+         existe (os parabens a Funcionaria do Mes, 24-09-2026). Agora abre
+         a publicacao, com os comentarios a vista. */
+      if (chave.indexOf('post-') === 0) {
+        const texto = bspTextoVisivel(m.text).slice(0, 90);
+        setState(s => pushNotif(s, {
+          type: 'comunicado',
+          userId: m.user_id,
+          post: chave.slice(5),
+          text: 'comentou uma publicação no Feed',
+          preview: texto
+        }));
+        bspIncoming(name + ' · comentário no Feed', texto);
+        return;
+      }
       const emTopico = chave.indexOf('th~') === 0;
       if (emTopico) chave = chave.split('~')[1] || chave;
       const isDm = chave.startsWith('dm-');
@@ -3737,6 +3915,7 @@ function StoreProvider({
       setState(s => pushNotif(s, {
         type: 'comunicado',
         userId: p.user_id,
+        post: String(p.id),
         text: 'publicou no Feed',
         preview: String(p.title || p.body || '').slice(0, 90)
       }));
@@ -3893,10 +4072,12 @@ function StoreProvider({
           };
           if (!conv[m.user_id] || conv[m.user_id] < sidL) conv[m.user_id] = sidL;
           lv[m.conv_key] = conv;
-          return {
+          const novo = {
             ...s,
             leituras: lv
           };
+          /* Li noutro aparelho: a notificacao sai tambem neste. */
+          return m.user_id === window.CURRENT_USER_ID ? bspSemNotifsLidas(novo) : novo;
         });
         return;
       }
@@ -4465,10 +4646,10 @@ function StoreProvider({
         };
         conv[window.CURRENT_USER_ID] = sid;
         lv[convKey] = conv;
-        return {
+        return bspSemNotifsLidas({
           ...s,
           leituras: lv
-        };
+        });
       });
     },
     reagirMensagem: (convKey, msgId, emoji) => setState(s => {
@@ -6319,7 +6500,12 @@ function ChatScreen({
   const [mencao, setMencao] = React.useState(null); // { q, ini, fim }
   const [mencaoSel, setMencaoSel] = React.useState(0);
   const [typing, setTyping] = React.useState(false);
-  const [drawer, setDrawer] = React.useState(false);
+  /* No telemovel o Chat abre na lista de conversas, como no WhatsApp
+     (24-09-2026). Antes abria logo no #geral e a lista ficava escondida
+     atras de um botao. */
+  const [drawer, setDrawer] = React.useState(() => {
+    try { return window.innerWidth < 820 && !(alvo && alvo.conv); } catch (e) { return false; }
+  });
   const [grupoModal, setGrupoModal] = React.useState(false);
   const chamadas = useChamadas();
   const toast = useToast();
@@ -6356,6 +6542,7 @@ function ChatScreen({
     }
     setThread(null);
     setBusca(null);
+    setDrawer(false);
   }, [alvo]);
   const isDM = !!dmId;
   const activeChannel = !isDM ? CHANNELS.find(c => c.id === channelId) || CHANNELS[0] : null;
@@ -6531,8 +6718,11 @@ function ChatScreen({
     selectChannel('c-geral');
   }
   return React.createElement("div", {
+    className: "bsp-chat-ecra",
     style: {
+      position: 'relative',
       display: 'grid',
+      gridTemplateRows: 'minmax(0, 1fr)',
       gridTemplateColumns: `${showChannelList ? '260px ' : ''}1fr${showInfoPanel ? ' 280px' : ''}`,
       height: '100%',
       overflow: 'hidden',
@@ -6632,14 +6822,6 @@ function ChatScreen({
       actions.criarCanal(canal);
       selectChannel(canal.id);
     }
-  }), !showChannelList && drawer && React.createElement("div", {
-    onClick: () => setDrawer(false),
-    style: {
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(0,0,0,.4)',
-      zIndex: 55
-    }
   }), (showChannelList || drawer) && React.createElement("div", {
     style: showChannelList ? {
       borderRight: '1px solid var(--border)',
@@ -6647,19 +6829,15 @@ function ChatScreen({
       flexDirection: 'column',
       overflow: 'hidden'
     } : {
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      bottom: 0,
-      width: '84%',
-      maxWidth: 330,
+      /* Telemovel: a lista ocupa o Chat inteiro, por cima da conversa. */
+      position: 'absolute',
+      inset: 0,
       zIndex: 60,
       background: 'var(--surface)',
-      borderRight: '1px solid var(--border)',
+      borderRadius: 14,
       display: 'flex',
       flexDirection: 'column',
-      overflow: 'hidden',
-      boxShadow: '0 0 48px rgba(0,0,0,.4)'
+      overflow: 'hidden'
     }
   }, React.createElement("div", {
     style: {
@@ -6851,7 +7029,8 @@ function ChatScreen({
     }
   }, !showChannelList && React.createElement("button", {
     onClick: () => setDrawer(true),
-    title: "Canais e conversas",
+    title: "Voltar às conversas",
+    "aria-label": "Voltar às conversas",
     style: {
       width: 34,
       height: 34,
@@ -6860,13 +7039,13 @@ function ChatScreen({
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: 9,
-      border: '1px solid var(--border)',
-      background: 'var(--surface-2)',
-      color: 'var(--text-2)',
+      border: 'none',
+      background: 'transparent',
+      color: 'var(--text-1)',
       cursor: 'pointer'
     }
-  }, React.createElement(I.List, {
-    size: 17
+  }, React.createElement(I.ChevL, {
+    size: 22
   })), !isDM ? React.createElement(React.Fragment, null, React.createElement("span", {
     style: {
       width: 36,
@@ -8043,7 +8222,11 @@ function renderText(text) {
       key: i,
       href: p,
       target: "_blank",
-      rel: "noopener noreferrer"
+      rel: "noopener noreferrer",
+      onClick: e => {
+        e.preventDefault();
+        bspVerImagem(p, decodeURIComponent(p.split(/[?#]/)[0].split('/').pop() || ''));
+      }
     }, React.createElement("img", {
       src: p,
       alt: "imagem",
@@ -8895,6 +9078,24 @@ function FeedPost({
   const comments = (state.channelMessages[pk] || []).filter(m => !bspLinhaDeControlo(m.text));
   const [showComments, setShowComments] = React.useState(false);
   const [cDraft, setCDraft] = React.useState('');
+  /* Vindo de uma notificacao: abre os comentarios e mostra a publicacao. */
+  React.useEffect(() => {
+    const meu = String(post.sid || post.id);
+    const ver = () => {
+      if (window.__bspAlvoPost !== meu) return;
+      window.__bspAlvoPost = null;
+      setShowComments(true);
+      setTimeout(() => {
+        try {
+          const el = document.querySelector('.bsp-post-' + meu);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (e) {}
+      }, 80);
+    };
+    ver();
+    window.addEventListener('bsp-abrir-post', ver);
+    return () => window.removeEventListener('bsp-abrir-post', ver);
+  }, [post.sid, post.id]);
   const canDelete = post.userId === window.CURRENT_USER_ID || (me && bspCamada(me).podeGerirUtilizadores);
   function sendComment() {
     const txt = cDraft.trim();
@@ -8941,6 +9142,7 @@ function FeedPost({
   const highlighted = post.highlight ? window.userById(post.highlight) : null;
   return React.createElement(Card, {
     pad: 0,
+    className: 'bsp-post-' + (post.sid || post.id),
     style: post.pinned ? {
       borderColor: 'rgba(0,163,224,.35)',
       boxShadow: '0 0 0 1px rgba(0,163,224,.1)'
@@ -9043,19 +9245,22 @@ function FeedPost({
     }, renderText(texts.join('\n'))), files.map(name => {
       const f = (state.driveFiles || []).find(x => x.name === name);
       const isImg = /\.(png|jpe?g|gif|webp)$/i.test(name);
-      if (isImg && f && (f.path || f.dataUrl)) return React.createElement(FicheiroImg, {
+      if (isImg && f && (f.path || f.dataUrl)) return React.createElement("button", {
         key: name,
+        onClick: () => bspAbrirFicheiro(f, m => toast(m)),
+        title: "Ver imagem",
+        style: { padding: 0, border: 'none', background: 'transparent', cursor: 'zoom-in', display: 'block', maxWidth: '100%', marginBottom: 14 }
+      }, React.createElement(FicheiroImg, {
         f: f,
         alt: name,
         style: {
           maxWidth: '100%',
           maxHeight: 420,
           borderRadius: 12,
-          marginBottom: 14,
           display: 'block',
           objectFit: 'cover'
         }
-      });
+      }));
       return React.createElement("button", {
         key: name,
         onClick: () => {
@@ -15965,8 +16170,13 @@ function useIsMobile(bp) {
 function MobileTopbar({
   current,
   currentUser,
-  onMenu
+  onMenu,
+  onSwitchPage
 }) {
+  /* Sino com o numero de notificacoes por ler, sempre a vista no topo
+     (24-09-2026). Antes estavam escondidas em «Mais». */
+  const { state: mtState } = useStore();
+  const porLerN = (mtState.notifications || []).filter(n => n && n.unread && !bspLinhaDeControlo(n.preview)).length;
   const titles = {
     dashboard: 'Início',
     chat: 'Chat',
@@ -16004,7 +16214,22 @@ function MobileTopbar({
       fontSize: 15,
       color: 'var(--text-1)'
     }
-  }, titles[current] || 'Workspace')), React.createElement("button", {
+  }, titles[current] || 'Workspace')), React.createElement("div", {
+    style: { display: 'flex', alignItems: 'center', gap: 6 }
+  }, React.createElement("button", {
+    onClick: () => onSwitchPage && onSwitchPage('notifications'),
+    className: "bsp-iconbtn",
+    style: { width: 38, height: 38, position: 'relative' },
+    "aria-label": "Notificações"
+  }, React.createElement(I.Bell, {
+    size: 18
+  }), porLerN > 0 && React.createElement("span", {
+    style: {
+      position: 'absolute', top: 3, right: 2, minWidth: 17, height: 17, padding: '0 4px',
+      borderRadius: 9, background: '#E11D48', color: '#fff', fontSize: 10.5, fontWeight: 700,
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1
+    }
+  }, porLerN > 99 ? '99+' : porLerN)), React.createElement("button", {
     onClick: onMenu,
     className: "bsp-iconbtn",
     style: {
@@ -16014,7 +16239,7 @@ function MobileTopbar({
     "aria-label": "Menu"
   }, React.createElement(I.MoreH, {
     size: 18
-  })));
+  }))));
 }
 function MobileNav({
   current,
@@ -17165,6 +17390,13 @@ function ChamadaView() {
     const t = setInterval(() => setSeg(s => s + 1), 1000);
     return () => clearInterval(t);
   }, [ch.fase]);
+  /* Quem liga ouve o sinal de chamada ate a outra pessoa atender. */
+  React.useEffect(() => {
+    if (ch.fase !== 'a-chamar') return;
+    bspToqueChamada('a-chamar');
+    const t = setInterval(() => bspToqueChamada('a-chamar'), 4000);
+    return () => clearInterval(t);
+  }, [ch.fase]);
   if (ch.fase === 'livre' || ch.fase === 'a-tocar' || c.minimizada) return null;
   const mmss = String(Math.floor(seg / 60)).padStart(2, '0') + ':' + String(seg % 60).padStart(2, '0');
   const estado = ch.fase === 'a-chamar' ? 'A chamar…' : ch.fase === 'a-ligar' ? 'A ligar…' : mmss;
@@ -17340,12 +17572,27 @@ function ChamadaRecebida() {
   } = c;
   React.useEffect(() => {
     if (ch.fase !== 'a-tocar') return;
-    const t = setInterval(() => {
+    /* Toca logo, e depois a cada 3 segundos. Antes era o som baixo das
+       mensagens, so ao fim de 2,6 s, e calado se o som estivesse
+       desligado. */
+    const tocar = () => {
       try {
-        bspPlayChime();
+        bspToqueChamada('recebida');
+        if (navigator.vibrate) navigator.vibrate([500, 250, 500]);
       } catch (e) {}
-    }, 2600);
-    return () => clearInterval(t);
+    };
+    tocar();
+    try {
+      const quem = ch.outroId && window.userById(ch.outroId);
+      bspBrowserNotify('Chamada de ' + (quem ? quem.name : 'um colega'), 'Abra o Workspace para atender.');
+    } catch (e) {}
+    const t = setInterval(tocar, 3000);
+    return () => {
+      clearInterval(t);
+      try {
+        if (navigator.vibrate) navigator.vibrate(0);
+      } catch (e) {}
+    };
   }, [ch.fase]);
   if (ch.fase !== 'a-tocar') return null;
   const outro = ch.outroId ? window.userById(ch.outroId) : null;
@@ -18205,6 +18452,15 @@ function App() {
   }, []);
   const abrirNotificacao = React.useCallback(n => {
     if (!n) return;
+    /* Publicacao do Feed: abre essa, com os comentarios. As notificacoes
+       antigas traziam conv "post-17". */
+    const post = n.post || (String(n.conv || '').indexOf('post-') === 0 ? String(n.conv).slice(5) : '');
+    if (post) {
+      window.__bspAlvoPost = String(post);
+      setPage('feed');
+      setTimeout(() => { try { window.dispatchEvent(new Event('bsp-abrir-post')); } catch (e) {} }, 60);
+      return;
+    }
     if (n.conv) {
       setAlvoChat({ conv: n.conv, vez: Date.now() });
       setPage('chat');
@@ -18299,7 +18555,8 @@ function App() {
   }, isMobile ? React.createElement(MobileTopbar, {
     current: page,
     currentUser: currentUser,
-    onMenu: () => setMoreOpen(true)
+    onMenu: () => setMoreOpen(true),
+    onSwitchPage: setPage
   }) : React.createElement(Topbar, {
     current: page,
     currentUser: currentUser,
@@ -18451,7 +18708,7 @@ function mixAccentDark(hex) {
 }
 /* O ChamadasProvider fica por fora da App para que uma chamada a entrar
    chegue esteja o utilizador em que ecrã estiver, e sobreviva à navegação. */
-ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(StoreProvider, null, React.createElement(ToastProvider, null, React.createElement(ChamadasProvider, null, React.createElement(App, null), React.createElement(AudioRemoto, null), React.createElement(ChamadaView, null), React.createElement(ChamadaMini, null), React.createElement(ChamadaRecebida, null), React.createElement(ChamadaErro, null)))));
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(StoreProvider, null, React.createElement(ToastProvider, null, React.createElement(ChamadasProvider, null, React.createElement(App, null), React.createElement(AudioRemoto, null), React.createElement(ChamadaView, null), React.createElement(ChamadaMini, null), React.createElement(ChamadaRecebida, null), React.createElement(ChamadaErro, null), React.createElement(VisorImagem, null)))));
 </script>
 
 
