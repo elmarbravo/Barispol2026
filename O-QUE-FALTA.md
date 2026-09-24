@@ -448,6 +448,21 @@ automáticas por área de info@barispol.ao).
 
 ---
 
+## 3-h. iPhone: ecrã principal (24-09-2026)
+
+- [x] O `workspace.html` passou a ter o ícone da Barispol
+      (`assets/icone-app.png`, o mesmo da Play Store, com fundo branco) e
+      as marcas para o iPhone abrir em ecrã inteiro com o nome «Barispol».
+      Antes, «Adicionar ao ecrã principal» ficava com uma miniatura da
+      página e abria com a barra do Safari.
+- [x] Imagem com os passos para a equipa:
+      [`instalar-no-iphone.png`](instalar-no-iphone.png), também em
+      `barispol.com/instalar-no-iphone.png`.
+- Quem já tinha adicionado o atalho antes tem de o apagar e adicionar de
+  novo para ficar com o ícone.
+
+---
+
 ## 4. Em cada aparelho
 
 - [ ] Recarregar à força (telemóvel: fechar o separador e reabrir;
