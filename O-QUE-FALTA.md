@@ -269,6 +269,19 @@ mural, notificações, «Actividade recente», Drive — sempre «24 set 2026,
   «agora», deixam de aparecer.
 - O único ficheiro do Drive da equipa sem data recebeu a data do
   armazenamento (1 set 2026, 17:10).
+- **Chat (24-09-2026, segunda volta):** as mensagens não mostravam data
+  nenhuma. O cabeçalho usava o campo antigo `ts` (só a hora, ou vazio nas
+  cópias guardadas no aparelho). Agora: data exacta em cada mensagem,
+  separador entre dias («Quinta-feira, 24 de Setembro de 2026») e as
+  mensagens seguidas só se agrupam no mesmo dia e com menos de 10
+  minutos entre elas. Meses com maiúscula (Set, Setembro).
+  *Confirmado* num browser de teste, com o tamanho de telemóvel e de
+  computador, com mensagens de exemplo de três dias.
+- **Erro corrigido:** o código que regista se o «tempo real» está ligado
+  estava colado no canal das chamadas, onde o `syncRef` não existe. Dava
+  «syncRef is not defined» a cada mudança de estado, e a verificação
+  periódica nunca abrandava. Passou para o canal do chat e só mexe na
+  cadência da verificação periódica.
 - Por confirmar num aparelho real: abrir o Workspace e ver a
   «Actividade recente» e o chat com datas.
 

@@ -70,6 +70,8 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   «há x min» (pedido do Elmar, 24-09-2026). `bspDataExacta`, `bspQuando`,
   `bspQuandoChat(iso, alternativa)` e `fmtTs` dão todas esse formato.
   Tudo o que se cria guarda o instante (`iso`, `criado`, `ts` ISO).
+  Mostrar sempre `bspQuandoChat(m.iso, m.ts)`, nunca `m.ts` sozinho. No
+  chat há separador por dia (`bspDiaExtenso`). Meses com maiúscula.
 - O contador do botão Chat vem de `bspTotalPorLer()` e `useChatPorLer()`.
 - `Modal` abre por `ReactDOM.createPortal` no `body`, com zIndex 100000.
   Abaixo de 640 px ocupa o ecrã inteiro.
