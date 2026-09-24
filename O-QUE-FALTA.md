@@ -74,11 +74,11 @@ O projecto já migrou para o sistema novo de chaves, por isso o caminho é:
       segredo antigo — coisa que deixa de existir no 0.6.
       - [x] `criar-utilizador` — desligado em 11-09-2026
       - [x] `resumo-matinal` — desligado em 11-09-2026
-      - [ ] `bright-worker` — **deixar ligado até a função ter
-            verificação própria**. Ver
-            [`funcoes/bright-worker-ACRESCENTAR-verificacao.md`](funcoes/bright-worker-ACRESCENTAR-verificacao.md).
-            Sem isso, desligar o interruptor deixa um endereço aberto por
-            onde qualquer pessoa manda e-mails com o domínio da clínica.
+      - [x] `bright-worker` — desligado em 24-09-2026, ao publicar a
+            versão 5 com verificação própria
+            ([`funcoes/bright-worker/index.ts`](funcoes/bright-worker/index.ts)).
+            Confirmado: sem autorização 401, com a chave pública 403, com
+            um testemunho falso 401.
 - [x] **0.5-c** Publicar as correcções de leitura de chaves nas duas
       funções e voltar a fazer Deploy de ambas. Ver a nota em baixo, no
       passo 2. **Feito em 14-09-2026** — `criar-utilizador` e
@@ -92,6 +92,8 @@ O projecto já migrou para o sistema novo de chaves, por isso o caminho é:
       passar. Depois do 0.6 deixa de passar; o 0.5-b mantém-se
       obrigatório.
 - [ ] **0.5-e** Testar a leitura das chaves no plural nas duas funções.
+      **`resumo-matinal`: confirmado em 24-09-2026** (`fonte_chave` =
+      `SUPABASE_SECRET_KEYS`). Falta a `criar-utilizador`.
       O teste de e-mail não as exercita. O caminho mais directo é
       «Enviar o resumo matinal agora» em Admin → Sistema — mas envia
       e-mails reais a toda a equipa, por isso é decisão da Direcção.
@@ -136,7 +138,7 @@ repositório e voltar a fazer Deploy.
 | --- | --- | --- | --- |
 | `criar-utilizador` | [`funcoes/criar-utilizador/index.ts`](funcoes/criar-utilizador/index.ts) | Criar logins a partir de Admin → Utilizadores | **nunca foi instalada** — sem ela, acrescentar alguém não lhe cria conta |
 | `resumo-matinal` | [`funcoes/resumo-matinal/index.ts`](funcoes/resumo-matinal/index.ts) | O e-mail da manhã | **nunca foi instalada** |
-| `bright-worker` | *(já existe no projecto)* | Enviar e-mails | instalada |
+| `bright-worker` | [`funcoes/bright-worker/index.ts`](funcoes/bright-worker/index.ts) | Enviar e-mails | instalada; versão 5 com verificação própria desde 24-09-2026 |
 
 - [ ] `criar-utilizador`
 - [ ] `resumo-matinal`
@@ -158,6 +160,15 @@ As duas podem ser instaladas antes ou depois do passo 0.
 > transição. **É preciso voltar a fazer Deploy das duas** para que a
 > correcção chegue ao servidor.
 
+> **Resolvido em 24-09-2026** (versão 5, verificação de JWT desligada).
+> Aceita a chave do servidor e a sessão de um gestor, para qualquer
+> destinatário. A sessão de outro colaborador só envia para endereços de
+> `shared_state.team` ou para `empresa@barispol.com`, que são os avisos
+> que a aplicação manda (mensagens directas, tarefas, mural). A chave
+> pública e os testemunhos falsos são recusados. O painel passou a
+> mostrar o nome `bright-worker` em vez de `notify-email`; o endereço é
+> o mesmo. O texto seguinte fica como registo.
+>
 > **A `bright-worker` não verifica quem a chama.** Recebe destinatário,
 > assunto e corpo, e envia. O interruptor do painel é a única barreira, e
 > essa cai no 0.6. Além disso, desde que o `servidor.js` passou a levar a
@@ -192,14 +203,13 @@ As duas podem ser instaladas antes ou depois do passo 0.
       para não sair correio). Com um código errado, HTTP 403.
       `fonte_chave` = `SUPABASE_SECRET_KEYS`.
 
-- [ ] **Os e-mails em si ainda devem falhar.** A função pede cada envio à
-      `bright-worker` com a chave que encontra, e essa chave é a nova
-      (`sb_secret_…`, porque `fonte_chave` = `SUPABASE_SECRET_KEYS`). A
-      `bright-worker` tem a verificação de JWT ligada, que só aceita
-      chaves JWT. O mais provável é o resumo correr e todos os endereços
-      aparecerem em `falhas`. Resolve-se com o ponto da `bright-worker`
-      no passo 2 (verificação própria, e depois desligar o interruptor).
-      O botão «Enviar o resumo matinal agora» passa pelo mesmo caminho.
+- [x] **Os e-mails em si.** A função pede cada envio à `bright-worker`
+      com a chave nova (`sb_secret_…`). Até 24-09-2026 a `bright-worker`
+      tinha a verificação de JWT ligada e recusava-a. **Resolvido no
+      mesmo dia**: a `bright-worker` versão 5 aceita a chave do servidor.
+- [ ] **Confirmar o primeiro envio real** na manhã de 25-09-2026, com a
+      consulta em baixo: `pessoais` e `deEquipa` acima de zero e sem
+      `falhas`. Não foi testado antes para não mandar correio à equipa.
 
 Sai às 06h30 de Luanda, de segunda a sábado. Para ver como correu:
 
@@ -262,7 +272,8 @@ grelha, com migração dos eventos que já lá estão.
   falhava todas as manhãs com `invalid URL "<PROJECTO>/functions/v1/..."`:
   o `agendar-resumo.sql` foi corrido com os campos por preencher.
   **Substituído em 24-09-2026** por um agendamento sem chave secreta
-  (passo 3). Falta a `bright-worker` para os e-mails saírem.
+  (passo 3). A `bright-worker` passou a ter verificação própria no mesmo
+  dia, com o interruptor de JWT desligado.
 - 21 pessoas no directório, 21 contas: ninguém fica sem acesso.
 - 9 pessoas sem departamento e com o cargo «Colaborador(a)» — por
   preencher em Admin → Utilizadores.

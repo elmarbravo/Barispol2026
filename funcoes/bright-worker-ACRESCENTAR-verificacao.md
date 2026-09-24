@@ -1,5 +1,14 @@
 # bright-worker — falta-lhe verificar quem a chama
 
+> **Feito em 24-09-2026.** O código completo está em
+> [`bright-worker/index.ts`](bright-worker/index.ts) e foi publicado como
+> versão 5, com a verificação de JWT desligada. Uma diferença em relação
+> ao plano abaixo: a sessão de um colaborador que não é gestor também é
+> aceite, mas só para endereços da equipa ou empresa@barispol.com. Só
+> gestores teria parado os avisos de mensagens directas, tarefas e
+> mural, que são enviados a partir da sessão de qualquer pessoa. Este
+> documento fica como registo.
+
 ## O problema
 
 A função `bright-worker` (nome visível no painel: `notify-email`) recebe

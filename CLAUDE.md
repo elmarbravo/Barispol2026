@@ -45,9 +45,12 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
     `x-bsp-agendamento`, guardado no Vault como `bsp_resumo_agendamento`
     e conferido por `bsp_resumo_codigo_confere` (ver
     `agendar-resumo-sem-chave.sql`). Nunca mostrar esse código.
-  - `bright-worker` (nome «notify-email», envia pela Resend): verificação
-    de JWT ligada e **sem autenticação própria**. O bloco a acrescentar
-    está em `funcoes/bright-worker-ACRESCENTAR-verificacao.md`.
+  - `bright-worker` (envia pela Resend, remetente geral@barispol.com, que
+    não se muda): versão 5 (24-09-2026), verificação de JWT desligada e
+    autenticação própria em `funcoes/bright-worker/index.ts`. Chave do
+    servidor ou sessão de gestor: qualquer destinatário. Sessão de outro
+    colaborador: só endereços de `shared_state.team` ou
+    empresa@barispol.com. Chave pública: recusada.
 - As funções lêem as chaves de `SUPABASE_SECRET_KEYS` e
   `SUPABASE_PUBLISHABLE_KEYS` (plural, dicionários JSON). Os nomes antigos
   `SUPABASE_SERVICE_ROLE_KEY` e `SUPABASE_ANON_KEY` só servem de recurso.
@@ -90,11 +93,12 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 ## Por fazer
 
 1. **Resumo matinal:** agendado sem chave secreta em 24-09-2026 (passo 3
-   do `O-QUE-FALTA.md`). `fonte_chave` = `SUPABASE_SECRET_KEYS`. Os
-   e-mails só saem quando a `bright-worker` aceitar essa chave (ponto 3).
-2. Ver amanhã a resposta do agendamento em `net._http_response`.
-3. `bright-worker`: acrescentar a autenticação própria, desligar a
-   verificação de JWT e só depois pensar no 0.6, com autorização.
+   do `O-QUE-FALTA.md`). `fonte_chave` = `SUPABASE_SECRET_KEYS`.
+2. Confirmar o primeiro envio real na manhã de 25-09-2026 em
+   `net._http_response` (`pessoais`/`deEquipa` acima de zero, sem
+   `falhas`).
+3. Passo 0.6: só com autorização expressa do Elmar. Antes, testar a
+   `criar-utilizador` (0.5-e).
 4. Departamento e cargo de 9 pessoas: Cassia Peixoto, Catarina Ndundu
    Baptista, Filomena Silva, Gizela Joaquim, Juliana Lourenço (Supervisora
    da Recepção), Osvaldo Pacheco, Paulo Manuel, Rosa Queirós e Solange
