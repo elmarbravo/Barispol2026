@@ -18445,10 +18445,11 @@ function CrmScreen() {
     style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' }
   }, React.createElement("div", {
     style: { display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', flex: 'none', overflowX: 'auto' }
-  }, aba_('pedidos', 'Pedidos do WhatsApp'), aba_('recuperar', 'Recuperar utentes'), aba_('resultados', 'Resultados')),
+  }, aba_('pedidos', 'Pedidos do WhatsApp'), aba_('recuperar', 'Recuperar utentes'), aba_('fichas', 'Fichas de pacientes'), aba_('resultados', 'Resultados')),
   React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: 'hidden' } },
     aba === 'pedidos' && React.createElement(CrmPedidos, null),
     aba === 'recuperar' && React.createElement(SeguimentoScreen, null),
+    aba === 'fichas' && React.createElement(CrmFichas, null),
     aba === 'resultados' && React.createElement(CrmResultados, null)));
 }
 
@@ -18463,6 +18464,7 @@ function CrmPedidos() {
   const [erro, setErro] = React.useState('');
   const [tick, setTick] = React.useState(0);
   const [nota, setNota] = React.useState(null);
+  const [ficha, setFicha] = React.useState(null);
 
   React.useEffect(() => {
     const cl = bspGetClient();
@@ -18530,7 +18532,7 @@ function CrmPedidos() {
   },
   React.createElement("p", {
     style: { fontSize: 12.5, color: 'var(--text-2)', margin: 0, lineHeight: 1.5, flex: 'none' }
-  }, "Cada linha é uma pessoa que escreveu para o WhatsApp da clínica. O estado muda sozinho quando a recepção responde, quando se marca e quando a pessoa aparece facturada no MetaGest. Pode acertá-lo à mão e deixar uma nota."),
+  }, "Cada linha é uma pessoa que escreveu para o WhatsApp da clínica. O estado muda sozinho quando a recepção responde, quando se marca e quando a pessoa aparece facturada no MetaGest («Compareceu» = factura com o mesmo telefone até 30 dias depois da conversa). Pode acertá-lo à mão e deixar uma nota. Carregue no nome para abrir a ficha do paciente."),
   React.createElement("div", {
     style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', flex: 'none' }
   }, [7, 30, 90, 365].map(d => React.createElement("button", {
@@ -18572,7 +18574,7 @@ function CrmPedidos() {
         style: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 12, padding: '14px 18px', alignItems: 'center', borderBottom: i < visiveis.length - 1 ? '1px solid var(--border)' : 'none' }
       }, React.createElement("div", { style: { minWidth: 0 } },
         React.createElement("div", { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
-          React.createElement("span", { style: { fontSize: 14, fontWeight: 600, color: 'var(--text-1)' } }, nome),
+          React.createElement("span", { onClick: () => setFicha({ tel9: tel ? tel.slice(-9) : null, paciente: l.paciente_id || null, nome: nome }), title: 'Abrir a ficha do paciente', style: { fontSize: 14, fontWeight: 600, color: 'var(--text-1)', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'var(--border)', textUnderlineOffset: 3 } }, nome),
           React.createElement("span", { style: { fontSize: 11.5, fontWeight: 700, color: l.origem === 'Anúncio' ? '#7A2E9E' : 'var(--text-3)' } }, l.origem),
           l.servico && l.servico !== 'Não identificado' && React.createElement("span", { style: { fontSize: 11.5, color: 'var(--accent-d)', fontWeight: 600 } }, l.servico)),
         React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 3, lineHeight: 1.5 } },
@@ -18625,7 +18627,169 @@ function CrmPedidos() {
       React.createElement("button", {
         onClick: async () => { if (!nota.texto.trim()) return; const ok = await registar(nota.l, nota.l.estado, nota.texto.trim()); if (ok) setNota(null); },
         style: { padding: '8px 16px', borderRadius: 9, border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700 }
-      }, 'Guardar nota')))));
+      }, 'Guardar nota')))),
+  ficha && React.createElement(CrmFicha, { alvo: ficha, onClose: () => setFicha(null) }));
+}
+
+/* Ficha do paciente (25-09-2026): quantas vezes veio, o que fez, com que medico,
+   e o historico do WhatsApp. "Veio" = dia com factura ou consulta no MetaGest. */
+function bspCrmData(d) {
+  if (!d) return '';
+  return new Date(d + (String(d).length === 10 ? 'T12:00:00' : '')).toLocaleDateString('pt-PT', { timeZone: 'Africa/Luanda', day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function CrmFicha({ alvo, onClose }) {
+  const [dados, setDados] = React.useState(null);
+  const [erro, setErro] = React.useState('');
+  const [escolhido, setEscolhido] = React.useState(alvo.paciente || null);
+  const [conversa, setConversa] = React.useState(null);
+
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) { setErro('O servidor não está ligado neste aparelho.'); return; }
+    let vivo = true;
+    (async () => {
+      const r = await cl.rpc('crm_ficha', { p_tel9: alvo.tel9 || null, p_paciente: alvo.paciente || null });
+      if (!vivo) return;
+      if (r.error) { setErro(r.error.message || 'Erro'); return; }
+      setDados(r.data || {});
+    })();
+    return () => { vivo = false; };
+  }, [alvo.tel9, alvo.paciente]);
+
+  async function abrirConversa(w) {
+    setConversa({ w: w, msgs: null });
+    const r = await bspGetClient().rpc('crm_conversa', { p_contacto: w.contacto_id, p_ini: w.inicio, p_fim: w.fim });
+    setConversa({ w: w, msgs: r.error ? [] : (r.data || []), erro: r.error ? r.error.message : '' });
+  }
+
+  const pacs = (dados && dados.pacientes) || [];
+  const p = pacs.find(x => x.id === escolhido) || pacs[0] || null;
+  const wa = (dados && dados.whatsapp) || [];
+  const tit = { margin: '18px 0 8px', fontSize: 12, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.04em' };
+  const caixa = { border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', marginBottom: 8, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 };
+  const num = (v, txt) => React.createElement("div", { style: { flex: '1 1 110px', background: 'var(--surface-2)', borderRadius: 10, padding: '10px 12px' } },
+    React.createElement("div", { style: { fontSize: 20, fontWeight: 700, color: 'var(--text-1)' } }, v),
+    React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)' } }, txt));
+
+  return React.createElement("div", {
+    onClick: onClose,
+    style: { position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', display: 'grid', placeItems: 'center', zIndex: 60, padding: 12 }
+  }, React.createElement("div", {
+    onClick: e => e.stopPropagation(),
+    style: { width: '100%', maxWidth: 620, maxHeight: '92vh', overflow: 'auto', background: 'var(--surface)', borderRadius: 14, padding: 20, border: '1px solid var(--border)', boxSizing: 'border-box' }
+  },
+  React.createElement("div", { style: { display: 'flex', alignItems: 'flex-start', gap: 10 } },
+    React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+      React.createElement("h3", { style: { margin: 0, fontSize: 17, color: 'var(--text-1)' } }, p ? p.nome : (alvo.nome || 'Ficha do paciente')),
+      React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginTop: 3 } },
+        dados && dados.tel9 ? '+244 ' + dados.tel9 : '', p && p.desde ? ' · ficha no MetaGest desde ' + bspCrmData(p.desde) : '')),
+    React.createElement("button", {
+      onClick: onClose, title: 'Fechar',
+      style: { border: '1px solid var(--border)', background: 'var(--surface-2)', borderRadius: 9, width: 34, height: 34, cursor: 'pointer', color: 'var(--text-2)', fontSize: 16 }
+    }, '×')),
+  erro ? React.createElement("p", { style: { color: '#B42318', fontSize: 13 } }, 'Não foi possível abrir a ficha. ' + erro)
+  : !dados ? React.createElement("p", { style: { color: 'var(--text-3)', fontSize: 13 } }, 'A carregar…')
+  : React.createElement(React.Fragment, null,
+    pacs.length > 1 && React.createElement("div", { style: { marginTop: 12 } },
+      React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', marginBottom: 6 } }, 'Este telefone está em ' + pacs.length + ' fichas do MetaGest (família). Escolha:'),
+      React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } }, pacs.map(x => React.createElement("button", {
+        key: x.id, onClick: () => setEscolhido(x.id),
+        style: { padding: '6px 11px', borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600,
+          border: '1px solid ' + (p && p.id === x.id ? 'var(--accent-d)' : 'var(--border)'), background: p && p.id === x.id ? 'var(--accent-soft)' : 'transparent',
+          color: p && p.id === x.id ? 'var(--accent-d)' : 'var(--text-2)' }
+      }, x.nome + ' · ' + x.visitas + (x.visitas === 1 ? ' vez' : ' vezes'))))),
+    !p ? React.createElement("p", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 14 } }, 'Este número não tem ficha no MetaGest. Nunca foi facturado com este telefone.')
+    : React.createElement(React.Fragment, null,
+      React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 } },
+        num(p.visitas, p.visitas === 1 ? 'vez na clínica' : 'vezes na clínica'),
+        num(p.primeira ? bspCrmData(p.primeira) : '—', 'primeira vez'),
+        num(p.ultima ? bspCrmData(p.ultima) : '—', 'última vez'),
+        num(bspCrmKz(p.total), 'total facturado')),
+      React.createElement("div", { style: tit }, 'Idas à clínica'),
+      !(p.historico || []).length ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Sem registos.')
+      : p.historico.map((h, i) => React.createElement("div", { key: i, style: caixa },
+        React.createElement("div", { style: { display: 'flex', gap: 8 } },
+          React.createElement("b", { style: { color: 'var(--text-1)', flex: 1 } }, bspCrmData(h.data)),
+          Number(h.valor) > 0 && React.createElement("span", null, bspCrmKz(h.valor))),
+        (h.consultas || []).map((c, j) => React.createElement("div", { key: 'c' + j }, 'Consulta: ' + [c.especialidade, c.medico].filter(Boolean).join(' · '))),
+        (h.servicos || []).length > 0 && React.createElement("div", null, h.servicos.join(', '))))),
+    React.createElement("div", { style: tit }, 'Conversas no WhatsApp'),
+    !wa.length ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Sem conversas com este número.')
+    : wa.map(w => React.createElement("div", { key: w.id, style: caixa },
+      React.createElement("div", { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
+        React.createElement("b", { style: { color: 'var(--text-1)' } }, bspCrmQuando(w.inicio)),
+        React.createElement("span", null, [w.origem, w.servico !== 'Não identificado' ? w.servico : null, w.estado].filter(Boolean).join(' · ')),
+        React.createElement("span", { style: { flex: 1 } }),
+        React.createElement("button", {
+          onClick: () => abrirConversa(w),
+          style: { padding: '5px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: 'var(--accent-d)', fontWeight: 600 }
+        }, 'Ver conversa')),
+      w.primeira_mensagem && React.createElement("div", { style: { marginTop: 3 } }, '“' + w.primeira_mensagem + '”'),
+      w.compareceu_em && React.createElement("div", { style: { color: '#06713F', fontWeight: 600, marginTop: 3 } }, 'Veio a ' + bspCrmData(w.compareceu_em) + ' · ' + bspCrmKz(w.valor)),
+      (w.notas || []).map((n, j) => React.createElement("div", { key: j, style: { fontStyle: 'italic', marginTop: 3 } }, 'Nota (' + bspCrmQuando(n.em) + '): ' + (n.nota || n.estado)))))),
+  conversa && React.createElement("div", {
+    onClick: () => setConversa(null),
+    style: { position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', display: 'grid', placeItems: 'center', zIndex: 61, padding: 12 }
+  }, React.createElement("div", {
+    onClick: e => e.stopPropagation(),
+    style: { width: '100%', maxWidth: 480, maxHeight: '88vh', overflow: 'auto', background: 'var(--surface)', borderRadius: 14, padding: 16, border: '1px solid var(--border)', boxSizing: 'border-box' }
+  },
+    React.createElement("div", { style: { display: 'flex', alignItems: 'center', marginBottom: 10 } },
+      React.createElement("b", { style: { flex: 1, fontSize: 14, color: 'var(--text-1)' } }, 'Conversa de ' + bspCrmQuando(conversa.w.inicio)),
+      React.createElement("button", { onClick: () => setConversa(null), style: { border: '1px solid var(--border)', background: 'var(--surface-2)', borderRadius: 8, width: 30, height: 30, cursor: 'pointer', color: 'var(--text-2)' } }, '×')),
+    conversa.msgs === null ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'A carregar…')
+    : !conversa.msgs.length ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, conversa.erro || 'Sem mensagens.')
+    : conversa.msgs.map((m, i) => {
+      const doente = m.de === 'doente';
+      return React.createElement("div", { key: i, style: { display: 'flex', justifyContent: doente ? 'flex-start' : 'flex-end', marginBottom: 6 } },
+        React.createElement("div", { style: { maxWidth: '82%', padding: '7px 10px', borderRadius: 10, fontSize: 13, lineHeight: 1.45, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+          background: doente ? 'var(--surface-2)' : 'var(--accent-soft)', color: 'var(--text-1)' } },
+          React.createElement("div", { style: { fontSize: 10.5, color: 'var(--text-3)', marginBottom: 2 } },
+            (doente ? 'Paciente' : m.de === 'bot' ? 'Resposta automática' : m.de) + ' · ' + bspCrmQuando(m.em)),
+          m.texto || '[' + (m.tipo || 'anexo') + ']'));
+    })))));
+}
+
+function CrmFichas() {
+  const [q, setQ] = React.useState('');
+  const [res, setRes] = React.useState([]);
+  const [estado, setEstado] = React.useState('');
+  const [ficha, setFicha] = React.useState(null);
+  React.useEffect(() => {
+    const t = q.trim();
+    if (t.length < 3) { setRes([]); setEstado(''); return; }
+    let vivo = true;
+    setEstado('a-procurar');
+    const id = setTimeout(async () => {
+      const cl = bspGetClient();
+      if (!cl) { setEstado('O servidor não está ligado neste aparelho.'); return; }
+      const r = await cl.rpc('crm_procurar', { p_q: t });
+      if (!vivo) return;
+      if (r.error) { setEstado('Erro: ' + r.error.message); return; }
+      setRes(r.data || []);
+      setEstado('');
+    }, 350);
+    return () => { vivo = false; clearTimeout(id); };
+  }, [q]);
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' } },
+    React.createElement("p", { style: { fontSize: 12.5, color: 'var(--text-2)', margin: 0, lineHeight: 1.5 } },
+      'Procure pelo nome ou pelo telefone. A ficha mostra quantas vezes a pessoa veio à clínica (dias com factura ou consulta no MetaGest), o que fez, com que médico e as conversas no WhatsApp.'),
+    React.createElement("input", {
+      autoFocus: true, value: q, onChange: e => setQ(e.target.value), placeholder: 'Nome ou telefone (mínimo 3 letras)',
+      style: { height: 38, padding: '0 12px', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-1)', fontSize: 14, outline: 'none', fontFamily: 'inherit', maxWidth: 420 }
+    }),
+    React.createElement(Card, { pad: 0, style: { flex: 1, overflow: 'auto', minHeight: 0 } },
+      estado ? React.createElement("div", { style: { padding: 24, textAlign: 'center', color: 'var(--text-3)', fontSize: 13 } }, estado === 'a-procurar' ? 'A procurar…' : estado)
+      : !res.length ? React.createElement("div", { style: { padding: 24, textAlign: 'center', color: 'var(--text-3)', fontSize: 13 } }, q.trim().length < 3 ? 'Escreva para procurar.' : 'Ninguém encontrado.')
+      : res.map((x, i) => React.createElement("div", {
+        key: x.id, className: "bsp-row-hover", onClick: () => setFicha({ paciente: x.id, tel9: x.tel9, nome: x.nome }),
+        style: { display: 'flex', gap: 10, alignItems: 'center', padding: '12px 16px', cursor: 'pointer', borderBottom: i < res.length - 1 ? '1px solid var(--border)' : 'none' }
+      }, React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+          React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: 'var(--text-1)' } }, x.nome),
+          React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, (x.tel9 ? '+244 ' + x.tel9 : 'sem telefone') + (x.ultima ? ' · última vez ' + bspCrmData(x.ultima) : ''))),
+        React.createElement("span", { style: { fontSize: 12.5, fontWeight: 700, color: 'var(--accent-d)' } }, x.visitas + (x.visitas === 1 ? ' vez' : ' vezes'))))),
+    ficha && React.createElement(CrmFicha, { alvo: ficha, onClose: () => setFicha(null) }));
 }
 
 function CrmResultados() {
