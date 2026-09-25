@@ -11,6 +11,10 @@
    cujo identificador calhasse conter essas cinco letras. */
 (function(){ try { var e = (location.hash + ' ' + location.search).toLowerCase(); if (/(^|[#?&\/])reset($|[=&\/\s])/.test(e)) { localStorage.removeItem('bsp_supabase_cfg'); } } catch(e){} })();
 </script>
+<script>
+/* Modo escuro (25-09-2026): aplicado antes de desenhar, para nao piscar a branco. */
+(function(){ try { var t = localStorage.getItem('bsp-tema') || 'claro'; var e = t === 'escuro' || (t === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches); document.documentElement.setAttribute('data-tema', e ? 'escuro' : 'claro'); } catch (x) {} })();
+</script>
 <title>Barispol Workspace · A sua equipa, conectada</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- iPhone: «Adicionar ao ecrã principal» fica com o ícone da Barispol e abre em ecrã inteiro (24-09-2026). -->
@@ -245,6 +249,36 @@
     --text-1: #1C2033;
     --text-2: #4E5366;
     --text-3: #8A8F9E;
+
+    /* Texto sobre fundos pasteis (eventos da agenda): escuro nos dois modos. */
+    --texto-sobre-pastel: #1C2033;
+    /* Titulos em marinho; no modo escuro ficam claros. */
+    --navy-texto: #292F58;
+    --scroll: #D9E0EA;
+    --scroll-hover: #B8C2D1;
+    color-scheme: light;
+  }
+
+  /* Modo escuro (25-09-2026): as mesmas variaveis, em tons escuros da
+     marca. Escolha em Tweaks -> Tema ou no botao da lua. */
+  html[data-tema="escuro"] { color-scheme: dark; }
+  /* O logotipo e marinho: no escuro leva um circulo branco por tras. */
+  html[data-tema="escuro"] .bsp-logo { background: #fff !important; padding: 2px !important; }
+  html[data-tema="escuro"] body,
+  html[data-tema="escuro"] body[data-variant] {
+    --navy: #3A4382;
+    --navy-d: #2B3268;
+    --accent-soft: rgba(34,145,206,.20);
+    --bg: #11131C;
+    --surface: #1A1D29;
+    --surface-2: #222636;
+    --border: #30354A;
+    --text-1: #E9EBF2;
+    --text-2: #B5BACB;
+    --text-3: #858B9E;
+    --navy-texto: #C9CFEA;
+    --scroll: #3A4056;
+    --scroll-hover: #50577A;
   }
 
   /* "Clínico" variant — slightly cooler surfaces, denser */
@@ -282,8 +316,8 @@
   /* Scrollbars (subtle) */
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #D9E0EA; border-radius: 999px; border: 2px solid var(--bg); }
-  ::-webkit-scrollbar-thumb:hover { background: #B8C2D1; }
+  ::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 999px; border: 2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scroll-hover); }
 
   /* Hover utilities */
   .bsp-card-hover { transition: border-color .15s, transform .15s, box-shadow .15s; }
@@ -1727,6 +1761,14 @@ const I = {
   }), React.createElement("path", {
     d: "M15 20c0-2 2-3.5 4-3.5"
   })),
+  Moon: p => React.createElement(Icon, p, React.createElement("path", {
+    d: "M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"
+  })),
+  Sun: p => React.createElement(Icon, p, React.createElement("circle", {
+    cx: "12", cy: "12", r: "4"
+  }), React.createElement("path", {
+    d: "M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+  })),
   Bell: p => React.createElement(Icon, p, React.createElement("path", {
     d: "M6 8a6 6 0 1 1 12 0c0 6 3 7 3 7H3s3-1 3-7z"
   }), React.createElement("path", {
@@ -2606,6 +2648,7 @@ function BarispolLogo({
   const px = size === 'sm' ? 30 : size === 'md' ? 40 : 56;
   const pad = mono ? Math.round(px * 0.1) : 0;
   return React.createElement("span", {
+    className: "bsp-logo",
     style: {
       display: 'inline-flex',
       alignItems: 'center',
@@ -2640,7 +2683,7 @@ function Sidebar({
   const W = collapsed ? 72 : 244;
   const sBg = isNavyBg ? 'var(--navy)' : 'var(--surface)';
   const sFg = isNavyBg ? 'rgba(255,255,255,.78)' : 'var(--text-2)';
-  const sFgActive = isNavyBg ? '#fff' : 'var(--navy)';
+  const sFgActive = isNavyBg ? '#fff' : 'var(--navy-texto)';
   const sActiveBg = isNavyBg ? 'rgba(255,255,255,.12)' : 'rgba(41,47,88,.07)';
   const sActiveBar = 'var(--accent)';
   const sBorder = isNavyBg ? 'rgba(255,255,255,.10)' : 'var(--border)';
@@ -3072,7 +3115,7 @@ function Topbar({
       gap: 6,
       flex: 'none'
     }
-  }, React.createElement("button", {
+  }, React.createElement(BotaoTema, null), React.createElement("button", {
     title: "Nova mensagem",
     className: "bsp-iconbtn",
     onClick: () => onSwitchPage && onSwitchPage('chat')
@@ -3140,6 +3183,46 @@ Object.assign(window, {
   NAV_ITEMS,
   BarispolLogo
 });
+/* Tema: 'claro', 'escuro' ou 'auto' (segue o aparelho). Guardado neste
+   aparelho; todos os botoes de tema ficam em sintonia. */
+function bspTemaEfectivo(t) {
+  return t === 'escuro' || (t === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'escuro' : 'claro';
+}
+function useTema() {
+  const ler = () => { try { return localStorage.getItem('bsp-tema') || 'claro'; } catch (e) { return 'claro'; } };
+  const [tema, setTemaEstado] = React.useState(ler);
+  React.useEffect(() => {
+    const aplicar = () => document.documentElement.setAttribute('data-tema', bspTemaEfectivo(tema));
+    aplicar();
+    const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+    if (tema === 'auto' && mq && mq.addEventListener) {
+      mq.addEventListener('change', aplicar);
+      return () => mq.removeEventListener('change', aplicar);
+    }
+  }, [tema]);
+  React.useEffect(() => {
+    const ouvir = e => setTemaEstado(e.detail);
+    window.addEventListener('bsp-tema', ouvir);
+    return () => window.removeEventListener('bsp-tema', ouvir);
+  }, []);
+  const mudar = v => {
+    try { localStorage.setItem('bsp-tema', v); } catch (e) {}
+    window.dispatchEvent(new CustomEvent('bsp-tema', { detail: v }));
+  };
+  return [tema, mudar];
+}
+function BotaoTema({ tamanho }) {
+  const [tema, mudar] = useTema();
+  const escuro = bspTemaEfectivo(tema) === 'escuro';
+  const t = tamanho || 16;
+  return React.createElement("button", {
+    title: escuro ? 'Modo claro' : 'Modo escuro',
+    'aria-label': escuro ? 'Mudar para modo claro' : 'Mudar para modo escuro',
+    className: "bsp-iconbtn",
+    style: t > 16 ? { width: 38, height: 38 } : undefined,
+    onClick: () => mudar(escuro ? 'claro' : 'escuro')
+  }, React.createElement(escuro ? I.Sun : I.Moon, { size: t }));
+}
 const STORAGE_KEY = 'bsp-workspace-v1';
 /* Datas exactas em todo o lado, por pedido do Elmar (24-09-2026):
    "24 set 2026, 13:41". Antes mostrava-se "agora", "há 12 min" ou so a
@@ -6131,7 +6214,7 @@ function DashboardScreen({
     style: {
       fontSize: 12.5,
       fontWeight: 700,
-      color: 'var(--navy)',
+      color: 'var(--navy-texto)',
       width: 76,
       flex: 'none'
     }
@@ -6932,7 +7015,7 @@ function ChatScreen({
     style: {
       position: 'absolute', inset: 8, zIndex: 80, border: '2px dashed var(--accent)', borderRadius: 8,
       background: 'rgba(245,244,242,.92)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: 16, fontWeight: 700, color: 'var(--navy)', pointerEvents: 'none', textAlign: 'center', padding: 20
+      fontSize: 16, fontWeight: 700, color: 'var(--navy-texto)', pointerEvents: 'none', textAlign: 'center', padding: 20
     }
   }, "Largue aqui os ficheiros para os enviar nesta conversa"), aCarregar > 0 && React.createElement("div", {
     role: "status",
@@ -8796,9 +8879,9 @@ function FeedScreen({
     return React.createElement(Card, {
       pad: 16,
       style: {
-        background: '#FFFFFF',
+        background: 'var(--surface)',
         border: '1px solid var(--border)',
-        borderTop: '3px solid #2291CE'
+        borderTop: '3px solid var(--accent)'
       }
     }, React.createElement("h3", {
       style: {
@@ -10324,7 +10407,7 @@ function AgendaMes({ events, iso, hojeISO, todayIdx, onDia }) {
       const cc = CAT_COLORS[e.cat] || CAT_COLORS.reuniao;
       return React.createElement("span", {
         key: k, className: 'bsp-mes-evt',
-        style: { fontSize: 11, lineHeight: 1.3, color: 'var(--text-1)', background: cc.soft, borderLeft: '3px solid ' + cc.c, borderRadius: 4, padding: '1px 5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }
+        style: { fontSize: 11, lineHeight: 1.3, color: 'var(--texto-sobre-pastel)', background: cc.soft, borderLeft: '3px solid ' + cc.c, borderRadius: 4, padding: '1px 5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }
       }, (e.time ? e.time + ' ' : '') + e.title);
     }), evs.length > 3 && React.createElement("span", {
       className: 'bsp-mes-evt', style: { fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }
@@ -10482,7 +10565,7 @@ function WeekGrid({
           padding: '3px 6px',
           fontSize: 11,
           lineHeight: 1.25,
-          color: 'var(--text-1)',
+          color: 'var(--texto-sobre-pastel)',
           overflow: 'hidden',
           cursor: 'pointer'
         },
@@ -10608,7 +10691,7 @@ function MeetingsScreen() {
   }, {
     icon: 'Cal',
     bg: 'rgba(41,47,88,.10)',
-    fg: 'var(--navy)',
+    fg: 'var(--navy-texto)',
     title: 'Agendar',
     sub: 'Use o Calendário',
     onClick: () => toast('Para agendar, crie um evento no Calendário.')
@@ -16844,7 +16927,7 @@ function MobileTopbar({
     }
   }, titles[current] || 'Workspace')), React.createElement("div", {
     style: { display: 'flex', alignItems: 'center', gap: 6 }
-  }, React.createElement("button", {
+  }, React.createElement(BotaoTema, { tamanho: 18 }), React.createElement("button", {
     onClick: () => onSwitchPage && onSwitchPage('notifications'),
     className: "bsp-iconbtn",
     style: { width: 38, height: 38, position: 'relative' },
@@ -19755,12 +19838,27 @@ function TweaksPanelWrap({
   const TToggle = window.TweakToggle;
   const TColor = window.TweakColor;
   const TSelect = window.TweakSelect;
+  const [tema, mudarTema] = useTema();
   if (!TP) return null;
   return React.createElement(TP, {
     title: "Tweaks"
   }, React.createElement(TSection, {
     label: "Aparência"
   }, React.createElement(TRadio, {
+    label: "Tema",
+    value: tema,
+    onChange: mudarTema,
+    options: [{
+      value: 'claro',
+      label: 'Claro'
+    }, {
+      value: 'escuro',
+      label: 'Escuro'
+    }, {
+      value: 'auto',
+      label: 'Automático'
+    }]
+  }), React.createElement(TRadio, {
     label: "Estilo visual",
     value: t.variant,
     onChange: v => setTweak('variant', v),

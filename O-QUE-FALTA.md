@@ -841,6 +841,26 @@ escolha fica guardada no aparelho, `bsp-ordem-<lista>`) e `OrdemSelect`.
 - Campos vazios ficam sempre no fim.
 - Confirmado com Playwright; testes anteriores iguais.
 
+
+## 3-x. Modo escuro no Workspace e no site (25-09-2026)
+
+- Workspace: Tweaks → Aparência → Tema (Claro, Escuro, Automático) e
+  botão da lua/sol na barra de cima (computador e telemóvel). Guardado no
+  aparelho (`bsp-tema`), aplicado antes de desenhar (sem clarão branco).
+  `html[data-tema="escuro"]` troca as variáveis (`--bg`, `--surface`,
+  `--text-…`, `--border`, `--navy`); variáveis novas `--navy-texto`,
+  `--texto-sobre-pastel`, `--scroll`. O logotipo leva um círculo branco.
+  Por omissão fica claro.
+- Site (`index.html` e `ferramentas/modelo-site.html`): botão da lua no
+  cabeçalho, guardado em `bsp-site-tema`. Variáveis novas `--titulo`,
+  `--ligacao`, `--topo`, `--campo`, `--campo-borda`. A abertura, a chamada
+  e o rodapé continuam em marinho. Por omissão fica claro.
+- Confirmado com Playwright (Início, Chat, Feed, Drive, Calendário,
+  Tarefas, CRM, Relatórios, Admin, janela de nova tarefa; site no
+  telemóvel e no computador): sem erros nem deslocamento horizontal.
+- [ ] `contacto.html` e `ecografia.html` ainda têm o estilo antigo e não
+      têm modo escuro (entram quando forem refeitas).
+
 ---
 
 ## 4. Em cada aparelho

@@ -123,6 +123,10 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   (`--navy` #292F58, `--accent` #2291CE), letra Dax, sem gradientes nem
   animação de ecrã, e botão principal marinho (#273069). Cores novas vão
   para as variáveis, e nunca escritas à mão no código.
+  Modo escuro (25-09-2026): `html[data-tema="escuro"]` troca as
+  variáveis; por isso nenhuma cor de fundo ou de texto se escreve à mão
+  (`--navy-texto` para texto marinho, `--texto-sobre-pastel` sobre
+  fundos pastel). Tema em `useTema()` / `bsp-tema`; no site, `bsp-site-tema`.
 - Listas por ordem alfabética (25-09-2026): `USERS`, `state.team`,
   `DEPARTMENTS`, `CHANNELS` e `BSP_RELATORIOS` são ordenados na origem com
   `bspPorNome` / `bspCompararTexto`. Nunca usar `USERS[0]` como «o
