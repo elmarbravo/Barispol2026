@@ -641,6 +641,21 @@ notificações e os dados.
 
 ---
 
+## 3-o. WhatsApp (SendPulse) a cada 15 minutos (25-09-2026)
+
+- [x] O agendamento `whatsapp-sync` corre a cada 3 minutos e traz as
+      mensagens novas. A lista de contactos com actividade nova passou a
+      ser pedida à SendPulse **a cada 15 minutos**, em vez de a cada hora
+      (`whatsapp-sync-15min.sql`, função `whatsapp.cron_sync`). Uma
+      mensagem nova aparece no Workspace no máximo cerca de 15 minutos
+      depois.
+- [x] Confirmado a 25-09-2026: a pergunta de contactos correu sozinha às
+      10h21, sem erros. A mensagem de teste do Elmar das 10h04 chegou.
+- Só lê dados da SendPulse. Não envia mensagens e não usa inteligência
+  artificial.
+
+---
+
 ## 4. Em cada aparelho
 
 - [ ] Recarregar à força (telemóvel: fechar o separador e reabrir;
