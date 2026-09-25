@@ -10946,6 +10946,7 @@ function TaskComposer({
      as outras partilham-na. Quem nao delega so escolhe com quem partilha. */
   const [pessoas, setPessoas] = React.useState([window.CURRENT_USER_ID]);
   const [prazo, setPrazo] = React.useState('');
+  const mudaPessoas = !!(editTask && editTask.pessoal && editTask.donoId && (podeDelegar || editTask.donoId === window.CURRENT_USER_ID));
   /* Quem escreve tem de saber quem pode ler. Lido das camadas vivas, para
      o aviso acompanhar o que estiver ligado em Admin -> Permissões. */
   const camadasQueVeem = React.useMemo(() => {
@@ -10960,7 +10961,7 @@ function TaskComposer({
       setWho(editTask ? editTask.assignees || [] : []);
       setPessoal(false);
       setParaQuem(window.CURRENT_USER_ID);
-      setPessoas([window.CURRENT_USER_ID]);
+      setPessoas(editTask && editTask.pessoal && editTask.donoId ? [editTask.donoId].concat(editTask.partilhadaCom || []) : [window.CURRENT_USER_ID]);
       setPrazo(editTask && editTask.due ? String(editTask.due).slice(0, 10) : '');
     }
   }, [open, defaultCol, editTask]);
@@ -10969,12 +10970,23 @@ function TaskComposer({
     if (editTask && editTask.pessoal && onUpdatePessoal) {
       /* Antes, editar uma tarefa privada ia para o quadro da equipa e nao
          gravava nada (25-09-2026). */
-      onUpdatePessoal(editTask.idReal, {
+      const campos = {
         coluna: col,
         titulo: title.trim(),
         prioridade: prio,
         prazo: prazo || null
-      });
+      };
+      /* Pessoas (25-09-2026): o dono, a Direccao e a Coordenacao mudam a
+         quem pertence e com quem se partilha. */
+      if (mudaPessoas) {
+        const dono0 = editTask.donoId;
+        const esc = podeDelegar ? pessoas : [dono0].concat(pessoas.filter(x => x !== dono0));
+        if (esc.length) {
+          campos.user_id = esc[0];
+          campos.partilhada_com = esc.slice(1);
+        }
+      }
+      onUpdatePessoal(editTask.idReal, campos);
       onClose();
       return;
     }
@@ -11084,7 +11096,7 @@ function TaskComposer({
     ? (camadasQueVeem.length
         ? 'Fica guardada em seu nome e sai do quadro da equipa. ' + (camadasQueVeem.length === 1 ? 'A camada ' : 'As camadas ') + camadasQueVeem.join(' e ') + (camadasQueVeem.length === 1 ? ' pode lê-la.' : ' podem lê-la.')
         : 'Fica guardada em seu nome. Ninguém mais a vê — nem sequer chega aos aparelhos dos outros.')
-    : 'Todos os colegas vêem esta tarefa no quadro da equipa.'))), pessoal && !editTask && React.createElement("div", null, React.createElement("label", {
+    : 'Todos os colegas vêem esta tarefa no quadro da equipa.'))), (pessoal && !editTask || mudaPessoas) && React.createElement("div", null, React.createElement("label", {
     style: {
       fontSize: 12,
       fontWeight: 600,
@@ -11152,6 +11164,14 @@ function TaskComposer({
     onChange: e => setPrazo(e.target.value),
     style: {
       width: '100%',
+      /* No iPhone o campo de data ficava mais largo do que os outros. */
+      boxSizing: 'border-box',
+      display: 'block',
+      minWidth: 0,
+      maxWidth: '100%',
+      WebkitAppearance: 'none',
+      appearance: 'none',
+      textAlign: 'left',
       height: 40,
       padding: '0 12px',
       border: '1px solid var(--border)',
@@ -11529,9 +11549,12 @@ function useTarefasPessoais() {
   const actualizar = React.useCallback(async (id, campos) => {
     const cl = bspGetClient();
     if (!cl) return 'O servidor não está ligado.';
-    const r = await cl.from('tarefas_pessoais').update(campos).eq('id', id);
+    const r = await cl.from('tarefas_pessoais').update(campos).eq('id', id).select('id');
     recarregar();
-    return r && r.error ? (r.error.message || 'Não foi possível gravar.') : null;
+    if (r && r.error) return r.error.message || 'Não foi possível gravar.';
+    /* Sem erro mas sem linhas: o servidor nao deixou mudar esta tarefa. */
+    if (r && Array.isArray(r.data) && !r.data.length) return 'não tem permissão para mudar esta tarefa.';
+    return null;
   }, [recarregar]);
 
   /* Devolve no mesmo formato do quadro da equipa, para o ecra tratar as
@@ -11555,6 +11578,8 @@ function useTarefasPessoais() {
         due: t.prazo || '',
         /* Partilhada: o dono e as outras pessoas aparecem nos avatares. */
         partilhada: Array.isArray(t.partilhada_com) && t.partilhada_com.length > 0,
+        donoId: t.user_id,
+        partilhadaCom: Array.isArray(t.partilhada_com) ? t.partilhada_com : [],
         assignees: Array.isArray(t.partilhada_com) && t.partilhada_com.length ? [t.user_id].concat(t.partilhada_com) : [],
         tags: [],
         proj: ''
@@ -11670,7 +11695,7 @@ function TasksScreen() {
       if (t.pessoal) pess.criar(col, t).then(erro => { if (erro) toast('Não foi possível gravar a tarefa: ' + erro); });
       else actions.createTask(col, t);
     },
-    onUpdatePessoal: (id, campos) => pess.actualizar(id, campos).then(erro => { if (erro) toast('Não foi possível gravar: ' + erro); }),
+    onUpdatePessoal: (id, campos) => pess.actualizar(id, campos).then(erro => { toast(erro ? 'Não foi possível gravar: ' + erro : 'Tarefa actualizada.'); }),
     onUpdate: actions.updateTask,
     onMove: actions.moveTask
   }), React.createElement("div", {

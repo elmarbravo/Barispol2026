@@ -786,6 +786,24 @@ Pedido do Elmar: pôr no site a campanha Outubro Rosa e retirá-la a
 - [ ] Confirmar com a recepção que o desconto está criado no MetaGest
       (nota do ficheiro de textos).
 
+
+## 3-u. Editar tarefas privadas (25-09-2026)
+
+O Elmar não conseguia editar a tarefa privada «Cobrança ADV». O servidor
+deixa (teste desfeito: 1 linha mudada) e o ecrã gravava título, coluna,
+prioridade e prazo, mas o formulário não tinha as pessoas e não dizia
+que tinha gravado.
+
+- Editar uma tarefa privada mostra «Para quem» (Direcção e Coordenação)
+  ou «Partilhar com» (o dono), já preenchido com o dono (`user_id`) e
+  `partilhada_com`. Só o dono e quem delega mudam as pessoas.
+- `pess.actualizar` pede as linhas de volta: sem linhas, avisa que não
+  há permissão. Depois de gravar aparece «Tarefa actualizada.».
+- O campo do prazo deixa de ficar mais largo no iPhone.
+- Confirmado com Playwright a 390 px: o pedido leva
+  `partilhada_com: ["u2"]` quando se junta a Arlete; título e prazo com
+  310 px; testes anteriores iguais.
+
 ---
 
 ## 4. Em cada aparelho
