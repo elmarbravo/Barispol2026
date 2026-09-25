@@ -126,7 +126,7 @@ O ficheiro `campanhas.json` alimenta a secção «Campanhas a decorrer». Sem en
 ]
 ```
 
-O campo `fim` retira a campanha do site automaticamente. Só com a data («2026-10-31»), sai no fim desse dia. Com hora («2026-10-31T20:00:00+01:00»), sai a essa hora de Luanda. O campo `imagem` (opcional, por exemplo `assets/campanha.webp`) mostra o cartaz no topo do cartão.
+O campo `fim` retira a campanha do site automaticamente. Só com a data («2026-10-31»), sai no fim desse dia. Com hora («2026-10-31T20:00:00+01:00»), sai a essa hora de Luanda. O campo `imagem` (opcional, por exemplo `assets/campanha.webp`) mostra o cartaz no topo do cartão. Opcionais: `itens` (lista de `{ "nome", "antes", "valor" }`, com o preço antigo riscado) e `cor` (cor da campanha, por exemplo `#B81E5E`). A secção fica logo abaixo da abertura.
 
 ---
 

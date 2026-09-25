@@ -183,6 +183,12 @@ table.fases{width:100%;border-collapse:collapse;font-size:15.5px}
 .campanha{padding:22px 0;border-bottom:1px solid var(--linha)}
 .campanha h3{font-size:18px}
 .campanha img{display:block;width:100%;max-width:420px;height:auto;border-radius:6px;margin-bottom:14px}
+.campanha.cor{border:0;border-left:6px solid var(--cor);background:var(--claro);padding:24px 24px 24px 22px;border-radius:6px}
+.campanha.cor h3{color:var(--cor);font-size:24px}
+.campanha .itens{margin:14px 0 4px;padding:0;list-style:none;max-width:520px}
+.campanha .itens li{display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid var(--linha);color:var(--t1)}
+.campanha .itens li b{white-space:nowrap}
+.campanha .itens s{color:var(--t2);font-weight:400;margin-right:6px}
 .campanha p,.campanha time{display:block;color:var(--t2);margin-top:6px}
 
 /* chamada */
@@ -301,6 +307,16 @@ footer .marca-rodape img{width:52px;height:52px;background:#fff;border-radius:50
   </div>
 </div>
 
+<section id="campanhas" hidden>
+  <div class="caixa">
+    <div class="cabeca">
+      <p class="etiqueta">Campanhas</p>
+      <h2>Campanhas em curso</h2>
+    </div>
+    <div class="lista" id="camplist"></div>
+  </div>
+</section>
+
 <section id="servicos">
   <div class="caixa">
     <div class="cabeca">
@@ -377,16 +393,6 @@ footer .marca-rodape img{width:52px;height:52px;background:#fff;border-radius:50
       <h2>As nossas instalações</h2>
     </div>
     <div class="galeria" id="gallist"></div>
-  </div>
-</section>
-
-<section id="campanhas" hidden>
-  <div class="caixa">
-    <div class="cabeca">
-      <p class="etiqueta">Campanhas</p>
-      <h2>Campanhas em curso</h2>
-    </div>
-    <div class="lista" id="camplist"></div>
   </div>
 </section>
 
@@ -644,6 +650,18 @@ footer .marca-rodape img{width:52px;height:52px;background:#fff;border-radius:50
       if (c.imagem) { var im = document.createElement('img'); im.src = c.imagem; im.alt = c.titulo || ''; im.loading = 'lazy'; d.appendChild(im); }
       var h = document.createElement('h3'); h.textContent = c.titulo || ''; d.appendChild(h);
       if (c.resumo) { var p = document.createElement('p'); p.textContent = c.resumo; d.appendChild(p); }
+      if (c.cor) { d.className += ' cor'; d.style.setProperty('--cor', c.cor); }
+      if (Array.isArray(c.itens) && c.itens.length) {
+        var ul = document.createElement('ul'); ul.className = 'itens';
+        c.itens.forEach(function (it) {
+          var li = document.createElement('li'), n = document.createElement('span'), v = document.createElement('b');
+          n.textContent = it.nome || '';
+          if (it.antes) { var x = document.createElement('s'); x.textContent = it.antes; v.appendChild(x); }
+          v.appendChild(document.createTextNode(it.valor || ''));
+          li.appendChild(n); li.appendChild(v); ul.appendChild(li);
+        });
+        d.appendChild(ul);
+      }
       if (c.periodo) { var t = document.createElement('time'); t.textContent = c.periodo; d.appendChild(t); }
       if (c.link) { var q = document.createElement('p'); q.className = 'mais'; var a = document.createElement('a'); a.href = c.link; a.target = '_blank'; a.rel = 'noopener'; a.textContent = c.cta || 'Saber mais'; q.appendChild(a); d.appendChild(q); }
       list.appendChild(d);

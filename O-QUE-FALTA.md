@@ -763,9 +763,17 @@ Pedido do Elmar: pôr no site a campanha Outubro Rosa e retirá-la a
   `imagem`: o cartaz no topo do cartão.
 - Confirmado com Playwright: às 19h59 de Luanda a campanha aparece, às
   20h00 desaparece.
-- [ ] Falta o conteúdo: o cartaz e o texto da oferta estão só nas
-      imagens do Drive (`outubro-rosa-post-4x5.png`), que não se lêem a
-      partir daqui. O Elmar envia o cartaz ou o texto na conversa.
+- Publicada no mesmo dia com o texto oficial do SharePoint
+  (08_MARKETING, «COPYS CAMPANHAS CHECK-UP E OUTUBRO ROSA 2026.txt»):
+  consulta de ginecologia a 12.450 Kz (em vez de 24.900) e 50 % nas
+  análises complementares, de 1 a 31 de Outubro. Sai a 31-10-2026, 20h00.
+  Campos novos `itens` e `cor`; a secção subiu para logo abaixo da
+  abertura.
+- [ ] Cartaz: a fotografia do post não chega ao repositório (Drive do
+      Workspace privado, SharePoint só de leitura). Com o ficheiro,
+      guardar em `assets/` e pôr em `imagem`.
+- [ ] Confirmar com a recepção que o desconto está criado no MetaGest
+      (nota do ficheiro de textos).
 
 ---
 
