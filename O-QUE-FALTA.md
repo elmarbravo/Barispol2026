@@ -773,6 +773,8 @@ Pedido do Elmar: pôr no site a campanha Outubro Rosa e retirá-la a
   `assets/outubro-rosa.webp`, 960×1200, 75 KB. No computador fica à
   esquerda do texto; no telemóvel, por cima. Campo `imagemAlt` para o
   texto alternativo.
+- Texto: a legenda oficial do post (secção 5 do ficheiro de textos),
+  sem emojis nem hashtags. `resumo` e `fecho` aceitam vários parágrafos.
 - [ ] Confirmar com a recepção que o desconto está criado no MetaGest
       (nota do ficheiro de textos).
 

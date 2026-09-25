@@ -189,6 +189,7 @@ table.fases{width:100%;border-collapse:collapse;font-size:15.5px}
 .campanha .itens li{display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid var(--linha);color:var(--t1)}
 .campanha .itens li b{white-space:nowrap}
 .campanha .itens s{color:var(--t2);font-weight:400;margin-right:6px}
+.campanha p.fecho{color:var(--t1);font-weight:600}
 @media (min-width:760px){
   .campanha.com-imagem{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);column-gap:32px;align-items:start}
   .campanha.com-imagem > img{grid-column:1;grid-row:1 / span 20;margin:0}
@@ -654,7 +655,8 @@ footer .marca-rodape img{width:52px;height:52px;background:#fff;border-radius:50
       var d = document.createElement('div'); d.className = 'campanha';
       if (c.imagem) { d.className += ' com-imagem'; var im = document.createElement('img'); im.src = c.imagem; im.alt = c.imagemAlt || c.titulo || ''; im.loading = 'lazy'; im.width = 960; im.height = 1200; d.appendChild(im); }
       var h = document.createElement('h3'); h.textContent = c.titulo || ''; d.appendChild(h);
-      if (c.resumo) { var p = document.createElement('p'); p.textContent = c.resumo; d.appendChild(p); }
+      var paras = function (t, cls) { [].concat(t || []).forEach(function (x) { var p = document.createElement('p'); p.textContent = x; if (cls) p.className = cls; d.appendChild(p); }); };
+      paras(c.resumo);
       if (c.cor) { d.className += ' cor'; d.style.setProperty('--cor', c.cor); }
       if (Array.isArray(c.itens) && c.itens.length) {
         var ul = document.createElement('ul'); ul.className = 'itens';
@@ -667,6 +669,7 @@ footer .marca-rodape img{width:52px;height:52px;background:#fff;border-radius:50
         });
         d.appendChild(ul);
       }
+      paras(c.fecho, 'fecho');
       if (c.periodo) { var t = document.createElement('time'); t.textContent = c.periodo; d.appendChild(t); }
       if (c.link) { var q = document.createElement('p'); q.className = 'mais'; var a = document.createElement('a'); a.href = c.link; a.target = '_blank'; a.rel = 'noopener'; a.textContent = c.cta || 'Saber mais'; q.appendChild(a); d.appendChild(q); }
       list.appendChild(d);

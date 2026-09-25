@@ -1,7 +1,10 @@
 [
   {
     "titulo": "Outubro Rosa",
-    "resumo": "A prevenção salva vidas, e o primeiro passo é uma consulta. Marque a sua consulta de ginecologia e traga uma amiga.",
+    "resumo": [
+      "Outubro é Rosa.",
+      "A prevenção salva vidas, e o primeiro passo é uma consulta. De 1 a 31 de Outubro, no Centro Médico Barispol:"
+    ],
     "itens": [
       {
         "nome": "Consulta de ginecologia",
@@ -13,12 +16,15 @@
         "valor": "50 % de desconto"
       }
     ],
-    "periodo": "De 1 a 31 de Outubro de 2026. Análises do nosso laboratório; não inclui ecografias nem exames externos.",
+    "fecho": [
+      "Marque a sua consulta e traga uma amiga. Cuidar de si é um acto de amor."
+    ],
+    "periodo": "Camama 1, junto ao Condomínio BPC e ao Hospital Materno Infantil. Todos os dias, das 07:30 às 22:00. Análises do nosso laboratório; não inclui ecografias nem exames externos.",
     "fim": "2026-10-31T20:00:00+01:00",
     "cor": "#B81E5E",
-    "link": "https://wa.me/244946373631?text=Ol%C3%A1%2C%20gostaria%20de%20marcar%20a%20consulta%20de%20ginecologia%20do%20Outubro%20Rosa.",
-    "cta": "Marcar pelo WhatsApp",
     "imagem": "assets/outubro-rosa.webp",
-    "imagemAlt": "Cartaz Outubro Rosa: consulta de ginecologia a 12.450 Kz e 50 % nas análises complementares, de 1 a 31 de Outubro"
+    "imagemAlt": "Cartaz Outubro Rosa: consulta de ginecologia a 12.450 Kz e 50 % nas análises complementares, de 1 a 31 de Outubro",
+    "link": "https://wa.me/244946373631?text=Ol%C3%A1%2C%20gostaria%20de%20marcar%20a%20consulta%20de%20ginecologia%20do%20Outubro%20Rosa.",
+    "cta": "Marcar pelo WhatsApp"
   }
 ]
