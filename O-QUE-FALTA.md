@@ -704,6 +704,38 @@ notificações e os dados.
 
 ---
 
+## 3-r. Canais de área pela função (25-09-2026)
+
+- [x] Cada canal de área é só de quem trabalha nessa área, pelo
+      departamento da pessoa (a função):
+      - #clínica: médicos;
+      - #enfermagem: enfermeiros;
+      - #farmácia: farmácia;
+      - #laboratório: laboratório;
+      - #radiologia: radiologia;
+      - #recepção: recepcionistas e a supervisora.
+      #laboratório e #radiologia são novos.
+- [x] Vêem todos os canais de área: a Direcção e a Coordenação. A
+      Direcção Clínica (Osvaldo Pacheco) vê todos os da saúde: clínica,
+      enfermagem, farmácia, laboratório e radiologia.
+- [x] #geral, #avisos e #escalas: toda a gente, como antes.
+- [x] **Regra também no servidor** (`canais-por-funcao.sql`,
+      `bsp_ve_conversa`, `bsp_area_chave`, `bsp_minha_area`). Antes, o
+      servidor deixava qualquer colega ler os canais de área e só o ecrã
+      os escondia. Matriz testada a 25-09-2026, pessoa a pessoa, igual no
+      servidor e no Workspace.
+- [x] Nicolau Castigo (analista de laboratório): departamento
+      Laboratório.
+- [x] Emmanuel Domingos: departamento **Serviços Gerais**, responde à
+      Arlete Tatiana (campo `superior` = u2, mostrado no Directório).
+- Os ajustes à mão antigos que retiravam alguém do canal da própria
+  área (por exemplo, a Rosa Simão no #farmácia) deixam de contar: a
+  função manda. «Dar um canal» no Admin (`extraCanais`) continua a
+  funcionar.
+- [ ] Decidir se os Serviços Gerais precisam de um canal próprio.
+
+---
+
 ## 4. Em cada aparelho
 
 - [ ] Recarregar à força (telemóvel: fechar o separador e reabrir;

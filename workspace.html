@@ -1181,6 +1181,14 @@ const DEPARTMENTS = [{
   name: 'Radiologia',
   color: '#475569'
 }, {
+  id: 'laboratorio',
+  name: 'Laboratório',
+  color: '#0E7490'
+}, {
+  id: 'servicos-gerais',
+  name: 'Serviços Gerais',
+  color: '#64748B'
+}, {
   id: 'marketing',
   name: 'Marketing',
   color: '#DB2777'
@@ -1330,13 +1338,32 @@ function bspVeCanal(u, canal){
     if (bspCamada(u).podeVerSistema) return true;
     return canal.membros.indexOf(u.id) !== -1;
   }
-  /* Ajustes por pessoa feitos no Admin: retirar ganha a dar, e ambos ganham à camada. */
-  if (u.semCanais && u.semCanais.indexOf(canal.id) !== -1) return false;
-  if (u.extraCanais && u.extraCanais.indexOf(canal.id) !== -1) return true;
+  /* Canais de area pela funcao (pedido do Elmar, 25-09-2026): so quem
+     trabalha na area (o departamento da pessoa), a Direccao e a
+     Coordenacao (todos), a Direccao Clinica (todos os da saude) e quem
+     tiver o canal dado a mao no Admin. A mesma regra esta no servidor
+     (bsp_ve_conversa, canais-por-funcao.sql). */
   const c = bspCamada(u);
-  if (!c || c.canais === '*') return true;
-  return c.canais.indexOf(canal.dept ? canal.dept : null) !== -1;
+  const area = canal.dept && canal.dept !== 'escalas' ? bspAreaChave(canal.dept) : null;
+  if (area) {
+    if (c && c.canais === '*') return true;
+    if (BSP_DIRECCAO_CLINICA_IDS.indexOf(u.id) !== -1 && BSP_AREAS_SAUDE.indexOf(area) !== -1) return true;
+    if (u.extraCanais && u.extraCanais.indexOf(canal.id) !== -1) return true;
+    return bspAreaChave(u.dept) === area;
+  }
+  /* #geral, #avisos e #escalas: toda a gente, salvo quem for retirado no Admin. */
+  if (u.semCanais && u.semCanais.indexOf(canal.id) !== -1) return false;
+  return true;
 }
+/* A area de um departamento ou canal, sem acentos nem maiusculas
+   (igual a bsp_area_chave no servidor). */
+function bspAreaChave(t) {
+  const x = String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  return x === 'rececao' ? 'recepcao' : x;
+}
+const BSP_AREAS_SAUDE = ['clinica', 'enfermagem', 'farmacia', 'laboratorio', 'radiologia'];
+/* Direccao Clinica: Osvaldo Pacheco (u14), igual a bsp_le_areas_medicas(). */
+const BSP_DIRECCAO_CLINICA_IDS = ['u14'];
 
 /* Mensagens por ler em todo o Chat — canais que a pessoa ve e conversas
    directas em que entra. A mesma conta dos numeros ao lado de cada nome,
@@ -1441,6 +1468,22 @@ const CHANNELS = [{
   public: true,
   unread: 0,
   dept: 'farmacia'
+}, {
+  id: 'c-laboratorio',
+  name: 'laboratório',
+  desc: 'Análises, colheitas e resultados',
+  members: 1,
+  public: true,
+  unread: 0,
+  dept: 'laboratorio'
+}, {
+  id: 'c-radiologia',
+  name: 'radiologia',
+  desc: 'Raio-X e ecografia',
+  members: 1,
+  public: true,
+  unread: 0,
+  dept: 'radiologia'
 }];
 /* Cópia fixa: os grupos criados na plataforma juntam-se a esta base em cada desenho. */
 CHANNELS.sort(bspPorNome);
@@ -13231,7 +13274,14 @@ function DirectoryScreen() {
       textOverflow: 'ellipsis',
       whiteSpace: 'nowrap'
     }
-  }, u.role))), React.createElement("div", {
+  }, u.role), u.superior && window.userById(u.superior) && React.createElement("div", {
+    /* Superior hierarquico (25-09-2026): os Servicos Gerais respondem a Arlete. */
+    style: {
+      fontSize: 11.5,
+      color: 'var(--text-2)',
+      marginTop: 2
+    }
+  }, 'Responde a ' + window.userById(u.superior).name.split(' ').slice(0, 2).join(' ')))), React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',

@@ -78,7 +78,8 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 - O contador do botão Chat vem de `bspTotalPorLer()` e `useChatPorLer()`.
 - `Modal` abre por `ReactDOM.createPortal` no `body`, com zIndex 100000.
   Abaixo de 640 px ocupa o ecrã inteiro.
-- Departamentos em `DEPARTMENTS` (inclui `radiologia`). O departamento
+- Departamentos em `DEPARTMENTS` (inclui `radiologia`, `laboratorio` e
+  `servicos-gerais`). O departamento
   actual de uma pessoa nunca desaparece do selector.
 - O envio de e-mail pela aplicação usa o token da sessão
   (`bspTestemunho`). O cartão é `bspEmailWrap`, igual ao `envelope` da
@@ -127,6 +128,11 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   `bspPorNome` / `bspCompararTexto`. Nunca usar `USERS[0]` como «o
   utilizador principal». Os estados do CRM mantêm a ordem do processo
   (o primeiro é o valor por omissão); só os menus os mostram por ordem.
+- Canais de área pela função (25-09-2026): o departamento da pessoa
+  decide (`bspVeCanal` + `bspAreaChave`, e no servidor `bsp_ve_conversa`
+  com `bsp_area_chave`/`bsp_minha_area`). Direcção e Coordenação vêem
+  todos; a Direcção Clínica (u14) vê os da saúde. Mudar os dois lados
+  juntos. Campo `superior` na equipa (Emmanuel → Arlete, u2).
 - Calendário (opção C, aprovada): os eventos são rotina semanal. Cada
   evento tem um dia da semana e repete-se todas as semanas nesse dia.
   Desde 25-09-2026 um evento também pode ser «Numa data» (campo `data`,
