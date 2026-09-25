@@ -751,6 +751,22 @@ ficava por baixo do estado.
 - Confirmado com Playwright a 390 px e a 1366 px, com dados fictícios:
   texto com 336 px de largura, sem deslocamento horizontal, sem erros.
 
+
+## 3-t. Campanhas do site com hora de fim e cartaz (25-09-2026)
+
+Pedido do Elmar: pôr no site a campanha Outubro Rosa e retirá-la a
+31-10-2026 às 20h00.
+
+- `index.html` e `ferramentas/modelo-site.html`: o `fim` de
+  `campanhas.json` aceita hora («2026-10-31T20:00:00+01:00»). Só com a
+  data, a campanha sai no fim do dia, hora de Luanda. Campo novo
+  `imagem`: o cartaz no topo do cartão.
+- Confirmado com Playwright: às 19h59 de Luanda a campanha aparece, às
+  20h00 desaparece.
+- [ ] Falta o conteúdo: o cartaz e o texto da oferta estão só nas
+      imagens do Drive (`outubro-rosa-post-4x5.png`), que não se lêem a
+      partir daqui. O Elmar envia o cartaz ou o texto na conversa.
+
 ---
 
 ## 4. Em cada aparelho

@@ -235,6 +235,7 @@ table.fases{width:100%;border-collapse:collapse;font-size:15.5px}
 #galeria[hidden],#campanhas[hidden]{display:none}
 .campanha{padding:22px 0;border-bottom:1px solid var(--linha)}
 .campanha h3{font-size:18px}
+.campanha img{display:block;width:100%;max-width:420px;height:auto;border-radius:6px;margin-bottom:14px}
 .campanha p,.campanha time{display:block;color:var(--t2);margin-top:6px}
 
 /* chamada */
@@ -729,9 +730,12 @@ footer .marca-rodape img{width:52px;height:52px;background:#fff;border-radius:50
   var sec = document.getElementById('campanhas'), list = document.getElementById('camplist');
   fetch('campanhas.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : []; }).then(function (items) {
     if (!Array.isArray(items)) return;
-    var hoje = new Date().toISOString().slice(0, 10);
-    items.filter(function (c) { return !c.fim || c.fim >= hoje; }).slice(0, 6).forEach(function (c) {
+    /* fim: "AAAA-MM-DD" (até ao fim do dia) ou com hora, "2026-10-31T20:00:00+01:00". Hora de Luanda. */
+    var agora = Date.now();
+    var fimDe = function (f) { return new Date(String(f).length === 10 ? f + 'T23:59:59+01:00' : f).getTime(); };
+    items.filter(function (c) { return !c.fim || !(fimDe(c.fim) <= agora); }).slice(0, 6).forEach(function (c) {
       var d = document.createElement('div'); d.className = 'campanha';
+      if (c.imagem) { var im = document.createElement('img'); im.src = c.imagem; im.alt = c.titulo || ''; im.loading = 'lazy'; d.appendChild(im); }
       var h = document.createElement('h3'); h.textContent = c.titulo || ''; d.appendChild(h);
       if (c.resumo) { var p = document.createElement('p'); p.textContent = c.resumo; d.appendChild(p); }
       if (c.periodo) { var t = document.createElement('time'); t.textContent = c.periodo; d.appendChild(t); }
