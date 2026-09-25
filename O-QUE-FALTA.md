@@ -821,6 +821,22 @@ que tinha gravado.
   deslocamento horizontal, Ano → Mês → Dia, setas, «Hoje»; testes
   anteriores iguais.
 
+
+## 3-w. Escolher a ordem das listas (25-09-2026)
+
+As listas abrem por ordem alfabética (3-q), mas agora cada uma tem
+«Ordenar:» para mudar. `bspOrdenar(lista, modo, campos)`, `useOrdem` (a
+escolha fica guardada no aparelho, `bsp-ordem-<lista>`) e `OrdemSelect`.
+
+- Drive: nome A–Z / Z–A, mais recentes / mais antigos, maiores / menores.
+- Directório: nome A–Z / Z–A, departamento A–Z / Z–A, cargo. A pesquisa
+  do Directório passou a funcionar (antes não fazia nada).
+- CRM · Pedidos do WhatsApp: mais recentes / antigos, nome, mais tempo
+  sem resposta. CRM · Recuperar utentes: há mais / menos tempo, nome,
+  mais visitas. CRM · Fichas: nome, última vez, mais vezes.
+- Campos vazios ficam sempre no fim.
+- Confirmado com Playwright; testes anteriores iguais.
+
 ---
 
 ## 4. Em cada aparelho

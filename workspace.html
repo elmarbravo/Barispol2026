@@ -1214,6 +1214,53 @@ function bspPorNome(a, b) {
 }
 USERS.sort(bspPorNome);
 DEPARTMENTS.sort(bspPorNome);
+/* Escolha de ordem nas listas (25-09-2026): por omissao A-Z, mas cada
+   lista deixa mudar para Z-A, por data ou por outro campo que tenha.
+   modo = '<campo>-asc' ou '<campo>-desc'; campos = { campo: x => valor }. */
+function bspOrdenar(lista, modo, campos) {
+  const m = /^(.+)-(asc|desc)$/.exec(String(modo || ''));
+  const f = m && campos[m[1]];
+  if (!f) return lista;
+  const sinal = m[2] === 'desc' ? -1 : 1;
+  return lista.slice().sort((a, b) => {
+    const va = f(a), vb = f(b);
+    const vazioA = va == null || va === '', vazioB = vb == null || vb === '';
+    if (vazioA || vazioB) return vazioA === vazioB ? 0 : vazioA ? 1 : -1;
+    const c = typeof va === 'number' && typeof vb === 'number' ? va - vb : bspCompararTexto(va, vb);
+    return c * sinal;
+  });
+}
+/* A ordem escolhida fica guardada neste aparelho, lista a lista. */
+function useOrdem(chave, padrao, validas) {
+  const [v, setV] = React.useState(() => {
+    try {
+      const x = localStorage.getItem('bsp-ordem-' + chave);
+      if (x && (!validas || validas.indexOf(x) !== -1)) return x;
+    } catch (e) {}
+    return padrao;
+  });
+  const mudar = x => {
+    setV(x);
+    try { localStorage.setItem('bsp-ordem-' + chave, x); } catch (e) {}
+  };
+  return [v, mudar];
+}
+function OrdemSelect({ valor, onMudar, opcoes }) {
+  return React.createElement("select", {
+    value: valor, onChange: e => onMudar(e.target.value), title: 'Ordenar', 'aria-label': 'Ordenar',
+    style: {
+      height: 34, padding: '0 8px', borderRadius: 9, border: '1px solid var(--border)',
+      background: 'var(--surface)', color: 'var(--text-2)', fontSize: 12.5,
+      fontFamily: 'inherit', cursor: 'pointer'
+    }
+  }, opcoes.map(([k, rot]) => React.createElement("option", { key: k, value: k }, 'Ordenar: ' + rot)));
+}
+const BSP_ORDEM_DRIVE = [['nome-asc', 'Nome (A–Z)'], ['nome-desc', 'Nome (Z–A)'], ['data-desc', 'Mais recentes'], ['data-asc', 'Mais antigos'], ['tamanho-desc', 'Maiores'], ['tamanho-asc', 'Menores']];
+const BSP_ORDEM_DIRECTORIO = [['nome-asc', 'Nome (A–Z)'], ['nome-desc', 'Nome (Z–A)'], ['dept-asc', 'Departamento (A–Z)'], ['dept-desc', 'Departamento (Z–A)'], ['cargo-asc', 'Cargo (A–Z)']];
+const BSP_ORDEM_PEDIDOS = [['data-desc', 'Mais recentes'], ['data-asc', 'Mais antigos'], ['nome-asc', 'Nome (A–Z)'], ['nome-desc', 'Nome (Z–A)'], ['espera-desc', 'Mais tempo sem resposta']];
+const BSP_ORDEM_SEGUIMENTO = [['dias-desc', 'Há mais tempo'], ['dias-asc', 'Há menos tempo'], ['nome-asc', 'Nome (A–Z)'], ['nome-desc', 'Nome (Z–A)'], ['visitas-desc', 'Mais visitas']];
+const BSP_ORDEM_FICHAS = [['nome-asc', 'Nome (A–Z)'], ['nome-desc', 'Nome (Z–A)'], ['data-desc', 'Última vez: mais recente'], ['data-asc', 'Última vez: mais antiga'], ['visitas-desc', 'Mais vezes']];
+const bspChaves = l => l.map(x => x[0]);
 /* CAMADAS DE ACESSO — quatro níveis.
    O nível de cada pessoa fica no campo accessLevel, editável em Admin.
    canais: '*' vê todos; senão, a lista de departamentos que alcança.
@@ -12490,7 +12537,7 @@ function DriveScreen() {
     try { return localStorage.getItem('bsp_drive_vista') || 'grelha'; } catch (e) { return 'grelha'; }
   });
   const [procura, setProcura] = React.useState('');
-  const [ordem, setOrdem] = React.useState('nome');
+  const [ordem, setOrdem] = useOrdem('drive', 'nome-asc', bspChaves(BSP_ORDEM_DRIVE));
   const [novaPasta, setNovaPasta] = React.useState(null);
   const [renomear, setRenomear] = React.useState(null);
   const [mover, setMover] = React.useState(null);
@@ -12532,12 +12579,11 @@ function DriveScreen() {
       const q = norm(procura);
       base = base.filter(x => norm(x.name).indexOf(q) !== -1);
     }
-    const por = {
-      nome: (a, b) => String(a.name).localeCompare(String(b.name), 'pt'),
-      tamanho: (a, b) => (b.bytes || 0) - (a.bytes || 0),
-      data: (a, b) => String(b.criado || '').localeCompare(String(a.criado || ''))
-    };
-    const lista = base.slice().sort(por[ordem] || por.nome);
+    const lista = bspOrdenar(base, ordem, {
+      nome: x => x.name,
+      tamanho: x => x.bytes || 0,
+      data: x => x.criado || ''
+    });
     /* As pastas primeiro, sempre. */
     return lista.filter(x => x.pasta_mesmo).concat(lista.filter(x => !x.pasta_mesmo));
   }, [ehPessoal, pessoais.lista, state.driveFiles, caminho, procura, ordem, aProcurar]);
@@ -12750,17 +12796,7 @@ function DriveScreen() {
       border: '1px solid var(--border)', background: 'var(--surface)',
       color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 12.5
     }
-  }), React.createElement("select", {
-    value: ordem,
-    onChange: e => setOrdem(e.target.value),
-    style: {
-      padding: '7px 9px', borderRadius: 8, border: '1px solid var(--border)',
-      background: 'var(--surface)', color: 'var(--text-2)',
-      fontFamily: 'inherit', fontSize: 12.5, cursor: 'pointer'
-    }
-  }, React.createElement("option", { value: "tamanho" }, "Maiores"),
-     React.createElement("option", { value: "data" }, "Mais recentes"),
-     React.createElement("option", { value: "nome" }, "Nome")),
+  }), React.createElement(OrdemSelect, { valor: ordem, onMudar: setOrdem, opcoes: BSP_ORDEM_DRIVE }),
   React.createElement("div", {
     style: { display: 'flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }
   }, [{
@@ -13329,7 +13365,12 @@ function DirectoryScreen() {
   const [view, setView] = React.useState('grid');
   const [showOrg, setShowOrg] = React.useState(false);
   const depts = ['todos', ...DEPARTMENTS.map(d => d.name)];
-  const list = filter === 'todos' ? USERS : USERS.filter(u => u.dept === filter);
+  const [busca, setBusca] = React.useState('');
+  const [ordem, setOrdem] = useOrdem('directorio', 'nome-asc', bspChaves(BSP_ORDEM_DIRECTORIO));
+  const semAcento = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const list = bspOrdenar((filter === 'todos' ? USERS : USERS.filter(u => u.dept === filter))
+    .filter(u => !busca.trim() || [u.name, u.role, u.dept, u.email].some(x => semAcento(x).indexOf(semAcento(busca.trim())) !== -1)),
+    ordem, { nome: u => u.name, dept: u => u.dept, cargo: u => u.role });
   return React.createElement("div", {
     style: {
       height: '100%',
@@ -13401,6 +13442,8 @@ function DirectoryScreen() {
     }
   }), React.createElement("input", {
     placeholder: "Pesquisar colaboradores...",
+    value: busca,
+    onChange: e => setBusca(e.target.value),
     style: {
       width: 240,
       height: 34,
@@ -13413,7 +13456,7 @@ function DirectoryScreen() {
       fontFamily: 'inherit',
       color: 'var(--text-1)'
     }
-  })), !showOrg && React.createElement("div", {
+  })), !showOrg && React.createElement(OrdemSelect, { valor: ordem, onMudar: setOrdem, opcoes: BSP_ORDEM_DIRECTORIO }), !showOrg && React.createElement("div", {
     style: {
       display: 'inline-flex',
       background: 'var(--surface-2)',
@@ -18767,14 +18810,15 @@ function SeguimentoScreen() {
   const eu = bspResolveUser(null, equipa);
   const podeImportar = bspCamada(eu).podeGerirUtilizadores;
 
-  const visiveis = linhas.filter(l => {
+  const [ordem, setOrdem] = useOrdem('seguimento', 'dias-desc', bspChaves(BSP_ORDEM_SEGUIMENTO));
+  const visiveis = bspOrdenar(linhas.filter(l => {
     const e = l.seg ? l.seg.estado : 'por-contactar';
     if (filtro !== 'todos' && e !== filtro) return false;
     if (!busca.trim()) return true;
     const q = busca.trim().toLowerCase();
     return String(l.nome || '').toLowerCase().indexOf(q) !== -1 ||
            String(l.telefone || '').indexOf(q) !== -1;
-  });
+  }), ordem, { nome: l => l.nome, dias: l => Number(l.dias) || 0, visitas: l => Number(l.visitas) || 0 });
 
   const contagem = {};
   BSP_ESTADOS.forEach(e => contagem[e.id] = 0);
@@ -18836,7 +18880,7 @@ function SeguimentoScreen() {
         border: '1px solid var(--border)', background: 'var(--surface-2)',
         color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit'
       }
-    })),
+    }), React.createElement(OrdemSelect, { valor: ordem, onMudar: setOrdem, opcoes: BSP_ORDEM_SEGUIMENTO })),
 
   linhas.length > 0 && React.createElement("div", {
     style: { display: 'flex', gap: 8, flexWrap: 'wrap', flex: 'none' }
@@ -19029,7 +19073,8 @@ function CrmPedidos() {
   BSP_CRM_ESTADOS.forEach(e => contagem[e.id] = 0);
   linhas.forEach(l => { contagem[l.estado] = (contagem[l.estado] || 0) + 1; });
 
-  const visiveis = linhas.filter(l => {
+  const [ordem, setOrdem] = useOrdem('pedidos', 'data-desc', bspChaves(BSP_ORDEM_PEDIDOS));
+  const visiveis = bspOrdenar(linhas.filter(l => {
     if (filtro === 'abertos' && abertos.indexOf(l.estado) === -1) return false;
     if (filtro !== 'abertos' && filtro !== 'todos' && l.estado !== filtro) return false;
     if (origem !== 'todas' && l.origem !== origem) return false;
@@ -19037,6 +19082,11 @@ function CrmPedidos() {
     if (!q) return true;
     return [l.paciente_nome, l.nome_whatsapp, l.telefone, l.servico, l.primeira_mensagem]
       .some(x => String(x || '').toLowerCase().indexOf(q) !== -1);
+  }), ordem, {
+    data: l => l.inicio || '',
+    nome: l => l.paciente_nome || l.nome_whatsapp || l.telefone,
+    /* Sem resposta conta como a espera maior. */
+    espera: l => l.resposta_humana_min == null ? 1e9 : Number(l.resposta_humana_min)
   });
 
   const chip = (on, cor, fundo) => ({
@@ -19078,7 +19128,7 @@ function CrmPedidos() {
     React.createElement("input", {
       value: busca, onChange: e => setBusca(e.target.value), placeholder: "Procurar nome, telefone ou serviço",
       style: { height: 34, padding: '0 12px', borderRadius: 9, minWidth: 220, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }
-    })),
+    }), React.createElement(OrdemSelect, { valor: ordem, onMudar: setOrdem, opcoes: BSP_ORDEM_PEDIDOS })),
   linhas.length > 0 && React.createElement("div", {
     style: { display: 'flex', gap: 8, flexWrap: 'wrap', flex: 'none' }
   }, React.createElement("button", { onClick: () => setFiltro('abertos'), style: chip(filtro === 'abertos') },
@@ -19286,6 +19336,8 @@ function CrmFichas() {
   const [res, setRes] = React.useState([]);
   const [estado, setEstado] = React.useState('');
   const [ficha, setFicha] = React.useState(null);
+  const [ordem, setOrdem] = useOrdem('fichas', 'nome-asc', bspChaves(BSP_ORDEM_FICHAS));
+  const resOrd = bspOrdenar(res, ordem, { nome: x => x.nome, data: x => x.ultima || '', visitas: x => Number(x.visitas) || 0 });
   React.useEffect(() => {
     const t = q.trim();
     if (t.length < 3) { setRes([]); setEstado(''); return; }
@@ -19309,12 +19361,13 @@ function CrmFichas() {
       autoFocus: true, value: q, onChange: e => setQ(e.target.value), placeholder: 'Nome ou telefone (mínimo 3 letras)',
       style: { height: 38, padding: '0 12px', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-1)', fontSize: 14, outline: 'none', fontFamily: 'inherit', maxWidth: 420 }
     }),
+    res.length > 1 && React.createElement("div", null, React.createElement(OrdemSelect, { valor: ordem, onMudar: setOrdem, opcoes: BSP_ORDEM_FICHAS })),
     React.createElement(Card, { pad: 0, style: { flex: 1, overflow: 'auto', minHeight: 0 } },
       estado ? React.createElement("div", { style: { padding: 24, textAlign: 'center', color: 'var(--text-3)', fontSize: 13 } }, estado === 'a-procurar' ? 'A procurar…' : estado)
       : !res.length ? React.createElement("div", { style: { padding: 24, textAlign: 'center', color: 'var(--text-3)', fontSize: 13 } }, q.trim().length < 3 ? 'Escreva para procurar.' : 'Ninguém encontrado.')
-      : res.map((x, i) => React.createElement("div", {
+      : resOrd.map((x, i) => React.createElement("div", {
         key: x.id, className: "bsp-row-hover", onClick: () => setFicha({ paciente: x.id, tel9: x.tel9, nome: x.nome }),
-        style: { display: 'flex', gap: 10, alignItems: 'center', padding: '12px 16px', cursor: 'pointer', borderBottom: i < res.length - 1 ? '1px solid var(--border)' : 'none' }
+        style: { display: 'flex', gap: 10, alignItems: 'center', padding: '12px 16px', cursor: 'pointer', borderBottom: i < resOrd.length - 1 ? '1px solid var(--border)' : 'none' }
       }, React.createElement("div", { style: { flex: 1, minWidth: 0 } },
           React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: 'var(--text-1)' } }, x.nome),
           React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, (x.tel9 ? '+244 ' + x.tel9 : 'sem telefone') + (x.ultima ? ' · última vez ' + bspCrmData(x.ultima) : ''))),

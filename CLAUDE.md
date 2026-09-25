@@ -127,7 +127,8 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   `DEPARTMENTS`, `CHANNELS` e `BSP_RELATORIOS` são ordenados na origem com
   `bspPorNome` / `bspCompararTexto`. Nunca usar `USERS[0]` como «o
   utilizador principal». Os estados do CRM mantêm a ordem do processo
-  (o primeiro é o valor por omissão); só os menus os mostram por ordem.
+  (o primeiro é o valor por omissão); só os menus os mostram por ordem. Nas listas com
+  «Ordenar:» usar `bspOrdenar` + `useOrdem` + `OrdemSelect` (25-09-2026).
 - Canais de área pela função (25-09-2026): o departamento da pessoa
   decide (`bspVeCanal` + `bspAreaChave`, e no servidor `bsp_ve_conversa`
   com `bsp_area_chave`/`bsp_minha_area`). Direcção e Coordenação vêem
