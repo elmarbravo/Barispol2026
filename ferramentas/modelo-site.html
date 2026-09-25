@@ -189,6 +189,11 @@ table.fases{width:100%;border-collapse:collapse;font-size:15.5px}
 .campanha .itens li{display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid var(--linha);color:var(--t1)}
 .campanha .itens li b{white-space:nowrap}
 .campanha .itens s{color:var(--t2);font-weight:400;margin-right:6px}
+@media (min-width:760px){
+  .campanha.com-imagem{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);column-gap:32px;align-items:start}
+  .campanha.com-imagem > img{grid-column:1;grid-row:1 / span 20;margin:0}
+  .campanha.com-imagem > :not(img){grid-column:2}
+}
 .campanha p,.campanha time{display:block;color:var(--t2);margin-top:6px}
 
 /* chamada */
@@ -647,7 +652,7 @@ footer .marca-rodape img{width:52px;height:52px;background:#fff;border-radius:50
     var fimDe = function (f) { return new Date(String(f).length === 10 ? f + 'T23:59:59+01:00' : f).getTime(); };
     items.filter(function (c) { return !c.fim || !(fimDe(c.fim) <= agora); }).slice(0, 6).forEach(function (c) {
       var d = document.createElement('div'); d.className = 'campanha';
-      if (c.imagem) { var im = document.createElement('img'); im.src = c.imagem; im.alt = c.titulo || ''; im.loading = 'lazy'; d.appendChild(im); }
+      if (c.imagem) { d.className += ' com-imagem'; var im = document.createElement('img'); im.src = c.imagem; im.alt = c.imagemAlt || c.titulo || ''; im.loading = 'lazy'; im.width = 960; im.height = 1200; d.appendChild(im); }
       var h = document.createElement('h3'); h.textContent = c.titulo || ''; d.appendChild(h);
       if (c.resumo) { var p = document.createElement('p'); p.textContent = c.resumo; d.appendChild(p); }
       if (c.cor) { d.className += ' cor'; d.style.setProperty('--cor', c.cor); }

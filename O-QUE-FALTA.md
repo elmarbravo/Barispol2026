@@ -769,9 +769,10 @@ Pedido do Elmar: pôr no site a campanha Outubro Rosa e retirá-la a
   análises complementares, de 1 a 31 de Outubro. Sai a 31-10-2026, 20h00.
   Campos novos `itens` e `cor`; a secção subiu para logo abaixo da
   abertura.
-- [ ] Cartaz: a fotografia do post não chega ao repositório (Drive do
-      Workspace privado, SharePoint só de leitura). Com o ficheiro,
-      guardar em `assets/` e pôr em `imagem`.
+- Cartaz (post 4x5 do feed, enviado pelo Elmar na conversa):
+  `assets/outubro-rosa.webp`, 960×1200, 75 KB. No computador fica à
+  esquerda do texto; no telemóvel, por cima. Campo `imagemAlt` para o
+  texto alternativo.
 - [ ] Confirmar com a recepção que o desconto está criado no MetaGest
       (nota do ficheiro de textos).
 

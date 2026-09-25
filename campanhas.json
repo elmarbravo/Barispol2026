@@ -3,13 +3,22 @@
     "titulo": "Outubro Rosa",
     "resumo": "A prevenção salva vidas, e o primeiro passo é uma consulta. Marque a sua consulta de ginecologia e traga uma amiga.",
     "itens": [
-      { "nome": "Consulta de ginecologia", "antes": "24.900", "valor": "12.450 Kz" },
-      { "nome": "Análises complementares à consulta", "valor": "50 % de desconto" }
+      {
+        "nome": "Consulta de ginecologia",
+        "antes": "24.900",
+        "valor": "12.450 Kz"
+      },
+      {
+        "nome": "Análises complementares à consulta",
+        "valor": "50 % de desconto"
+      }
     ],
     "periodo": "De 1 a 31 de Outubro de 2026. Análises do nosso laboratório; não inclui ecografias nem exames externos.",
     "fim": "2026-10-31T20:00:00+01:00",
     "cor": "#B81E5E",
     "link": "https://wa.me/244946373631?text=Ol%C3%A1%2C%20gostaria%20de%20marcar%20a%20consulta%20de%20ginecologia%20do%20Outubro%20Rosa.",
-    "cta": "Marcar pelo WhatsApp"
+    "cta": "Marcar pelo WhatsApp",
+    "imagem": "assets/outubro-rosa.webp",
+    "imagemAlt": "Cartaz Outubro Rosa: consulta de ginecologia a 12.450 Kz e 50 % nas análises complementares, de 1 a 31 de Outubro"
   }
 ]
