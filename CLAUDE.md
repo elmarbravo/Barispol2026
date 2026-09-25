@@ -124,6 +124,14 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   para as variáveis, e nunca escritas à mão no código.
 - Calendário (opção C, aprovada): os eventos são rotina semanal. Cada
   evento tem um dia da semana e repete-se todas as semanas nesse dia.
+  Desde 25-09-2026 um evento também pode ser «Numa data» (campo `data`,
+  AAAA-MM-DD): usar `bspEventoNoDia()` para saber se aparece num dia, e
+  a `resumo-matinal` só o anuncia nesse dia.
+- Tarefas privadas partilhadas: coluna `partilhada_com` em
+  `tarefas_pessoais` (`tarefas-partilhadas.sql`). Editar uma tarefa
+  privada vai por `pess.actualizar`, nunca por `actions.updateTask`.
+- Anexos no chat: `enviarFicheiros(lista)` no `ChatScreen` serve o clipe
+  (vários ficheiros) e o arrastar com o rato.
 
 ## Decisões aprovadas
 

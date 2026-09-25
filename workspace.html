@@ -3035,6 +3035,28 @@ const STORAGE_KEY = 'bsp-workspace-v1';
    O que foi gravado antes sem data nenhuma (a palavra "agora" escrita a
    letra) nao tem data para mostrar: aparece em branco, em vez de mentir. */
 const BSP_MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+/* Eventos com data (25-09-2026). Um evento repete-se todas as semanas
+   (campo day, 0 = Segunda) ou e so numa data (campo data, AAAA-MM-DD).
+   Os com data so aparecem na semana dessa data. */
+function bspDataLocalISO(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function bspDiaDaSemanaAtual(di) {
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  d.setDate(d.getDate() - (d.getDay() + 6) % 7 + di);
+  return bspDataLocalISO(d);
+}
+function bspEventoNoDia(e, di, todayIdx) {
+  if (e && e.data) return String(e.data) === bspDiaDaSemanaAtual(di);
+  return (e.day == null ? todayIdx : e.day) === di;
+}
+/* «30 Set 2026», para prazos e datas de eventos. */
+function bspDataCurta(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+  if (!m) return '';
+  return Number(m[3]) + ' ' + BSP_MESES[Number(m[2]) - 1] + ' ' + m[1];
+}
 const BSP_MESES_EXTENSO = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 const BSP_DIAS_SEMANA = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 /* O separador entre dias numa conversa: "Quinta-feira, 24 de Setembro de 2026". */
@@ -6659,31 +6681,49 @@ function ChatScreen({
     }
     if (ta) setTimeout(() => ta.focus(), 0);
   }
-  async function onAttach(e) {
-    const f = (e.target.files || [])[0];
-    e.target.value = '';
-    if (!f) return;
+  /* Varios ficheiros de uma vez, pelo clipe ou a arrastar com o rato
+     (25-09-2026). Cada ficheiro vai numa mensagem, pela ordem escolhida. */
+  const [aCarregar, setACarregar] = React.useState(0);
+  const [arrastar, setArrastar] = React.useState(false);
+  async function enviarFicheiros(lista) {
+    const fs = Array.from(lista || []).filter(Boolean);
+    if (!fs.length) return;
     if (!bspGetClient()) {
       window.alert('O servidor não está ligado neste dispositivo.');
       return;
     }
-    if (f.size > BSP_MAX_BYTES) {
-      window.alert('O ficheiro excede 25 MB.');
-      return;
+    const grandes = fs.filter(f => f.size > BSP_MAX_BYTES);
+    const bons = fs.filter(f => f.size <= BSP_MAX_BYTES).slice(0, 10);
+    if (grandes.length) window.alert(grandes.length === 1 ? 'O ficheiro ' + grandes[0].name + ' excede 25 MB e não foi enviado.' : grandes.length + ' ficheiros excedem 25 MB e não foram enviados.');
+    if (fs.length - grandes.length > 10) window.alert('Enviam-se no máximo 10 ficheiros de cada vez. Seguem os primeiros 10.');
+    const conv = convKey;
+    let falhas = 0;
+    setACarregar(n => n + bons.length);
+    for (const f of bons) {
+      try {
+        /* Nada de uploadFile: o ficheiro fica na conversa, e nao no Drive
+           da equipa. Antes, um documento mandado numa mensagem directa
+           aparecia no Drive de toda a gente. */
+        const caminho = await bspUploadToStorage(f, 'conversa/' + conv);
+        actions.sendMessage(conv, {
+          userId: currentUser.id,
+          text: bspMensagemComAnexo(f.name, caminho, f.size)
+        });
+      } catch (err) {
+        falhas++;
+      }
+      setACarregar(n => Math.max(0, n - 1));
     }
-    try {
-      /* Nada de uploadFile: o ficheiro fica na conversa, e nao no Drive
-         da equipa. Antes, um documento mandado numa mensagem directa
-         aparecia no Drive de toda a gente. */
-      const caminho = await bspUploadToStorage(f, 'conversa/' + convKey);
-      actions.sendMessage(convKey, {
-        userId: currentUser.id,
-        text: bspMensagemComAnexo(f.name, caminho, f.size)
-      });
-    } catch (err) {
-      window.alert('Não foi possível carregar o ficheiro.');
-    }
+    if (falhas) window.alert(falhas === 1 ? 'Não foi possível carregar um dos ficheiros.' : 'Não foi possível carregar ' + falhas + ' ficheiros.');
   }
+  function onAttach(e) {
+    const lista = Array.from(e.target.files || []);
+    e.target.value = '';
+    enviarFicheiros(lista);
+  }
+  const temFicheiros = ev => {
+    try { return Array.from(ev.dataTransfer && ev.dataTransfer.types || []).indexOf('Files') !== -1; } catch (x) { return false; }
+  };
   function selectChannel(id) {
     setChannelId(id);
     setDmId(null);
@@ -6716,6 +6756,21 @@ function ChatScreen({
   }
   return React.createElement("div", {
     className: "bsp-chat-ecra",
+    onDragOver: e => {
+      if (!temFicheiros(e)) return;
+      e.preventDefault();
+      if (!arrastar) setArrastar(true);
+    },
+    onDragLeave: e => {
+      if (e.currentTarget.contains(e.relatedTarget)) return;
+      setArrastar(false);
+    },
+    onDrop: e => {
+      if (!temFicheiros(e)) return;
+      e.preventDefault();
+      setArrastar(false);
+      enviarFicheiros(e.dataTransfer.files);
+    },
     style: {
       position: 'relative',
       display: 'grid',
@@ -6727,7 +6782,19 @@ function ChatScreen({
       border: '1px solid var(--border)',
       borderRadius: 14
     }
-  }, thread && React.createElement(TopicoPanel, {
+  }, arrastar && React.createElement("div", {
+    style: {
+      position: 'absolute', inset: 8, zIndex: 80, border: '2px dashed var(--accent)', borderRadius: 8,
+      background: 'rgba(245,244,242,.92)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: 16, fontWeight: 700, color: 'var(--navy)', pointerEvents: 'none', textAlign: 'center', padding: 20
+    }
+  }, "Largue aqui os ficheiros para os enviar nesta conversa"), aCarregar > 0 && React.createElement("div", {
+    role: "status",
+    style: {
+      position: 'absolute', left: '50%', bottom: 90, transform: 'translateX(-50%)', zIndex: 81,
+      background: 'var(--navy)', color: '#fff', fontSize: 12.5, fontWeight: 600, padding: '7px 14px', borderRadius: 4
+    }
+  }, aCarregar === 1 ? 'A carregar 1 ficheiro' : 'A carregar ' + aCarregar + ' ficheiros'), thread && React.createElement(TopicoPanel, {
     thread: thread,
     currentUser: currentUser,
     onClose: () => setThread(null)
@@ -7710,6 +7777,7 @@ function ChatScreen({
   }, React.createElement("input", {
     ref: attachRef,
     type: "file",
+    multiple: true,
     style: {
       display: 'none'
     },
@@ -7720,7 +7788,7 @@ function ChatScreen({
       width: 30,
       height: 30
     },
-    title: "Anexar ficheiro (partilha no Drive)",
+    title: "Anexar ficheiros (também pode arrastá-los para a conversa)",
     onClick: () => attachRef.current && attachRef.current.click()
   }, React.createElement(I.Paperclip, {
     size: 15
@@ -9633,6 +9701,9 @@ function CalEventModal({
   const [time, setTime] = React.useState('09:00');
   const [dur, setDur] = React.useState('60');
   const [cat, setCat] = React.useState('reuniao');
+  /* «Todas as semanas» (opcao C, a regra) ou «Numa data» (25-09-2026). */
+  const [repete, setRepete] = React.useState(true);
+  const [data, setData] = React.useState(bspDataLocalISO(new Date()));
   React.useEffect(() => {
     if (open) {
       setTitle('');
@@ -9640,17 +9711,21 @@ function CalEventModal({
       setTime('09:00');
       setDur('60');
       setCat('reuniao');
+      setRepete(true);
+      setData(bspDataLocalISO(new Date()));
     }
   }, [open]);
   const submit = () => {
     if (!title.trim()) return;
-    onCreate({
+    if (!repete && !/^\d{4}-\d{2}-\d{2}$/.test(data)) return;
+    const diaDaData = !repete ? (new Date(data + 'T12:00:00').getDay() + 6) % 7 : null;
+    onCreate(Object.assign({
       title: title.trim(),
-      day: Number(day),
+      day: repete ? Number(day) : diaDaData,
       time,
       dur: Number(dur),
       cat
-    });
+    }, repete ? {} : { data: data }));
     onClose();
   };
   return React.createElement(Modal, {
@@ -9754,7 +9829,20 @@ function CalEventModal({
       display: 'block',
       marginBottom: 6
     }
-  }, "Dia da semana"), React.createElement("div", {
+  }, "Quando"), React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6,
+      flexWrap: 'wrap',
+      marginBottom: 10
+    }
+  }, React.createElement("button", {
+    onClick: () => setRepete(true),
+    style: chip(repete)
+  }, "Todas as semanas"), React.createElement("button", {
+    onClick: () => setRepete(false),
+    style: chip(!repete)
+  }, "Numa data")), repete ? React.createElement("div", {
     style: {
       display: 'flex',
       gap: 5,
@@ -9764,7 +9852,23 @@ function CalEventModal({
     key: v,
     onClick: () => setDay(v),
     style: chip(day === v)
-  }, l)))), React.createElement("div", null, React.createElement("label", {
+  }, l))) : React.createElement("input", {
+    type: "date",
+    value: data,
+    onChange: e => setData(e.target.value),
+    style: {
+      width: '100%',
+      height: 40,
+      padding: '0 12px',
+      border: '1px solid var(--border)',
+      borderRadius: 8,
+      fontSize: 13.5,
+      fontFamily: 'inherit',
+      color: 'var(--text-1)',
+      background: 'var(--surface)',
+      outline: 'none'
+    }
+  })), React.createElement("div", null, React.createElement("label", {
     style: {
       fontSize: 12,
       fontWeight: 600,
@@ -9914,7 +10018,7 @@ function CalendarScreen() {
       color: 'var(--text-3)',
       marginTop: 2
     }
-  }, events.filter(e => (e.day == null ? todayIdx : e.day) === todayIdx).length, " eventos agendados"), React.createElement("div", {
+  }, events.filter(e => bspEventoNoDia(e, todayIdx, todayIdx)).length, " eventos agendados"), React.createElement("div", {
     style: {
       fontSize: 11.5,
       color: 'var(--text-3)',
@@ -9923,7 +10027,23 @@ function CalendarScreen() {
       borderTop: '1px solid var(--border)',
       paddingTop: 10
     }
-  }, "Esta grelha é uma rotina semanal. Cada evento repete-se todas as semanas no mesmo dia e à mesma hora. Não guarda datas, por isso não serve para marcar uma coisa num dia certo."))), React.createElement(Card, {
+  }, "Os eventos «Todas as semanas» repetem-se no mesmo dia e à mesma hora. Os eventos «Numa data» só aparecem na semana dessa data."), (() => {
+    /* Proximos eventos com data, para os que caem noutras semanas. */
+    const hojeISO = bspDataLocalISO(new Date());
+    const prox = events.filter(e => e && e.data && String(e.data) >= hojeISO)
+      .sort((a, b) => (String(a.data) + (a.time || '')).localeCompare(String(b.data) + (b.time || ''))).slice(0, 8);
+    if (!prox.length) return null;
+    return React.createElement("div", {
+      style: { marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 10 }
+    }, React.createElement("div", {
+      style: { fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 6 }
+    }, "Próximos com data"), prox.map((e, i) => React.createElement("div", {
+      key: (e.id || i) + '',
+      style: { fontSize: 12.5, color: 'var(--text-1)', padding: '5px 0', borderBottom: '1px solid var(--border)' }
+    }, React.createElement("div", { style: { fontWeight: 600 } }, e.title), React.createElement("div", {
+      style: { fontSize: 11.5, color: 'var(--text-3)' }
+    }, bspDataCurta(e.data) + (e.time ? ', ' + e.time : '')))));
+  })())), React.createElement(Card, {
     pad: 0,
     style: {
       overflow: 'hidden',
@@ -9997,7 +10117,7 @@ function WeekGrid({
       borderBottom: '1px solid var(--border)'
     }
   }, String(h).padStart(2, '0'), ":00"))), days.map((d, di) => {
-    const dayEvents = events.filter(e => (e.day == null ? todayIdx : e.day) === di);
+    const dayEvents = events.filter(e => bspEventoNoDia(e, di, todayIdx));
     return React.createElement("div", {
       key: di,
       onDoubleClick: onAdd,
@@ -10721,6 +10841,7 @@ function TaskComposer({
   onCreate,
   onUpdate,
   onMove,
+  onUpdatePessoal,
   defaultCol,
   editTask
 }) {
@@ -10758,6 +10879,10 @@ function TaskComposer({
   /* Direccao e Coordenacao delegam: escolhem para quem e a tarefa privada. */
   const podeDelegar = !!bspCamada(window.userById(window.CURRENT_USER_ID)).podeVerTarefasPessoais;
   const [paraQuem, setParaQuem] = React.useState(window.CURRENT_USER_ID);
+  /* Tarefa privada para varias pessoas (25-09-2026): a primeira e a dona,
+     as outras partilham-na. Quem nao delega so escolhe com quem partilha. */
+  const [pessoas, setPessoas] = React.useState([window.CURRENT_USER_ID]);
+  const [prazo, setPrazo] = React.useState('');
   /* Quem escreve tem de saber quem pode ler. Lido das camadas vivas, para
      o aviso acompanhar o que estiver ligado em Admin -> Permissões. */
   const camadasQueVeem = React.useMemo(() => {
@@ -10772,37 +10897,58 @@ function TaskComposer({
       setWho(editTask ? editTask.assignees || [] : []);
       setPessoal(false);
       setParaQuem(window.CURRENT_USER_ID);
+      setPessoas([window.CURRENT_USER_ID]);
+      setPrazo(editTask && editTask.due ? String(editTask.due).slice(0, 10) : '');
     }
   }, [open, defaultCol, editTask]);
   const submit = () => {
     if (!title.trim()) return;
+    if (editTask && editTask.pessoal && onUpdatePessoal) {
+      /* Antes, editar uma tarefa privada ia para o quadro da equipa e nao
+         gravava nada (25-09-2026). */
+      onUpdatePessoal(editTask.idReal, {
+        coluna: col,
+        titulo: title.trim(),
+        prioridade: prio,
+        prazo: prazo || null
+      });
+      onClose();
+      return;
+    }
     if (editTask) {
       const fromCol = defaultCol;
       if (col !== fromCol && onMove) onMove(fromCol, col, editTask.id);
       if (onUpdate) onUpdate(col, editTask.id, {
         title: title.trim(),
         priority: prio,
-        assignees: who
+        assignees: who,
+        due: prazo
       });
       onClose();
       return;
     }
+    const eu = window.CURRENT_USER_ID;
+    const escolhidos = pessoal ? (podeDelegar ? pessoas : [eu].concat(pessoas.filter(x => x !== eu))) : [];
+    const dono = pessoal ? (escolhidos[0] || eu) : undefined;
+    const partilhadaCom = pessoal ? escolhidos.filter(x => x !== dono) : [];
     onCreate(col, {
       title: title.trim(),
       priority: prio,
       /* Uma tarefa pessoal não tem responsáveis: é sua e mais de ninguém. */
       assignees: pessoal ? [] : who,
       pessoal: pessoal,
-      dono: pessoal && podeDelegar && paraQuem ? paraQuem : undefined,
+      dono: pessoal ? dono : undefined,
+      partilhadaCom: partilhadaCom,
       tags: [],
-      due: '',
+      due: prazo,
       proj: ''
     });
     const me = window.userById(window.CURRENT_USER_ID);
-    if (pessoal && podeDelegar && paraQuem && paraQuem !== window.CURRENT_USER_ID) {
-      const u = USERS.find(x => x.id === paraQuem);
-      if (u && u.email) bspSendEmail(u.email, '[Workspace] Nova tarefa para si: ' + title.trim(), bspEmailWrap('Foi-lhe delegada uma tarefa', bspEmailTexto((me ? me.name : 'A Direcção') + ' delegou-lhe a tarefa “' + title.trim() + '”. Só você, a Direcção e a Coordenação a vêem.'), 'tarefas', 'Ver a tarefa'));
-    }
+    if (pessoal) escolhidos.filter(id => id !== eu).forEach(idPessoa => {
+      const u = USERS.find(x => x.id === idPessoa);
+      const partilhada = escolhidos.length > 1;
+      if (u && u.email) bspSendEmail(u.email, '[Workspace] Nova tarefa para si: ' + title.trim(), bspEmailWrap(partilhada ? 'Tem uma tarefa partilhada' : 'Foi-lhe delegada uma tarefa', bspEmailTexto((me ? me.name : 'A Direcção') + (partilhada ? ' partilhou consigo a tarefa “' : ' delegou-lhe a tarefa “') + title.trim() + '”' + (prazo ? ', com prazo a ' + bspDataCurta(prazo) : '') + '. Só as pessoas da tarefa, a Direcção e a Coordenação a vêem.'), 'tarefas', 'Ver a tarefa'));
+    });
     if (!pessoal) who.forEach(id => {
       if (id === window.CURRENT_USER_ID) return;
       const u = USERS.find(x => x.id === id);
@@ -10870,12 +11016,12 @@ function TaskComposer({
       marginTop: 2
     }
   }, pessoal && podeDelegar
-    ? 'Não vai para o quadro da equipa. Só a pessoa escolhida e as camadas ' + camadasQueVeem.join(' e ') + ' a vêem.'
+    ? 'Não vai para o quadro da equipa. Só as pessoas escolhidas e as camadas ' + camadasQueVeem.join(' e ') + ' a vêem.'
     : pessoal
     ? (camadasQueVeem.length
         ? 'Fica guardada em seu nome e sai do quadro da equipa. ' + (camadasQueVeem.length === 1 ? 'A camada ' : 'As camadas ') + camadasQueVeem.join(' e ') + (camadasQueVeem.length === 1 ? ' pode lê-la.' : ' podem lê-la.')
         : 'Fica guardada em seu nome. Ninguém mais a vê — nem sequer chega aos aparelhos dos outros.')
-    : 'Todos os colegas vêem esta tarefa no quadro da equipa.'))), pessoal && podeDelegar && !editTask && React.createElement("div", null, React.createElement("label", {
+    : 'Todos os colegas vêem esta tarefa no quadro da equipa.'))), pessoal && !editTask && React.createElement("div", null, React.createElement("label", {
     style: {
       fontSize: 12,
       fontWeight: 600,
@@ -10883,17 +11029,36 @@ function TaskComposer({
       display: 'block',
       marginBottom: 6
     }
-  }, "Para quem"), React.createElement(Select, {
-    value: paraQuem,
-    onChange: setParaQuem,
-    options: [{
-      value: window.CURRENT_USER_ID,
-      label: 'Para mim'
-    }].concat(USERS.filter(u => u.id !== window.CURRENT_USER_ID).slice().sort((a, b) => String(a.name).localeCompare(String(b.name), 'pt')).map(u => ({
-      value: u.id,
-      label: u.name + (u.dept ? ' — ' + u.dept : '')
-    })))
-  })), React.createElement("div", null, React.createElement("label", {
+  }, podeDelegar ? "Para quem " : "Partilhar com ", React.createElement("span", {
+    style: {
+      fontWeight: 400,
+      color: 'var(--text-3)'
+    }
+  }, podeDelegar ? "(uma ou mais pessoas; com várias, a tarefa é partilhada)" : "(opcional; todos vêem e actualizam a mesma tarefa)")), React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6,
+      flexWrap: 'wrap',
+      maxHeight: 132,
+      overflow: 'auto'
+    }
+  }, USERS.filter(u => podeDelegar || u.id !== window.CURRENT_USER_ID).slice().sort((a, b) => (a.id === window.CURRENT_USER_ID ? -1 : b.id === window.CURRENT_USER_ID ? 1 : String(a.name).localeCompare(String(b.name), 'pt'))).map(u => {
+    const on = pessoas.includes(u.id);
+    return React.createElement("button", {
+      key: u.id,
+      onClick: () => setPessoas(p => on ? p.filter(x => x !== u.id) : [...p, u.id]),
+      style: {
+        ...chip(on),
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 7,
+        padding: '6px 11px 6px 6px'
+      }
+    }, React.createElement(Avatar, {
+      user: u,
+      size: 22
+    }), u.id === window.CURRENT_USER_ID ? 'Eu' : u.name.split(' ').slice(0, 2).join(' '));
+  }))), React.createElement("div", null, React.createElement("label", {
     style: {
       fontSize: 12,
       fontWeight: 600,
@@ -10905,6 +11070,35 @@ function TaskComposer({
     value: title,
     onChange: setTitle,
     placeholder: "Ex.: Confirmar escala de enfermagem"
+  })), React.createElement("div", null, React.createElement("label", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: 'var(--text-2)',
+      display: 'block',
+      marginBottom: 6
+    }
+  }, "Prazo ", React.createElement("span", {
+    style: {
+      fontWeight: 400,
+      color: 'var(--text-3)'
+    }
+  }, "(opcional)")), React.createElement("input", {
+    type: "date",
+    value: prazo,
+    onChange: e => setPrazo(e.target.value),
+    style: {
+      width: '100%',
+      height: 40,
+      padding: '0 12px',
+      border: '1px solid var(--border)',
+      borderRadius: 8,
+      fontSize: 13.5,
+      fontFamily: 'inherit',
+      color: 'var(--text-1)',
+      background: 'var(--surface)',
+      outline: 'none'
+    }
   })), React.createElement("div", null, React.createElement("label", {
     style: {
       fontSize: 12,
@@ -10941,7 +11135,7 @@ function TaskComposer({
     key: p.id,
     onClick: () => setPrio(p.id),
     style: chip(prio === p.id)
-  }, p.label)))), React.createElement("div", null, React.createElement("label", {
+  }, p.label)))), !(pessoal || (editTask && editTask.pessoal)) && React.createElement("div", null, React.createElement("label", {
     style: {
       fontSize: 12,
       fontWeight: 600,
@@ -11246,6 +11440,7 @@ function useTarefasPessoais() {
       titulo: dados.title,
       prioridade: dados.priority || 'media',
       prazo: dados.due || null,
+      partilhada_com: Array.isArray(dados.partilhadaCom) ? dados.partilhadaCom : [],
       ordem: Date.now() % 2000000000
     });
     if (r && r.error) return r.error.message || 'Não foi possível gravar.';
@@ -11267,6 +11462,15 @@ function useTarefasPessoais() {
     recarregar();
   }, [recarregar]);
 
+  /* Editar uma tarefa privada (titulo, coluna, prioridade, prazo). */
+  const actualizar = React.useCallback(async (id, campos) => {
+    const cl = bspGetClient();
+    if (!cl) return 'O servidor não está ligado.';
+    const r = await cl.from('tarefas_pessoais').update(campos).eq('id', id);
+    recarregar();
+    return r && r.error ? (r.error.message || 'Não foi possível gravar.') : null;
+  }, [recarregar]);
+
   /* Devolve no mesmo formato do quadro da equipa, para o ecra tratar as
      duas origens da mesma maneira. */
   const porColuna = React.useMemo(() => {
@@ -11286,7 +11490,9 @@ function useTarefasPessoais() {
         title: t.titulo,
         priority: t.prioridade,
         due: t.prazo || '',
-        assignees: [],
+        /* Partilhada: o dono e as outras pessoas aparecem nos avatares. */
+        partilhada: Array.isArray(t.partilhada_com) && t.partilhada_com.length > 0,
+        assignees: Array.isArray(t.partilhada_com) && t.partilhada_com.length ? [t.user_id].concat(t.partilhada_com) : [],
         tags: [],
         proj: ''
       });
@@ -11294,7 +11500,7 @@ function useTarefasPessoais() {
     return b;
   }, [tarefas]);
 
-  return { porColuna, estado, criar, mover, apagar, recarregar };
+  return { porColuna, estado, criar, mover, apagar, actualizar, recarregar };
 }
 
 function TasksScreen() {
@@ -11398,9 +11604,10 @@ function TasksScreen() {
       col: 'todo'
     }),
     onCreate: (col, t) => {
-      if (t.pessoal) pess.criar(col, t);
+      if (t.pessoal) pess.criar(col, t).then(erro => { if (erro) toast('Não foi possível gravar a tarefa: ' + erro); });
       else actions.createTask(col, t);
     },
+    onUpdatePessoal: (id, campos) => pess.actualizar(id, campos).then(erro => { if (erro) toast('Não foi possível gravar: ' + erro); }),
     onUpdate: actions.updateTask,
     onMove: actions.moveTask
   }), React.createElement("div", {
@@ -11727,7 +11934,7 @@ function TaskCard({
       background: prioMeta.c
     }
   }), prioMeta.l.toUpperCase()), t.pessoal && React.createElement("span", {
-    title: (t.dono ? 'Tarefa privada de ' + t.dono : 'Tarefa privada sua') + (t.delegadaPor ? ' · delegada por ' + t.delegadaPor : ''),
+    title: (t.partilhada ? 'Tarefa partilhada' + (t.dono ? ' de ' + t.dono : '') : t.dono ? 'Tarefa privada de ' + t.dono : 'Tarefa privada sua') + (t.delegadaPor ? ' · delegada por ' + t.delegadaPor : ''),
     style: {
       display: 'inline-flex',
       alignItems: 'center',
@@ -11743,7 +11950,7 @@ function TaskCard({
     }
   }, React.createElement(I.Lock, {
     size: 10
-  }), t.dono ? String(t.dono).split(' ')[0].toUpperCase() : t.delegadaPor ? 'DE ' + String(t.delegadaPor).split(' ')[0].toUpperCase() : "SÓ EU"), (t.tags || []).slice(0, 2).map(tag => React.createElement(Badge, {
+  }), t.partilhada ? 'PARTILHADA' : t.dono ? String(t.dono).split(' ')[0].toUpperCase() : t.delegadaPor ? 'DE ' + String(t.delegadaPor).split(' ')[0].toUpperCase() : "SÓ EU"), (t.tags || []).slice(0, 2).map(tag => React.createElement(Badge, {
     key: tag,
     tone: tagColors[tag] || 'default',
     size: "xs"
@@ -11792,7 +11999,15 @@ function TaskCard({
       opacity: t.done ? .6 : 1,
       cursor: 'pointer'
     }
-  }, t.title), t.proj && React.createElement("div", {
+  }, t.title), t.due && React.createElement("div", {
+    /* Prazo (25-09-2026): a vermelho quando ja passou. */
+    style: {
+      fontSize: 11.5,
+      fontWeight: 600,
+      marginBottom: 6,
+      color: !t.done && String(t.due).slice(0, 10) < bspDataLocalISO(new Date()) ? '#DC2626' : 'var(--text-2)'
+    }
+  }, 'Prazo: ' + bspDataCurta(t.due) + (!t.done && String(t.due).slice(0, 10) < bspDataLocalISO(new Date()) ? ' · em atraso' : '')), t.proj && React.createElement("div", {
     style: {
       fontSize: 11,
       color: 'var(--text-3)',

@@ -656,6 +656,32 @@ notificações e os dados.
 
 ---
 
+## 3-p. Chat, tarefas e calendário (25-09-2026)
+
+- [x] **Chat:** vários ficheiros de uma vez pelo clipe (até 10, 25 MB cada)
+      e arrastar com o rato para a conversa. Aparece a faixa «Largue aqui
+      os ficheiros» e um aviso «A carregar N ficheiros».
+- [x] **Tarefas com prazo:** campo «Prazo (opcional)» nas tarefas da
+      equipa e nas privadas. O cartão mostra «Prazo: 30 Set 2026», a
+      vermelho e com «em atraso» quando já passou.
+- [x] **Tarefa privada para várias pessoas:** a Direcção e a Coordenação
+      escolhem uma ou mais pessoas. Com várias, a tarefa é partilhada.
+      Os outros colegas podem partilhar as suas tarefas privadas. Todos os
+      que estão na tarefa a vêem e actualizam. Só o dono, a Direcção e a
+      Coordenação a apagam. Coluna `partilhada_com` e regras em
+      `tarefas-partilhadas.sql`, testadas a 25-09-2026: o dono vê, muda e
+      apaga; quem partilha vê e muda, mas não apaga; um terceiro não vê.
+- [x] Corrigido: editar uma tarefa privada não gravava, porque ia para o
+      quadro da equipa.
+- [x] **Eventos numa data:** no «Novo evento», «Todas as semanas» (a
+      regra, opção C) ou «Numa data». Os com data só aparecem na semana
+      dessa data, e há a lista «Próximos com data». A `resumo-matinal`
+      (versão 3 no projecto novo) só os anuncia nesse dia.
+- [ ] Confirmar num aparelho real: arrastar ficheiros no chat e criar uma
+      tarefa partilhada entre duas pessoas.
+
+---
+
 ## 4. Em cada aparelho
 
 - [ ] Recarregar à força (telemóvel: fechar o separador e reabrir;

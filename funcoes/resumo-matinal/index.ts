@@ -29,6 +29,13 @@
 // Sai um e-mail por endereco, para ninguem ver os enderecos dos outros.
 // Todos os envios desta funcao vao so para enderecos @barispol.com.
 //
+// MUDANCA DE SERVIDOR (25-09-2026 a 01-10-2026): o lembrete diario pede
+// tambem que cada pessoa termine a sessao e volte a entrar.
+//
+// EVENTOS COM DATA (25-09-2026): um evento pode repetir-se todas as
+// semanas (campo day) ou ser so numa data (campo data, AAAA-MM-DD). Os
+// com data so entram no resumo nesse dia.
+//
 // AVISO DE MENSAGENS DIRECTAS (desde 24-09-2026), "tipo": "mensagens", a
 // cada minuto (bsp-avisos-mensagens). So avisa por e-mail quem recebeu uma
 // mensagem directa ha mais de 5 minutos, nao respondeu nem a leu, e esta
@@ -327,7 +334,8 @@ Deno.serve(async (req) => {
      mostra-os assim e o resumo tem de contar da mesma maneira, senao
      anuncia todos os eventos todos os dias. */
   const diaSemana = (new Date().getUTCDay() + 6) % 7;
-  const doDia = eventos.filter((e: any) => (e.day == null ? diaSemana : Number(e.day)) === diaSemana);
+  const doDia = eventos.filter((e: any) =>
+    e && e.data ? String(e.data) === hoje : (e.day == null ? diaSemana : Number(e.day)) === diaSemana);
   const blocoDia = doDia.length
     ? '<p style="margin:0 0 6px;font-size:14px;color:#292F58"><b>Hoje na agenda</b></p><ul style="padding-left:18px;margin:0 0 16px">' +
       doDia
@@ -465,6 +473,11 @@ Deno.serve(async (req) => {
   if (lembrete) {
     let lembrados = 0;
     const falhasLembrete: string[] = [];
+    /* Mudanca de servidor (25-09 a 01-10-2026): pedir que cada pessoa
+       termine a sessao e volte a entrar. */
+    const mudanca = hoje <= "2026-10-01"
+      ? paragrafo("<b>Mudámos o Workspace de servidor.</b> Se ainda não o fez, termine a sessão (menu Mais → Terminar sessão) e volte a entrar com o mesmo e-mail e a mesma palavra-passe. No telemóvel, feche a aplicação por completo antes de a abrir de novo.")
+      : "";
     const coletivo = envelope(
       "Olá, equipa.",
       paragrafo("O Workspace é o nosso ponto de encontro. Entrem todos os dias: é lá que estão as mensagens, as tarefas e a agenda da clínica.") +
@@ -484,6 +497,7 @@ Deno.serve(async (req) => {
           envelope(
             "Bom dia, " + escapar(nome) + ".",
             paragrafo("Antes de começar o dia, entre no Workspace. Veja as mensagens, as tarefas e a agenda de hoje.") +
+              mudanca +
               paragrafo("<b>Em breve deixaremos de usar o WhatsApp</b> para a comunicação interna. As conversas da equipa passam a ser feitas no Chat do Workspace.", true),
             "chat",
             "Entrar no Workspace",
