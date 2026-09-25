@@ -682,6 +682,28 @@ notificações e os dados.
 
 ---
 
+## 3-q. Listas por ordem alfabética (25-09-2026)
+
+- [x] Por ordem alfabética:
+      - **Pessoas**, em todo o lado: chat, mensagens directas, membros,
+        menções, Directório, Administração e escolha de pessoas nas
+        tarefas. Nas tarefas, «Eu» continua em primeiro.
+      - **Departamentos, canais, categorias dos eventos e áreas dos
+        relatórios.**
+      - **Opções dos menus:** estados do CRM, departamento de um grupo
+        novo, pastas do Drive, estilo, densidade e presença.
+      - **Opções de ordenar do Drive:** «Maiores», «Mais recentes»,
+        «Nome». A ordenação por omissão continua «Nome».
+- Ficam na ordem natural, porque a têm: dias da semana, meses, horas,
+  colunas do quadro (A Fazer → Concluído), prioridades, períodos do CRM
+  («Há mais de 3 meses»…), camadas de acesso (por hierarquia), a
+  actividade (por data) e a lista de seguimento do CRM (por prioridade:
+  quem não volta há mais tempo).
+- Função `bspCompararTexto` / `bspPorNome` (português, sem distinguir
+  acentos nem maiúsculas).
+
+---
+
 ## 4. Em cada aparelho
 
 - [ ] Recarregar à força (telemóvel: fechar o separador e reabrir;

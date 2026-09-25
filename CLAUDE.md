@@ -122,6 +122,11 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   (`--navy` #292F58, `--accent` #2291CE), letra Dax, sem gradientes nem
   animação de ecrã, e botão principal marinho (#273069). Cores novas vão
   para as variáveis, e nunca escritas à mão no código.
+- Listas por ordem alfabética (25-09-2026): `USERS`, `state.team`,
+  `DEPARTMENTS`, `CHANNELS` e `BSP_RELATORIOS` são ordenados na origem com
+  `bspPorNome` / `bspCompararTexto`. Nunca usar `USERS[0]` como «o
+  utilizador principal». Os estados do CRM mantêm a ordem do processo
+  (o primeiro é o valor por omissão); só os menus os mostram por ordem.
 - Calendário (opção C, aprovada): os eventos são rotina semanal. Cada
   evento tem um dia da semana e repete-se todas as semanas nesse dia.
   Desde 25-09-2026 um evento também pode ser «Numa data» (campo `data`,

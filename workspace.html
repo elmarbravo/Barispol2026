@@ -1185,6 +1185,18 @@ const DEPARTMENTS = [{
   name: 'Marketing',
   color: '#DB2777'
 }];
+/* Ordem alfabetica em todas as listas (pedido do Elmar, 25-09-2026):
+   pessoas, departamentos, canais, categorias e areas. Ficam na ordem
+   natural as listas que a tem: dias, meses, colunas do quadro,
+   prioridades, horas e as camadas (por hierarquia). */
+function bspCompararTexto(a, b) {
+  return String(a || '').localeCompare(String(b || ''), 'pt', { sensitivity: 'base' });
+}
+function bspPorNome(a, b) {
+  return bspCompararTexto(a && a.name, b && b.name);
+}
+USERS.sort(bspPorNome);
+DEPARTMENTS.sort(bspPorNome);
 /* CAMADAS DE ACESSO — quatro níveis.
    O nível de cada pessoa fica no campo accessLevel, editável em Admin.
    canais: '*' vê todos; senão, a lista de departamentos que alcança.
@@ -1431,6 +1443,7 @@ const CHANNELS = [{
   dept: 'farmacia'
 }];
 /* Cópia fixa: os grupos criados na plataforma juntam-se a esta base em cada desenho. */
+CHANNELS.sort(bspPorNome);
 const CHANNELS_BASE = CHANNELS.slice();
 const DM_CONVERSATIONS = [];
 const INITIAL_CHANNEL_MESSAGES = {};
@@ -3955,7 +3968,7 @@ function StoreProvider({
         const tasks = row.tasks || s.tasks;
         const events = row.events || s.todayEvents;
         const drive = row.drive || s.driveFiles;
-        const team = row.team && row.team.length ? row.team : s.team;
+        const team = row.team && row.team.length ? row.team.slice().sort(bspPorNome) : s.team;
         const canais = row.channels || s.extraChannels || [];
         /* Só substitui se vier alguma coisa: uma linha sem a coluna camadas
            não pode apagar as que este posto já conhece. */
@@ -4416,7 +4429,7 @@ function StoreProvider({
     const team = state.team;
     if (!team || !team.length) return;
     USERS.length = 0;
-    team.forEach(u => USERS.push(u));
+    team.slice().sort(bspPorNome).forEach(u => USERS.push(u));
   }, [state.team]);
   const nextId = prefix => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   const nowTime = () => {
@@ -4461,6 +4474,7 @@ function StoreProvider({
         ...team[i],
         ...member
       };else team.push(member);
+      team.sort(bspPorNome);
       return {
         ...s,
         team
@@ -4947,6 +4961,7 @@ function StoreProvider({
   (state.extraChannels || []).forEach(c => {
     if (!CHANNELS.some(x => x.id === c.id)) CHANNELS.push(c);
   });
+  CHANNELS.sort(bspPorNome);
   return React.createElement(StoreContext.Provider, {
     value: {
       state,
@@ -6450,14 +6465,14 @@ function NovoGrupoModal({
       value: 'enfermagem',
       label: 'Enfermagem'
     }, {
+      value: 'escalas',
+      label: 'Escalas'
+    }, {
       value: 'farmacia',
       label: 'Farmácia'
     }, {
       value: 'rececao',
       label: 'Recepção'
-    }, {
-      value: 'escalas',
-      label: 'Escalas'
     }]
   })), tipo === 'privado' && React.createElement(FormField, {
     label: "Membros"
@@ -9695,7 +9710,7 @@ function CalEventModal({
   onCreate
 }) {
   const days = [['0', 'Seg'], ['1', 'Ter'], ['2', 'Qua'], ['3', 'Qui'], ['4', 'Sex'], ['5', 'Sáb'], ['6', 'Dom']];
-  const cats = Object.entries(CAT_COLORS);
+  const cats = Object.entries(CAT_COLORS).sort((a, b) => bspCompararTexto(a[1].label, b[1].label));
   const [title, setTitle] = React.useState('');
   const [day, setDay] = React.useState(String((new Date().getDay() + 6) % 7));
   const [time, setTime] = React.useState('09:00');
@@ -9978,7 +9993,7 @@ function CalendarScreen() {
       color: 'var(--text-2)',
       margin: '0 0 10px'
     }
-  }, "Categorias"), Object.entries(CAT_COLORS).map(([k, v]) => React.createElement("div", {
+  }, "Categorias"), Object.entries(CAT_COLORS).sort((a, b) => bspCompararTexto(a[1].label, b[1].label)).map(([k, v]) => React.createElement("div", {
     key: k,
     style: {
       display: 'flex',
@@ -12447,9 +12462,9 @@ function DriveScreen() {
       background: 'var(--surface)', color: 'var(--text-2)',
       fontFamily: 'inherit', fontSize: 12.5, cursor: 'pointer'
     }
-  }, React.createElement("option", { value: "nome" }, "Nome"),
+  }, React.createElement("option", { value: "tamanho" }, "Maiores"),
      React.createElement("option", { value: "data" }, "Mais recentes"),
-     React.createElement("option", { value: "tamanho" }, "Maiores")),
+     React.createElement("option", { value: "nome" }, "Nome")),
   React.createElement("div", {
     style: { display: 'flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }
   }, [{
@@ -12704,7 +12719,7 @@ function DriveScreen() {
     options: [{
       value: '',
       label: veTudo ? 'Pessoais (raiz)' : 'Os meus ficheiros (raiz)'
-    }].concat(pessoais.pastas.map(x => ({ value: x, label: x })))
+    }].concat(pessoais.pastas.slice().sort(bspCompararTexto).map(x => ({ value: x, label: x })))
   }))));
 }
 /* RELATORIOS PADRAO POR AREA (24-09-2026, pedido do Elmar).
@@ -12801,6 +12816,7 @@ const BSP_RELATORIOS = [{
    · Direccao e Coordenacao: todas as areas.
    · Direccao Clinica (BSP_RELATORIOS_DIRECCAO_CLINICA): as areas medicas.
    · Cada relatorio segue tambem por e-mail para BSP_RELATORIOS_EMAIL. */
+BSP_RELATORIOS.sort((a, b) => bspCompararTexto(a.nome, b.nome));
 const BSP_RELATORIOS_MEDICOS = ['laboratorio', 'imagiologia', 'enfermagem'];
 const BSP_RELATORIOS_EMAIL = []; // desde 25-09-2026 o e-mail sai do servidor: superior hierarquico, cc adm@ (areas de saude tambem DireccaoClinica@)
 const BSP_RELATORIOS_DIRECCAO_CLINICA = ['u14']; // Osvaldo Pacheco (igual a bsp_le_areas_medicas no servidor)
@@ -18590,7 +18606,7 @@ function SeguimentoScreen() {
           border: '1px solid var(--border)', background: 'var(--surface)',
           color: 'var(--text-2)', fontSize: 12.5, fontFamily: 'inherit', cursor: 'pointer'
         }
-      }, BSP_ESTADOS.map(e => React.createElement("option", { key: e.id, value: e.id }, e.nome))))))),
+      }, BSP_ESTADOS.slice().sort((a, b) => bspCompararTexto(a.nome, b.nome)).map(e => React.createElement("option", { key: e.id, value: e.id }, e.nome))))))),
 
   React.createElement(ImportarUtentesModal, {
     open: importar, onClose: () => setImportar(false), aoImportar: recarregar
@@ -18812,7 +18828,7 @@ function CrmPedidos() {
         React.createElement("select", {
           value: l.estado, onChange: e => registar(l, e.target.value, ''), title: 'Mudar o estado',
           style: { height: 34, padding: '0 8px', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-2)', fontSize: 12.5, fontFamily: 'inherit', cursor: 'pointer' }
-        }, BSP_CRM_ESTADOS.map(e => React.createElement("option", { key: e.id, value: e.id }, e.id))),
+        }, BSP_CRM_ESTADOS.slice().sort((a, b) => bspCompararTexto(a.id, b.id)).map(e => React.createElement("option", { key: e.id, value: e.id }, e.id))),
         React.createElement("button", {
           onClick: () => setNota({ l: l, texto: '' }), title: 'Escrever uma nota',
           style: { width: 34, height: 34, borderRadius: 9, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-2)', display: 'grid', placeItems: 'center', cursor: 'pointer' }
@@ -19372,22 +19388,22 @@ function TweaksPanelWrap({
     value: t.variant,
     onChange: v => setTweak('variant', v),
     options: [{
-      value: 'clinico',
-      label: 'Clínico'
-    }, {
       value: 'arejado',
       label: 'Arejado'
+    }, {
+      value: 'clinico',
+      label: 'Clínico'
     }]
   }), React.createElement(TRadio, {
     label: "Densidade",
     value: t.density,
     onChange: v => setTweak('density', v),
     options: [{
-      value: 'confortavel',
-      label: 'Confortável'
-    }, {
       value: 'compacta',
       label: 'Compacta'
+    }, {
+      value: 'confortavel',
+      label: 'Confortável'
     }]
   }), React.createElement(TColor, {
     label: "Cor de destaque",
@@ -19407,17 +19423,17 @@ function TweaksPanelWrap({
     value: t.presence,
     onChange: v => setTweak('presence', v),
     options: [{
-      value: 'online',
-      label: 'Online'
-    }, {
       value: 'away',
       label: 'Ausente'
+    }, {
+      value: 'offline',
+      label: 'Offline'
     }, {
       value: 'busy',
       label: 'Ocupado'
     }, {
-      value: 'offline',
-      label: 'Offline'
+      value: 'online',
+      label: 'Online'
     }]
   }), React.createElement(AlterarSenha, null), onLogout && React.createElement("button", {
     onClick: onLogout,
