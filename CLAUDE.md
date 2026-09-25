@@ -118,6 +118,10 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   Coordenação tudo; Direcção Clínica (Osvaldo Pacheco, u14,
   `BSP_RELATORIOS_DIRECCAO_CLINICA` / `bsp_le_areas_medicas()`) as áreas
   médicas; a Arlete (u2) recebe cada um por e-mail.
+- Apresentação do Workspace (25-09-2026): cores oficiais nas variáveis
+  (`--navy` #292F58, `--accent` #2291CE), letra Dax, sem gradientes nem
+  animação de ecrã, e botão principal marinho (#273069). Cores novas vão
+  para as variáveis, e nunca escritas à mão no código.
 - Calendário (opção C, aprovada): os eventos são rotina semanal. Cada
   evento tem um dia da semana e repete-se todas as semanas nesse dia.
 

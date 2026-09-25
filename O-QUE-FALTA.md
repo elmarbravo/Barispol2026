@@ -620,6 +620,27 @@ A Medicare foi confirmada pelo Elmar, mas não aparece na facturação.
 
 ---
 
+## 3-n. Apresentação do Workspace (25-09-2026)
+
+Só muda o aspecto. Ficam iguais as funções, as regras, o servidor, as
+notificações e os dados.
+- [x] Cores oficiais: marinho #292F58 e #273069, azul #2291CE, fundos
+      neutros claros. Estão nas variáveis e nas cores escritas no código.
+- [x] Tipo de letra Dax, com Titillium Web, Segoe UI e Arial de recurso.
+- [x] Sem gradientes nem círculos de brilho: entrada, faixa do Início,
+      cartão de reconhecimento e gráficos passam a cores lisas. Os ecrãs
+      de chamada ficam como estavam.
+- [x] Sem animação ao mudar de ecrã. Cartões, janelas e botões com
+      cantos mais discretos. Os botões principais passam a marinho, que
+      se lê melhor que o branco sobre o azul claro.
+- [x] Entrada: sai a grelha decorativa. A etiqueta passa a «Workspace da
+      equipa». Saem os números inventados (38 colaboradores e 8
+      departamentos; a equipa tem 21 pessoas).
+- [x] Verificado em computador e telemóvel: sem erros. As menções, as
+      notificações e o visor de imagens funcionam como antes.
+
+---
+
 ## 4. Em cada aparelho
 
 - [ ] Recarregar à força (telemóvel: fechar o separador e reabrir;

@@ -219,33 +219,35 @@
   /* ── Design tokens ──────────────────────────────────────── */
   :root {
     /* Brand */
-    --navy: #002060;
-    --navy-d: #001340;
-    --accent: #00A3E0;
-    --accent-d: #0078A6;
-    --accent-soft: rgba(0,163,224,.10);
+    /* Cores oficiais da marca (25-09-2026): azul-marinho #292F58 e
+       #273069, azul #2291CE. So muda a apresentacao. */
+    --navy: #292F58;
+    --navy-d: #1F2447;
+    --accent: #2291CE;
+    --accent-d: #1B6FA0;
+    --accent-soft: rgba(34,145,206,.10);
 
-    /* Neutrals (cool tone, OKLCH-derived) */
-    --bg: #F4F6FB;
+    /* Neutros claros e sobrios */
+    --bg: #F5F4F2;
     --surface: #FFFFFF;
-    --surface-2: #F4F6FB;
-    --border: #E2E8F0;
+    --surface-2: #F7F6F4;
+    --border: #E3E1DC;
 
-    --text-1: #0F172A;
-    --text-2: #475569;
-    --text-3: #94A3B8;
+    --text-1: #1C2033;
+    --text-2: #4E5366;
+    --text-3: #8A8F9E;
   }
 
   /* "Clínico" variant — slightly cooler surfaces, denser */
   body[data-variant="clinico"] {
-    --bg: #EDF1F7;
-    --surface-2: #F1F4F9;
-    --border: #D9E2EC;
+    --bg: #EFEEEB;
+    --surface-2: #F3F2EF;
+    --border: #DCD9D3;
   }
   body[data-variant="arejado"] {
-    --bg: #F7F9FC;
-    --surface-2: #F4F7FB;
-    --border: #E5EAF1;
+    --bg: #F8F7F5;
+    --surface-2: #F7F6F4;
+    --border: #E6E4DF;
   }
 
   body[data-density="compacta"] { font-size: 13.5px; }
@@ -257,7 +259,7 @@
     margin: 0; padding: 0; height: 100%; width: 100%;
   }
   body {
-    font-family: 'Titillium Web', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: 'Dax', 'Titillium Web', 'Segoe UI', Arial, sans-serif;
     font-size: 14px;
     color: var(--text-1);
     background: var(--bg);
@@ -276,7 +278,7 @@
 
   /* Hover utilities */
   .bsp-card-hover { transition: border-color .15s, transform .15s, box-shadow .15s; }
-  .bsp-card-hover:hover { border-color: rgba(0,163,224,.4); box-shadow: 0 4px 16px rgba(15,23,42,.06); }
+  .bsp-card-hover:hover { border-color: rgba(34,145,206,.45); }
 
   .bsp-row-hover { transition: background .12s; }
   .bsp-row-hover:hover { background: var(--surface-2); }
@@ -291,8 +293,7 @@
   .bsp-iconbtn:hover { background: var(--surface-2); color: var(--text-1); }
 
   .bsp-btn:hover { filter: brightness(.96); }
-  .bsp-btn:active { transform: translateY(1px); }
-
+  
   .bsp-tb:hover { background: var(--surface-2); color: var(--text-1); }
 
   /* Typing dots */
@@ -315,8 +316,7 @@
     80% { transform: translateX(4px); }
   }
 
-  /* Smooth fade transitions on screen swap */
-  main > * { animation: bsp-fade .22s ease-out; }
+  /* Sem animacao ao mudar de ecra (25-09-2026): apresentacao sobria. */
   @keyframes bsp-fade {
     from { opacity: 0; transform: translateY(4px); }
     to { opacity: 1; transform: translateY(0); }
@@ -1159,11 +1159,11 @@ const CURRENT_USER_ID = 'u1';
 const DEPARTMENTS = [{
   id: 'admin',
   name: 'Administração',
-  color: '#002060'
+  color: '#292F58'
 }, {
   id: 'clinica',
   name: 'Clínica',
-  color: '#00A3E0'
+  color: '#2291CE'
 }, {
   id: 'enfermagem',
   name: 'Enfermagem',
@@ -1448,7 +1448,7 @@ const NOTIFICATIONS = [];
 const DRIVE_TREE = [{
   id: 'd-adm',
   name: 'Administração',
-  color: '#002060',
+  color: '#292F58',
   children: [{
     id: 'd-adm-com',
     name: 'Comunicados',
@@ -1461,7 +1461,7 @@ const DRIVE_TREE = [{
 }, {
   id: 'd-cli',
   name: 'Clínica',
-  color: '#00A3E0',
+  color: '#2291CE',
   children: [{
     id: 'd-cli-pro',
     name: 'Protocolos',
@@ -2050,12 +2050,12 @@ function Badge({
       fg: '#0F172A'
     },
     navy: {
-      bg: 'rgba(0,32,96,.10)',
-      fg: '#002060'
+      bg: 'rgba(41,47,88,.10)',
+      fg: '#292F58'
     },
     accent: {
-      bg: 'rgba(0,163,224,.12)',
-      fg: '#0078A6'
+      bg: 'rgba(34,145,206,.12)',
+      fg: '#1B6FA0'
     },
     success: {
       bg: '#DCFCE7',
@@ -2166,7 +2166,7 @@ function Card({
     style: {
       background: 'var(--surface)',
       border: '1px solid var(--border)',
-      borderRadius: 14,
+      borderRadius: 6,
       padding: pad,
       cursor: onClick ? 'pointer' : 'default',
       ...style
@@ -2184,10 +2184,11 @@ function Button({
 }) {
   const variants = {
     primary: {
-      bg: 'var(--accent)',
+      /* Marinho (25-09-2026): o branco sobre o azul claro lia-se mal. */
+      bg: '#273069',
       fg: '#fff',
       border: 'transparent',
-      hover: 'var(--accent-d)'
+      hover: 'var(--navy)'
     },
     navy: {
       bg: 'var(--navy)',
@@ -2205,7 +2206,7 @@ function Button({
       bg: 'var(--accent-soft)',
       fg: 'var(--accent-d)',
       border: 'transparent',
-      hover: 'rgba(0,163,224,.18)'
+      hover: 'rgba(34,145,206,.18)'
     },
     danger: {
       bg: 'transparent',
@@ -2236,7 +2237,7 @@ function Button({
       color: v.fg,
       border: v.border === 'transparent' ? 'none' : `1px solid ${v.border === 'var(--border)' ? 'var(--border)' : v.border}`,
       padding: sz.pad,
-      borderRadius: 10,
+      borderRadius: 3,
       fontWeight: 600,
       fontSize: sz.fs,
       cursor: 'pointer',
@@ -2324,8 +2325,8 @@ function BarChart({
     style: {
       width: '100%',
       height: `${v / max * 100}%`,
-      background: `linear-gradient(180deg, ${color} 0%, color-mix(in oklch, ${color} 70%, transparent) 100%)`,
-      borderRadius: '6px 6px 0 0',
+      background: color,
+      borderRadius: '2px 2px 0 0',
       minHeight: 4
     }
   })), React.createElement("span", {
@@ -2527,7 +2528,7 @@ function Sidebar({
   const sBg = isNavyBg ? 'var(--navy)' : 'var(--surface)';
   const sFg = isNavyBg ? 'rgba(255,255,255,.78)' : 'var(--text-2)';
   const sFgActive = isNavyBg ? '#fff' : 'var(--navy)';
-  const sActiveBg = isNavyBg ? 'rgba(255,255,255,.12)' : 'rgba(0,32,96,.07)';
+  const sActiveBg = isNavyBg ? 'rgba(255,255,255,.12)' : 'rgba(41,47,88,.07)';
   const sActiveBar = 'var(--accent)';
   const sBorder = isNavyBg ? 'rgba(255,255,255,.10)' : 'var(--border)';
   const chatPorLer = useChatPorLer(currentUser);
@@ -4976,7 +4977,7 @@ function Modal({
     onClick: e => e.stopPropagation(),
     style: {
       background: 'var(--surface)',
-      borderRadius: estreito ? 0 : 14,
+      borderRadius: estreito ? 0 : 6,
       width: '100%',
       maxWidth: estreito ? '100%' : width,
       height: estreito ? '100dvh' : 'auto',
@@ -4985,7 +4986,7 @@ function Modal({
       overflow: 'hidden',
       display: 'flex',
       flexDirection: 'column',
-      boxShadow: '0 20px 60px rgba(15,23,42,.25)'
+      boxShadow: '0 12px 32px rgba(28,32,51,.18)'
     }
   }, React.createElement("div", {
     style: {
@@ -5301,7 +5302,7 @@ function LoginScreen({
     style: {
       position: 'relative',
       overflow: 'hidden',
-      background: 'radial-gradient(120% 90% at 20% 0%, #003088 0%, #002060 45%, #001340 100%)',
+      background: '#292F58',
       color: '#fff',
       padding: '56px 64px',
       display: 'flex',
@@ -5314,7 +5315,8 @@ function LoginScreen({
       inset: 0,
       width: '100%',
       height: '100%',
-      opacity: .12
+      /* Grelha decorativa escondida (25-09-2026): apresentacao sobria. */
+      opacity: 0
     },
     "aria-hidden": true
   }, React.createElement("defs", null, React.createElement("pattern", {
@@ -5339,7 +5341,7 @@ function LoginScreen({
       width: 360,
       height: 360,
       borderRadius: '50%',
-      background: 'radial-gradient(circle, rgba(0,163,224,.45) 0%, transparent 70%)'
+      background: 'transparent'
     }
   }), React.createElement("div", {
     style: {
@@ -5349,7 +5351,7 @@ function LoginScreen({
       width: 280,
       height: 280,
       borderRadius: '50%',
-      background: 'radial-gradient(circle, rgba(0,163,224,.25) 0%, transparent 70%)'
+      background: 'transparent'
     }
   }), React.createElement("div", {
     style: {
@@ -5369,9 +5371,9 @@ function LoginScreen({
       alignItems: 'center',
       gap: 8,
       padding: '6px 12px',
-      borderRadius: 999,
-      background: 'rgba(0,163,224,.18)',
-      border: '1px solid rgba(0,163,224,.4)',
+      borderRadius: 2,
+      background: 'rgba(34,145,206,.18)',
+      border: '1px solid rgba(34,145,206,.4)',
       fontSize: 11.5,
       fontWeight: 600,
       letterSpacing: '.06em',
@@ -5386,7 +5388,7 @@ function LoginScreen({
       background: '#7DD3FC',
       borderRadius: '50%'
     }
-  }), "Workspace · v2.4"), React.createElement("h1", {
+  }), "Workspace da equipa"), React.createElement("h1", {
     style: {
       fontSize: 48,
       fontWeight: 700,
@@ -5414,16 +5416,9 @@ function LoginScreen({
       marginTop: 40,
       maxWidth: 480
     }
-  }, [{
-    n: '38',
-    l: 'Colaboradores'
-  }, {
-    n: '8',
-    l: 'Departamentos'
-  }, {
-    n: '24/7',
-    l: 'Disponibilidade'
-  }].map(s => React.createElement("div", {
+  }, /* Os numeros (38 colaboradores, 8 departamentos) nao eram reais:
+       sairam a 25-09-2026. */
+  [].map(s => React.createElement("div", {
     key: s.l
   }, React.createElement("div", {
     style: {
@@ -5494,7 +5489,7 @@ function LoginScreen({
       height: 64,
       borderRadius: 16,
       background: 'var(--navy)',
-      boxShadow: '0 8px 22px rgba(0,32,96,.25)'
+      boxShadow: '0 8px 22px rgba(41,47,88,.25)'
     }
   }, React.createElement(BarispolLogo, {
     size: "md",
@@ -5678,7 +5673,7 @@ function LoginScreen({
       padding: 14,
       borderRadius: 10,
       background: 'var(--accent-soft)',
-      border: '1px solid rgba(0,163,224,.22)',
+      border: '1px solid rgba(34,145,206,.22)',
       display: 'flex',
       alignItems: 'flex-start',
       gap: 10
@@ -5851,8 +5846,8 @@ function DashboardScreen({
     }
   }, React.createElement("div", {
     style: {
-      background: 'linear-gradient(120deg, #002060 0%, #003088 55%, #00457C 100%)',
-      borderRadius: 16,
+      background: '#292F58',
+      borderRadius: 6,
       padding: '28px 32px',
       color: '#fff',
       position: 'relative',
@@ -5867,7 +5862,7 @@ function DashboardScreen({
       width: 240,
       height: 240,
       borderRadius: '50%',
-      background: 'radial-gradient(circle, rgba(0,163,224,.4) 0%, transparent 70%)'
+      background: 'transparent'
     }
   }), React.createElement("div", {
     style: {
@@ -6014,7 +6009,7 @@ function DashboardScreen({
       gridTemplateColumns: 'repeat(4, 1fr)',
       gap: 10
     }
-  }, [['todo', 'A Fazer', '#94A3B8'], ['doing', 'Em Progresso', '#00A3E0'], ['review', 'Em Revisão', '#D97706'], ['done', 'Concluído', '#10B981']].map(([id, label, c]) => React.createElement("button", {
+  }, [['todo', 'A Fazer', '#94A3B8'], ['doing', 'Em Progresso', '#2291CE'], ['review', 'Em Revisão', '#D97706'], ['done', 'Concluído', '#10B981']].map(([id, label, c]) => React.createElement("button", {
     key: id,
     onClick: () => onSwitch('tasks'),
     style: {
@@ -6900,7 +6895,7 @@ function ChatScreen({
           width: '100%',
           padding: '7px 10px',
           borderRadius: 8,
-          background: active ? 'rgba(0,163,224,.10)' : 'transparent',
+          background: active ? 'rgba(34,145,206,.10)' : 'transparent',
           color: active ? 'var(--accent-d)' : 'var(--text-2)',
           border: 'none',
           cursor: 'pointer',
@@ -6961,7 +6956,7 @@ function ChatScreen({
           width: '100%',
           padding: '7px 8px',
           borderRadius: 8,
-          background: active ? 'rgba(0,163,224,.10)' : 'transparent',
+          background: active ? 'rgba(34,145,206,.10)' : 'transparent',
           border: 'none',
           cursor: 'pointer',
           textAlign: 'left',
@@ -7506,7 +7501,7 @@ function ChatScreen({
         padding: '2px 9px',
         borderRadius: 999,
         background: 'var(--accent-soft)',
-        border: '1px solid rgba(0,163,224,.2)',
+        border: '1px solid rgba(34,145,206,.2)',
         fontSize: 12,
         color: 'var(--accent-d)',
         fontWeight: 600,
@@ -8587,8 +8582,9 @@ function FeedScreen({
     return React.createElement(Card, {
       pad: 16,
       style: {
-        background: 'linear-gradient(135deg, #FFF7ED, #FDF2F8)',
-        border: '1px solid #FBCFE8'
+        background: '#FFFFFF',
+        border: '1px solid var(--border)',
+        borderTop: '3px solid #2291CE'
       }
     }, React.createElement("h3", {
       style: {
@@ -9146,8 +9142,8 @@ function FeedPost({
     pad: 0,
     className: 'bsp-post-' + (post.sid || post.id),
     style: post.pinned ? {
-      borderColor: 'rgba(0,163,224,.35)',
-      boxShadow: '0 0 0 1px rgba(0,163,224,.1)'
+      borderColor: 'rgba(34,145,206,.35)',
+      boxShadow: '0 0 0 1px rgba(34,145,206,.1)'
     } : null
   }, meta && React.createElement("div", {
     style: {
@@ -9431,7 +9427,7 @@ function FeedPost({
       padding: '4px 10px',
       borderRadius: 999,
       background: post.reactions['__user_' + e] ? 'var(--accent-soft)' : 'var(--surface-2)',
-      border: post.reactions['__user_' + e] ? '1px solid rgba(0,163,224,.4)' : '1px solid var(--border)',
+      border: post.reactions['__user_' + e] ? '1px solid rgba(34,145,206,.4)' : '1px solid var(--border)',
       color: post.reactions['__user_' + e] ? 'var(--accent-d)' : 'var(--text-2)',
       fontSize: 12.5,
       fontWeight: 600,
@@ -9600,7 +9596,7 @@ Object.assign(window, {
 });
 const CAT_COLORS = {
   reuniao: {
-    c: '#00A3E0',
+    c: '#2291CE',
     soft: '#E0F7FE',
     label: 'Reunião'
   },
@@ -10159,7 +10155,7 @@ function MeetingsScreen() {
     onClick: startInstant
   }, {
     icon: 'Cal',
-    bg: 'rgba(0,32,96,.10)',
+    bg: 'rgba(41,47,88,.10)',
     fg: 'var(--navy)',
     title: 'Agendar',
     sub: 'Use o Calendário',
@@ -10180,7 +10176,7 @@ function MeetingsScreen() {
     }
   }, React.createElement("div", {
     style: {
-      background: 'linear-gradient(120deg, #002060 0%, #003088 100%)',
+      background: '#292F58',
       color: '#fff',
       padding: '22px 24px',
       display: 'flex',
@@ -11332,7 +11328,7 @@ function TasksScreen() {
   }, {
     id: 'doing',
     label: 'Em Progresso',
-    accent: '#00A3E0'
+    accent: '#2291CE'
   }, {
     id: 'review',
     label: 'Em Revisão',
@@ -11537,7 +11533,7 @@ function TasksScreen() {
     style: {
       display: 'flex',
       flexDirection: 'column',
-      background: hoverCol === c.id ? 'rgba(0,163,224,.05)' : 'var(--surface-2)',
+      background: hoverCol === c.id ? 'rgba(34,145,206,.05)' : 'var(--surface-2)',
       border: '1px solid ' + (hoverCol === c.id ? 'var(--accent)' : 'var(--border)'),
       borderRadius: 12,
       overflow: 'hidden',
@@ -11670,7 +11666,7 @@ function TaskCard({
       l: 'Alta'
     },
     media: {
-      c: '#00A3E0',
+      c: '#2291CE',
       l: 'Média'
     },
     baixa: {
@@ -11743,7 +11739,7 @@ function TaskCard({
       borderRadius: 999,
       color: 'var(--accent-d)',
       background: 'var(--accent-soft)',
-      border: '1px solid rgba(0,163,224,.25)'
+      border: '1px solid rgba(34,145,206,.25)'
     }
   }, React.createElement(I.Lock, {
     size: 10
@@ -12269,7 +12265,7 @@ function DriveScreen() {
     style: {
       marginBottom: 14,
       background: ehPessoal ? 'var(--surface-2)' : 'var(--accent-soft)',
-      border: ehPessoal ? '1px solid var(--border)' : '1px solid rgba(0,163,224,.25)'
+      border: ehPessoal ? '1px solid var(--border)' : '1px solid rgba(34,145,206,.25)'
     }
   }, React.createElement("div", {
     style: {
@@ -13282,10 +13278,10 @@ function OrgChart() {
       gap: 0
     }
   }, node('u3', {
-    accent: '#002060',
+    accent: '#292F58',
     reports: 1
   }), React.createElement(Connector, null), node('u1', {
-    accent: '#002060',
+    accent: '#292F58',
     reports: 4
   }), React.createElement(Connector, null), React.createElement("div", {
     style: {
@@ -13299,7 +13295,7 @@ function OrgChart() {
     }
   }, [{
     id: 'u2',
-    accent: '#00A3E0',
+    accent: '#2291CE',
     reports: 4,
     kids: ['u6', 'u7', 'u8', 'u11']
   }, {
@@ -13538,7 +13534,7 @@ function NotificationsScreen({
         padding: '9px 12px',
         borderRadius: 8,
         border: 'none',
-        background: active ? 'rgba(0,163,224,.10)' : 'transparent',
+        background: active ? 'rgba(34,145,206,.10)' : 'transparent',
         color: active ? 'var(--accent-d)' : 'var(--text-2)',
         cursor: 'pointer',
         fontFamily: 'inherit',
@@ -13722,7 +13718,7 @@ function NotificationsScreen({
       style: {
         display: 'flex',
         alignItems: 'stretch',
-        background: n.unread ? 'rgba(0,163,224,.04)' : 'transparent',
+        background: n.unread ? 'rgba(34,145,206,.04)' : 'transparent',
         borderBottom: i < list.length - 1 ? '1px solid var(--border)' : 'none'
       },
       className: "bsp-row-hover"
@@ -13903,13 +13899,13 @@ function AdminOverview() {
     l: 'Colaboradores',
     v: String(state.users.length),
     d: 'equipa',
-    c: '#002060',
+    c: '#292F58',
     i: 'Users'
   }, {
     l: 'Mensagens',
     v: String(msgCount),
     d: 'no total',
-    c: '#00A3E0',
+    c: '#2291CE',
     i: 'Chat'
   }, {
     l: 'Ficheiros',
@@ -13998,10 +13994,10 @@ function AdminOverview() {
       gap: 14
     }
   }, React.createElement(Legend, {
-    c: "#002060",
+    c: "#292F58",
     l: "Mensagens"
   }), React.createElement(Legend, {
-    c: "#00A3E0",
+    c: "#2291CE",
     l: "Ficheiros"
   }), React.createElement(Legend, {
     c: "#0F766E",
@@ -14009,7 +14005,7 @@ function AdminOverview() {
   }))), React.createElement(BarChart, {
     data: [920, 1480, 1247, 1120, 1380, 410, 290],
     labels: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
-    color: "#00A3E0",
+    color: "#2291CE",
     height: 180
   })), React.createElement(Card, {
     pad: 20
@@ -14029,11 +14025,11 @@ function AdminOverview() {
   }, [{
     n: 'Clínica',
     pct: 38,
-    c: '#00A3E0'
+    c: '#2291CE'
   }, {
     n: 'Administração',
     pct: 18,
-    c: '#002060'
+    c: '#292F58'
   }, {
     n: 'Operações',
     pct: 15,
@@ -15631,7 +15627,7 @@ function AdminServer() {
       padding: '10px 18px',
       background: 'var(--accent-soft)',
       color: 'var(--accent-d)',
-      border: '1px solid rgba(0,163,224,.3)',
+      border: '1px solid rgba(34,145,206,.3)',
       borderRadius: 9,
       fontWeight: 700,
       fontSize: 13,
@@ -16080,12 +16076,12 @@ function AdminSystem() {
     value: "Português (PT-AO)"
   }), React.createElement(Field, {
     label: "Cor primária",
-    value: "#002060",
-    swatch: "#002060"
+    value: "#292F58",
+    swatch: "#292F58"
   }), React.createElement(Field, {
     label: "Cor de destaque",
-    value: "#00A3E0",
-    swatch: "#00A3E0"
+    value: "#2291CE",
+    swatch: "#2291CE"
   }))), React.createElement(Card, {
     pad: 20
   }, React.createElement("h3", {
@@ -16182,10 +16178,10 @@ const TWEAK_DEFAULTS = {
   "variant": "arejado",
   "density": "confortavel",
   "sidebarCollapsed": false,
-  "accent": "#00A3E0",
+  "accent": "#2291CE",
   "presence": "online"
 };
-const ACCENT_OPTIONS = ['#00A3E0', '#0078B7', '#1FAA59', '#D97706'];
+const ACCENT_OPTIONS = ['#2291CE', '#0078B7', '#1FAA59', '#D97706'];
 function useIsMobile(bp) {
   bp = bp || 760;
   const [m, setM] = React.useState(() => typeof window !== 'undefined' && window.innerWidth <= bp);
@@ -17286,7 +17282,7 @@ function AudioRemoto() {
       borderRadius: 999,
       padding: '11px 20px',
       background: '#fff',
-      color: '#002060',
+      color: '#292F58',
       fontFamily: 'inherit',
       fontSize: 13.5,
       fontWeight: 700,
@@ -17323,7 +17319,7 @@ function ChamadaMini() {
       /* Acima da barra de navegação móvel, e acima da margem do aparelho. */
       bottom: 'calc(12px + env(safe-area-inset-bottom))',
       zIndex: 959,
-      background: '#002060',
+      background: '#292F58',
       color: '#fff',
       borderRadius: 14,
       boxShadow: '0 10px 30px rgba(0,0,0,.35)',
@@ -17468,7 +17464,7 @@ function ChamadaView() {
       alignItems: 'center',
       justifyContent: 'space-between',
       padding: 'env(safe-area-inset-top) 18px 0',
-      background: '#002060',
+      background: '#292F58',
       color: '#fff'
     }
   }, React.createElement("button", {
