@@ -27,6 +27,11 @@
   /* O Chat e a excepcao: ocupa o ecra, as mensagens deslizam dentro e a
      caixa de escrever fica sempre em baixo (24-09-2026). */
   body[data-mobile="true"] main > div.bsp-chat-ecra { height: 100% !important; overflow: hidden !important; }
+  /* CRM no telemovel (25-09-2026): uma so coluna, texto em cima e botoes por baixo. */
+  body[data-mobile="true"] .bsp-crm-linha { grid-template-columns: minmax(0,1fr) !important; gap: 10px !important; padding: 14px !important; }
+  body[data-mobile="true"] .bsp-crm-accoes { justify-content: flex-start !important; flex-wrap: nowrap !important; }
+  body[data-mobile="true"] .bsp-crm-accoes > span:first-child { display: none !important; }
+  body[data-mobile="true"] .bsp-crm-accoes > select { flex: 1; min-width: 0; }
   body[data-mobile="true"] .bsp-stack-mobile { grid-template-columns: 1fr !important; }
   body[data-mobile="true"] .bsp-hide-mobile { display: none !important; }
   .bsp-mnav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 900; display: none;
@@ -18698,7 +18703,7 @@ function bspCrmKz(v) {
 function bspCrmQuando(iso) {
   if (!iso) return '';
   const d = new Date(iso);
-  return d.toLocaleString('pt-PT', { timeZone: 'Africa/Luanda', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  return isNaN(d.getTime()) ? '' : bspDataExacta(d);
 }
 function bspCrmTel(t) {
   return String(t || '').replace(/\D/g, '');
@@ -18847,7 +18852,7 @@ function CrmPedidos() {
       const tel = bspCrmTel(l.telefone);
       const nome = l.paciente_nome || l.nome_whatsapp || ('+' + tel);
       return React.createElement("div", {
-        key: l.id, className: "bsp-row-hover",
+        key: l.id, className: "bsp-row-hover bsp-crm-linha",
         style: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 12, padding: '14px 18px', alignItems: 'center', borderBottom: i < visiveis.length - 1 ? '1px solid var(--border)' : 'none' }
       }, React.createElement("div", { style: { minWidth: 0 } },
         React.createElement("div", { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
@@ -18865,7 +18870,7 @@ function CrmPedidos() {
         l.ultima_nota && React.createElement("div", {
           style: { fontSize: 12, color: 'var(--text-2)', marginTop: 4, fontStyle: 'italic' }
         }, 'Nota: ' + l.ultima_nota)),
-      React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 8, flex: 'none', flexWrap: 'wrap', justifyContent: 'flex-end' } },
+      React.createElement("div", { className: "bsp-crm-accoes", style: { display: 'flex', alignItems: 'center', gap: 8, flex: 'none', flexWrap: 'wrap', justifyContent: 'flex-end' } },
         React.createElement(Badge, { tone: "outline", size: "xs", style: { color: est.cor, background: est.fundo, borderColor: est.cor } }, est.id),
         tel && React.createElement("a", {
           href: 'https://wa.me/' + tel, target: '_blank', rel: 'noopener', title: 'Abrir a conversa no WhatsApp',

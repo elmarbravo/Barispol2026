@@ -734,6 +734,23 @@ notificações e os dados.
   funcionar.
 - [ ] Decidir se os Serviços Gerais precisam de um canal próprio.
 
+
+## 3-s. CRM legível no telemóvel (25-09-2026)
+
+No telemóvel, cada pedido do CRM tinha duas colunas. Os botões (estado,
+WhatsApp, telefone, menu e nota) ocupavam quase toda a largura. O nome e
+a data ficavam numa coluna estreita, uma palavra por linha, e a data
+ficava por baixo do estado.
+
+- Abaixo de 640 px a linha (`bsp-crm-linha`) passa a uma só coluna:
+  texto em cima, botões por baixo numa linha (`bsp-crm-accoes`). O
+  distintivo do estado some no telemóvel, porque o menu já o mostra.
+- A data do CRM (`bspCrmQuando`) passa a usar `bspDataExacta`:
+  «25 Set 2026, 13:50», como no resto do Workspace.
+- O computador fica igual.
+- Confirmado com Playwright a 390 px e a 1366 px, com dados fictícios:
+  texto com 336 px de largura, sem deslocamento horizontal, sem erros.
+
 ---
 
 ## 4. Em cada aparelho
