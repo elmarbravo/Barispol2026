@@ -775,6 +775,14 @@ Pedido do Elmar: pôr no site a campanha Outubro Rosa e retirá-la a
   texto alternativo.
 - Texto: a legenda oficial do post (secção 5 do ficheiro de textos),
   sem emojis nem hashtags. `resumo` e `fecho` aceitam vários parágrafos.
+- Links para partilhar: `https://barispol.com/outubro-rosa`
+  (`outubro-rosa.html`: pré-visualização com o cartaz
+  `assets/outubro-rosa.jpg` no WhatsApp e nas redes, depois leva a
+  `/#campanhas`) e `https://barispol.com/#campanhas` (o site desce até à
+  secção quando esta aparece). Confirmado com Playwright no telemóvel e
+  no computador.
+- [ ] Depois de 31-10-2026: apagar `outubro-rosa.html` e
+      `assets/outubro-rosa.*`, e tirar a entrada de `campanhas.json`.
 - [ ] Confirmar com a recepção que o desconto está criado no MetaGest
       (nota do ficheiro de textos).
 
