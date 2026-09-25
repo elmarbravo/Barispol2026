@@ -834,6 +834,10 @@ escolha fica guardada no aparelho, `bsp-ordem-<lista>`) e `OrdemSelect`.
 - CRM · Pedidos do WhatsApp: mais recentes / antigos, nome, mais tempo
   sem resposta. CRM · Recuperar utentes: há mais / menos tempo, nome,
   mais visitas. CRM · Fichas: nome, última vez, mais vezes.
+- Admin → Utilizadores: nome A–Z / Z–A, cargo, departamento, acesso,
+  aniversário (Jan–Dez), e caixa de procura. O «Exportar CSV» sai com
+  todos, na ordem escolhida. As contas de segurança (não tirar o último
+  administrador) usam sempre a equipa toda, nunca a lista filtrada.
 - Campos vazios ficam sempre no fim.
 - Confirmado com Playwright; testes anteriores iguais.
 
