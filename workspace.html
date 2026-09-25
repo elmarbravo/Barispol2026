@@ -50,6 +50,10 @@
   body[data-mobile="true"] .bsp-taskdel { opacity: 1; }
   body[data-mobile="true"] .bsp-taskboard { grid-template-columns: 1fr !important; gap: 12px !important; }
   body[data-mobile="true"] .bsp-cal-body { grid-template-columns: 1fr !important; }
+  .bsp-mes-n { display: none; }
+  body[data-mobile="true"] .bsp-mes-evt { display: none !important; }
+  body[data-mobile="true"] .bsp-mes-n { display: block; }
+  body[data-mobile="true"] .bsp-mes-grelha { grid-auto-rows: minmax(56px, auto) !important; }
   body[data-mobile="true"] .bsp-login-root { grid-template-columns: 1fr !important; }
   body[data-mobile="true"] .bsp-login-brand { display: none !important; }
   body[data-mobile="true"] .bsp-login-formwrap { padding: 24px 18px !important; align-items: flex-start !important; }
@@ -3111,6 +3115,37 @@ function bspDiaDaSemanaAtual(di) {
 function bspEventoNoDia(e, di, todayIdx) {
   if (e && e.data) return String(e.data) === bspDiaDaSemanaAtual(di);
   return (e.day == null ? todayIdx : e.day) === di;
+}
+/* Agenda por dia, semana, mes e ano (25-09-2026). Datas em AAAA-MM-DD,
+   ao meio-dia local para nao saltar de dia com a hora de Verao. */
+function bspDataDe(iso) {
+  return new Date(String(iso).slice(0, 10) + 'T12:00:00');
+}
+function bspSomarDias(iso, n) {
+  const d = bspDataDe(iso);
+  d.setDate(d.getDate() + n);
+  return bspDataLocalISO(d);
+}
+function bspSomarMeses(iso, n) {
+  const d = bspDataDe(iso);
+  d.setDate(1);
+  d.setMonth(d.getMonth() + n);
+  return bspDataLocalISO(d);
+}
+function bspSegundaDe(iso) {
+  const d = bspDataDe(iso);
+  return bspSomarDias(iso, -((d.getDay() + 6) % 7));
+}
+/* Um evento semanal aparece em todas as datas desse dia da semana; um
+   evento com data, so nessa data. */
+function bspEventoNaData(e, iso, todayIdx) {
+  if (!e) return false;
+  if (e.data) return String(e.data) === iso;
+  const di = (bspDataDe(iso).getDay() + 6) % 7;
+  return (e.day == null ? todayIdx : e.day) === di;
+}
+function bspPorHora(a, b) {
+  return String(a.time || '').localeCompare(String(b.time || ''));
 }
 /* «30 Set 2026», para prazos e datas de eventos. */
 function bspDataCurta(iso) {
@@ -9972,6 +10007,33 @@ function CalendarScreen() {
   const [open, setOpen] = React.useState(false);
   const dayNames = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
   const todayIdx = (new Date().getDay() + 6) % 7;
+  const hojeISO = bspDataLocalISO(new Date());
+  /* Vista escolhida: guardada so neste aparelho. */
+  const [vista, setVistaEstado] = React.useState(() => {
+    try {
+      const v = localStorage.getItem('bsp-agenda-vista');
+      if (['dia', 'semana', 'mes', 'ano'].indexOf(v) !== -1) return v;
+    } catch (e) {}
+    return window.innerWidth < 640 ? 'dia' : 'semana';
+  });
+  const setVista = v => {
+    setVistaEstado(v);
+    try { localStorage.setItem('bsp-agenda-vista', v); } catch (e) {}
+  };
+  const [ref, setRef] = React.useState(hojeISO);
+  const andar = n => setRef(vista === 'dia' ? bspSomarDias(ref, n) : vista === 'semana' ? bspSomarDias(ref, 7 * n) : bspSomarMeses(ref, vista === 'mes' ? n : 12 * n));
+  const refD = bspDataDe(ref);
+  const seg = bspSegundaDe(ref);
+  const tituloVista = vista === 'dia' ? bspDiaExtenso(ref + 'T12:00:00')
+    : vista === 'semana' ? 'Semana de ' + (seg.slice(0, 7) === bspSomarDias(seg, 6).slice(0, 7) ? String(bspDataDe(seg).getDate()) : bspDataCurta(seg).replace(/ \d{4}$/, '')) + ' a ' + bspDataCurta(bspSomarDias(seg, 6))
+    : vista === 'mes' ? BSP_MESES_EXTENSO[refD.getMonth()] + ' de ' + refD.getFullYear()
+    : String(refD.getFullYear());
+  const vistas = [['dia', 'Dia'], ['semana', 'Semana'], ['mes', 'Mês'], ['ano', 'Ano']];
+  const botaoNav = {
+    height: 34, minWidth: 34, padding: '0 10px', borderRadius: 8, border: '1px solid var(--border)',
+    background: 'var(--surface)', color: 'var(--text-1)', cursor: 'pointer', fontFamily: 'inherit',
+    fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center'
+  };
   return React.createElement("div", {
     style: {
       height: '100%',
@@ -9996,24 +10058,43 @@ function CalendarScreen() {
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 12
+      gap: 12,
+      flexWrap: 'wrap'
     }
-  }, React.createElement(Button, {
+  }, React.createElement("span", { style: { flex: 'none', display: 'inline-flex' } }, React.createElement(Button, {
     variant: "primary",
     icon: React.createElement(I.Plus, {
       size: 14
     }),
     onClick: () => setOpen(true)
-  }, "Novo evento"), React.createElement("h2", {
+  }, "Novo evento")), React.createElement("h2", {
     style: {
       fontSize: 18,
       fontWeight: 700,
       color: 'var(--text-1)',
       margin: 0
     }
-  }, "Rotina semanal da equipa")), React.createElement(Badge, {
-    tone: "accent"
-  }, events.length, " ", events.length === 1 ? 'evento' : 'eventos')), React.createElement("div", {
+  }, tituloVista)), React.createElement("div", {
+    style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }
+  }, React.createElement("div", {
+    style: { display: 'flex', gap: 4 }
+  }, React.createElement("button", {
+    onClick: () => andar(-1), title: 'Anterior', style: botaoNav
+  }, React.createElement(I.ChevL, { size: 15 })), React.createElement("button", {
+    onClick: () => setRef(hojeISO), style: botaoNav
+  }, "Hoje"), React.createElement("button", {
+    onClick: () => andar(1), title: 'Seguinte', style: botaoNav
+  }, React.createElement(I.ChevR, { size: 15 }))), React.createElement("div", {
+    role: 'tablist',
+    style: { display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', background: 'var(--surface)' }
+  }, vistas.map(([k, rot], i) => React.createElement("button", {
+    key: k, role: 'tab', 'aria-selected': vista === k, onClick: () => setVista(k),
+    style: {
+      height: 32, padding: '0 12px', border: 'none', borderLeft: i ? '1px solid var(--border)' : 'none',
+      background: vista === k ? 'var(--navy)' : 'transparent', color: vista === k ? '#fff' : 'var(--text-2)',
+      fontFamily: 'inherit', fontSize: 13, fontWeight: 600, cursor: 'pointer'
+    }
+  }, rot))))), React.createElement("div", {
     className: "bsp-cal-body",
     style: {
       flex: 1,
@@ -10090,7 +10171,7 @@ function CalendarScreen() {
       borderTop: '1px solid var(--border)',
       paddingTop: 10
     }
-  }, "Os eventos «Todas as semanas» repetem-se no mesmo dia e à mesma hora. Os eventos «Numa data» só aparecem na semana dessa data."), (() => {
+  }, "Os eventos «Todas as semanas» repetem-se no mesmo dia e à mesma hora. Os eventos «Numa data» só aparecem nessa data."), (() => {
     /* Proximos eventos com data, para os que caem noutras semanas. */
     const hojeISO = bspDataLocalISO(new Date());
     const prox = events.filter(e => e && e.data && String(e.data) >= hojeISO)
@@ -10113,19 +10194,152 @@ function CalendarScreen() {
       display: 'flex',
       flexDirection: 'column'
     }
-  }, React.createElement(WeekGrid, {
+  }, vista === 'dia' ? React.createElement(AgendaDia, {
+    events: events, iso: ref, todayIdx: todayIdx, onDelete: actions.deleteEvent, onAdd: () => setOpen(true)
+  }) : vista === 'mes' ? React.createElement(AgendaMes, {
+    events: events, iso: ref, hojeISO: hojeISO, todayIdx: todayIdx,
+    onDia: iso => { setRef(iso); setVista('dia'); }
+  }) : vista === 'ano' ? React.createElement(AgendaAno, {
+    events: events, iso: ref, hojeISO: hojeISO,
+    onMes: iso => { setRef(iso); setVista('mes'); }
+  }) : React.createElement(WeekGrid, {
     events: events,
     todayIdx: todayIdx,
+    datas: [0, 1, 2, 3, 4, 5, 6].map(i => bspSomarDias(seg, i)),
+    hojeISO: hojeISO,
     onDelete: actions.deleteEvent,
     onAdd: () => setOpen(true)
   }))));
 }
+/* Vista Dia: os eventos desse dia, por hora. */
+function AgendaDia({ events, iso, todayIdx, onDelete, onAdd }) {
+  const lista = events.filter(e => bspEventoNaData(e, iso, todayIdx)).slice().sort(bspPorHora);
+  if (!lista.length) return React.createElement("div", {
+    style: { padding: '48px 20px', textAlign: 'center', color: 'var(--text-3)' }
+  }, React.createElement("div", { style: { fontSize: 13, marginBottom: 10 } }, "Sem eventos neste dia."), React.createElement(Button, {
+    variant: "soft", size: "sm", icon: React.createElement(I.Plus, { size: 13 }), onClick: onAdd
+  }, "Novo evento"));
+  return React.createElement("div", { style: { overflow: 'auto', flex: 1 } }, lista.map((e, i) => {
+    const c = CAT_COLORS[e.cat] || CAT_COLORS.reuniao;
+    const [hh, mm] = (e.time || '09:00').split(':').map(Number);
+    const fim = hh * 60 + (mm || 0) + (Number(e.dur) || 60);
+    const ate = String(Math.floor(fim / 60) % 24).padStart(2, '0') + ':' + String(fim % 60).padStart(2, '0');
+    return React.createElement("div", {
+      key: e.id || i,
+      style: { display: 'flex', gap: 14, padding: '14px 18px', borderBottom: '1px solid var(--border)', alignItems: 'flex-start' }
+    }, React.createElement("div", {
+      style: { width: 92, flex: 'none', fontSize: 13, fontWeight: 700, color: c.c }
+    }, (e.time || '') + '–' + ate), React.createElement("div", {
+      style: { flex: 1, minWidth: 0, borderLeft: '3px solid ' + c.c, paddingLeft: 12 }
+    }, React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: 'var(--text-1)' } }, e.title), React.createElement("div", {
+      style: { fontSize: 12, color: 'var(--text-3)', marginTop: 3 }
+    }, c.label + ' · ' + (e.data ? 'Só em ' + bspDataCurta(e.data) : 'Todas as semanas'))), onDelete && React.createElement("button", {
+      onClick: () => onDelete(e.id), title: 'Apagar',
+      style: { border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 7, width: 30, height: 30, cursor: 'pointer', color: 'var(--text-3)', display: 'grid', placeItems: 'center', flex: 'none' }
+    }, React.createElement(I.X, { size: 13 })));
+  }));
+}
+/* Vista Mes: grelha de segunda a domingo; carregar num dia abre o Dia. */
+function AgendaMes({ events, iso, hojeISO, todayIdx, onDia }) {
+  const d = bspDataDe(iso);
+  const mes = d.getMonth();
+  const primeiro = bspDataLocalISO(new Date(d.getFullYear(), mes, 1, 12));
+  const inicio = bspSegundaDe(primeiro);
+  const diasNoMes = new Date(d.getFullYear(), mes + 1, 0).getDate();
+  const semanas = Math.ceil(((bspDataDe(primeiro).getDay() + 6) % 7 + diasNoMes) / 7);
+  const celulas = [];
+  for (let i = 0; i < semanas * 7; i++) celulas.push(bspSomarDias(inicio, i));
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', flex: 1, overflow: 'auto' } }, React.createElement("div", {
+    style: { display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0,1fr))', borderBottom: '1px solid var(--border)', flex: 'none' }
+  }, ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map(n => React.createElement("div", {
+    key: n, style: { padding: '8px 6px', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--text-3)', textAlign: 'center' }
+  }, n))), React.createElement("div", {
+    className: 'bsp-mes-grelha',
+    style: { display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0,1fr))', gridAutoRows: 'minmax(96px, 1fr)', flex: 1 }
+  }, celulas.map((c, i) => {
+    const doMes = bspDataDe(c).getMonth() === mes;
+    const evs = events.filter(e => bspEventoNaData(e, c, todayIdx)).slice().sort(bspPorHora);
+    const hoje = c === hojeISO;
+    return React.createElement("button", {
+      key: c, onClick: () => onDia(c), className: 'bsp-mes-dia', title: bspDataCurta(c),
+      style: {
+        textAlign: 'left', border: 'none', borderRight: i % 7 < 6 ? '1px solid var(--border)' : 'none', borderBottom: '1px solid var(--border)',
+        background: doMes ? 'var(--surface)' : 'var(--surface-2)', padding: 6, cursor: 'pointer', fontFamily: 'inherit',
+        display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0, overflow: 'hidden'
+      }
+    }, React.createElement("span", {
+      style: {
+        fontSize: 12, fontWeight: 700, width: 24, height: 24, borderRadius: 12, display: 'grid', placeItems: 'center',
+        background: hoje ? 'var(--navy)' : 'transparent', color: hoje ? '#fff' : doMes ? 'var(--text-1)' : 'var(--text-3)'
+      }
+    }, bspDataDe(c).getDate()), evs.slice(0, 3).map((e, k) => {
+      const cc = CAT_COLORS[e.cat] || CAT_COLORS.reuniao;
+      return React.createElement("span", {
+        key: k, className: 'bsp-mes-evt',
+        style: { fontSize: 11, lineHeight: 1.3, color: 'var(--text-1)', background: cc.soft, borderLeft: '3px solid ' + cc.c, borderRadius: 4, padding: '1px 5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }
+      }, (e.time ? e.time + ' ' : '') + e.title);
+    }), evs.length > 3 && React.createElement("span", {
+      className: 'bsp-mes-evt', style: { fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }
+    }, '+' + (evs.length - 3) + ' mais'), evs.length > 0 && React.createElement("span", {
+      className: 'bsp-mes-n', style: { fontSize: 11, fontWeight: 700, color: 'var(--accent-d)' }
+    }, evs.length));
+  })));
+}
+/* Vista Ano: os 12 meses. O ponto marca os dias com eventos com data (a
+   rotina semanal marcaria todos os dias). Carregar num mes abre o Mes. */
+function AgendaAno({ events, iso, hojeISO, onMes }) {
+  const ano = bspDataDe(iso).getFullYear();
+  const comData = {};
+  events.forEach(e => { if (e && e.data) comData[String(e.data)] = (comData[String(e.data)] || 0) + 1; });
+  const semanais = events.filter(e => e && !e.data).length;
+  return React.createElement("div", { style: { overflow: 'auto', flex: 1, padding: 16 } }, React.createElement("p", {
+    style: { margin: '0 0 12px', fontSize: 12.5, color: 'var(--text-3)' }
+  }, 'Os pontos marcam os dias com eventos «Numa data». A rotina semanal (' + semanais + (semanais === 1 ? ' evento' : ' eventos') + ') repete-se todas as semanas.'), React.createElement("div", {
+    style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }
+  }, BSP_MESES_EXTENSO.map((nome, m) => {
+    const primeiro = bspDataLocalISO(new Date(ano, m, 1, 12));
+    const inicio = bspSegundaDe(primeiro);
+    const dias = new Date(ano, m + 1, 0).getDate();
+    const n = Math.ceil(((bspDataDe(primeiro).getDay() + 6) % 7 + dias) / 7) * 7;
+    let noMes = 0;
+    const cel = [];
+    for (let i = 0; i < n; i++) {
+      const c = bspSomarDias(inicio, i);
+      const doMes = bspDataDe(c).getMonth() === m;
+      if (doMes && comData[c]) noMes += comData[c];
+      cel.push(React.createElement("span", {
+        key: i,
+        style: {
+          fontSize: 10.5, height: 22, display: 'grid', placeItems: 'center', borderRadius: 11, position: 'relative',
+          color: !doMes ? 'transparent' : c === hojeISO ? '#fff' : 'var(--text-2)',
+          background: doMes && c === hojeISO ? 'var(--navy)' : doMes && comData[c] ? 'var(--accent-soft)' : 'transparent',
+          fontWeight: doMes && (comData[c] || c === hojeISO) ? 700 : 400
+        }
+      }, bspDataDe(c).getDate()));
+    }
+    return React.createElement("button", {
+      key: m, onClick: () => onMes(primeiro),
+      style: { textAlign: 'left', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', padding: 10, cursor: 'pointer', fontFamily: 'inherit' }
+    }, React.createElement("div", {
+      style: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }
+    }, React.createElement("span", { style: { fontSize: 13.5, fontWeight: 700, color: 'var(--text-1)' } }, nome), noMes > 0 && React.createElement("span", {
+      style: { fontSize: 11, fontWeight: 700, color: 'var(--accent-d)' }
+    }, noMes + (noMes === 1 ? ' evento' : ' eventos'))), React.createElement("div", {
+      style: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1 }
+    }, ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((l, k) => React.createElement("span", {
+      key: 'h' + k, style: { fontSize: 9.5, fontWeight: 700, color: 'var(--text-3)', textAlign: 'center' }
+    }, l)), cel));
+  })));
+}
 function WeekGrid({
   events,
   todayIdx,
+  datas,
+  hojeISO,
   onDelete,
   onAdd
 }) {
+  const eHoje = di => datas ? datas[di] === hojeISO : di === todayIdx;
   const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
   const hours = [];
   for (let h = 7; h <= 20; h++) hours.push(h);
@@ -10152,12 +10366,19 @@ function WeekGrid({
   }, React.createElement("div", {
     style: {
       fontSize: 10.5,
-      color: di === todayIdx ? 'var(--accent-d)' : 'var(--text-3)',
+      color: eHoje(di) ? 'var(--accent-d)' : 'var(--text-3)',
       fontWeight: 700,
       textTransform: 'uppercase',
       letterSpacing: '.06em'
     }
-  }, d)))), React.createElement("div", {
+  }, d), datas && React.createElement("div", {
+    style: {
+      fontSize: 15,
+      fontWeight: 700,
+      marginTop: 2,
+      color: eHoje(di) ? 'var(--accent-d)' : 'var(--text-1)'
+    }
+  }, bspDataDe(datas[di]).getDate())))), React.createElement("div", {
     style: {
       flex: 1,
       overflow: 'auto',
@@ -10180,7 +10401,7 @@ function WeekGrid({
       borderBottom: '1px solid var(--border)'
     }
   }, String(h).padStart(2, '0'), ":00"))), days.map((d, di) => {
-    const dayEvents = events.filter(e => bspEventoNoDia(e, di, todayIdx));
+    const dayEvents = events.filter(e => datas ? bspEventoNaData(e, datas[di], todayIdx) : bspEventoNoDia(e, di, todayIdx));
     return React.createElement("div", {
       key: di,
       onDoubleClick: onAdd,
@@ -10946,7 +11167,9 @@ function TaskComposer({
      as outras partilham-na. Quem nao delega so escolhe com quem partilha. */
   const [pessoas, setPessoas] = React.useState([window.CURRENT_USER_ID]);
   const [prazo, setPrazo] = React.useState('');
-  const mudaPessoas = !!(editTask && editTask.pessoal && editTask.donoId && (podeDelegar || editTask.donoId === window.CURRENT_USER_ID));
+  /* Quem esta na tarefa (dono, partilhada ou quem delega) edita-a toda
+     depois de criada, pessoas incluidas (pedido do Elmar, 25-09-2026). */
+  const mudaPessoas = !!(editTask && editTask.pessoal && editTask.donoId);
   /* Quem escreve tem de saber quem pode ler. Lido das camadas vivas, para
      o aviso acompanhar o que estiver ligado em Admin -> Permissões. */
   const camadasQueVeem = React.useMemo(() => {
@@ -10976,8 +11199,8 @@ function TaskComposer({
         prioridade: prio,
         prazo: prazo || null
       };
-      /* Pessoas (25-09-2026): o dono, a Direccao e a Coordenacao mudam a
-         quem pertence e com quem se partilha. */
+      /* Pessoas (25-09-2026): quem esta na tarefa muda com quem se partilha;
+         a Direccao e a Coordenacao mudam tambem a quem pertence. */
       if (mudaPessoas) {
         const dono0 = editTask.donoId;
         const esc = podeDelegar ? pessoas : [dono0].concat(pessoas.filter(x => x !== dono0));

@@ -138,10 +138,13 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   Desde 25-09-2026 um evento também pode ser «Numa data» (campo `data`,
   AAAA-MM-DD): usar `bspEventoNoDia()` para saber se aparece num dia, e
   a `resumo-matinal` só o anuncia nesse dia.
+  Vistas Dia, Semana, Mês e Ano (25-09-2026): usar `bspEventoNaData(e,
+  iso, todayIdx)` para uma data concreta.
 - Tarefas privadas partilhadas: coluna `partilhada_com` em
   `tarefas_pessoais` (`tarefas-partilhadas.sql`). Editar uma tarefa
   privada vai por `pess.actualizar`, nunca por `actions.updateTask`. A edição
-  também muda `user_id` e `partilhada_com` (só o dono ou quem delega).
+  também muda `user_id` e `partilhada_com` (todos os da tarefa; só quem
+  delega muda o dono).
 - Anexos no chat: `enviarFicheiros(lista)` no `ChatScreen` serve o clipe
   (vários ficheiros) e o arrastar com o rato.
 

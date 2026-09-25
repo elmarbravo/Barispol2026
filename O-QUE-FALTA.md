@@ -804,6 +804,23 @@ que tinha gravado.
   `partilhada_com: ["u2"]` quando se junta a Arlete; título e prazo com
   310 px; testes anteriores iguais.
 
+
+## 3-v. Agenda por dia, semana, mês e ano; tarefas editáveis por todos os da tarefa (25-09-2026)
+
+- Calendário: escolha Dia · Semana · Mês · Ano, setas ‹ › e «Hoje».
+  `AgendaDia`, `WeekGrid` (agora com a data de cada dia), `AgendaMes` e
+  `AgendaAno`. Um evento semanal aparece em todas as datas desse dia da
+  semana; um evento com data, só nessa data (`bspEventoNaData`). No Ano,
+  o destaque marca só os eventos com data. Carregar num mês abre o Mês;
+  num dia, o Dia. A vista fica guardada no aparelho
+  (`bsp-agenda-vista`); no telemóvel começa em Dia.
+- Tarefas privadas: todos os que estão na tarefa (dono, partilhada,
+  Direcção e Coordenação) editam tudo depois de criada, pessoas
+  incluídas. Quem não delega mantém o dono e fica na tarefa.
+- Confirmado com Playwright a 390 px e a 1366 px: as quatro vistas sem
+  deslocamento horizontal, Ano → Mês → Dia, setas, «Hoje»; testes
+  anteriores iguais.
+
 ---
 
 ## 4. Em cada aparelho
