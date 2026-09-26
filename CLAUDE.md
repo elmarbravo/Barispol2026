@@ -175,6 +175,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   23-09-2026).
 - A separação da equipa por áreas deve basear-se na caixa de correio da
   Barispol, e não no directório.
+- Aspecto dos e-mails igual ao site (branco, linhas finas, cantos rectos,
+  etiqueta azul, rodapé marinho): aprovado pelo Elmar a 26-09-2026. Vale
+  para todos os e-mails automáticos e para a caixa de contacto do site.
 - Direcção e Coordenação vêem as tarefas privadas de todos e delegam
   (criam na lista de outra pessoa). Regras em `tarefas-delegar.sql`,
   função `bsp_ve_tarefas_pessoais()`, coluna `criada_por` (24-09-2026).

@@ -916,6 +916,7 @@ mudar sempre juntos:
   cinzento antigo e os cantos redondos. Aplicado.
 - Confirmado: a `resumo-matinal` v4 correu às 10:42 sem erro; teste
   enviado só ao Elmar («[Teste] Novo aspecto dos e-mails do Workspace»).
+- Aprovado pelo Elmar a 26-09-2026.
 - [ ] Os e-mails do próprio Supabase (repor a palavra-passe, confirmar
       conta) têm modelos no painel: Authentication → Emails. Mudam-se lá.
 
