@@ -977,6 +977,21 @@ dados no Supabase e CSV.
       meses para uma planilha pequena no SharePoint e pedir a importação.
 - [ ] Confirmar com a Recepção as marcações antigas que ficaram
       «Agendada» sem estado na planilha.
+- [ ] Próximo passo, aprovado pelo Elmar a 26-09-2026 (parado: o conector
+      do Supabase passou para a conta elmar.bravo30@gmail.com e deixou de
+      ver o projecto Barispol; religar com elmar.bravo@barispol.com):
+      1. Marcações na ficha do paciente (CRM), pelo telefone (`tel9`), e
+         botão «Ficha» em cada marcação. Só para quem vê as Marcações.
+      2. «Compareceu» automático quando o MetaGest tem factura ou consulta
+         desse telefone no dia marcado (só Agendada/Confirmada).
+      3. Nova marcação: sugerir o paciente do MetaGest pelo nome ou
+         telefone e preencher nome, contacto, sexo e e-mail.
+      4. Campo **E-mail** do paciente na marcação, para estimular o uso:
+         validado, preenchido da ficha quando existir, aviso «sem e-mail»
+         na linha e contagem de marcações com e-mail. Coluna `email` em
+         `marcacoes` primeiro no servidor, depois o ecrã (o ecrã antes da
+         coluna partia as gravações). E-mail de confirmação ao paciente só
+         com texto aprovado pelo Elmar (regra 3).
 
 
 ## 3-ad. Cópias de segurança (26-09-2026)
