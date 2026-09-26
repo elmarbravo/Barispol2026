@@ -944,8 +944,9 @@ Elmar: a planilha aberta dentro do Workspace (sem cópia).
   Direcção Clínica (u14), Direcção e Coordenação e quem gere
   utilizadores. Hoje: Déricka, Joaquina, Juliana, Osvaldo, Elmar,
   Arlete (u2) e o utilizador «Beb» (Direcção).
-- Mostra «MARCAÇÕES - 2026 (reformulado).xlsx» (SharePoint da Recepção
-  › MARCAÇÕES) com `action=embedview`, e o botão «Abrir no Excel para
+- Mostra «MARCAÇÕES - 2026.xlsx» (SharePoint da Recepção › MARCAÇÕES ›
+  pasta «MARCAÇÕES - CORRENTE.xlsx»; indicação do Elmar, 26-09-2026; antes
+  apontava para a versão «reformulado») com `action=embedview`, e o botão «Abrir no Excel para
   marcar» (`?web=1`). Quem vê e quem escreve na planilha decide-o o
   SharePoint.
 - [ ] Nunca testado com a sessão real: daqui não se chega ao SharePoint.

@@ -19133,8 +19133,10 @@ function bspVeMarcacoes(u) {
   if (BSP_DIRECCAO_CLINICA_IDS.indexOf(u.id) !== -1) return true;
   return bspAreaChave(u.dept) === 'recepcao';
 }
-const BSP_MARCACOES_NOME = 'MARCAÇÕES - 2026 (reformulado)';
-const BSP_MARCACOES_CAMINHO = 'sites/rececao/Shared%20Documents/MARCA%C3%87%C3%95ES/MARCA%C3%87%C3%95ES%20-%202026%20(reformulado).xlsx';
+/* A planilha em uso: Recepcao > MARCACOES > MARCACOES - CORRENTE.xlsx (e
+   uma pasta) > MARCACOES - 2026.xlsx (indicacao do Elmar, 26-09-2026). */
+const BSP_MARCACOES_NOME = 'MARCAÇÕES - 2026';
+const BSP_MARCACOES_CAMINHO = 'sites/rececao/Shared%20Documents/MARCA%C3%87%C3%95ES/MARCA%C3%87%C3%95ES%20-%20CORRENTE.xlsx/MARCA%C3%87%C3%95ES%20-%202026.xlsx';
 const BSP_MARCACOES_ABRIR = 'https://barispol.sharepoint.com/:x:/r/' + BSP_MARCACOES_CAMINHO + '?web=1';
 const BSP_MARCACOES_EMBUTIR = 'https://barispol.sharepoint.com/:x:/r/' + BSP_MARCACOES_CAMINHO + '?action=embedview&wdAllowInteractivity=True&wdHideGridlines=False&wdHideHeaders=False';
 function MarcacoesScreen() {
