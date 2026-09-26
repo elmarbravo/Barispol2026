@@ -12290,6 +12290,7 @@ function TasksScreen() {
   }), " Adicionar tarefa"), board[c.id].map(tk => React.createElement(TaskCard, {
     key: tk.id,
     t: tk,
+    concluida: c.id === 'done',
     onDragStart: () => {
       setDragId(tk.id);
       setDragFrom(c.id);
@@ -12314,6 +12315,7 @@ function TasksScreen() {
 }
 function TaskCard({
   t,
+  concluida,
   onDragStart,
   onDragEnd,
   dragging,
@@ -12466,9 +12468,10 @@ function TaskCard({
       fontSize: 11.5,
       fontWeight: 600,
       marginBottom: 6,
-      color: !t.done && String(t.due).slice(0, 10) < bspDataLocalISO(new Date()) ? '#DC2626' : 'var(--text-2)'
+      /* Concluida nao esta em atraso (26-09-2026). */
+      color: !concluida && !t.done && String(t.due).slice(0, 10) < bspDataLocalISO(new Date()) ? '#DC2626' : 'var(--text-2)'
     }
-  }, 'Prazo: ' + bspDataCurta(t.due) + (!t.done && String(t.due).slice(0, 10) < bspDataLocalISO(new Date()) ? ' · em atraso' : '')), t.proj && React.createElement("div", {
+  }, 'Prazo: ' + bspDataCurta(t.due) + (!concluida && !t.done && String(t.due).slice(0, 10) < bspDataLocalISO(new Date()) ? ' · em atraso' : '')), t.proj && React.createElement("div", {
     style: {
       fontSize: 11,
       color: 'var(--text-3)',

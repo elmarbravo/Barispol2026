@@ -919,6 +919,15 @@ mudar sempre juntos:
 - [ ] Os e-mails do próprio Supabase (repor a palavra-passe, confirmar
       conta) têm modelos no painel: Authentication → Emails. Mudam-se lá.
 
+
+## 3-ab. Tarefa concluída não fica «em atraso» (26-09-2026)
+
+O cartão da tarefa pintava de vermelho «em atraso» todas as tarefas com
+prazo passado, mesmo em «Concluído» (lia `t.done`, que nunca existe). O
+quadro passa agora `concluida` ao `TaskCard`: em «Concluído» mostra só o
+prazo. Confirmado com Playwright: a mesma data passada aparece «em
+atraso» em «A Fazer» e sem aviso em «Concluído».
+
 ---
 
 ## 4. Em cada aparelho
