@@ -918,7 +918,10 @@ mudar sempre juntos:
   enviado só ao Elmar («[Teste] Novo aspecto dos e-mails do Workspace»).
 - Aprovado pelo Elmar a 26-09-2026.
 - [ ] Os e-mails do próprio Supabase (repor a palavra-passe, confirmar
-      conta) têm modelos no painel: Authentication → Emails. Mudam-se lá.
+      conta, convite, ligação de entrada, mudar e-mail) têm modelos no
+      painel. Estão prontos em `emails-supabase/` (ver o `LEIA-ME.md`):
+      o Elmar cola-os em Authentication → Emails. Daqui não se consegue
+      gravar a configuração de autenticação.
 
 
 ## 3-ab. Tarefa concluída não fica «em atraso» (26-09-2026)
