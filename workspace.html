@@ -19145,8 +19145,8 @@ function bspGereMarcacoes(u) {
   return nivel === 'Direcção' || nivel === 'Coordenação' || !!bspCamada(u).podeGerirUtilizadores;
 }
 const BSP_MARC_ESTADOS = [
-  { id: 'Marcado', cor: '#14448F', fundo: 'rgba(20,68,143,.10)' },
-  { id: 'Confirmado', cor: '#0E7490', fundo: 'rgba(14,116,144,.10)' },
+  { id: 'Agendada', cor: '#14448F', fundo: 'rgba(20,68,143,.10)' },
+  { id: 'Confirmada', cor: '#0E7490', fundo: 'rgba(14,116,144,.10)' },
   { id: 'Compareceu', cor: '#06713F', fundo: 'rgba(6,113,63,.10)' },
   { id: 'Faltou', cor: '#B42318', fundo: 'rgba(180,35,24,.10)' },
   { id: 'Cancelou', cor: '#6B7280', fundo: 'rgba(107,114,128,.12)' },
@@ -19154,6 +19154,16 @@ const BSP_MARC_ESTADOS = [
 ];
 const BSP_MARC_ACTOS = ['Análises clínicas', 'Consulta de clínica geral', 'Consulta de medicina interna', 'Consulta de pediatria', 'Consulta de ginecologia e obstetrícia', 'Consulta de cardiologia', 'Consulta de urologia', 'Consulta de ortopedia', 'Consulta de dermatologia', 'Consulta de psicologia', 'Consulta de nutrição', 'Ecografia', 'Raio-X', 'Electrocardiograma (ECG)', 'Holter ou MAPA (24 horas)', 'Enfermagem'];
 const BSP_MARC_ORIGENS = ['WhatsApp', 'Telefone', 'Presencial', 'Site', 'Outra'];
+/* Como na planilha: quem paga a consulta. A seguradora so conta com Seguro ou Cartao. */
+const BSP_MARC_ENTIDADES = ['Particular', 'Seguro', 'Cartão'];
+function bspMarcEntidade(v) {
+  const n = String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  if (!n.trim()) return null;
+  if (n.indexOf('cart') !== -1) return 'Cartão';
+  if (n.indexOf('segur') !== -1) return 'Seguro';
+  if (/^pa/.test(n.trim())) return 'Particular';
+  return String(v).trim().slice(0, 40);
+}
 const bspMarcEstado = id => BSP_MARC_ESTADOS.find(e => e.id === id) || BSP_MARC_ESTADOS[0];
 /* «dd/mm/aaaa», «aaaa-mm-dd» ou numero de serie do Excel -> AAAA-MM-DD. */
 function bspMarcData(v) {
@@ -19221,16 +19231,30 @@ function bspMarcDoCsv(linhas) {
     /* «contacto» tem «acto» dentro: vem antes. */
     if (n.indexOf('contacto') === 0 || n.indexOf('telefone') !== -1 || n.indexOf('telemovel') !== -1) return 'contacto';
     if (/(^|\s)a(c)?to(s)?(\s|$)/.test(n) || n.indexOf('especialidade') !== -1 || n.indexOf('servico') !== -1) return 'acto';
+    /* «NOME DO MÉDICO» tem «nome» dentro: vem antes do nome do paciente. */
+    if (n.indexOf('medic') !== -1 || n.indexOf('dr') === 0) return 'medico';
     if (n.indexOf('nome') !== -1 || n.indexOf('paciente') !== -1) return 'nome';
-    if (n.indexOf('medic') === 0 || n.indexOf('dr') === 0) return 'medico';
     if (n.indexOf('estado') === 0 || n.indexOf('situacao') !== -1) return 'estado';
+    if (n.indexOf('entidade') === 0) return 'entidade';
+    if (n.indexOf('seguradora') === 0) return 'seguradora';
+    if (n.indexOf('recepcionista') === 0 || n.indexOf('rececionista') === 0) return 'rececionista';
     if (n.indexOf('obs') === 0) return 'observacoes';
     if (n.indexOf('origem') === 0 || n.indexOf('canal') === 0) return 'origem';
     return null;
   };
   let mapa = null, ignoradas = 0;
   const saida = [];
-  const estadoDe = v => { const n = norm(v); const e = BSP_MARC_ESTADOS.find(x => norm(x.id) === n); return e ? e.id : null; };
+  /* A planilha diz «AGENDADA»; os antigos «Marcado»/«Confirmado» tambem servem. */
+  const estadoDe = (v, obs) => {
+    const n = norm(v).replace(/o$/, 'a');
+    const e = BSP_MARC_ESTADOS.find(x => { const i = norm(x.id); return i === n || i === norm(v) || (n === 'marcada' && i === 'agendada'); });
+    if (e) return e.id;
+    const o = norm(obs);
+    if (o.indexOf('cancelad') !== -1) return 'Cancelou';
+    if (o.indexOf('remarc') !== -1) return 'Remarcado';
+    if (o.indexOf('realiz') !== -1) return 'Compareceu';
+    return null;
+  };
   for (const l of linhas) {
     const campos = l.map(qual);
     if (campos.indexOf('data_marcada') !== -1 && campos.indexOf('nome') !== -1) { mapa = campos; continue; }
@@ -19249,7 +19273,12 @@ function bspMarcDoCsv(linhas) {
       nome: r.nome.slice(0, 160),
       contacto: r.contacto ? r.contacto.slice(0, 60) : null,
       medico: r.medico ? r.medico.slice(0, 120) : null,
-      estado: estadoDe(r.estado) || 'Marcado',
+      estado: estadoDe(r.estado, r.observacoes) || 'Agendada',
+      entidade: bspMarcEntidade(r.entidade),
+      /* «CARTÃO MEDICARE» numa so coluna: o resto e a seguradora. */
+      seguradora: r.seguradora && !/^[.\-\s]*$/.test(r.seguradora) ? r.seguradora.slice(0, 80)
+        : (/^(cart|segur)/i.test(bspMarcEntidade(r.entidade) || '') && String(r.entidade).trim().split(/\s+/).length > 1 ? String(r.entidade).trim().split(/\s+/).slice(1).join(' ').slice(0, 80) : null),
+      rececionista: r.rececionista ? r.rececionista.slice(0, 80) : null,
       observacoes: r.observacoes ? r.observacoes.slice(0, 1000) : null,
       origem: r.origem ? r.origem.slice(0, 40) : 'Planilha'
     });
@@ -19257,9 +19286,9 @@ function bspMarcDoCsv(linhas) {
   return { marcacoes: saida, ignoradas: ignoradas, cabecalho: !!mapa };
 }
 function bspMarcCsv(lista) {
-  const cab = ['DIA QUE CONTACTOU', 'DATA MARCADA', 'HORA', 'SEXO', 'ATO MÉDICO', 'NOME DO(A) PACIENTE', 'CONTACTO', 'MÉDICO(A)', 'ESTADO', 'OBSERVAÇÕES', 'ORIGEM'];
+  const cab = ['DIA QUE CONTACTOU', 'DATA MARCADA', 'HORA', 'SEXO', 'ATO MÉDICO', 'NOME DO(A) PACIENTE', 'CONTACTO', 'MÉDICO(A)', 'ENTIDADE', 'SEGURADORA', 'RECECIONISTA', 'ESTADO', 'OBSERVAÇÕES', 'ORIGEM'];
   const q = v => { const t = String(v == null ? '' : v); return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
-  const linhas = lista.map(m => [bspMarcDataPt(m.dia_contacto), bspMarcDataPt(m.data_marcada), m.hora, m.sexo, m.acto, m.nome, m.contacto, m.medico, m.estado, m.observacoes, m.origem].map(q).join(';'));
+  const linhas = lista.map(m => [bspMarcDataPt(m.dia_contacto), bspMarcDataPt(m.data_marcada), m.hora, m.sexo, m.acto, m.nome, m.contacto, m.medico, m.entidade, m.seguradora, m.rececionista, m.estado, m.observacoes, m.origem].map(q).join(';'));
   return '﻿' + cab.join(';') + '\r\n' + linhas.join('\r\n') + '\r\n';
 }
 function useMarcacoes(de, ate) {
@@ -19288,7 +19317,7 @@ function useMarcacoes(de, ate) {
   const guardar = React.useCallback(async m => {
     const cl = bspGetClient();
     if (!cl) return 'O servidor não está ligado.';
-    const campos = { dia_contacto: m.dia_contacto || null, data_marcada: m.data_marcada, hora: m.hora || null, sexo: m.sexo || null, acto: m.acto, nome: m.nome, contacto: m.contacto || null, medico: m.medico || null, estado: m.estado || 'Marcado', observacoes: m.observacoes || null, origem: m.origem || null };
+    const campos = { dia_contacto: m.dia_contacto || null, data_marcada: m.data_marcada, hora: m.hora || null, sexo: m.sexo || null, acto: m.acto, nome: m.nome, contacto: m.contacto || null, medico: m.medico || null, entidade: m.entidade || null, seguradora: m.entidade && m.entidade !== 'Particular' ? (m.seguradora || null) : null, rececionista: m.rececionista || null, estado: m.estado || 'Agendada', observacoes: m.observacoes || null, origem: m.origem || null };
     const r = m.id ? await cl.from('marcacoes').update(campos).eq('id', m.id).select('id') : await cl.from('marcacoes').insert(campos).select('id');
     recarregar();
     if (r.error) return r.error.message || 'Não foi possível gravar.';
@@ -19335,7 +19364,8 @@ function useMarcacoes(de, ate) {
   return { lista, estado, erro, recarregar, guardar, mudarEstado, apagar, importar };
 }
 function MarcacaoModal({ open, inicial, onClose, onGuardar, onApagar, podeApagar }) {
-  const vazio = { data_marcada: bspDataLocalISO(new Date()), hora: '', nome: '', sexo: '', contacto: '', acto: '', medico: '', dia_contacto: bspDataLocalISO(new Date()), origem: 'WhatsApp', estado: 'Marcado', observacoes: '' };
+  const eu = window.userById && window.userById(window.CURRENT_USER_ID);
+  const vazio = { data_marcada: bspDataLocalISO(new Date()), hora: '', nome: '', sexo: '', contacto: '', acto: '', medico: '', entidade: 'Particular', seguradora: '', rececionista: eu ? eu.name : '', dia_contacto: bspDataLocalISO(new Date()), origem: 'WhatsApp', estado: 'Agendada', observacoes: '' };
   const [m, setM] = React.useState(vazio);
   const [aGravar, setAGravar] = React.useState(false);
   React.useEffect(() => { if (open) setM(inicial ? { ...vazio, ...Object.fromEntries(Object.entries(inicial).map(([k, v]) => [k, v == null ? '' : v])) } : vazio); }, [open, inicial]);
@@ -19375,6 +19405,10 @@ function MarcacaoModal({ open, inicial, onClose, onGuardar, onApagar, podeApagar
       React.createElement("div", null, rot('Médico(a)'), React.createElement("input", { value: m.medico, onChange: e => muda('medico', e.target.value), list: 'bsp-marc-medicos', style: campo }),
         React.createElement("datalist", { id: 'bsp-marc-medicos' }, medicos.map(a => React.createElement("option", { key: a, value: a })))),
       React.createElement("div", null, rot('Dia que contactou'), React.createElement("input", { type: 'date', value: m.dia_contacto, onChange: e => muda('dia_contacto', e.target.value), style: campo }))),
+    React.createElement("div", null, rot('Entidade'), React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } }, BSP_MARC_ENTIDADES.map(o => React.createElement("button", { key: o, type: 'button', onClick: () => muda('entidade', o), style: chip(m.entidade === o) }, o)))),
+    React.createElement("div", { style: grelha },
+      m.entidade && m.entidade !== 'Particular' && React.createElement("div", null, rot('Seguradora'), React.createElement("input", { value: m.seguradora, onChange: e => muda('seguradora', e.target.value), style: campo, placeholder: 'Ex.: Medicare' })),
+      React.createElement("div", null, rot('Rececionista'), React.createElement("input", { value: m.rececionista, onChange: e => muda('rececionista', e.target.value), style: campo }))),
     React.createElement("div", null, rot('Como chegou'), React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } }, BSP_MARC_ORIGENS.map(o => React.createElement("button", { key: o, type: 'button', onClick: () => muda('origem', o), style: chip(m.origem === o) }, o)))),
     React.createElement("div", null, rot('Estado'), React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } }, BSP_MARC_ESTADOS.map(e => React.createElement("button", { key: e.id, type: 'button', onClick: () => muda('estado', e.id), style: chip(m.estado === e.id) }, e.id)))),
     React.createElement("div", null, rot('Observações'), React.createElement("textarea", { value: m.observacoes, onChange: e => muda('observacoes', e.target.value), rows: 3, style: { ...campo, height: 'auto', padding: 10, resize: 'vertical' } })),
@@ -19404,7 +19438,7 @@ function MarcacoesScreen() {
   const fich = React.useRef(null);
   const norm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const visiveis = marc.lista.filter(m => (filtroEstado === 'todos' || m.estado === filtroEstado) &&
-    (!busca.trim() || [m.nome, m.contacto, m.acto, m.medico, m.observacoes].some(x => norm(x).indexOf(norm(busca.trim())) !== -1)));
+    (!busca.trim() || [m.nome, m.contacto, m.acto, m.medico, m.seguradora, m.rececionista, m.observacoes].some(x => norm(x).indexOf(norm(busca.trim())) !== -1)));
   const porDia = [];
   visiveis.forEach(m => { const g = porDia[porDia.length - 1]; if (g && g.dia === m.data_marcada) g.lista.push(m); else porDia.push({ dia: m.data_marcada, lista: [m] }); });
   const contagem = {}; marc.lista.forEach(m => { contagem[m.estado] = (contagem[m.estado] || 0) + 1; });
@@ -19486,7 +19520,7 @@ function MarcacoesScreen() {
             React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)' } }, m.hora || '—'),
             React.createElement("div", { style: { minWidth: 0, cursor: 'pointer' }, onClick: () => setModal(m), title: 'Editar' },
               React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: 'var(--text-1)' } }, m.nome, m.sexo ? React.createElement("span", { style: { fontWeight: 500, color: 'var(--text-3)' } }, ' · ' + m.sexo) : null),
-              React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', marginTop: 2 } }, [m.acto, m.medico, m.contacto].filter(Boolean).join(' · ')),
+              React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', marginTop: 2 } }, [m.acto, m.medico, m.contacto, m.entidade && m.entidade !== 'Particular' ? (m.seguradora ? m.entidade + ' ' + m.seguradora : m.entidade) : m.entidade].filter(Boolean).join(' · ')),
               m.observacoes && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2, fontStyle: 'italic' } }, m.observacoes)),
             React.createElement("div", { className: 'bsp-marc-accoes', style: { display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' } },
               tel && React.createElement("a", { href: 'https://wa.me/' + tel244, target: '_blank', rel: 'noopener', title: 'WhatsApp', style: { height: 32, padding: '0 10px', borderRadius: 8, border: '1px solid var(--border)', color: '#128C7E', display: 'inline-flex', alignItems: 'center', fontSize: 12, fontWeight: 700, textDecoration: 'none', background: 'var(--surface)' } }, 'WhatsApp'),

@@ -160,7 +160,10 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 - Marcações (26-09-2026): tabela `marcacoes` no Supabase
   (`marcacoes.sql`), ecrã `marcacoes` (`MarcacoesScreen`). Acesso igual
   nos dois lados: `bspVeMarcacoes` (Recepção, u14, gestão) e
-  `bsp_ve_marcacoes()`; só a gestão apaga. A planilha entra e sai por CSV
+  `bsp_ve_marcacoes()`; só a gestão apaga. Estados da planilha:
+  `Agendada` (omissão), `Confirmada`, Compareceu, Faltou, Cancelou,
+  Remarcado; colunas `entidade`, `seguradora`, `rececionista`. Agosto e
+  Setembro já importados (26-09-2026). A planilha entra e sai por CSV
   (`bspLerCsv`, `bspMarcDoCsv`, `bspMarcCsv`). Nomes de doentes nunca no
   repositório.
 - Anexos no chat: `enviarFicheiros(lista)` no `ChatScreen` serve o clipe

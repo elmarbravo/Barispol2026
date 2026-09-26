@@ -941,8 +941,9 @@ aberta dentro do Workspace) não abria; o Elmar pediu outra forma, com os
 dados no Supabase e CSV.
 
 - Tabela `marcacoes` (`marcacoes.sql`, aplicado): dia que contactou,
-  data marcada, hora, sexo, acto médico, nome, contacto, médico, estado
-  (Marcado, Confirmado, Compareceu, Faltou, Cancelou, Remarcado),
+  data marcada, hora, sexo, acto médico, nome, contacto, médico,
+  entidade (Particular, Seguro, Cartão), seguradora, rececionista, estado
+  (Agendada, Confirmada, Compareceu, Faltou, Cancelou, Remarcado),
   observações, origem, quem criou e quem alterou. Regras:
   `bsp_ve_marcacoes()` = gestão (`bsp_e_gestor`), Direcção Clínica
   (`bsp_le_areas_medicas`) ou área Recepção (`bsp_minha_area`). Só a
@@ -962,10 +963,20 @@ dados no Supabase e CSV.
 - Confirmado com Playwright (servidor simulado) no computador e no
   telemóvel: criar, mudar estado, importar (4 linhas, 1 repetida fora,
   2 vazias ignoradas), exportar.
-- [ ] Importar a planilha «MARCAÇÕES - 2026» (Recepção › MARCAÇÕES ›
-      MARCAÇÕES - CORRENTE.xlsx): no Excel, Ficheiro → Guardar como →
-      CSV (separado por ponto e vírgula), uma folha de cada vez se houver
-      várias, e «Importar CSV» no ecrã.
+- [x] Importadas a 26-09-2026, directamente no servidor, as marcações de
+      Agosto e Setembro da «MARCAÇÕES - 2026 (reformulado).xlsx»: 143
+      linhas, 141 marcações (2 estavam nas duas folhas). Estado vazio com
+      «CANCELADO» na observação passou a Cancelou; o resto vazio ficou
+      Agendada. Nomes de médicos e rececionistas uniformizados pela folha
+      LISTAS. O registo da migração foi limpo (os dados ficam só na
+      tabela). Agosto: 36 agendadas, 28 compareceram, 8 canceladas, 1
+      remarcada. Setembro: 22, 33, 8, 3 faltas, 1 remarcada. Outubro: 1.
+- [ ] Janeiro a Julho: só estão na «MARCAÇÕES - 2026.xlsx» (66 MB), que
+      o conector não consegue ler. No Excel: Ficheiro → Guardar como → CSV
+      (uma folha de cada vez) e «Importar CSV» no ecrã; ou copiar esses
+      meses para uma planilha pequena no SharePoint e pedir a importação.
+- [ ] Confirmar com a Recepção as marcações antigas que ficaram
+      «Agendada» sem estado na planilha.
 
 
 ## 3-ad. Cópias de segurança (26-09-2026)

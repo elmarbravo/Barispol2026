@@ -23,8 +23,8 @@ create table if not exists public.marcacoes (
   nome text not null,
   contacto text,
   medico text,
-  estado text not null default 'Marcado'
-    check (estado in ('Marcado', 'Confirmado', 'Compareceu', 'Faltou', 'Cancelou', 'Remarcado')),
+  estado text not null default 'Agendada'
+    check (estado in ('Agendada', 'Confirmada', 'Compareceu', 'Faltou', 'Cancelou', 'Remarcado')),
   observacoes text,
   origem text,
   criado_por text default public.bsp_meu_id(),
@@ -32,6 +32,16 @@ create table if not exists public.marcacoes (
   alterado_por text,
   alterado_em timestamptz
 );
+-- Colunas da planilha «reformulada» e os estados dela (26-09-2026).
+alter table public.marcacoes add column if not exists entidade text;
+alter table public.marcacoes add column if not exists seguradora text;
+alter table public.marcacoes add column if not exists rececionista text;
+alter table public.marcacoes drop constraint if exists marcacoes_estado_check;
+update public.marcacoes set estado = case estado when 'Marcado' then 'Agendada' when 'Confirmado' then 'Confirmada' else estado end
+  where estado in ('Marcado', 'Confirmado');
+alter table public.marcacoes alter column estado set default 'Agendada';
+alter table public.marcacoes add constraint marcacoes_estado_check
+  check (estado in ('Agendada', 'Confirmada', 'Compareceu', 'Faltou', 'Cancelou', 'Remarcado'));
 create index if not exists marcacoes_data_idx on public.marcacoes (data_marcada, hora);
 create index if not exists marcacoes_nome_idx on public.marcacoes (lower(nome));
 
