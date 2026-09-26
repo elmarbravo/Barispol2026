@@ -861,6 +861,26 @@ escolha fica guardada no aparelho, `bsp-ordem-<lista>`) e `OrdemSelect`.
 - [ ] `contacto.html` e `ecografia.html` ainda têm o estilo antigo e não
       têm modo escuro (entram quando forem refeitas).
 
+
+## 3-y. Assunto da caixa de contacto com os serviços do MetaGest (26-09-2026)
+
+O menu «Assunto» do site tinha 7 opções. Passa a 27, em quatro grupos,
+com o que tem factura no MetaGest nos últimos 12 meses
+(`crm.mg_factura_itens`, `erp.sales_invoice_item`, `crm.mg_consultas`):
+
+- Análises clínicas: geral e os 8 grupos do site (check-up, grávida,
+  pré-operatório, febre, diabetes, mulher, homem, admissão).
+- Consultas: clínica geral, medicina interna, pediatria, ginecologia e
+  obstetrícia, cardiologia, urologia, ortopedia, dermatologia,
+  psicologia, nutrição.
+- Exames: ecografia, raio-X, electrocardiograma, Holter ou MAPA.
+- Outros: enfermagem, farmácia interna, ainda não sei, outro assunto.
+
+Ficam de fora os grupos sem movimento num ano: banco de urgência
+(último em Abr 2025), cirurgia (último em Ago 2025), otorrino (2022).
+A função `contacto-site` aceita qualquer assunto até 80 letras (o mais
+longo tem 43). Confirmado com Playwright.
+
 ---
 
 ## 4. Em cada aparelho

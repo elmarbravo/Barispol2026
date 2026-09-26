@@ -499,13 +499,42 @@ html[data-tema="escuro"] .botao-claro{background:#fff;color:#292F58}
           <div>
             <label for="servico">Assunto</label>
             <select id="servico" name="servico">
-              <option>Análises clínicas</option>
-              <option>Consulta de clínica geral</option>
-              <option>Pediatria</option>
-              <option>Ginecologia e obstetrícia</option>
-              <option>Ecografia ou raio-X</option>
-              <option>Ainda não sei</option>
-              <option>Outro assunto</option>
+              <!-- Serviços com factura no MetaGest nos últimos 12 meses (26-09-2026). -->
+              <optgroup label="Análises clínicas">
+                <option>Análises clínicas</option>
+                <option>Análises: check-up geral</option>
+                <option>Análises da grávida</option>
+                <option>Análises: pré-operatório</option>
+                <option>Análises: febre e infecção</option>
+                <option>Análises: diabetes e controlo metabólico</option>
+                <option>Análises: saúde da mulher</option>
+                <option>Análises: saúde do homem</option>
+                <option>Análises: admissão e atestado</option>
+              </optgroup>
+              <optgroup label="Consultas">
+                <option>Consulta de clínica geral</option>
+                <option>Consulta de medicina interna</option>
+                <option>Consulta de pediatria</option>
+                <option>Consulta de ginecologia e obstetrícia</option>
+                <option>Consulta de cardiologia</option>
+                <option>Consulta de urologia</option>
+                <option>Consulta de ortopedia</option>
+                <option>Consulta de dermatologia</option>
+                <option>Consulta de psicologia</option>
+                <option>Consulta de nutrição</option>
+              </optgroup>
+              <optgroup label="Exames">
+                <option>Ecografia</option>
+                <option>Raio-X</option>
+                <option>Electrocardiograma (ECG)</option>
+                <option>Holter ou MAPA (24 horas)</option>
+              </optgroup>
+              <optgroup label="Outros">
+                <option>Enfermagem (injecções, pensos, nebulização)</option>
+                <option>Farmácia interna</option>
+                <option>Ainda não sei</option>
+                <option>Outro assunto</option>
+              </optgroup>
             </select>
           </div>
           <div>
