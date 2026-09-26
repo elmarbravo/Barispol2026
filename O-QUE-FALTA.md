@@ -936,25 +936,36 @@ atraso» em «A Fazer» e sem aviso em «Concluído».
 ## 3-ac. Marcações dentro do Workspace (26-09-2026)
 
 Pedido do Elmar: as marcações dentro do Workspace, só para a Recepção, a
-Direcção Clínica e a gestão, a alimentar a mesma planilha. Escolha do
-Elmar: a planilha aberta dentro do Workspace (sem cópia).
+Direcção Clínica e a gestão. A primeira via (a planilha do SharePoint
+aberta dentro do Workspace) não abria; o Elmar pediu outra forma, com os
+dados no Supabase e CSV.
 
-- Ecrã «Marcações» (`MarcacoesScreen`, menu lateral e «Mais» no
-  telemóvel), com `bspVeMarcacoes`: Recepção (pelo departamento),
-  Direcção Clínica (u14), Direcção e Coordenação e quem gere
-  utilizadores. Hoje: Déricka, Joaquina, Juliana, Osvaldo, Elmar,
-  Arlete (u2) e o utilizador «Beb» (Direcção).
-- Mostra «MARCAÇÕES - 2026.xlsx» (SharePoint da Recepção › MARCAÇÕES ›
-  pasta «MARCAÇÕES - CORRENTE.xlsx»; indicação do Elmar, 26-09-2026; antes
-  apontava para a versão «reformulado») com `action=embedview`, e o botão «Abrir no Excel para
-  marcar» (`?web=1`). Quem vê e quem escreve na planilha decide-o o
-  SharePoint.
-- [ ] Nunca testado com a sessão real: daqui não se chega ao SharePoint.
-      Se ficar em branco, o Elmar gera o código em Excel → Ficheiro →
-      Partilhar → Incorporar e passa-o para substituir
-      `BSP_MARCACOES_EMBUTIR`.
-- [ ] Confirmar que o Osvaldo (Direcção Clínica) tem acesso ao site da
-      Recepção no SharePoint.
+- Tabela `marcacoes` (`marcacoes.sql`, aplicado): dia que contactou,
+  data marcada, hora, sexo, acto médico, nome, contacto, médico, estado
+  (Marcado, Confirmado, Compareceu, Faltou, Cancelou, Remarcado),
+  observações, origem, quem criou e quem alterou. Regras:
+  `bsp_ve_marcacoes()` = gestão (`bsp_e_gestor`), Direcção Clínica
+  (`bsp_le_areas_medicas`) ou área Recepção (`bsp_minha_area`). Só a
+  gestão apaga. Testado no servidor (teste desfeito): Juliana e Osvaldo
+  lêem e criam, não apagam; Elmar apaga; Domingos e Rosa não vêem nada.
+- Ecrã «Marcações» (`MarcacoesScreen`, `useMarcacoes`, `MarcacaoModal`):
+  períodos (hoje, amanhã, semana, 30 dias, mês, ano) ou um dia, procura,
+  filtro por estado, lista por dia, estado a mudar na própria linha,
+  botão WhatsApp, nova marcação e edição. Actualiza a cada minuto.
+- «Importar CSV»: a planilha antiga, guardada como CSV no Excel. Lê os
+  blocos de cada mês (cabeçalho repetido), datas dd/mm/aaaa ou do Excel,
+  CSV em UTF-8 ou Windows-1252; não repete o que já existe (mesma data,
+  hora e nome). Os dados vão do aparelho directamente para o Supabase e
+  não passam pelo repositório.
+- «Exportar CSV»: o que está no ecrã, com as colunas da planilha, para
+  abrir no Excel.
+- Confirmado com Playwright (servidor simulado) no computador e no
+  telemóvel: criar, mudar estado, importar (4 linhas, 1 repetida fora,
+  2 vazias ignoradas), exportar.
+- [ ] Importar a planilha «MARCAÇÕES - 2026» (Recepção › MARCAÇÕES ›
+      MARCAÇÕES - CORRENTE.xlsx): no Excel, Ficheiro → Guardar como →
+      CSV (separado por ponto e vírgula), uma folha de cada vez se houver
+      várias, e «Importar CSV» no ecrã.
 
 ---
 

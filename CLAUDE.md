@@ -157,10 +157,12 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   privada vai por `pess.actualizar`, nunca por `actions.updateTask`. A edição
   também muda `user_id` e `partilhada_com` (todos os da tarefa; só quem
   delega muda o dono).
-- Marcações (26-09-2026): ecrã `marcacoes` (`MarcacoesScreen`) com a
-  planilha do SharePoint da Recepção dentro do Workspace; acesso por
-  `bspVeMarcacoes` (Recepção, u14, Direcção/Coordenação/gestão). O
-  endereço está em `BSP_MARCACOES_*`. Sem cópia dos dados no Supabase.
+- Marcações (26-09-2026): tabela `marcacoes` no Supabase
+  (`marcacoes.sql`), ecrã `marcacoes` (`MarcacoesScreen`). Acesso igual
+  nos dois lados: `bspVeMarcacoes` (Recepção, u14, gestão) e
+  `bsp_ve_marcacoes()`; só a gestão apaga. A planilha entra e sai por CSV
+  (`bspLerCsv`, `bspMarcDoCsv`, `bspMarcCsv`). Nomes de doentes nunca no
+  repositório.
 - Anexos no chat: `enviarFicheiros(lista)` no `ChatScreen` serve o clipe
   (vários ficheiros) e o arrastar com o rato.
 

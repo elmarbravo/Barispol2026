@@ -58,6 +58,8 @@
   body[data-mobile="true"] .bsp-mes-evt { display: none !important; }
   body[data-mobile="true"] .bsp-mes-n { display: block; }
   body[data-mobile="true"] .bsp-mes-grelha { grid-auto-rows: minmax(56px, auto) !important; }
+  body[data-mobile="true"] .bsp-marc-linha { grid-template-columns: 52px minmax(0,1fr) !important; }
+  body[data-mobile="true"] .bsp-marc-accoes { grid-column: 2; justify-content: flex-start !important; }
   body[data-mobile="true"] .bsp-login-root { grid-template-columns: 1fr !important; }
   body[data-mobile="true"] .bsp-login-brand { display: none !important; }
   body[data-mobile="true"] .bsp-login-formwrap { padding: 24px 18px !important; align-items: flex-start !important; }
@@ -3023,6 +3025,8 @@ function Topbar({
     drive: 'Drive',
     calendar: 'Calendário',
     tasks: 'Tarefas',
+    seguimento: 'CRM',
+    marcacoes: 'Marcações',
     relatorios: 'Relatórios do dia',
     directory: 'Directório',
     admin: 'Painel de Administração',
@@ -3058,7 +3062,7 @@ function Topbar({
       fontSize: 12.5,
       color: 'var(--text-3)'
     }
-  }, current === 'dashboard' && 'Bom dia, ' + currentUser.name.split(' ')[0], current === 'chat' && CHANNELS.filter(c => bspVeCanal(currentUser, c)).length + ' canais', current === 'meetings' && 'Reuniões da equipa', current === 'feed' && 'Mural de avisos', current === 'drive' && 'Ficheiros partilhados', current === 'calendar' && 'O seu calendário', current === 'tasks' && 'Quadro de tarefas', current === 'seguimento' && 'Pedidos, recuperação e resultados', current === 'admin' && ('Camada: ' + bspCamadaNome(currentUser)))), React.createElement("div", {
+  }, current === 'dashboard' && 'Bom dia, ' + currentUser.name.split(' ')[0], current === 'chat' && CHANNELS.filter(c => bspVeCanal(currentUser, c)).length + ' canais', current === 'meetings' && 'Reuniões da equipa', current === 'feed' && 'Mural de avisos', current === 'drive' && 'Ficheiros partilhados', current === 'calendar' && 'O seu calendário', current === 'tasks' && 'Quadro de tarefas', current === 'seguimento' && 'Pedidos, recuperação e resultados', current === 'marcacoes' && 'Consultas e exames marcados', current === 'admin' && ('Camada: ' + bspCamadaNome(currentUser)))), React.createElement("div", {
     style: {
       flex: 1,
       display: 'flex',
@@ -19121,10 +19125,12 @@ function bspVeCrm(u) {
   return dept === 'Recepção' || dept === 'Comercial';
 }
 
-/* Marcacoes (26-09-2026): a planilha da Recepcao no SharePoint, aberta
-   dentro do Workspace. A mesma planilha, sem copia: quem a ve e quem a
-   muda decide-o o SharePoint (permissoes do site da Recepcao). No
-   Workspace so aparece a Recepcao, a Direccao Clinica e a gestao. */
+/* Marcacoes (26-09-2026). Viviam numa planilha do SharePoint que nao
+   abria dentro do Workspace; passam a viver na tabela marcacoes do
+   Supabase (marcacoes.sql), com as mesmas colunas. A planilha antiga entra
+   por CSV no proprio ecra, e o ecra exporta CSV para o Excel.
+   Quem ve: a Recepcao, a Direccao Clinica (u14) e a gestao — o servidor
+   aplica a mesma regra (bsp_ve_marcacoes). So a gestao apaga. */
 function bspVeMarcacoes(u) {
   if (!u) return false;
   const nivel = String(u.accessLevel || '');
@@ -19133,42 +19139,360 @@ function bspVeMarcacoes(u) {
   if (BSP_DIRECCAO_CLINICA_IDS.indexOf(u.id) !== -1) return true;
   return bspAreaChave(u.dept) === 'recepcao';
 }
-/* A planilha em uso: Recepcao > MARCACOES > MARCACOES - CORRENTE.xlsx (e
-   uma pasta) > MARCACOES - 2026.xlsx (indicacao do Elmar, 26-09-2026). */
-const BSP_MARCACOES_NOME = 'MARCAÇÕES - 2026';
-const BSP_MARCACOES_CAMINHO = 'sites/rececao/Shared%20Documents/MARCA%C3%87%C3%95ES/MARCA%C3%87%C3%95ES%20-%20CORRENTE.xlsx/MARCA%C3%87%C3%95ES%20-%202026.xlsx';
-const BSP_MARCACOES_ABRIR = 'https://barispol.sharepoint.com/:x:/r/' + BSP_MARCACOES_CAMINHO + '?web=1';
-const BSP_MARCACOES_EMBUTIR = 'https://barispol.sharepoint.com/:x:/r/' + BSP_MARCACOES_CAMINHO + '?action=embedview&wdAllowInteractivity=True&wdHideGridlines=False&wdHideHeaders=False';
+function bspGereMarcacoes(u) {
+  if (!u) return false;
+  const nivel = String(u.accessLevel || '');
+  return nivel === 'Direcção' || nivel === 'Coordenação' || !!bspCamada(u).podeGerirUtilizadores;
+}
+const BSP_MARC_ESTADOS = [
+  { id: 'Marcado', cor: '#14448F', fundo: 'rgba(20,68,143,.10)' },
+  { id: 'Confirmado', cor: '#0E7490', fundo: 'rgba(14,116,144,.10)' },
+  { id: 'Compareceu', cor: '#06713F', fundo: 'rgba(6,113,63,.10)' },
+  { id: 'Faltou', cor: '#B42318', fundo: 'rgba(180,35,24,.10)' },
+  { id: 'Cancelou', cor: '#6B7280', fundo: 'rgba(107,114,128,.12)' },
+  { id: 'Remarcado', cor: '#B54708', fundo: 'rgba(181,71,8,.10)' }
+];
+const BSP_MARC_ACTOS = ['Análises clínicas', 'Consulta de clínica geral', 'Consulta de medicina interna', 'Consulta de pediatria', 'Consulta de ginecologia e obstetrícia', 'Consulta de cardiologia', 'Consulta de urologia', 'Consulta de ortopedia', 'Consulta de dermatologia', 'Consulta de psicologia', 'Consulta de nutrição', 'Ecografia', 'Raio-X', 'Electrocardiograma (ECG)', 'Holter ou MAPA (24 horas)', 'Enfermagem'];
+const BSP_MARC_ORIGENS = ['WhatsApp', 'Telefone', 'Presencial', 'Site', 'Outra'];
+const bspMarcEstado = id => BSP_MARC_ESTADOS.find(e => e.id === id) || BSP_MARC_ESTADOS[0];
+/* «dd/mm/aaaa», «aaaa-mm-dd» ou numero de serie do Excel -> AAAA-MM-DD. */
+function bspMarcData(v) {
+  const t = String(v == null ? '' : v).trim();
+  if (!t) return null;
+  let m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(t);
+  if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');
+  m = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/.exec(t);
+  if (m) {
+    const a = m[3].length === 2 ? '20' + m[3] : m[3];
+    const d = Number(m[1]), me = Number(m[2]);
+    if (me < 1 || me > 12 || d < 1 || d > 31) return null;
+    return a + '-' + String(me).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  }
+  if (/^\d{5}(\.\d+)?$/.test(t)) {
+    const d = new Date(Date.UTC(1899, 11, 30) + Math.floor(Number(t)) * 86400000);
+    return d.toISOString().slice(0, 10);
+  }
+  return null;
+}
+function bspMarcHora(v) {
+  const t = String(v == null ? '' : v).trim();
+  let m = /^(\d{1,2})[:hH.](\d{2})/.exec(t);
+  if (m) return m[1].padStart(2, '0') + ':' + m[2];
+  if (/^0?\.\d+$/.test(t)) { const min = Math.round(Number(t) * 1440); return String(Math.floor(min / 60)).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0'); }
+  m = /^(\d{1,2})\s*h$/i.exec(t);
+  return m ? m[1].padStart(2, '0') + ':00' : (t || null);
+}
+const bspMarcDataPt = iso => iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : '';
+/* Le um CSV (separado por ; , ou tabulacao), com aspas. */
+function bspLerCsv(texto) {
+  const t = String(texto || '').replace(/^﻿/, '');
+  const primeira = t.split(/\r?\n/).find(l => l.trim()) || '';
+  const sep = [';', '\t', ','].map(c => [c, primeira.split(c).length]).sort((a, b) => b[1] - a[1])[0][0];
+  const linhas = [];
+  let linha = [], campo = '', aspas = false;
+  for (let k = 0; k < t.length; k++) {
+    const c = t[k];
+    if (aspas) {
+      if (c === '"' && t[k + 1] === '"') { campo += '"'; k++; }
+      else if (c === '"') aspas = false;
+      else campo += c;
+    } else if (c === '"') aspas = true;
+    else if (c === sep) { linha.push(campo); campo = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && t[k + 1] === '\n') k++;
+      linha.push(campo); linhas.push(linha); linha = []; campo = '';
+    } else campo += c;
+  }
+  if (campo || linha.length) { linha.push(campo); linhas.push(linha); }
+  return linhas;
+}
+/* Converte as linhas da planilha em marcacoes. A planilha tem um bloco por
+   mes, cada um com o seu cabecalho: o cabecalho e reconhecido onde
+   aparecer, e as linhas sem data marcada ou sem nome ficam de fora. */
+function bspMarcDoCsv(linhas) {
+  const norm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const qual = h => {
+    const n = norm(h);
+    if (!n) return null;
+    if (n.indexOf('contactou') !== -1 || n.indexOf('dia do contacto') !== -1) return 'dia_contacto';
+    if (n.indexOf('data marcada') !== -1 || n === 'data') return 'data_marcada';
+    if (n.indexOf('hora') === 0) return 'hora';
+    if (n.indexOf('sexo') === 0) return 'sexo';
+    /* «contacto» tem «acto» dentro: vem antes. */
+    if (n.indexOf('contacto') === 0 || n.indexOf('telefone') !== -1 || n.indexOf('telemovel') !== -1) return 'contacto';
+    if (/(^|\s)a(c)?to(s)?(\s|$)/.test(n) || n.indexOf('especialidade') !== -1 || n.indexOf('servico') !== -1) return 'acto';
+    if (n.indexOf('nome') !== -1 || n.indexOf('paciente') !== -1) return 'nome';
+    if (n.indexOf('medic') === 0 || n.indexOf('dr') === 0) return 'medico';
+    if (n.indexOf('estado') === 0 || n.indexOf('situacao') !== -1) return 'estado';
+    if (n.indexOf('obs') === 0) return 'observacoes';
+    if (n.indexOf('origem') === 0 || n.indexOf('canal') === 0) return 'origem';
+    return null;
+  };
+  let mapa = null, ignoradas = 0;
+  const saida = [];
+  const estadoDe = v => { const n = norm(v); const e = BSP_MARC_ESTADOS.find(x => norm(x.id) === n); return e ? e.id : null; };
+  for (const l of linhas) {
+    const campos = l.map(qual);
+    if (campos.indexOf('data_marcada') !== -1 && campos.indexOf('nome') !== -1) { mapa = campos; continue; }
+    if (!mapa) continue;
+    const r = {};
+    mapa.forEach((c, k) => { if (c && r[c] == null && String(l[k] || '').trim()) r[c] = String(l[k]).trim(); });
+    const data = bspMarcData(r.data_marcada);
+    if (!data || !r.nome) { if (l.some(x => String(x || '').trim())) ignoradas++; continue; }
+    const sexo = String(r.sexo || '').trim().toUpperCase().charAt(0);
+    saida.push({
+      dia_contacto: bspMarcData(r.dia_contacto),
+      data_marcada: data,
+      hora: r.hora ? bspMarcHora(r.hora) : null,
+      sexo: sexo === 'F' || sexo === 'M' ? sexo : null,
+      acto: (r.acto || 'Não indicado').slice(0, 200),
+      nome: r.nome.slice(0, 160),
+      contacto: r.contacto ? r.contacto.slice(0, 60) : null,
+      medico: r.medico ? r.medico.slice(0, 120) : null,
+      estado: estadoDe(r.estado) || 'Marcado',
+      observacoes: r.observacoes ? r.observacoes.slice(0, 1000) : null,
+      origem: r.origem ? r.origem.slice(0, 40) : 'Planilha'
+    });
+  }
+  return { marcacoes: saida, ignoradas: ignoradas, cabecalho: !!mapa };
+}
+function bspMarcCsv(lista) {
+  const cab = ['DIA QUE CONTACTOU', 'DATA MARCADA', 'HORA', 'SEXO', 'ATO MÉDICO', 'NOME DO(A) PACIENTE', 'CONTACTO', 'MÉDICO(A)', 'ESTADO', 'OBSERVAÇÕES', 'ORIGEM'];
+  const q = v => { const t = String(v == null ? '' : v); return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+  const linhas = lista.map(m => [bspMarcDataPt(m.dia_contacto), bspMarcDataPt(m.data_marcada), m.hora, m.sexo, m.acto, m.nome, m.contacto, m.medico, m.estado, m.observacoes, m.origem].map(q).join(';'));
+  return '﻿' + cab.join(';') + '\r\n' + linhas.join('\r\n') + '\r\n';
+}
+function useMarcacoes(de, ate) {
+  const [lista, setLista] = React.useState([]);
+  const [estado, setEstado] = React.useState('a-carregar');
+  const [erro, setErro] = React.useState('');
+  const [tick, setTick] = React.useState(0);
+  const recarregar = React.useCallback(() => setTick(t => t + 1), []);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) { setEstado('sem-servidor'); return; }
+    let vivo = true;
+    (async () => {
+      let q = cl.from('marcacoes').select('*').order('data_marcada', { ascending: true }).order('hora', { ascending: true, nullsFirst: true }).limit(5000);
+      if (de) q = q.gte('data_marcada', de);
+      if (ate) q = q.lte('data_marcada', ate);
+      const r = await q;
+      if (!vivo) return;
+      if (r.error) { setErro(r.error.message || ''); setEstado(/relation|does not exist|schema cache/i.test(r.error.message || '') ? 'sem-tabela' : 'erro'); return; }
+      setLista(r.data || []); setEstado('pronto');
+    })();
+    /* Outros postos da recepcao podem marcar ao mesmo tempo. */
+    const iv = setInterval(() => setTick(t => t + 1), 60000);
+    return () => { vivo = false; clearInterval(iv); };
+  }, [de, ate, tick]);
+  const guardar = React.useCallback(async m => {
+    const cl = bspGetClient();
+    if (!cl) return 'O servidor não está ligado.';
+    const campos = { dia_contacto: m.dia_contacto || null, data_marcada: m.data_marcada, hora: m.hora || null, sexo: m.sexo || null, acto: m.acto, nome: m.nome, contacto: m.contacto || null, medico: m.medico || null, estado: m.estado || 'Marcado', observacoes: m.observacoes || null, origem: m.origem || null };
+    const r = m.id ? await cl.from('marcacoes').update(campos).eq('id', m.id).select('id') : await cl.from('marcacoes').insert(campos).select('id');
+    recarregar();
+    if (r.error) return r.error.message || 'Não foi possível gravar.';
+    if (!r.data || !r.data.length) return 'não tem permissão para gravar marcações.';
+    return null;
+  }, [recarregar]);
+  const mudarEstado = React.useCallback(async (id, novo) => {
+    const cl = bspGetClient();
+    if (!cl) return 'O servidor não está ligado.';
+    setLista(l => l.map(x => x.id === id ? { ...x, estado: novo } : x));
+    const r = await cl.from('marcacoes').update({ estado: novo }).eq('id', id).select('id');
+    if (r.error || !r.data || !r.data.length) { recarregar(); return (r.error && r.error.message) || 'Sem permissão.'; }
+    return null;
+  }, [recarregar]);
+  const apagar = React.useCallback(async id => {
+    const cl = bspGetClient();
+    if (!cl) return 'O servidor não está ligado.';
+    const r = await cl.from('marcacoes').delete().eq('id', id).select('id');
+    recarregar();
+    if (r.error) return r.error.message;
+    if (!r.data || !r.data.length) return 'Só a Direcção e a Coordenação apagam marcações.';
+    return null;
+  }, [recarregar]);
+  /* Importar sem duplicar: fica de fora o que ja existe com a mesma data,
+     hora e nome. */
+  const importar = React.useCallback(async novas => {
+    const cl = bspGetClient();
+    if (!cl) return { erro: 'O servidor não está ligado.' };
+    if (!novas.length) return { inseridas: 0, repetidas: 0 };
+    const datas = novas.map(m => m.data_marcada).sort();
+    const ja = await cl.from('marcacoes').select('data_marcada, hora, nome').gte('data_marcada', datas[0]).lte('data_marcada', datas[datas.length - 1]).limit(20000);
+    if (ja.error) return { erro: ja.error.message };
+    const chave = m => m.data_marcada + '|' + (m.hora || '') + '|' + String(m.nome || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    const existe = new Set((ja.data || []).map(chave));
+    const aInserir = [];
+    for (const m of novas) { const k = chave(m); if (!existe.has(k)) { existe.add(k); aInserir.push(m); } }
+    for (let k = 0; k < aInserir.length; k += 500) {
+      const r = await cl.from('marcacoes').insert(aInserir.slice(k, k + 500));
+      if (r.error) { recarregar(); return { erro: r.error.message, inseridas: k }; }
+    }
+    recarregar();
+    return { inseridas: aInserir.length, repetidas: novas.length - aInserir.length };
+  }, [recarregar]);
+  return { lista, estado, erro, recarregar, guardar, mudarEstado, apagar, importar };
+}
+function MarcacaoModal({ open, inicial, onClose, onGuardar, onApagar, podeApagar }) {
+  const vazio = { data_marcada: bspDataLocalISO(new Date()), hora: '', nome: '', sexo: '', contacto: '', acto: '', medico: '', dia_contacto: bspDataLocalISO(new Date()), origem: 'WhatsApp', estado: 'Marcado', observacoes: '' };
+  const [m, setM] = React.useState(vazio);
+  const [aGravar, setAGravar] = React.useState(false);
+  React.useEffect(() => { if (open) setM(inicial ? { ...vazio, ...Object.fromEntries(Object.entries(inicial).map(([k, v]) => [k, v == null ? '' : v])) } : vazio); }, [open, inicial]);
+  const muda = (k, v) => setM(x => ({ ...x, [k]: v }));
+  const medicos = (window.USERS || []).filter(u => bspAreaChave(u.dept) === 'clinica').map(u => u.name);
+  const rot = t => React.createElement("label", { style: { display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 5 } }, t);
+  const campo = { width: '100%', boxSizing: 'border-box', height: 40, padding: '0 11px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 14, fontFamily: 'inherit', outline: 'none', display: 'block', minWidth: 0, WebkitAppearance: 'none', appearance: 'none', textAlign: 'left' };
+  const chip = on => ({ height: 34, padding: '0 14px', borderRadius: 8, border: '1px solid ' + (on ? 'var(--accent-d)' : 'var(--border)'), background: on ? 'var(--accent-soft)' : 'var(--surface)', color: on ? 'var(--accent-d)' : 'var(--text-2)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, cursor: 'pointer' });
+  const grelha = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 };
+  const valido = m.data_marcada && m.nome.trim() && m.acto.trim();
+  const gravar = async () => {
+    if (!valido || aGravar) return;
+    setAGravar(true);
+    const ok = await onGuardar({ ...m, nome: m.nome.trim(), acto: m.acto.trim(), id: inicial && inicial.id });
+    setAGravar(false);
+    if (ok) onClose();
+  };
+  return React.createElement(Modal, {
+    open, onClose, width: 620,
+    title: inicial && inicial.id ? 'Editar marcação' : 'Nova marcação',
+    footer: React.createElement(React.Fragment, null,
+      inicial && inicial.id && podeApagar && React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: () => onApagar(inicial) }, 'Apagar'),
+      React.createElement("span", { style: { flex: 1 } }),
+      React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: onClose }, 'Cancelar'),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: gravar }, aGravar ? 'A gravar…' : 'Guardar'))
+  }, React.createElement("div", { style: { padding: 20, display: 'flex', flexDirection: 'column', gap: 14 } },
+    React.createElement("div", { style: grelha },
+      React.createElement("div", null, rot('Data marcada *'), React.createElement("input", { type: 'date', value: m.data_marcada, onChange: e => muda('data_marcada', e.target.value), style: campo })),
+      React.createElement("div", null, rot('Hora'), React.createElement("input", { type: 'time', value: m.hora, onChange: e => muda('hora', e.target.value), style: campo }))),
+    React.createElement("div", null, rot('Nome do(a) paciente *'), React.createElement("input", { value: m.nome, onChange: e => muda('nome', e.target.value), style: campo, autoComplete: 'off' })),
+    React.createElement("div", { style: grelha },
+      React.createElement("div", null, rot('Contacto'), React.createElement("input", { type: 'tel', value: m.contacto, onChange: e => muda('contacto', e.target.value), placeholder: '9XX XXX XXX', style: campo })),
+      React.createElement("div", null, rot('Sexo'), React.createElement("div", { style: { display: 'flex', gap: 6 } }, ['F', 'M'].map(x => React.createElement("button", { key: x, type: 'button', onClick: () => muda('sexo', m.sexo === x ? '' : x), style: chip(m.sexo === x) }, x === 'F' ? 'Feminino' : 'Masculino'))))),
+    React.createElement("div", null, rot('Acto médico *'), React.createElement("input", { value: m.acto, onChange: e => muda('acto', e.target.value), list: 'bsp-marc-actos', style: campo, placeholder: 'Ex.: Consulta de pediatria' }),
+      React.createElement("datalist", { id: 'bsp-marc-actos' }, BSP_MARC_ACTOS.map(a => React.createElement("option", { key: a, value: a })))),
+    React.createElement("div", { style: grelha },
+      React.createElement("div", null, rot('Médico(a)'), React.createElement("input", { value: m.medico, onChange: e => muda('medico', e.target.value), list: 'bsp-marc-medicos', style: campo }),
+        React.createElement("datalist", { id: 'bsp-marc-medicos' }, medicos.map(a => React.createElement("option", { key: a, value: a })))),
+      React.createElement("div", null, rot('Dia que contactou'), React.createElement("input", { type: 'date', value: m.dia_contacto, onChange: e => muda('dia_contacto', e.target.value), style: campo }))),
+    React.createElement("div", null, rot('Como chegou'), React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } }, BSP_MARC_ORIGENS.map(o => React.createElement("button", { key: o, type: 'button', onClick: () => muda('origem', o), style: chip(m.origem === o) }, o)))),
+    React.createElement("div", null, rot('Estado'), React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } }, BSP_MARC_ESTADOS.map(e => React.createElement("button", { key: e.id, type: 'button', onClick: () => muda('estado', e.id), style: chip(m.estado === e.id) }, e.id)))),
+    React.createElement("div", null, rot('Observações'), React.createElement("textarea", { value: m.observacoes, onChange: e => muda('observacoes', e.target.value), rows: 3, style: { ...campo, height: 'auto', padding: 10, resize: 'vertical' } })),
+    !valido && React.createElement("p", { style: { margin: 0, fontSize: 12, color: 'var(--text-3)' } }, 'Preencha a data marcada, o nome e o acto médico.')));
+}
 function MarcacoesScreen() {
-  const [chave, setChave] = React.useState(0);
-  const botao = (principal) => ({
-    height: 36, padding: '0 14px', borderRadius: 6, border: '1px solid ' + (principal ? 'var(--navy)' : 'var(--border)'),
-    background: principal ? 'var(--navy)' : 'var(--surface)', color: principal ? '#fff' : 'var(--text-1)',
-    fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer', textDecoration: 'none',
-    display: 'inline-flex', alignItems: 'center', gap: 6
-  });
-  return React.createElement("div", {
-    style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', minHeight: 520 }
-  }, React.createElement("div", {
-    style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }
-  }, React.createElement("div", { style: { minWidth: 0, flex: '1 1 320px' } },
-    React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text-1)' } }, 'Marcações'),
-    React.createElement("p", { style: { margin: '4px 0 0', fontSize: 12.5, lineHeight: 1.5, color: 'var(--text-2)' } },
-      'A planilha «' + BSP_MARCACOES_NOME + '» do SharePoint da Recepção. É a mesma planilha, sem cópia: o que se escreve nela fica para todos. Só a Recepção, a Direcção Clínica e a gestão vêem este ecrã.')),
-    React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
-      React.createElement("button", { onClick: () => setChave(k => k + 1), style: botao(false), title: 'Voltar a carregar a planilha' }, 'Recarregar'),
-      React.createElement("a", { href: BSP_MARCACOES_ABRIR, target: '_blank', rel: 'noopener', style: botao(true) }, 'Abrir no Excel para marcar'))),
-  React.createElement("div", {
-    style: { flex: 1, minHeight: 420, border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden', background: 'var(--surface)' }
-  }, React.createElement("iframe", {
-    key: chave,
-    src: BSP_MARCACOES_EMBUTIR,
-    title: 'Planilha de marcações',
-    style: { width: '100%', height: '100%', minHeight: 420, border: 0, display: 'block' },
-    allow: 'clipboard-read; clipboard-write'
-  })),
-  React.createElement("p", { style: { margin: 0, fontSize: 12, lineHeight: 1.5, color: 'var(--text-3)' } },
-    'Se a planilha ficar em branco ou pedir para entrar: inicie sessão no Microsoft 365 com o e-mail da clínica neste aparelho, ou use «Abrir no Excel para marcar». Para escrever, use sempre o botão «Abrir no Excel para marcar».'));
+  const toast = useToast();
+  const eu = window.userById(window.CURRENT_USER_ID);
+  const hoje = bspDataLocalISO(new Date());
+  const periodos = [
+    ['hoje', 'Hoje', hoje, hoje],
+    ['amanha', 'Amanhã', bspSomarDias(hoje, 1), bspSomarDias(hoje, 1)],
+    ['semana', 'Esta semana', bspSegundaDe(hoje), bspSomarDias(bspSegundaDe(hoje), 6)],
+    ['proximos', 'Próximos 30 dias', hoje, bspSomarDias(hoje, 30)],
+    ['mes', 'Este mês', hoje.slice(0, 8) + '01', bspSomarDias(bspSomarMeses(hoje.slice(0, 8) + '01', 1), -1)],
+    ['ano', 'Este ano', hoje.slice(0, 4) + '-01-01', hoje.slice(0, 4) + '-12-31']
+  ];
+  const [periodo, setPeriodo] = React.useState('proximos');
+  const [dia, setDia] = React.useState('');
+  const p = periodos.find(x => x[0] === periodo) || periodos[0];
+  const de = dia || p[2], ate = dia || p[3];
+  const marc = useMarcacoes(de, ate);
+  const [busca, setBusca] = React.useState('');
+  const [filtroEstado, setFiltroEstado] = React.useState('todos');
+  const [modal, setModal] = React.useState(null);
+  const [importacao, setImportacao] = React.useState(null);
+  const fich = React.useRef(null);
+  const norm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const visiveis = marc.lista.filter(m => (filtroEstado === 'todos' || m.estado === filtroEstado) &&
+    (!busca.trim() || [m.nome, m.contacto, m.acto, m.medico, m.observacoes].some(x => norm(x).indexOf(norm(busca.trim())) !== -1)));
+  const porDia = [];
+  visiveis.forEach(m => { const g = porDia[porDia.length - 1]; if (g && g.dia === m.data_marcada) g.lista.push(m); else porDia.push({ dia: m.data_marcada, lista: [m] }); });
+  const contagem = {}; marc.lista.forEach(m => { contagem[m.estado] = (contagem[m.estado] || 0) + 1; });
+  const chip = (on, cor, fundo) => ({ height: 32, padding: '0 12px', borderRadius: 999, border: '1px solid ' + (on ? (cor || 'var(--accent-d)') : 'var(--border)'), background: on ? (fundo || 'var(--accent-soft)') : 'var(--surface)', color: on ? (cor || 'var(--accent-d)') : 'var(--text-2)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' });
+  const botao = principal => ({ height: 36, padding: '0 14px', borderRadius: 6, border: '1px solid ' + (principal ? 'var(--navy)' : 'var(--border)'), background: principal ? 'var(--navy)' : 'var(--surface)', color: principal ? '#fff' : 'var(--text-1)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 });
+  const guardar = async m => { const e = await marc.guardar(m); toast(e ? 'Não foi possível gravar: ' + e : (m.id ? 'Marcação actualizada.' : 'Marcação criada.')); return !e; };
+  const apagar = async m => { if (!window.confirm('Apagar a marcação de ' + m.nome + ' (' + bspMarcDataPt(m.data_marcada) + ')?')) return; const e = await marc.apagar(m.id); toast(e ? 'Não foi possível apagar: ' + e : 'Marcação apagada.'); if (!e) setModal(null); };
+  const exportar = () => {
+    const blob = new Blob([bspMarcCsv(visiveis)], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'marcacoes-' + de + (ate !== de ? '-a-' + ate : '') + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  const escolherCsv = e => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    if (!/\.(csv|txt)$/i.test(f.name)) { toast('Guarde a planilha como CSV (Ficheiro → Guardar como → CSV) e escolha esse ficheiro.'); return; }
+    const leitor = new FileReader();
+    leitor.onload = () => {
+      let texto = String(leitor.result || '');
+      /* O Excel em Windows grava CSV em Windows-1252: sem acentos certos, tenta-se de novo. */
+      if (texto.indexOf('�') !== -1) {
+        const l2 = new FileReader();
+        l2.onload = () => setImportacao({ nome: f.name, ...bspMarcDoCsv(bspLerCsv(String(l2.result || ''))) });
+        l2.readAsText(f, 'windows-1252');
+        return;
+      }
+      setImportacao({ nome: f.name, ...bspMarcDoCsv(bspLerCsv(texto)) });
+    };
+    leitor.readAsText(f, 'utf-8');
+  };
+  const confirmarImportacao = async () => {
+    const r = await marc.importar(importacao.marcacoes);
+    if (r.erro) toast('A importação parou: ' + r.erro);
+    else toast(r.inseridas + (r.inseridas === 1 ? ' marcação importada' : ' marcações importadas') + (r.repetidas ? '; ' + r.repetidas + (r.repetidas === 1 ? ' já existia e ficou de fora.' : ' já existiam e ficaram de fora.') : '.'));
+    setImportacao(null);
+  };
+  const vazio = t => React.createElement("div", { style: { padding: '40px 20px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13.5 } }, t);
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' } },
+    React.createElement(MarcacaoModal, { open: !!modal, inicial: modal && modal.id ? modal : null, onClose: () => setModal(null), onGuardar: guardar, onApagar: apagar, podeApagar: bspGereMarcacoes(eu) }),
+    React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flex: 'none' } },
+      React.createElement("button", { onClick: () => setModal({}), style: botao(true) }, React.createElement(I.Plus, { size: 14 }), 'Nova marcação'),
+      React.createElement("span", { style: { flex: 1 } }),
+      React.createElement("button", { onClick: exportar, style: botao(false), title: 'Descarregar as marcações que estão no ecrã, para abrir no Excel' }, 'Exportar CSV'),
+      React.createElement("button", { onClick: () => fich.current && fich.current.click(), style: botao(false), title: 'Trazer as marcações da planilha antiga (guardada como CSV)' }, 'Importar CSV'),
+      React.createElement("input", { ref: fich, type: 'file', accept: '.csv,.txt,text/csv', style: { display: 'none' }, onChange: escolherCsv })),
+    React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', flex: 'none' } },
+      periodos.map(x => React.createElement("button", { key: x[0], onClick: () => { setPeriodo(x[0]); setDia(''); }, style: chip(!dia && periodo === x[0]) }, x[1])),
+      React.createElement("input", { type: 'date', value: dia, onChange: e => setDia(e.target.value), title: 'Ver um dia', style: { height: 32, padding: '0 8px', borderRadius: 8, border: '1px solid ' + (dia ? 'var(--accent-d)' : 'var(--border)'), background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 12.5 } }),
+      React.createElement("input", { value: busca, onChange: e => setBusca(e.target.value), placeholder: 'Procurar nome, contacto, acto…', style: { height: 32, padding: '0 11px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 12.5, minWidth: 180, flex: '1 1 180px' } })),
+    marc.lista.length > 0 && React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap', flex: 'none' } },
+      React.createElement("button", { onClick: () => setFiltroEstado('todos'), style: chip(filtroEstado === 'todos') }, 'Todas ', React.createElement("span", { style: { opacity: .65 } }, marc.lista.length)),
+      BSP_MARC_ESTADOS.map(e => React.createElement("button", { key: e.id, onClick: () => setFiltroEstado(e.id), style: chip(filtroEstado === e.id, e.cor, e.fundo) }, e.id, ' ', React.createElement("span", { style: { opacity: .65 } }, contagem[e.id] || 0)))),
+    importacao && React.createElement(Card, { pad: 16, style: { flex: 'none', borderLeft: '4px solid var(--accent)' } },
+      React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)' } }, 'Importar «' + importacao.nome + '»'),
+      React.createElement("p", { style: { margin: '6px 0 12px', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 } },
+        !importacao.cabecalho ? 'Não encontrei o cabeçalho da planilha (colunas «DATA MARCADA» e «NOME»). Verifique se é o CSV das marcações.'
+          : importacao.marcacoes.length + ' marcações prontas a entrar' + (importacao.ignoradas ? ' · ' + importacao.ignoradas + ' linhas sem data ou sem nome ficam de fora' : '') + '. As que já existirem (mesma data, hora e nome) não se repetem.'),
+      React.createElement("div", { style: { display: 'flex', gap: 8 } },
+        importacao.marcacoes.length > 0 && React.createElement("button", { onClick: confirmarImportacao, style: botao(true) }, 'Importar ' + importacao.marcacoes.length),
+        React.createElement("button", { onClick: () => setImportacao(null), style: botao(false) }, 'Cancelar'))),
+    React.createElement(Card, { pad: 0, style: { flex: 1, overflow: 'auto', minHeight: 0 } },
+      marc.estado === 'a-carregar' ? vazio('A carregar…')
+      : marc.estado === 'sem-servidor' ? vazio('O servidor não está ligado neste aparelho.')
+      : marc.estado === 'sem-tabela' ? vazio('A tabela das marcações ainda não existe. Corra o marcacoes.sql no Supabase.')
+      : marc.estado === 'erro' ? vazio('Não foi possível carregar. ' + marc.erro)
+      : !porDia.length ? vazio(marc.lista.length ? 'Nenhuma marcação com este filtro.' : 'Sem marcações neste período. Carregue em «Nova marcação».')
+      : porDia.map(g => React.createElement("div", { key: g.dia },
+        React.createElement("div", { style: { position: 'sticky', top: 0, zIndex: 1, background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', padding: '8px 16px', fontSize: 12, fontWeight: 700, letterSpacing: '.04em', color: g.dia === hoje ? 'var(--accent-d)' : 'var(--text-2)', textTransform: 'uppercase' } },
+          bspDiaExtenso(g.dia + 'T12:00:00') + ' · ' + g.lista.length + (g.lista.length === 1 ? ' marcação' : ' marcações')),
+        g.lista.map(m => {
+          const est = bspMarcEstado(m.estado);
+          const tel = String(m.contacto || '').replace(/\D/g, '');
+          const tel244 = tel.length === 9 ? '244' + tel : tel;
+          return React.createElement("div", { key: m.id, className: 'bsp-row-hover bsp-marc-linha', style: { display: 'grid', gridTemplateColumns: '64px minmax(0,1fr) auto', gap: 12, alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--border)' } },
+            React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)' } }, m.hora || '—'),
+            React.createElement("div", { style: { minWidth: 0, cursor: 'pointer' }, onClick: () => setModal(m), title: 'Editar' },
+              React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: 'var(--text-1)' } }, m.nome, m.sexo ? React.createElement("span", { style: { fontWeight: 500, color: 'var(--text-3)' } }, ' · ' + m.sexo) : null),
+              React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', marginTop: 2 } }, [m.acto, m.medico, m.contacto].filter(Boolean).join(' · ')),
+              m.observacoes && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2, fontStyle: 'italic' } }, m.observacoes)),
+            React.createElement("div", { className: 'bsp-marc-accoes', style: { display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' } },
+              tel && React.createElement("a", { href: 'https://wa.me/' + tel244, target: '_blank', rel: 'noopener', title: 'WhatsApp', style: { height: 32, padding: '0 10px', borderRadius: 8, border: '1px solid var(--border)', color: '#128C7E', display: 'inline-flex', alignItems: 'center', fontSize: 12, fontWeight: 700, textDecoration: 'none', background: 'var(--surface)' } }, 'WhatsApp'),
+              React.createElement("select", { value: m.estado, onChange: async e => { const er = await marc.mudarEstado(m.id, e.target.value); if (er) toast('Não foi possível mudar: ' + er); }, title: 'Estado', style: { height: 32, padding: '0 8px', borderRadius: 8, border: '1px solid ' + est.cor, background: est.fundo, color: est.cor, fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' } },
+                BSP_MARC_ESTADOS.map(e => React.createElement("option", { key: e.id, value: e.id }, e.id)))));
+        })))));
 }
 
 const BSP_CRM_ESTADOS = [
