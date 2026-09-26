@@ -932,6 +932,29 @@ quadro passa agora `concluida` ao `TaskCard`: em «Concluído» mostra só o
 prazo. Confirmado com Playwright: a mesma data passada aparece «em
 atraso» em «A Fazer» e sem aviso em «Concluído».
 
+
+## 3-ac. Marcações dentro do Workspace (26-09-2026)
+
+Pedido do Elmar: as marcações dentro do Workspace, só para a Recepção, a
+Direcção Clínica e a gestão, a alimentar a mesma planilha. Escolha do
+Elmar: a planilha aberta dentro do Workspace (sem cópia).
+
+- Ecrã «Marcações» (`MarcacoesScreen`, menu lateral e «Mais» no
+  telemóvel), com `bspVeMarcacoes`: Recepção (pelo departamento),
+  Direcção Clínica (u14), Direcção e Coordenação e quem gere
+  utilizadores. Hoje: Déricka, Joaquina, Juliana, Osvaldo, Elmar,
+  Arlete (u2) e o utilizador «Beb» (Direcção).
+- Mostra «MARCAÇÕES - 2026 (reformulado).xlsx» (SharePoint da Recepção
+  › MARCAÇÕES) com `action=embedview`, e o botão «Abrir no Excel para
+  marcar» (`?web=1`). Quem vê e quem escreve na planilha decide-o o
+  SharePoint.
+- [ ] Nunca testado com a sessão real: daqui não se chega ao SharePoint.
+      Se ficar em branco, o Elmar gera o código em Excel → Ficheiro →
+      Partilhar → Incorporar e passa-o para substituir
+      `BSP_MARCACOES_EMBUTIR`.
+- [ ] Confirmar que o Osvaldo (Direcção Clínica) tem acesso ao site da
+      Recepção no SharePoint.
+
 ---
 
 ## 4. Em cada aparelho

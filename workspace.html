@@ -2629,6 +2629,12 @@ const NAV_ITEMS = [{
   badge: null,
   crmOnly: true
 }, {
+  id: 'marcacoes',
+  label: 'Marcações',
+  icon: 'Cal',
+  badge: null,
+  marcacoesOnly: true
+}, {
   id: 'relatorios',
   label: 'Relatórios',
   icon: 'File',
@@ -2798,6 +2804,7 @@ function Sidebar({
     }) : itemBase;
     if (item.adminOnly && !bspCamada(currentUser).podeGerirUtilizadores) return null;
     if (item.crmOnly && !bspVeCrm(currentUser)) return null;
+    if (item.marcacoesOnly && !bspVeMarcacoes(currentUser)) return null;
     const active = current === item.id;
     const IconComp = I[item.icon];
     return React.createElement("button", {
@@ -16918,6 +16925,7 @@ function MobileTopbar({
     calendar: 'Calendário',
     tasks: 'Tarefas',
     seguimento: 'CRM',
+    marcacoes: 'Marcações',
     relatorios: 'Relatórios',
     admin: 'Admin',
     notifications: 'Notificações',
@@ -17199,6 +17207,7 @@ function MobileMore({
   setCurrent,
   isAdmin,
   veCrm,
+  veMarcacoes,
   onClose,
   onLogout
 }) {
@@ -17217,6 +17226,10 @@ function MobileMore({
     label: 'CRM',
     icon: 'Heart'
   }, {
+    id: 'marcacoes',
+    label: 'Marcações',
+    icon: 'Cal'
+  }, {
     id: 'relatorios',
     label: 'Relatórios',
     icon: 'File'
@@ -17232,6 +17245,10 @@ function MobileMore({
   });
   if (!veCrm) {
     const k = items.findIndex(x => x.id === 'seguimento');
+    if (k !== -1) items.splice(k, 1);
+  }
+  if (!veMarcacoes) {
+    const k = items.findIndex(x => x.id === 'marcacoes');
     if (k !== -1) items.splice(k, 1);
   }
   return React.createElement("div", {
@@ -19104,6 +19121,54 @@ function bspVeCrm(u) {
   return dept === 'Recepção' || dept === 'Comercial';
 }
 
+/* Marcacoes (26-09-2026): a planilha da Recepcao no SharePoint, aberta
+   dentro do Workspace. A mesma planilha, sem copia: quem a ve e quem a
+   muda decide-o o SharePoint (permissoes do site da Recepcao). No
+   Workspace so aparece a Recepcao, a Direccao Clinica e a gestao. */
+function bspVeMarcacoes(u) {
+  if (!u) return false;
+  const nivel = String(u.accessLevel || '');
+  if (nivel === 'Direcção' || nivel === 'Coordenação') return true;
+  if (bspCamada(u).podeGerirUtilizadores) return true;
+  if (BSP_DIRECCAO_CLINICA_IDS.indexOf(u.id) !== -1) return true;
+  return bspAreaChave(u.dept) === 'recepcao';
+}
+const BSP_MARCACOES_NOME = 'MARCAÇÕES - 2026 (reformulado)';
+const BSP_MARCACOES_CAMINHO = 'sites/rececao/Shared%20Documents/MARCA%C3%87%C3%95ES/MARCA%C3%87%C3%95ES%20-%202026%20(reformulado).xlsx';
+const BSP_MARCACOES_ABRIR = 'https://barispol.sharepoint.com/:x:/r/' + BSP_MARCACOES_CAMINHO + '?web=1';
+const BSP_MARCACOES_EMBUTIR = 'https://barispol.sharepoint.com/:x:/r/' + BSP_MARCACOES_CAMINHO + '?action=embedview&wdAllowInteractivity=True&wdHideGridlines=False&wdHideHeaders=False';
+function MarcacoesScreen() {
+  const [chave, setChave] = React.useState(0);
+  const botao = (principal) => ({
+    height: 36, padding: '0 14px', borderRadius: 6, border: '1px solid ' + (principal ? 'var(--navy)' : 'var(--border)'),
+    background: principal ? 'var(--navy)' : 'var(--surface)', color: principal ? '#fff' : 'var(--text-1)',
+    fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer', textDecoration: 'none',
+    display: 'inline-flex', alignItems: 'center', gap: 6
+  });
+  return React.createElement("div", {
+    style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', minHeight: 520 }
+  }, React.createElement("div", {
+    style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }
+  }, React.createElement("div", { style: { minWidth: 0, flex: '1 1 320px' } },
+    React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text-1)' } }, 'Marcações'),
+    React.createElement("p", { style: { margin: '4px 0 0', fontSize: 12.5, lineHeight: 1.5, color: 'var(--text-2)' } },
+      'A planilha «' + BSP_MARCACOES_NOME + '» do SharePoint da Recepção. É a mesma planilha, sem cópia: o que se escreve nela fica para todos. Só a Recepção, a Direcção Clínica e a gestão vêem este ecrã.')),
+    React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+      React.createElement("button", { onClick: () => setChave(k => k + 1), style: botao(false), title: 'Voltar a carregar a planilha' }, 'Recarregar'),
+      React.createElement("a", { href: BSP_MARCACOES_ABRIR, target: '_blank', rel: 'noopener', style: botao(true) }, 'Abrir no Excel para marcar'))),
+  React.createElement("div", {
+    style: { flex: 1, minHeight: 420, border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden', background: 'var(--surface)' }
+  }, React.createElement("iframe", {
+    key: chave,
+    src: BSP_MARCACOES_EMBUTIR,
+    title: 'Planilha de marcações',
+    style: { width: '100%', height: '100%', minHeight: 420, border: 0, display: 'block' },
+    allow: 'clipboard-read; clipboard-write'
+  })),
+  React.createElement("p", { style: { margin: 0, fontSize: 12, lineHeight: 1.5, color: 'var(--text-3)' } },
+    'Se a planilha ficar em branco ou pedir para entrar: inicie sessão no Microsoft 365 com o e-mail da clínica neste aparelho, ou use «Abrir no Excel para marcar». Para escrever, use sempre o botão «Abrir no Excel para marcar».'));
+}
+
 const BSP_CRM_ESTADOS = [
   { id: 'Novo',         cor: '#B54708', fundo: 'rgba(181,71,8,.10)' },
   { id: 'Em contacto',  cor: '#14448F', fundo: 'rgba(20,68,143,.10)' },
@@ -19732,7 +19797,7 @@ function App() {
     if (onde === 'chat' && partes[1]) {
       setAlvoChat({ conv: decodeURIComponent(partes.slice(1).join('/')), vez: Date.now() });
       setPage('chat');
-    } else if (['feed', 'tarefas', 'agenda', 'drive', 'seguimento', 'chat', 'relatorios'].indexOf(onde) !== -1) {
+    } else if (['feed', 'tarefas', 'agenda', 'drive', 'seguimento', 'marcacoes', 'chat', 'relatorios'].indexOf(onde) !== -1) {
       setPage({ tarefas: 'tasks', agenda: 'calendar' }[onde] || onde);
     } else {
       return;
@@ -19827,7 +19892,7 @@ function App() {
   }), page === 'meetings' && React.createElement(MeetingsScreen, null), page === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), page === 'drive' && React.createElement(DriveScreen, null), page === 'calendar' && React.createElement(CalendarScreen, null), page === 'tasks' && React.createElement(TasksScreen, null), page === 'seguimento' && (bspVeCrm(currentUser) ? React.createElement(CrmScreen, null) : null), page === 'relatorios' && React.createElement(RelatoriosScreen, null), page === 'directory' && React.createElement(DirectoryScreen, null), page === 'admin' && React.createElement(AdminScreen, {
+  }), page === 'drive' && React.createElement(DriveScreen, null), page === 'calendar' && React.createElement(CalendarScreen, null), page === 'tasks' && React.createElement(TasksScreen, null), page === 'seguimento' && (bspVeCrm(currentUser) ? React.createElement(CrmScreen, null) : null), page === 'marcacoes' && (bspVeMarcacoes(currentUser) ? React.createElement(MarcacoesScreen, null) : null), page === 'relatorios' && React.createElement(RelatoriosScreen, null), page === 'directory' && React.createElement(DirectoryScreen, null), page === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
   }), page === 'notifications' && React.createElement(NotificationsScreen, {
     onAbrir: abrirNotificacao
@@ -19841,6 +19906,7 @@ function App() {
     setCurrent: setPage,
     isAdmin: isAdmin,
     veCrm: bspVeCrm(currentUser),
+    veMarcacoes: bspVeMarcacoes(currentUser),
     onClose: () => setMoreOpen(false),
     onLogout: doLogout
   }), React.createElement(TweaksPanelWrap, {
