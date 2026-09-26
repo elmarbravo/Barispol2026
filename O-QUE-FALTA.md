@@ -967,6 +967,28 @@ dados no Supabase e CSV.
       CSV (separado por ponto e vírgula), uma folha de cada vez se houver
       várias, e «Importar CSV» no ecrã.
 
+
+## 3-ad. Cópias de segurança (26-09-2026)
+
+O projecto Supabase está no plano gratuito: não há cópias automáticas que
+se possam repor. Base de dados: 133 MB; ficheiros do Drive: 91 MB.
+
+- Feito: `copias-diarias.sql` (aplicado). Todas as noites às 03h00 de
+  Luanda (`bsp-copia-diaria`), `bsp_copia_diaria()` copia as tabelas do
+  Workspace (shared_state, messages, posts, tarefas_pessoais, marcacoes,
+  relatorios_area, relatorios_destinos, contactos_site, utentes,
+  seguimentos, ficheiros_pessoais e a lista do storage) para o esquema
+  `copias` (`copias.<tabela>_AAAAMMDD`) e guarda 7 dias. Primeira cópia a
+  26-09-2026: 12 tabelas, 1,3 MB. O esquema não está exposto na API.
+  WhatsApp e MetaGest ficam de fora: voltam a vir das origens.
+- Isto protege contra um apagamento ou um erro, não contra perder o
+  projecto. Falta uma cópia fora do Supabase:
+- [ ] Opção A: plano Pro do Supabase (cópias diárias de 7 dias).
+- [ ] Opção B: ligação ao Microsoft 365 (aplicação no Entra ID com acesso
+      só ao site da Recepção/Direcção; o Elmar cola o segredo). Serve
+      também para ler a planilha das marcações de hora a hora até a
+      Recepção passar só para o Workspace.
+
 ---
 
 ## 4. Em cada aparelho
