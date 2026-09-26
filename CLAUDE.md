@@ -56,6 +56,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
     servidor ou sessão de gestor: qualquer destinatário. Sessão de outro
     colaborador: só endereços de `shared_state.team` ou
     empresa@barispol.com. Chave pública: recusada.
+  - `contacto-site` (caixa de contacto do site): versão 5 (26-09-2026),
+    para rececao@barispol.com com geral@barispol.com em cópia; aspecto
+    igual ao site. Verificação de JWT desligada, só aceita barispol.com.
 - As funções lêem as chaves de `SUPABASE_SECRET_KEYS` e
   `SUPABASE_PUBLISHABLE_KEYS` (plural, dicionários JSON). Os nomes antigos
   `SUPABASE_SERVICE_ROLE_KEY` e `SUPABASE_ANON_KEY` só servem de recurso.

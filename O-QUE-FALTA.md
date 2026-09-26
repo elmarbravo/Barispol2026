@@ -881,6 +881,21 @@ Ficam de fora os grupos sem movimento num ano: banco de urgência
 A função `contacto-site` aceita qualquer assunto até 80 letras (o mais
 longo tem 43). Confirmado com Playwright.
 
+
+## 3-z. Caixa de contacto: rececao@ com geral@ em cópia e e-mail novo (26-09-2026)
+
+- `contacto-site` versão 5 (publicada): envia para
+  **rececao@barispol.com** com **geral@barispol.com em cópia** (antes só
+  geral@). O remetente continua geral@barispol.com; o e-mail do paciente
+  entra como «responder a».
+- Aspecto igual ao do site novo: cabeçalho com logotipo e «Camama,
+  Luanda», fundo branco, linhas finas, cantos rectos, título = assunto,
+  data exacta de Luanda, tabela de dados, mensagem com filete azul,
+  botões «Responder a <nome>», «Ligar» e «WhatsApp», rodapé marinho com
+  morada, horário e NIF.
+- Confirmado: teste real (origem «teste», id 4) chegou às 11:05 com
+  Para: rececao@barispol.com e Cc: geral@barispol.com.
+
 ---
 
 ## 4. Em cada aparelho
