@@ -84,6 +84,10 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 - Departamentos em `DEPARTMENTS` (inclui `radiologia`, `laboratorio` e
   `servicos-gerais`). O departamento
   actual de uma pessoa nunca desaparece do selector.
+- Aspecto dos e-mails (26-09-2026): o do site (branco, linhas finas,
+  cantos rectos, etiqueta azul, rodapé marinho). Está em três sítios que
+  mudam juntos: `bspEmailWrap` (workspace.html), `envelope`
+  (resumo-matinal) e `bsp_envelope` (base de dados).
 - O envio de e-mail pela aplicação usa o token da sessão
   (`bspTestemunho`). O cartão é `bspEmailWrap`, igual ao `envelope` da
   `resumo-matinal`. Texto escrito por alguém passa por `bspEmailTexto`

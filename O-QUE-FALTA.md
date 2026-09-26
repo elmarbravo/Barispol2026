@@ -896,6 +896,29 @@ longo tem 43). Confirmado com Playwright.
 - Confirmado: teste real (origem «teste», id 4) chegou às 11:05 com
   Para: rececao@barispol.com e Cc: geral@barispol.com.
 
+
+## 3-aa. Todos os e-mails com o aspecto do site (26-09-2026)
+
+O desenho da caixa de contacto (3-z) passa a todos os e-mails: fundo
+branco sobre cinzento claro, linhas finas, cantos rectos, cabeçalho com o
+logotipo pequeno e «Centro Médico Barispol / Workspace da equipa»,
+etiqueta azul, título marinho de 24 px, botão marinho recto e rodapé
+marinho com «Clínica Barispol, Lda. · NIF 5000999687». Três sítios, a
+mudar sempre juntos:
+
+- `workspace.html` → `bspEmailWrap` / `bspEmailBotao` (tarefas, Feed,
+  relatórios, testes do Admin). A etiqueta sai do destino (Tarefas, Feed
+  do Workspace, Relatórios…).
+- `funcoes/resumo-matinal` → `envelope` (versão 4, publicada): resumo da
+  manhã, lembrete diário, aviso à equipa, mensagens por ler.
+- `emails-aspecto-site.sql` → `bsp_envelope` (relatórios do WhatsApp) e,
+  dentro de `wa_resumo_8h`, `wa_alerta_historico` e `bsp_wa_tabela`, o
+  cinzento antigo e os cantos redondos. Aplicado.
+- Confirmado: a `resumo-matinal` v4 correu às 10:42 sem erro; teste
+  enviado só ao Elmar («[Teste] Novo aspecto dos e-mails do Workspace»).
+- [ ] Os e-mails do próprio Supabase (repor a palavra-passe, confirmar
+      conta) têm modelos no painel: Authentication → Emails. Mudam-se lá.
+
 ---
 
 ## 4. Em cada aparelho

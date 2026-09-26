@@ -29,6 +29,8 @@
 // Sai um e-mail por endereco, para ninguem ver os enderecos dos outros.
 // Todos os envios desta funcao vao so para enderecos @barispol.com.
 //
+// ASPECTO (26-09-2026): igual ao site novo e a caixa de contacto.
+//
 // MUDANCA DE SERVIDOR (25-09-2026 a 01-10-2026): o lembrete diario pede
 // tambem que cada pessoa termine a sessao e volte a entrar.
 //
@@ -91,43 +93,50 @@ const AZUL = "#2291CE";
 const FONTE = "Dax,'Dax Pro','Titillium Web','Segoe UI',Arial,sans-serif";
 const LOGOTIPO = "https://barispol.com/assets/logo-barispol.png";
 
-/* O botao que leva a pessoa ao sitio, em vez de a mandar procurar. */
+/* O botao que leva a pessoa ao sitio, em vez de a mandar procurar.
+   Aspecto de todos os e-mails (26-09-2026): o do site novo — fundo
+   branco, linhas finas, cantos rectos, marinho e azul da marca. */
 const SITIO = "https://barispol.com/workspace.html";
+const TEXTO = "#1C2033";
+const SUAVE = "#4E5366";
+const LINHA = "#DDDBD6";
+const CLARO = "#F5F4F2";
 function botao(destino: string, rotulo: string) {
   const href = SITIO + "#/" + destino;
   return (
-    '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0 0"><tr><td style="border-radius:8px;background:' + MARINHO_BOTAO + '">' +
-    '<a href="' + href + '" style="display:inline-block;padding:12px 26px;font-family:' + FONTE + ';font-size:15px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:8px">' +
-    rotulo + "</a></td></tr></table>" +
-    '<p style="margin:8px 0 0;font-family:' + FONTE + ';font-size:11px;color:#94A3B8;word-break:break-all">' + href + "</p>"
+    '<a href="' + href + '" style="display:inline-block;padding:12px 22px;border-radius:2px;background:' + MARINHO_BOTAO + ';border:1px solid ' + MARINHO_BOTAO + ';font-family:' + FONTE + ';font-size:15px;font-weight:bold;color:#ffffff;text-decoration:none">' +
+    rotulo + "</a>" +
+    '<p style="margin:10px 0 0;font-family:' + FONTE + ';font-size:11px;color:#8A8F9E;word-break:break-all">' + href + "</p>"
   );
 }
-/* O cartao de todos os e-mails desta funcao: logotipo em cima, a linha
-   azul da marca, texto em azul-marinho, e a pessoa juridica no fim. */
-function envelope(titulo: string, corpo: string, destino?: string, rotulo?: string, rodape?: string) {
+/* O cartao de todos os e-mails desta funcao: cabecalho como o do site
+   (logotipo pequeno e nome), etiqueta azul, titulo em marinho, botao
+   recto e a pessoa juridica no rodape marinho. */
+function envelope(titulo: string, corpo: string, destino?: string, rotulo?: string, rodape?: string, etiqueta?: string) {
   return (
-    '<div style="background:#F3F6FB;padding:24px 12px">' +
-    '<div style="font-family:' + FONTE + ';max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #DFE6F0;border-radius:12px;overflow:hidden">' +
-    '<div style="padding:22px 20px 16px;text-align:center;background:#ffffff">' +
-    '<img src="' + LOGOTIPO + '" width="84" height="86" alt="Centro Médico Barispol" style="display:inline-block;border:0;width:84px;height:auto">' +
-    "</div>" +
-    '<div style="height:4px;background:' + AZUL + ';line-height:4px;font-size:0">&nbsp;</div>' +
-    '<div style="padding:24px 24px 26px;color:' + MARINHO + '"><h2 style="margin:0 0 14px;font-family:' + FONTE + ';font-size:20px;font-weight:bold;color:' + MARINHO + '">' +
-    titulo +
-    "</h2>" +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:' + CLARO + '"><tr><td align="center" style="padding:24px 12px">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid ' + LINHA + '">' +
+    '<tr><td style="padding:16px 24px;border-bottom:1px solid ' + LINHA + '"><table role="presentation" cellpadding="0" cellspacing="0"><tr>' +
+    '<td style="padding-right:12px;vertical-align:middle"><img src="' + LOGOTIPO + '" width="44" height="44" alt="Centro Médico Barispol" style="display:block;border:0;width:44px;height:44px"></td>' +
+    '<td style="vertical-align:middle;font-family:' + FONTE + '"><div style="font-size:16px;font-weight:700;color:' + MARINHO + ';line-height:1.2">Centro Médico Barispol</div>' +
+    '<div style="font-size:12.5px;font-weight:600;color:' + SUAVE + '">Workspace da equipa</div></td>' +
+    "</tr></table></td></tr>" +
+    '<tr><td style="padding:28px 24px 26px;font-family:' + FONTE + ';color:' + TEXTO + '">' +
+    '<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:' + AZUL + '">' + (etiqueta || "Resumo da manhã") + "</div>" +
+    '<h1 style="margin:8px 0 16px;font-family:' + FONTE + ';font-size:24px;line-height:1.2;font-weight:700;color:' + MARINHO + '">' + titulo + "</h1>" +
     corpo +
-    (destino ? botao(destino, rotulo || "Abrir no Workspace") : "") +
-    "</div>" +
-    '<div style="padding:14px 24px;background:' + MARINHO + ';color:#ffffff;font-family:' + FONTE + ';font-size:12px;line-height:1.5">' +
-    "<b>Centro Médico Barispol</b> — Workspace<br>" +
-    '<span style="color:#C9D3E6">' + (rodape || "Este é o resumo automático da manhã.") + " Clínica Barispol, Lda. · NIF 5000999687</span>" +
-    "</div></div></div>"
+    (destino ? '<div style="margin-top:22px">' + botao(destino, rotulo || "Abrir no Workspace") + "</div>" : "") +
+    "</td></tr>" +
+    '<tr><td style="padding:16px 24px;background:' + MARINHO + ';font-family:' + FONTE + ';font-size:12.5px;line-height:1.6;color:#C9CCDA">' +
+    '<b style="color:#ffffff">Centro Médico Barispol</b> · ' + (rodape || "Este é o resumo automático da manhã.") + "<br>" +
+    "Clínica Barispol, Lda. · NIF&nbsp;5000999687</td></tr>" +
+    "</table></td></tr></table>"
   );
 }
 
 /* Paragrafo de texto corrido, na fonte e na cor da marca. */
 const paragrafo = (t: string, fim = false) =>
-  '<p style="margin:0' + (fim ? "" : " 0 12px") + ";font-family:" + FONTE + ";font-size:15px;line-height:1.6;color:" + MARINHO + '">' + t + "</p>";
+  '<p style="margin:0' + (fim ? "" : " 0 12px") + ";font-family:" + FONTE + ";font-size:15px;line-height:1.6;color:" + TEXTO + '">' + t + "</p>";
 
 function listaDeTarefas(tarefas: any[], mostrarQuem: boolean, equipa: any[]) {
   const nomeDe = (id: string) => {
@@ -337,11 +346,11 @@ Deno.serve(async (req) => {
   const doDia = eventos.filter((e: any) =>
     e && e.data ? String(e.data) === hoje : (e.day == null ? diaSemana : Number(e.day)) === diaSemana);
   const blocoDia = doDia.length
-    ? '<p style="margin:0 0 6px;font-size:14px;color:#292F58"><b>Hoje na agenda</b></p><ul style="padding-left:18px;margin:0 0 16px">' +
+    ? '<p style="margin:0 0 6px;font-size:15px;color:#1C2033"><b>Hoje na agenda</b></p><ul style="padding-left:18px;margin:0 0 16px">' +
       doDia
         .map(
           (e: any) =>
-            '<li style="margin-bottom:4px;font-size:14px;color:#292F58">' +
+            '<li style="margin-bottom:4px;font-size:15px;color:#1C2033">' +
             (e.time ? "<b>" + escapar(e.time) + "</b> · " : "") +
             escapar(e.title) +
             "</li>"
@@ -452,10 +461,11 @@ Deno.serve(async (req) => {
       const html = envelope(
         "Mensagem de " + escapar(nomeRem),
         paragrafo(escapar(primeiro) + " enviou-lhe " + (lista.length === 1 ? "uma mensagem" : lista.length + " mensagens") + " no Workspace, ainda por ler:") +
-          '<ul style="padding-left:18px;margin:6px 0 0;font-family:' + FONTE + ';font-size:15px;line-height:1.5;color:' + MARINHO + '">' + itens + "</ul>",
+          '<ul style="padding-left:18px;margin:6px 0 0;font-family:' + FONTE + ';font-size:15px;line-height:1.5;color:' + TEXTO + '">' + itens + "</ul>",
         "chat/" + conv,
         "Responder a " + escapar(primeiro),
-        "Aviso enviado porque a mensagem ficou 5 minutos por ler e estava offline."
+        "Aviso enviado porque a mensagem ficou 5 minutos por ler e estava offline.",
+        "Mensagem no Workspace"
       );
       const ok = await enviar(dest.email, "[Workspace] " + primeiro + " enviou-lhe " + (lista.length === 1 ? "uma mensagem" : lista.length + " mensagens"), html);
       if (ok) {
@@ -485,7 +495,8 @@ Deno.serve(async (req) => {
         paragrafo("Se tiverem dificuldade em entrar, falem com a Administração.", true),
       "chat",
       "Abrir o Chat do Workspace",
-      "Aviso a toda a equipa."
+      "Aviso a toda a equipa.",
+      "Aviso à equipa"
     );
     for (const u of destinatarios) {
       const nome = String(u.name || "").split(" ")[0];
@@ -501,7 +512,8 @@ Deno.serve(async (req) => {
               paragrafo("<b>Em breve deixaremos de usar o WhatsApp</b> para a comunicação interna. As conversas da equipa passam a ser feitas no Chat do Workspace.", true),
             "chat",
             "Entrar no Workspace",
-            "Lembrete diário."
+            "Lembrete diário.",
+            "Lembrete diário"
           )
         );
       ok ? lembrados++ : falhasLembrete.push(u.email);
@@ -531,7 +543,7 @@ Deno.serve(async (req) => {
       envelope(
         "Bom dia, " + escapar(nome) + ".",
         blocoDia +
-          '<p style="margin:0;font-size:14px;color:#292F58">Tem <b>' +
+          '<p style="margin:0;font-size:15px;color:#1C2033">Tem <b>' +
           minhas.length +
           "</b> tarefa(s) por fechar:</p>" +
           listaDeTarefas(minhas, false, equipa),
@@ -561,7 +573,7 @@ Deno.serve(async (req) => {
     if (!membros.length) continue;
     const html = envelope(
       escapar(area) + " — " + lista.length + " em aberto",
-      '<p style="margin:0;font-size:14px;color:#292F58">O que a equipa tem em mãos esta manhã:</p>' +
+      '<p style="margin:0;font-size:15px;color:#1C2033">O que a equipa tem em mãos esta manhã:</p>' +
         listaDeTarefas(lista, true, equipa),
       "tarefas",
       "Ver no Workspace"
