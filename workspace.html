@@ -6217,7 +6217,9 @@ function DashboardScreen({
       overflow: 'auto',
       padding: '4px 0'
     }
-  }, React.createElement("div", {
+  }, bspVePainel(currentUser) && React.createElement(PainelAtalho, {
+    onAbrir: () => onSwitch && onSwitch('painel')
+  }), React.createElement("div", {
     style: {
       background: '#292F58',
       borderRadius: 6,
@@ -19918,6 +19920,38 @@ function PainelTile({ rotulo, valor, delta, nota, grande, perigo }) {
       (delta >= 0 ? '▲ +' : '▼ ') + delta.toLocaleString('pt-PT', { maximumFractionDigits: 1 }) + '%',
       React.createElement("span", { style: { color: 'var(--text-3)', fontWeight: 500 } }, ' vs período anterior')),
     nota && React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)', marginTop: 4 } }, nota));
+}
+/* Atalho do Painel no Inicio (27-09-2026): os numeros de hoje e o botao
+   para o abrir, so para quem ve o Painel. Le o servidor a cada 5 minutos,
+   ao ritmo a que o dia de hoje chega do MetaGest. */
+function PainelAtalho({ onAbrir }) {
+  const [d, setD] = React.useState(null);
+  React.useEffect(() => {
+    let vivo = true;
+    const ler = () => {
+      const cl = bspGetClient();
+      if (!cl || document.hidden) return;
+      const hoje = bspDataLocalISO(new Date());
+      cl.rpc('bsp_painel', { p_de: hoje, p_ate: hoje }).then(r => { if (vivo && !r.error && r.data) setD(r.data); });
+    };
+    ler();
+    const iv = setInterval(ler, 5 * 60000);
+    return () => { vivo = false; clearInterval(iv); };
+  }, []);
+  const res = d && d.resumo || {};
+  const num = (rotulo, valor, perigo) => React.createElement("div", { style: { minWidth: 0 } },
+    React.createElement("div", { style: { fontSize: 11.5, fontWeight: 600, color: perigo ? 'var(--perigo)' : 'var(--text-3)' } }, rotulo),
+    React.createElement("div", { style: { fontSize: 20, fontWeight: 700, color: perigo ? 'var(--perigo)' : 'var(--text-1)', whiteSpace: 'nowrap' } }, valor));
+  return React.createElement(Card, { pad: 16, style: { marginBottom: 16, borderLeft: '4px solid var(--accent)' } },
+    React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' } },
+      React.createElement("div", { style: { flex: '1 1 160px' } },
+        React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)' } }, 'Painel da gestão'),
+        React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2 } }, d ? 'Hoje, MetaGest de 5 em 5 minutos' : 'A ler o MetaGest…')),
+      d && num('Facturado hoje', bspPainelKz(res.facturado, true)),
+      d && num('Atendimentos', Number(res.atendimentos || 0).toLocaleString('pt-PT')),
+      d && Number(res.devolvido) > 0 && num('Notas de crédito', '− ' + bspPainelKz(res.devolvido, true), true),
+      React.createElement("button", { onClick: onAbrir, style: { height: 36, padding: '0 16px', borderRadius: 6, border: '1px solid var(--navy)', background: 'var(--navy)', color: '#fff', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 } },
+        React.createElement(I.TrendUp, { size: 14 }), 'Abrir o Painel')));
 }
 function PainelScreen() {
   const hoje = bspDataLocalISO(new Date());

@@ -1281,5 +1281,12 @@ crédito no Painel, a vermelho.
   «Sócio» a uma lista antiga; e a gravação do estado nunca a apaga no
   servidor. Regra: qualquer `update` ao `shared_state` feito no servidor
   tem de pôr `updated_at = now()`.
+- Atalho do Painel no Início (27-09-2026, `PainelAtalho`): para quem vê
+  o Painel, cartão no topo com o facturado e os atendimentos de hoje, as
+  notas de crédito a vermelho quando há, e o botão «Abrir o Painel». Lê o
+  servidor a cada 5 minutos. Testado no computador e no telemóvel.
+- Quem vê o Painel a 27-09-2026: Elmar (Direcção), Arlete Tatiana
+  (Coordenação) e a conta «Beb» (Direcção, sem e-mail da clínica). Nenhum
+  sócio atribuído ainda.
 - [ ] Atribuir a categoria «Sócio» às pessoas certas (Admin → Pessoas).
 
