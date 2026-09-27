@@ -256,6 +256,9 @@
     --texto-sobre-pastel: #1C2033;
     /* Titulos em marinho; no modo escuro ficam claros. */
     --navy-texto: #292F58;
+    /* Avisos (27-09-2026): erro e confirmacao, legiveis nos dois modos. */
+    --perigo: #B42318;
+    --sucesso: #06713F;
     --scroll: #D9E0EA;
     --scroll-hover: #B8C2D1;
     color-scheme: light;
@@ -279,6 +282,8 @@
     --text-2: #B5BACB;
     --text-3: #858B9E;
     --navy-texto: #C9CFEA;
+    --perigo: #F97066;
+    --sucesso: #47CD89;
     --scroll: #3A4056;
     --scroll-hover: #50577A;
   }
@@ -19164,6 +19169,8 @@ function bspMarcEntidade(v) {
   if (/^pa/.test(n.trim())) return 'Particular';
   return String(v).trim().slice(0, 40);
 }
+/* E-mail do paciente (27-09-2026): pedido do Elmar para estimular o uso. */
+const bspMarcEmailValido = v => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(v || '').trim());
 const bspMarcEstado = id => BSP_MARC_ESTADOS.find(e => e.id === id) || BSP_MARC_ESTADOS[0];
 /* «dd/mm/aaaa», «aaaa-mm-dd» ou numero de serie do Excel -> AAAA-MM-DD. */
 function bspMarcData(v) {
@@ -19224,6 +19231,8 @@ function bspMarcDoCsv(linhas) {
   const qual = h => {
     const n = norm(h);
     if (!n) return null;
+    /* «E-MAIL DO PACIENTE» tem «paciente» dentro: vem primeiro. */
+    if (n.indexOf('mail') !== -1) return 'email';
     if (n.indexOf('contactou') !== -1 || n.indexOf('dia do contacto') !== -1) return 'dia_contacto';
     if (n.indexOf('data marcada') !== -1 || n === 'data') return 'data_marcada';
     if (n.indexOf('hora') === 0) return 'hora';
@@ -19279,6 +19288,7 @@ function bspMarcDoCsv(linhas) {
       seguradora: r.seguradora && !/^[.\-\s]*$/.test(r.seguradora) ? r.seguradora.slice(0, 80)
         : (/^(cart|segur)/i.test(bspMarcEntidade(r.entidade) || '') && String(r.entidade).trim().split(/\s+/).length > 1 ? String(r.entidade).trim().split(/\s+/).slice(1).join(' ').slice(0, 80) : null),
       rececionista: r.rececionista ? r.rececionista.slice(0, 80) : null,
+      email: bspMarcEmailValido(r.email) ? r.email.trim().toLowerCase() : null,
       observacoes: r.observacoes ? r.observacoes.slice(0, 1000) : null,
       origem: r.origem ? r.origem.slice(0, 40) : 'Planilha'
     });
@@ -19286,9 +19296,9 @@ function bspMarcDoCsv(linhas) {
   return { marcacoes: saida, ignoradas: ignoradas, cabecalho: !!mapa };
 }
 function bspMarcCsv(lista) {
-  const cab = ['DIA QUE CONTACTOU', 'DATA MARCADA', 'HORA', 'SEXO', 'ATO MÉDICO', 'NOME DO(A) PACIENTE', 'CONTACTO', 'MÉDICO(A)', 'ENTIDADE', 'SEGURADORA', 'RECECIONISTA', 'ESTADO', 'OBSERVAÇÕES', 'ORIGEM'];
+  const cab = ['DIA QUE CONTACTOU', 'DATA MARCADA', 'HORA', 'SEXO', 'ATO MÉDICO', 'NOME DO(A) PACIENTE', 'CONTACTO', 'E-MAIL', 'MÉDICO(A)', 'ENTIDADE', 'SEGURADORA', 'RECECIONISTA', 'ESTADO', 'OBSERVAÇÕES', 'ORIGEM'];
   const q = v => { const t = String(v == null ? '' : v); return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
-  const linhas = lista.map(m => [bspMarcDataPt(m.dia_contacto), bspMarcDataPt(m.data_marcada), m.hora, m.sexo, m.acto, m.nome, m.contacto, m.medico, m.entidade, m.seguradora, m.rececionista, m.estado, m.observacoes, m.origem].map(q).join(';'));
+  const linhas = lista.map(m => [bspMarcDataPt(m.dia_contacto), bspMarcDataPt(m.data_marcada), m.hora, m.sexo, m.acto, m.nome, m.contacto, m.email, m.medico, m.entidade, m.seguradora, m.rececionista, m.estado, m.observacoes, m.origem].map(q).join(';'));
   return '﻿' + cab.join(';') + '\r\n' + linhas.join('\r\n') + '\r\n';
 }
 function useMarcacoes(de, ate) {
@@ -19317,7 +19327,7 @@ function useMarcacoes(de, ate) {
   const guardar = React.useCallback(async m => {
     const cl = bspGetClient();
     if (!cl) return 'O servidor não está ligado.';
-    const campos = { dia_contacto: m.dia_contacto || null, data_marcada: m.data_marcada, hora: m.hora || null, sexo: m.sexo || null, acto: m.acto, nome: m.nome, contacto: m.contacto || null, medico: m.medico || null, entidade: m.entidade || null, seguradora: m.entidade && m.entidade !== 'Particular' ? (m.seguradora || null) : null, rececionista: m.rececionista || null, estado: m.estado || 'Agendada', observacoes: m.observacoes || null, origem: m.origem || null };
+    const campos = { dia_contacto: m.dia_contacto || null, data_marcada: m.data_marcada, hora: m.hora || null, sexo: m.sexo || null, acto: m.acto, nome: m.nome, contacto: m.contacto || null, medico: m.medico || null, email: m.email ? String(m.email).trim().toLowerCase() : null, paciente_id: m.paciente_id || null, entidade: m.entidade || null, seguradora: m.entidade && m.entidade !== 'Particular' ? (m.seguradora || null) : null, rececionista: m.rececionista || null, estado: m.estado || 'Agendada', observacoes: m.observacoes || null, origem: m.origem || null };
     const r = m.id ? await cl.from('marcacoes').update(campos).eq('id', m.id).select('id') : await cl.from('marcacoes').insert(campos).select('id');
     recarregar();
     if (r.error) return r.error.message || 'Não foi possível gravar.';
@@ -19365,17 +19375,41 @@ function useMarcacoes(de, ate) {
 }
 function MarcacaoModal({ open, inicial, onClose, onGuardar, onApagar, podeApagar }) {
   const eu = window.userById && window.userById(window.CURRENT_USER_ID);
-  const vazio = { data_marcada: bspDataLocalISO(new Date()), hora: '', nome: '', sexo: '', contacto: '', acto: '', medico: '', entidade: 'Particular', seguradora: '', rececionista: eu ? eu.name : '', dia_contacto: bspDataLocalISO(new Date()), origem: 'WhatsApp', estado: 'Agendada', observacoes: '' };
+  const vazio = { data_marcada: bspDataLocalISO(new Date()), hora: '', nome: '', sexo: '', contacto: '', email: '', paciente_id: '', acto: '', medico: '', entidade: 'Particular', seguradora: '', rececionista: eu ? eu.name : '', dia_contacto: bspDataLocalISO(new Date()), origem: 'WhatsApp', estado: 'Agendada', observacoes: '' };
   const [m, setM] = React.useState(vazio);
   const [aGravar, setAGravar] = React.useState(false);
   React.useEffect(() => { if (open) setM(inicial ? { ...vazio, ...Object.fromEntries(Object.entries(inicial).map(([k, v]) => [k, v == null ? '' : v])) } : vazio); }, [open, inicial]);
   const muda = (k, v) => setM(x => ({ ...x, [k]: v }));
+  /* Sugestoes (27-09-2026): pacientes do MetaGest e de marcacoes anteriores,
+     pelo nome ou pelo telefone (bsp_marc_sugerir). O MetaGest nao tem
+     e-mail nem sexo: vem da ultima marcacao do mesmo telefone. */
+  const [procura, setProcura] = React.useState('');
+  const [sugestoes, setSugestoes] = React.useState([]);
+  React.useEffect(() => { if (open) { setProcura(''); setSugestoes([]); } }, [open]);
+  React.useEffect(() => {
+    const q = procura.trim();
+    if (!open || (q.length < 3 && q.replace(/\D/g, '').length < 4)) { setSugestoes([]); return; }
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    const t = setTimeout(async () => {
+      const r = await cl.rpc('bsp_marc_sugerir', { q: q });
+      if (vivo) setSugestoes(!r.error && Array.isArray(r.data) ? r.data : []);
+    }, 300);
+    return () => { vivo = false; clearTimeout(t); };
+  }, [procura, open]);
+  const escolher = x => {
+    setM(v => ({ ...v, nome: x.nome || v.nome, contacto: v.contacto || x.contacto || x.tel9 || '', paciente_id: x.paciente_id || '',
+      email: v.email || x.email || '', sexo: v.sexo || x.sexo || '' }));
+    setProcura(''); setSugestoes([]);
+  };
+  const emailMau = !!String(m.email || '').trim() && !bspMarcEmailValido(m.email);
   const medicos = (window.USERS || []).filter(u => bspAreaChave(u.dept) === 'clinica').map(u => u.name);
   const rot = t => React.createElement("label", { style: { display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 5 } }, t);
   const campo = { width: '100%', boxSizing: 'border-box', height: 40, padding: '0 11px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 14, fontFamily: 'inherit', outline: 'none', display: 'block', minWidth: 0, WebkitAppearance: 'none', appearance: 'none', textAlign: 'left' };
   const chip = on => ({ height: 34, padding: '0 14px', borderRadius: 8, border: '1px solid ' + (on ? 'var(--accent-d)' : 'var(--border)'), background: on ? 'var(--accent-soft)' : 'var(--surface)', color: on ? 'var(--accent-d)' : 'var(--text-2)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, cursor: 'pointer' });
   const grelha = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 };
-  const valido = m.data_marcada && m.nome.trim() && m.acto.trim();
+  const valido = m.data_marcada && m.nome.trim() && m.acto.trim() && !emailMau;
   const gravar = async () => {
     if (!valido || aGravar) return;
     setAGravar(true);
@@ -19395,10 +19429,23 @@ function MarcacaoModal({ open, inicial, onClose, onGuardar, onApagar, podeApagar
     React.createElement("div", { style: grelha },
       React.createElement("div", null, rot('Data marcada *'), React.createElement("input", { type: 'date', value: m.data_marcada, onChange: e => muda('data_marcada', e.target.value), style: campo })),
       React.createElement("div", null, rot('Hora'), React.createElement("input", { type: 'time', value: m.hora, onChange: e => muda('hora', e.target.value), style: campo }))),
-    React.createElement("div", null, rot('Nome do(a) paciente *'), React.createElement("input", { value: m.nome, onChange: e => muda('nome', e.target.value), style: campo, autoComplete: 'off' })),
+    React.createElement("div", { style: { position: 'relative' } }, rot('Nome do(a) paciente *'),
+      React.createElement("input", { value: m.nome, onChange: e => { const v = e.target.value; setM(x => ({ ...x, nome: v, paciente_id: '' })); setProcura(v); }, onBlur: () => setTimeout(() => setSugestoes([]), 200), style: campo, autoComplete: 'off', placeholder: 'Escreva o nome ou o telefone para procurar na ficha' }),
+      sugestoes.length > 0 && React.createElement("div", { className: 'bsp-marc-sugestoes', style: { position: 'absolute', left: 0, right: 0, top: '100%', marginTop: 4, zIndex: 5, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 8px 24px rgba(15,23,42,.14)', maxHeight: 280, overflow: 'auto' } },
+        sugestoes.map((x, i) => React.createElement("button", { key: i, type: 'button', onMouseDown: e => e.preventDefault(), onClick: () => escolher(x), style: { display: 'block', width: '100%', textAlign: 'left', padding: '9px 12px', border: 0, borderBottom: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', color: 'var(--text-1)' } },
+          React.createElement("div", { style: { fontSize: 13.5, fontWeight: 600 } }, x.nome),
+          React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 1 } },
+            [x.tel9 || x.contacto, x.fonte === 'MetaGest' ? 'Ficha MetaGest' + (x.ultima ? ', última vez ' + bspMarcDataPt(x.ultima) : '') : 'Marcação anterior', x.email].filter(Boolean).join(' · '))))),
+      m.paciente_id && React.createElement("div", { style: { marginTop: 5, fontSize: 12, color: 'var(--sucesso)', fontWeight: 600, display: 'flex', gap: 8, alignItems: 'center' } }, '✓ Ligado à ficha do MetaGest',
+        React.createElement("button", { type: 'button', onClick: () => muda('paciente_id', ''), style: { border: 0, background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, textDecoration: 'underline', padding: 0 } }, 'desligar'))),
     React.createElement("div", { style: grelha },
-      React.createElement("div", null, rot('Contacto'), React.createElement("input", { type: 'tel', value: m.contacto, onChange: e => muda('contacto', e.target.value), placeholder: '9XX XXX XXX', style: campo })),
+      React.createElement("div", null, rot('Contacto'), React.createElement("input", { type: 'tel', value: m.contacto, onChange: e => { muda('contacto', e.target.value); if (!m.paciente_id) setProcura(e.target.value); }, placeholder: '9XX XXX XXX', style: campo })),
       React.createElement("div", null, rot('Sexo'), React.createElement("div", { style: { display: 'flex', gap: 6 } }, ['F', 'M'].map(x => React.createElement("button", { key: x, type: 'button', onClick: () => muda('sexo', m.sexo === x ? '' : x), style: chip(m.sexo === x) }, x === 'F' ? 'Feminino' : 'Masculino'))))),
+    React.createElement("div", null, rot('E-mail do(a) paciente'),
+      React.createElement("input", { type: 'email', inputMode: 'email', value: m.email, onChange: e => muda('email', e.target.value), placeholder: 'nome@exemplo.com', autoComplete: 'off', style: { ...campo, borderColor: emailMau ? 'var(--perigo)' : 'var(--border)' } }),
+      React.createElement("p", { style: { margin: '5px 0 0', fontSize: 12, color: emailMau ? 'var(--perigo)' : 'var(--text-3)' } },
+        emailMau ? 'Este e-mail não está completo (falta o @ ou o domínio).'
+          : !String(m.email || '').trim() ? 'Peça o e-mail ao paciente: fica na ficha e serve para confirmações e resultados.' : 'Fica guardado na ficha do paciente.')),
     React.createElement("div", null, rot('Acto médico *'), React.createElement("input", { value: m.acto, onChange: e => muda('acto', e.target.value), list: 'bsp-marc-actos', style: campo, placeholder: 'Ex.: Consulta de pediatria' }),
       React.createElement("datalist", { id: 'bsp-marc-actos' }, BSP_MARC_ACTOS.map(a => React.createElement("option", { key: a, value: a })))),
     React.createElement("div", { style: grelha },
@@ -19412,7 +19459,7 @@ function MarcacaoModal({ open, inicial, onClose, onGuardar, onApagar, podeApagar
     React.createElement("div", null, rot('Como chegou'), React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } }, BSP_MARC_ORIGENS.map(o => React.createElement("button", { key: o, type: 'button', onClick: () => muda('origem', o), style: chip(m.origem === o) }, o)))),
     React.createElement("div", null, rot('Estado'), React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } }, BSP_MARC_ESTADOS.map(e => React.createElement("button", { key: e.id, type: 'button', onClick: () => muda('estado', e.id), style: chip(m.estado === e.id) }, e.id)))),
     React.createElement("div", null, rot('Observações'), React.createElement("textarea", { value: m.observacoes, onChange: e => muda('observacoes', e.target.value), rows: 3, style: { ...campo, height: 'auto', padding: 10, resize: 'vertical' } })),
-    !valido && React.createElement("p", { style: { margin: 0, fontSize: 12, color: 'var(--text-3)' } }, 'Preencha a data marcada, o nome e o acto médico.')));
+    !valido && React.createElement("p", { style: { margin: 0, fontSize: 12, color: 'var(--text-3)' } }, emailMau ? 'Corrija o e-mail ou apague-o.' : 'Preencha a data marcada, o nome e o acto médico.')));
 }
 function MarcacoesScreen() {
   const toast = useToast();
@@ -19435,13 +19482,17 @@ function MarcacoesScreen() {
   const [filtroEstado, setFiltroEstado] = React.useState('todos');
   const [modal, setModal] = React.useState(null);
   const [importacao, setImportacao] = React.useState(null);
+  const [ficha, setFicha] = React.useState(null);
+  const [semEmail, setSemEmail] = React.useState(false);
+  const veFicha = bspVeCrm(eu);
   const fich = React.useRef(null);
   const norm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-  const visiveis = marc.lista.filter(m => (filtroEstado === 'todos' || m.estado === filtroEstado) &&
-    (!busca.trim() || [m.nome, m.contacto, m.acto, m.medico, m.seguradora, m.rececionista, m.observacoes].some(x => norm(x).indexOf(norm(busca.trim())) !== -1)));
+  const visiveis = marc.lista.filter(m => (filtroEstado === 'todos' || m.estado === filtroEstado) && (!semEmail || !m.email) &&
+    (!busca.trim() || [m.nome, m.contacto, m.email, m.acto, m.medico, m.seguradora, m.rececionista, m.observacoes].some(x => norm(x).indexOf(norm(busca.trim())) !== -1)));
   const porDia = [];
   visiveis.forEach(m => { const g = porDia[porDia.length - 1]; if (g && g.dia === m.data_marcada) g.lista.push(m); else porDia.push({ dia: m.data_marcada, lista: [m] }); });
   const contagem = {}; marc.lista.forEach(m => { contagem[m.estado] = (contagem[m.estado] || 0) + 1; });
+  const comEmail = marc.lista.filter(m => m.email).length;
   const chip = (on, cor, fundo) => ({ height: 32, padding: '0 12px', borderRadius: 999, border: '1px solid ' + (on ? (cor || 'var(--accent-d)') : 'var(--border)'), background: on ? (fundo || 'var(--accent-soft)') : 'var(--surface)', color: on ? (cor || 'var(--accent-d)') : 'var(--text-2)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' });
   const botao = principal => ({ height: 36, padding: '0 14px', borderRadius: 6, border: '1px solid ' + (principal ? 'var(--navy)' : 'var(--border)'), background: principal ? 'var(--navy)' : 'var(--surface)', color: principal ? '#fff' : 'var(--text-1)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 });
   const guardar = async m => { const e = await marc.guardar(m); toast(e ? 'Não foi possível gravar: ' + e : (m.id ? 'Marcação actualizada.' : 'Marcação criada.')); return !e; };
@@ -19481,6 +19532,7 @@ function MarcacoesScreen() {
   };
   const vazio = t => React.createElement("div", { style: { padding: '40px 20px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13.5 } }, t);
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' } },
+    ficha && React.createElement(CrmFicha, { alvo: ficha, onClose: () => setFicha(null) }),
     React.createElement(MarcacaoModal, { open: !!modal, inicial: modal && modal.id ? modal : null, onClose: () => setModal(null), onGuardar: guardar, onApagar: apagar, podeApagar: bspGereMarcacoes(eu) }),
     React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flex: 'none' } },
       React.createElement("button", { onClick: () => setModal({}), style: botao(true) }, React.createElement(I.Plus, { size: 14 }), 'Nova marcação'),
@@ -19494,7 +19546,11 @@ function MarcacoesScreen() {
       React.createElement("input", { value: busca, onChange: e => setBusca(e.target.value), placeholder: 'Procurar nome, contacto, acto…', style: { height: 32, padding: '0 11px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 12.5, minWidth: 180, flex: '1 1 180px' } })),
     marc.lista.length > 0 && React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap', flex: 'none' } },
       React.createElement("button", { onClick: () => setFiltroEstado('todos'), style: chip(filtroEstado === 'todos') }, 'Todas ', React.createElement("span", { style: { opacity: .65 } }, marc.lista.length)),
-      BSP_MARC_ESTADOS.map(e => React.createElement("button", { key: e.id, onClick: () => setFiltroEstado(e.id), style: chip(filtroEstado === e.id, e.cor, e.fundo) }, e.id, ' ', React.createElement("span", { style: { opacity: .65 } }, contagem[e.id] || 0)))),
+      BSP_MARC_ESTADOS.map(e => React.createElement("button", { key: e.id, onClick: () => setFiltroEstado(e.id), style: chip(filtroEstado === e.id, e.cor, e.fundo) }, e.id, ' ', React.createElement("span", { style: { opacity: .65 } }, contagem[e.id] || 0))),
+      React.createElement("button", { onClick: () => setSemEmail(v => !v), title: 'Marcações sem e-mail do paciente: peça-o na próxima chamada', style: chip(semEmail) },
+        'Sem e-mail ', React.createElement("span", { style: { opacity: .65 } }, marc.lista.length - comEmail)),
+      React.createElement("span", { style: { alignSelf: 'center', fontSize: 12, color: 'var(--text-3)', marginLeft: 4 } },
+        'Com e-mail: ' + comEmail + ' de ' + marc.lista.length + ' (' + Math.round(100 * comEmail / Math.max(1, marc.lista.length)) + '%)')),
     importacao && React.createElement(Card, { pad: 16, style: { flex: 'none', borderLeft: '4px solid var(--accent)' } },
       React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)' } }, 'Importar «' + importacao.nome + '»'),
       React.createElement("p", { style: { margin: '6px 0 12px', fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 } },
@@ -19521,8 +19577,13 @@ function MarcacoesScreen() {
             React.createElement("div", { style: { minWidth: 0, cursor: 'pointer' }, onClick: () => setModal(m), title: 'Editar' },
               React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: 'var(--text-1)' } }, m.nome, m.sexo ? React.createElement("span", { style: { fontWeight: 500, color: 'var(--text-3)' } }, ' · ' + m.sexo) : null),
               React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', marginTop: 2 } }, [m.acto, m.medico, m.contacto, m.entidade && m.entidade !== 'Particular' ? (m.seguradora ? m.entidade + ' ' + m.seguradora : m.entidade) : m.entidade].filter(Boolean).join(' · ')),
-              m.observacoes && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2, fontStyle: 'italic' } }, m.observacoes)),
+              m.observacoes && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2, fontStyle: 'italic' } }, m.observacoes),
+              React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 3, fontSize: 11.5, fontWeight: 600 } },
+                m.email ? React.createElement("span", { style: { color: 'var(--text-3)', fontWeight: 500 } }, m.email)
+                  : (m.estado === 'Agendada' || m.estado === 'Confirmada') && React.createElement("span", { style: { color: 'var(--perigo)' } }, 'sem e-mail'),
+                m.estado === 'Compareceu' && m.alterado_por === 'MetaGest' && React.createElement("span", { style: { color: 'var(--sucesso)' }, title: 'Confirmado pela factura ou consulta do MetaGest nesse dia' }, '✓ confirmado pelo MetaGest'))),
             React.createElement("div", { className: 'bsp-marc-accoes', style: { display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' } },
+              veFicha && (m.tel9 || m.paciente_id) && React.createElement("button", { onClick: () => setFicha({ tel9: m.tel9 || null, paciente: m.paciente_id || null, nome: m.nome }), title: 'Abrir a ficha do paciente (MetaGest, marcações e WhatsApp)', style: { height: 32, padding: '0 10px', borderRadius: 8, border: '1px solid var(--border)', color: 'var(--accent-d)', display: 'inline-flex', alignItems: 'center', fontSize: 12, fontWeight: 700, background: 'var(--surface)', cursor: 'pointer', fontFamily: 'inherit' } }, 'Ficha'),
               tel && React.createElement("a", { href: 'https://wa.me/' + tel244, target: '_blank', rel: 'noopener', title: 'WhatsApp', style: { height: 32, padding: '0 10px', borderRadius: 8, border: '1px solid var(--border)', color: '#128C7E', display: 'inline-flex', alignItems: 'center', fontSize: 12, fontWeight: 700, textDecoration: 'none', background: 'var(--surface)' } }, 'WhatsApp'),
               React.createElement("select", { value: m.estado, onChange: async e => { const er = await marc.mudarEstado(m.id, e.target.value); if (er) toast('Não foi possível mudar: ' + er); }, title: 'Estado', style: { height: 32, padding: '0 8px', borderRadius: 8, border: '1px solid ' + est.cor, background: est.fundo, color: est.cor, fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' } },
                 BSP_MARC_ESTADOS.map(e => React.createElement("option", { key: e.id, value: e.id }, e.id)))));
@@ -19845,6 +19906,17 @@ function CrmFicha({ alvo, onClose }) {
           Number(h.valor) > 0 && React.createElement("span", null, bspCrmKz(h.valor))),
         (h.consultas || []).map((c, j) => React.createElement("div", { key: 'c' + j }, 'Consulta: ' + [c.especialidade, c.medico].filter(Boolean).join(' · '))),
         (h.servicos || []).length > 0 && React.createElement("div", null, h.servicos.join(', '))))),
+    /* Marcacoes do mesmo telefone ou paciente (27-09-2026); o servidor so as
+       envia a quem ve as Marcacoes. */
+    dados.ve_marcacoes && React.createElement("div", { style: tit }, 'Marcações'),
+    dados.ve_marcacoes && (!(dados.marcacoes || []).length ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Sem marcações com este número.')
+    : dados.marcacoes.map(mc => { const est = bspMarcEstado(mc.estado); return React.createElement("div", { key: 'm' + mc.id, style: caixa },
+      React.createElement("div", { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
+        React.createElement("b", { style: { color: 'var(--text-1)' } }, bspMarcDataPt(mc.data) + (mc.hora ? ', ' + mc.hora : '')),
+        React.createElement("span", null, [mc.acto, mc.medico].filter(Boolean).join(' · ')),
+        React.createElement("span", { style: { flex: 1 } }),
+        React.createElement("span", { style: { padding: '2px 8px', borderRadius: 999, border: '1px solid ' + est.cor, color: est.cor, background: est.fundo, fontSize: 11.5, fontWeight: 700 } }, mc.estado)),
+      (mc.observacoes || mc.email) && React.createElement("div", { style: { marginTop: 3 } }, [mc.email, mc.observacoes].filter(Boolean).join(' · '))); })),
     React.createElement("div", { style: tit }, 'Conversas no WhatsApp'),
     !wa.length ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Sem conversas com este número.')
     : wa.map(w => React.createElement("div", { key: w.id, style: caixa },

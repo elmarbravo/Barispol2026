@@ -163,7 +163,11 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   `bsp_ve_marcacoes()`; só a gestão apaga. Estados da planilha:
   `Agendada` (omissão), `Confirmada`, Compareceu, Faltou, Cancelou,
   Remarcado; colunas `entidade`, `seguradora`, `rececionista`. Agosto e
-  Setembro já importados (26-09-2026). A planilha entra e sai por CSV
+  Setembro já importados (26-09-2026). Ligadas à ficha (27-09-2026,
+  `marcacoes-ficha.sql`): `email`, `paciente_id`, `tel9`; `crm_ficha`
+  devolve `marcacoes`; `bsp_marc_sugerir`; «Compareceu» automático pelo
+  MetaGest (`bsp_marcacoes_comparecer`, cron `bsp-marcacoes-metagest`).
+  Cores de aviso nas variáveis `--perigo` e `--sucesso`. A planilha entra e sai por CSV
   (`bspLerCsv`, `bspMarcDoCsv`, `bspMarcCsv`). Nomes de doentes nunca no
   repositório.
 - Anexos no chat: `enviarFicheiros(lista)` no `ChatScreen` serve o clipe

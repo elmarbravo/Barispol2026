@@ -977,21 +977,35 @@ dados no Supabase e CSV.
       meses para uma planilha pequena no SharePoint e pedir a importação.
 - [ ] Confirmar com a Recepção as marcações antigas que ficaram
       «Agendada» sem estado na planilha.
-- [ ] Próximo passo, aprovado pelo Elmar a 26-09-2026 (parado: o conector
-      do Supabase passou para a conta elmar.bravo30@gmail.com e deixou de
-      ver o projecto Barispol; religar com elmar.bravo@barispol.com):
-      1. Marcações na ficha do paciente (CRM), pelo telefone (`tel9`), e
-         botão «Ficha» em cada marcação. Só para quem vê as Marcações.
-      2. «Compareceu» automático quando o MetaGest tem factura ou consulta
-         desse telefone no dia marcado (só Agendada/Confirmada).
-      3. Nova marcação: sugerir o paciente do MetaGest pelo nome ou
-         telefone e preencher nome, contacto, sexo e e-mail.
-      4. Campo **E-mail** do paciente na marcação, para estimular o uso:
-         validado, preenchido da ficha quando existir, aviso «sem e-mail»
-         na linha e contagem de marcações com e-mail. Coluna `email` em
-         `marcacoes` primeiro no servidor, depois o ecrã (o ecrã antes da
-         coluna partia as gravações). E-mail de confirmação ao paciente só
-         com texto aprovado pelo Elmar (regra 3).
+- [x] Marcações ligadas à ficha (27-09-2026, `marcacoes-ficha.sql`,
+      aplicado). Colunas `email` (validado no servidor), `paciente_id`
+      (MetaGest) e `tel9` (calculada do contacto).
+      1. A ficha do paciente (`crm_ficha`) traz as marcações do mesmo
+         telefone ou paciente, só a quem vê as Marcações
+         (`ve_marcacoes`); botão «Ficha» em cada marcação para quem vê o
+         CRM. O Osvaldo (u14) vê as Marcações mas não o CRM: sem botão.
+      2. «Compareceu» automático: `bsp_marcacoes_comparecer()`, agendada
+         em `bsp-marcacoes-metagest` (04h30 UTC, depois da sincronização
+         do MetaGest). Só Agendada/Confirmada; `alterado_por` = 'MetaGest'
+         e o ecrã mostra «✓ confirmado pelo MetaGest». Conferido antes:
+         36 das 61 «Compareceu» manuais batem com o MetaGest e nenhuma
+         das 21 canceladas/faltas/remarcadas. Primeira execução: 14
+         marcações passaram a Compareceu.
+      3. Nova marcação: `bsp_marc_sugerir(q)` sugere pacientes do MetaGest
+         e de marcações anteriores pelo nome ou telefone; escolher liga à
+         ficha (`paciente_id`) e preenche contacto, e-mail e sexo (estes
+         dois vêm de marcações anteriores: o MetaGest não os tem).
+      4. E-mail do paciente: campo com verificação, aviso «sem e-mail» nas
+         marcações Agendada/Confirmada, botão «Sem e-mail» e contagem
+         «Com e-mail: x de y». Entra e sai no CSV.
+      Testado no servidor (teste desfeito): Juliana e Elmar sugerem e vêem
+      as marcações na ficha; Osvaldo sugere, sem ficha; Domingos nada;
+      e-mail inválido recusado. Ecrã testado no computador e telemóvel.
+- [ ] E-mail de confirmação ao paciente: só com texto aprovado pelo Elmar
+      (regra 3).
+- [ ] Com `paciente_id`, o «Compareceu» usa só esse paciente; sem ele usa
+      o telefone, e uma família com o mesmo número pode dar um falso
+      Compareceu. Escolher o paciente na sugestão evita isso.
 
 
 ## 3-ad. Cópias de segurança (26-09-2026)
