@@ -1345,6 +1345,14 @@ const CAMADAS = {
     canais: [null, 'rececao', 'escalas'], admin: null,
     podeGerirUtilizadores: false, podeVerSistema: false, podeVerTarefasPessoais: false,
     podeApagarFicheiros: false
+  },
+  /* Socios (27-09-2026, socios.sql): so o Painel com os numeros. */
+  'Sócio': {
+    ordem: 8,
+    desc: 'Sócios da clínica. Vêem só o Painel com os números do MetaGest; não vêem o Chat, o Feed, as tarefas, a agenda, o Drive, o CRM nem as marcações.',
+    canais: [], admin: null, soNumeros: true,
+    podeGerirUtilizadores: false, podeVerSistema: false, podeVerTarefasPessoais: false,
+    podeApagarFicheiros: false
   }
 };
 /* Níveis da versão anterior, para não deixar ninguém de fora ao actualizar */
@@ -1375,7 +1383,8 @@ function bspCamadaBase(){
   const nomes = Object.keys(cs);
   if (!nomes.length) return 'Operações';
   const porOrdem = nomes.slice().sort((a, b) => (cs[b].ordem || 0) - (cs[a].ordem || 0));
-  const inofensivas = porOrdem.filter(x => !cs[x].podeGerirUtilizadores && !cs[x].podeVerSistema && !cs[x].podeVerTarefasPessoais);
+  /* A camada dos socios tambem nao serve: ve os numeros da clinica. */
+  const inofensivas = porOrdem.filter(x => !cs[x].podeGerirUtilizadores && !cs[x].podeVerSistema && !cs[x].podeVerTarefasPessoais && !cs[x].soNumeros && x !== 'Sócio');
   return inofensivas.length ? inofensivas[0] : '\u0000sem-camada';
 }
 function bspCamadaNome(u){
@@ -1417,6 +1426,15 @@ function bspCamada(u){
    Tem de estar num so sitio: o ecra das Permissoes lia o state.camadas em
    cru e fazia canais.indexOf() — ficava em branco pela mesma razao que o
    Chat ficava, e a correccao do bspCamada() nao lhe chegava. */
+/* Socio (27-09-2026): so ve o Painel. O servidor aplica a mesma regra
+   (bsp_e_socio, socios.sql). */
+function bspESocio(u){
+  if (!u) return false;
+  return u.accessLevel === 'Sócio' || !!bspCamada(u).soNumeros;
+}
+function bspVePainel(u){
+  return bspGereMarcacoes(u) || bspESocio(u);
+}
 function bspNormalizarCamada(nome, viva){
   const c = Object.assign({}, CAMADAS[nome] || {}, viva || {});
   /* canais tem de ser '*' ou uma lista. Qualquer outra coisa sao dados
@@ -2828,7 +2846,8 @@ function Sidebar({
     if (item.adminOnly && !bspCamada(currentUser).podeGerirUtilizadores) return null;
     if (item.crmOnly && !bspVeCrm(currentUser)) return null;
     if (item.marcacoesOnly && !bspVeMarcacoes(currentUser)) return null;
-    if (item.painelOnly && !bspGereMarcacoes(currentUser)) return null;
+    if (item.painelOnly && !bspVePainel(currentUser)) return null;
+    if (bspESocio(currentUser) && item.id !== 'painel') return null;
     const active = current === item.id;
     const IconComp = I[item.icon];
     return React.createElement("button", {
@@ -3089,7 +3108,9 @@ function Topbar({
     style: {
       flex: 1,
       display: 'flex',
-      justifyContent: 'center'
+      justifyContent: 'center',
+      /* O socio so ve o Painel: sem pesquisa geral (27-09-2026). */
+      visibility: bspESocio(currentUser) ? 'hidden' : 'visible'
     }
   }, React.createElement("div", {
     style: {
@@ -3149,13 +3170,13 @@ function Topbar({
       gap: 6,
       flex: 'none'
     }
-  }, React.createElement(BotaoTema, null), React.createElement("button", {
+  }, React.createElement(BotaoTema, null), !bspESocio(currentUser) && React.createElement("button", {
     title: "Nova mensagem",
     className: "bsp-iconbtn",
     onClick: () => onSwitchPage && onSwitchPage('chat')
   }, React.createElement(I.Edit, {
     size: 16
-  })), React.createElement("button", {
+  })), !bspESocio(currentUser) && React.createElement("button", {
     title: "Notificações",
     className: "bsp-iconbtn",
     onClick: () => onSwitchPage && onSwitchPage('notifications'),
@@ -17391,6 +17412,7 @@ function MobileMore({
   veCrm,
   veMarcacoes,
   vePainel,
+  soPainel,
   onClose,
   onLogout
 }) {
@@ -17442,6 +17464,7 @@ function MobileMore({
     const k = items.findIndex(x => x.id === 'painel');
     if (k !== -1) items.splice(k, 1);
   }
+  if (soPainel) items.splice(0, items.length, { id: 'painel', label: 'Painel', icon: 'TrendUp' });
   return React.createElement("div", {
     className: "bsp-mdrawer-back",
     onClick: onClose
@@ -19869,7 +19892,8 @@ function PainelColunas({ dados, formatar, cor, altura, destacar }) {
     dica && dados[dica.i] && React.createElement("div", { style: { position: 'absolute', top: 0, left: Math.min(Math.max(0, dica.x - 110), larg - 230), width: 220, pointerEvents: 'none', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 6px 18px rgba(15,23,42,.14)', padding: '8px 10px', zIndex: 2 } },
       React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)' } }, formatar(dados[dica.i].valor)),
       React.createElement("div", { style: { fontSize: 12, color: 'var(--text-2)' } }, dados[dica.i].rotulo),
-      dados[dica.i].extra && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, dados[dica.i].extra)));
+      dados[dica.i].extra && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, dados[dica.i].extra),
+      dados[dica.i].alerta && React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: 'var(--perigo)', marginTop: 2 } }, dados[dica.i].alerta)));
 }
 /* Barras horizontais de uma serie, com o valor na ponta. */
 function PainelBarras({ dados, formatar, cor }) {
@@ -19881,10 +19905,10 @@ function PainelBarras({ dados, formatar, cor }) {
         React.createElement("div", { style: { height: 14, width: Math.max(2, 100 * Math.max(0, d.valor) / max) * 0.72 + '%', background: 'var(' + (cor || '--serie-1') + ')', borderRadius: '0 4px 4px 0', flex: 'none' } }),
         React.createElement("span", { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--text-1)', whiteSpace: 'nowrap' } }, formatar(d.valor))))));
 }
-function PainelTile({ rotulo, valor, delta, nota, grande }) {
-  return React.createElement(Card, { pad: 16, style: grande ? { gridColumn: 'span 2' } : null },
-    React.createElement("div", { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)' } }, rotulo),
-    React.createElement("div", { style: { fontSize: grande ? 40 : 24, lineHeight: 1.15, fontWeight: 700, color: 'var(--text-1)', marginTop: 6 } }, valor),
+function PainelTile({ rotulo, valor, delta, nota, grande, perigo }) {
+  return React.createElement(Card, { pad: 16, style: Object.assign(grande ? { gridColumn: 'span 2' } : {}, perigo ? { borderLeft: '4px solid var(--perigo)' } : {}) },
+    React.createElement("div", { style: { fontSize: 12.5, fontWeight: 600, color: perigo ? 'var(--perigo)' : 'var(--text-2)' } }, rotulo),
+    React.createElement("div", { style: { fontSize: grande ? 40 : 24, lineHeight: 1.15, fontWeight: 700, color: perigo ? 'var(--perigo)' : 'var(--text-1)', marginTop: 6 } }, valor),
     delta != null && isFinite(delta) && React.createElement("div", { style: { fontSize: 12, fontWeight: 600, marginTop: 6, color: delta >= 0 ? 'var(--sucesso)' : 'var(--perigo)' } },
       (delta >= 0 ? '▲ +' : '▼ ') + delta.toLocaleString('pt-PT', { maximumFractionDigits: 1 }) + '%',
       React.createElement("span", { style: { color: 'var(--text-3)', fontWeight: 500 } }, ' vs período anterior')),
@@ -19939,7 +19963,9 @@ function PainelScreen() {
   const medioAnt = ant.atendimentos ? ant.facturado / ant.atendimentos : 0;
   const dm = x => x ? x.slice(8, 10) + '/' + x.slice(5, 7) : '';
   const umDia = p[2] === p[3];
-  const serie = (d && d.serie || []).map(x => ({ rotulo: bspDiaExtenso(x.dia + 'T12:00:00'), curto: dm(x.dia), valor: Number(x.facturado), extra: x.atendimentos + (x.atendimentos === 1 ? ' atendimento' : ' atendimentos') }));
+  const serie = (d && d.serie || []).map(x => ({ rotulo: bspDiaExtenso(x.dia + 'T12:00:00'), curto: dm(x.dia), valor: Number(x.facturado), extra: x.atendimentos + (x.atendimentos === 1 ? ' atendimento' : ' atendimentos'), alerta: Number(x.notas_credito) > 0 ? 'Notas de crédito: − ' + bspPainelKz(x.notas_credito) : '' }));
+  const [todasNotas, setTodasNotas] = React.useState(false);
+  const notas = d && d.notas_credito || [];
   const horas = (d && d.horas || []).map(x => ({ rotulo: String(x.hora).padStart(2, '0') + 'h00–' + String(x.hora).padStart(2, '0') + 'h59', curto: x.hora + 'h', valor: Number(x.n), extra: bspPainelKz(x.valor) }));
   const CLI = [['Particular', '--serie-1'], ['Seguro', '--serie-2'], ['Empresas', '--serie-3'], ['Outros', '--serie-4']];
   const cli = CLI.map(([t, c]) => { const x = (d && d.clientes || []).find(y => y.tipo === t) || {}; return { tipo: t, cor: c, valor: Number(x.valor || 0), n: x.n || 0 }; });
@@ -19960,17 +19986,18 @@ function PainelScreen() {
         React.createElement(PainelTile, { rotulo: 'Valor médio por atendimento', valor: bspPainelKz(medio, true), delta: pct(medio, medioAnt) }),
         React.createElement(PainelTile, { rotulo: 'Facturas emitidas', valor: Number(res.facturas || 0).toLocaleString('pt-PT'), delta: pct(res.facturas, ant.facturas) }),
         React.createElement(PainelTile, { rotulo: 'Em dívida', valor: bspPainelKz(d.divida && d.divida.valor, true), nota: ((d.divida && d.divida.n) || 0) + ' facturas por pagar' + (d.horas_desde && d.de < d.horas_desde ? ' (desde ' + bspMarcDataPt(d.horas_desde) + ')' : '') }),
-        React.createElement(PainelTile, { rotulo: 'Devoluções', valor: bspPainelKz(res.devolvido, true), nota: (res.devolucoes || 0) + (res.devolucoes === 1 ? ' nota de crédito' : ' notas de crédito') })),
+        React.createElement(PainelTile, { perigo: Number(res.devolvido) > 0, rotulo: 'Notas de crédito', valor: (Number(res.devolvido) > 0 ? '− ' : '') + bspPainelKz(res.devolvido, true), nota: (res.devolucoes || 0) + (res.devolucoes === 1 ? ' nota (anulação ou devolução)' : ' notas (anulações e devoluções)') })),
       !umDia && React.createElement(Card, { pad: 16 },
         React.createElement("div", { style: { display: 'flex', alignItems: 'baseline', gap: 10 } },
           React.createElement("div", { style: { flex: 1 } }, tit('Facturação por dia')),
           React.createElement("button", { onClick: () => setTabela(v => !v), style: { border: 0, background: 'transparent', color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' } }, tabela ? 'Ver gráfico' : 'Ver tabela')),
         tabela ? React.createElement("div", { style: { maxHeight: 320, overflow: 'auto' } }, React.createElement("table", { style: { width: '100%', borderCollapse: 'collapse', fontSize: 12.5, fontVariantNumeric: 'tabular-nums' } },
-          React.createElement("thead", null, React.createElement("tr", null, ['Dia', 'Facturado', 'Atendimentos'].map((h, i) => React.createElement("th", { key: h, style: { textAlign: i ? 'right' : 'left', padding: '6px 8px', color: 'var(--text-3)', fontWeight: 600, borderBottom: '1px solid var(--border)' } }, h)))),
+          React.createElement("thead", null, React.createElement("tr", null, ['Dia', 'Facturado', 'Atendimentos', 'Notas de crédito'].map((h, i) => React.createElement("th", { key: h, style: { textAlign: i ? 'right' : 'left', padding: '6px 8px', color: 'var(--text-3)', fontWeight: 600, borderBottom: '1px solid var(--border)' } }, h)))),
           React.createElement("tbody", null, (d.serie || []).map(x => React.createElement("tr", { key: x.dia },
             React.createElement("td", { style: { padding: '5px 8px', color: 'var(--text-2)' } }, bspMarcDataPt(x.dia)),
             React.createElement("td", { style: { padding: '5px 8px', textAlign: 'right', color: 'var(--text-1)' } }, bspPainelKz(x.facturado)),
-            React.createElement("td", { style: { padding: '5px 8px', textAlign: 'right', color: 'var(--text-1)' } }, x.atendimentos))))))
+            React.createElement("td", { style: { padding: '5px 8px', textAlign: 'right', color: 'var(--text-1)' } }, x.atendimentos),
+            React.createElement("td", { style: { padding: '5px 8px', textAlign: 'right', color: Number(x.notas_credito) > 0 ? 'var(--perigo)' : 'var(--text-3)', fontWeight: Number(x.notas_credito) > 0 ? 600 : 400 } }, Number(x.notas_credito) > 0 ? '− ' + bspPainelKz(x.notas_credito) : '—'))))))
           : React.createElement(PainelColunas, { dados: serie, formatar: v => bspPainelKz(v), cor: '--serie-1', altura: 220 })),
       React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 } },
         React.createElement(Card, { pad: 16 }, tit('Facturação por área'),
@@ -19989,6 +20016,15 @@ function PainelScreen() {
         React.createElement(Card, { pad: 16 }, tit('Consultas por médico'),
           !(d.medicos || []).length ? sub('Sem consultas registadas neste período.')
             : React.createElement(PainelBarras, { dados: d.medicos.map(m => ({ rotulo: m.medico, valor: Number(m.consultas) })), formatar: v => v + (v === 1 ? ' consulta' : ' consultas') })),
+        React.createElement(Card, { pad: 16, style: { borderLeft: notas.length ? '4px solid var(--perigo)' : undefined } },
+          React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: notas.length ? 'var(--perigo)' : 'var(--text-1)', marginBottom: 12 } }, 'Notas de crédito' + (notas.length ? ' (' + notas.length + ')' : '')),
+          !notas.length ? sub('Sem notas de crédito neste período.')
+            : React.createElement("div", null,
+              (todasNotas ? notas : notas.slice(0, 8)).map(nc => React.createElement("div", { key: nc.numero, style: { display: 'flex', gap: 10, alignItems: 'baseline', padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 12.5 } },
+                React.createElement("span", { style: { color: 'var(--text-3)', width: 44, flex: 'none', fontVariantNumeric: 'tabular-nums' } }, dm(nc.data)),
+                React.createElement("span", { style: { flex: 1, minWidth: 0, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, nc.numero + (nc.anula ? ' · anula ' + nc.anula : '')),
+                React.createElement("b", { style: { color: 'var(--perigo)', whiteSpace: 'nowrap' } }, '− ' + bspPainelKz(nc.valor)))),
+              notas.length > 8 && React.createElement("button", { onClick: () => setTodasNotas(v => !v), style: { marginTop: 8, border: 0, background: 'transparent', color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', padding: 0 } }, todasNotas ? 'Mostrar menos' : 'Ver as ' + notas.length))),
         React.createElement(Card, { pad: 16 }, tit('Marcações no período'),
           !Object.keys(marc).length ? sub('Sem marcações neste período.')
             : React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 8 } },
@@ -20686,6 +20722,9 @@ function App() {
     }));
   }
   const isAdmin = currentUser && bspCamada(currentUser).podeGerirUtilizadores;
+  /* O socio ve sempre o Painel, venha de onde vier (link, notificacao). */
+  const socio = bspESocio(currentUser);
+  const pg = socio ? 'painel' : page;
   return React.createElement("div", {
     style: {
       display: 'flex',
@@ -20696,7 +20735,7 @@ function App() {
       overflow: 'hidden'
     }
   }, !isMobile && React.createElement(Sidebar, {
-    current: page,
+    current: pg,
     setCurrent: setPage,
     collapsed: t.sidebarCollapsed,
     variant: t.variant,
@@ -20710,12 +20749,12 @@ function App() {
       overflow: 'hidden'
     }
   }, isMobile ? React.createElement(MobileTopbar, {
-    current: page,
+    current: pg,
     currentUser: currentUser,
     onMenu: () => setMoreOpen(true),
     onSwitchPage: setPage
   }) : React.createElement(Topbar, {
-    current: page,
+    current: pg,
     currentUser: currentUser,
     onSwitchPage: setPage
   }), React.createElement("main", {
@@ -20726,32 +20765,33 @@ function App() {
       background: 'var(--bg)'
     }
   }, React.createElement(EcraSeguro, {
-    chave: page
-  }, page === 'dashboard' && React.createElement(DashboardScreen, {
+    chave: pg
+  }, pg === 'dashboard' && React.createElement(DashboardScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), page === 'chat' && React.createElement(ChatScreen, {
+  }), pg === 'chat' && React.createElement(ChatScreen, {
     currentUser: currentUser,
     alvo: alvoChat
-  }), page === 'meetings' && React.createElement(MeetingsScreen, null), page === 'feed' && React.createElement(FeedScreen, {
+  }), pg === 'meetings' && React.createElement(MeetingsScreen, null), pg === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), page === 'drive' && React.createElement(DriveScreen, null), page === 'calendar' && React.createElement(CalendarScreen, null), page === 'tasks' && React.createElement(TasksScreen, null), page === 'seguimento' && (bspVeCrm(currentUser) ? React.createElement(CrmScreen, null) : null), page === 'marcacoes' && (bspVeMarcacoes(currentUser) ? React.createElement(MarcacoesScreen, null) : null), page === 'painel' && (bspGereMarcacoes(currentUser) ? React.createElement(PainelScreen, null) : null), page === 'relatorios' && React.createElement(RelatoriosScreen, null), page === 'directory' && React.createElement(DirectoryScreen, null), page === 'admin' && React.createElement(AdminScreen, {
+  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), pg === 'seguimento' && (bspVeCrm(currentUser) ? React.createElement(CrmScreen, null) : null), pg === 'marcacoes' && (bspVeMarcacoes(currentUser) ? React.createElement(MarcacoesScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), pg === 'directory' && React.createElement(DirectoryScreen, null), pg === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
-  }), page === 'notifications' && React.createElement(NotificationsScreen, {
+  }), pg === 'notifications' && React.createElement(NotificationsScreen, {
     onAbrir: abrirNotificacao
-  })))), isMobile && React.createElement(MobileNav, {
-    current: page,
+  })))), isMobile && !socio && React.createElement(MobileNav, {
+    current: pg,
     setCurrent: setPage,
     isAdmin: isAdmin,
     onMore: () => setMoreOpen(true)
   }), isMobile && moreOpen && React.createElement(MobileMore, {
-    current: page,
+    current: pg,
     setCurrent: setPage,
     isAdmin: isAdmin,
     veCrm: bspVeCrm(currentUser),
     veMarcacoes: bspVeMarcacoes(currentUser),
-    vePainel: bspGereMarcacoes(currentUser),
+    vePainel: bspVePainel(currentUser),
+    soPainel: socio,
     onClose: () => setMoreOpen(false),
     onLogout: doLogout
   }), React.createElement(TweaksPanelWrap, {

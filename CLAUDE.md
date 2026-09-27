@@ -180,6 +180,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   só `bsp_e_gestor`; histórico em `crm.mg_*`, hoje em `erp.sales_invoice`
   (cron `bsp-painel-hoje`, 5 em 5 min). Ecrã `painel` (`PainelScreen`,
   `PainelColunas`, `PainelBarras`), cores `--serie-1..4`.
+- Sócios (27-09-2026, `socios.sql`): camada «Sócio» (`soNumeros`), só o
+  Painel. Servidor: `bsp_e_socio`, `bsp_membro_e_socio`; ecrã: `bspESocio`,
+  `bspVePainel`. Nunca usar a camada de sócio como camada de recurso.
 - Anexos no chat: `enviarFicheiros(lista, opc)` no `ChatScreen` serve o
   clipe (vários ficheiros), o arrastar com o rato e as notas de voz
   (27-09-2026: `comecarGravacao`, `bspMensagemNotaVoz`, `bspEAudio`,

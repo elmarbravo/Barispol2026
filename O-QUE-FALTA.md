@@ -1247,3 +1247,32 @@ MetaGest em tempo real.
   01-09-2026 (início do `erp`); «Consultas por médico» até ontem vem das
   consultas do MetaGest e hoje das facturas com médico.
 
+
+## 3-ah. Sócios e notas de crédito (27-09-2026)
+
+Pedido do Elmar: uma categoria de sócios que vê só números, e as notas de
+crédito no Painel, a vermelho.
+
+- Categoria «Sócio» (`socios.sql`, aplicado): camada nova com
+  `soNumeros`, escolhida no Admin como as outras. No servidor
+  (`bsp_e_socio`): vê o `bsp_painel`; não vê conversas
+  (`bsp_ve_conversa`), Feed nem Drive; Marcações, CRM e tarefas privadas
+  já eram fechadas; só recebe novidades do grupo `socios`; a
+  `resumo-matinal` (versão 7) não lhe manda lembretes, resumos nem avisos
+  de mensagens. No ecrã (`bspESocio`, `bspVePainel`): só o Painel, sem
+  barra de baixo no telemóvel, sem pesquisa nem nova mensagem.
+- Uma pessoa com categoria que já não existe nunca cai na de sócio
+  (`bspCamadaBase` exclui-a), porque essa vê os números.
+- Testado no servidor (teste desfeito, Domingos como sócio): vê o painel
+  e as 19 notas de crédito de Setembro; 0 conversas, publicações,
+  ficheiros, mensagens e marcações; a Juliana continua a ver tudo. Ecrã
+  testado como sócio no computador e no telemóvel.
+- Limite: o estado partilhado (equipa, tarefas da equipa, agenda) continua
+  legível pela API a quem entra, porque o Workspace precisa dele para
+  arrancar; o ecrã do sócio não o mostra.
+- Notas de crédito no Painel: cartão a vermelho («− valor», número de
+  notas), lista com data, número, factura anulada e valor a vermelho
+  (8 primeiras, «Ver as N»), coluna a vermelho na tabela diária e linha a
+  vermelho na caixa de cada dia do gráfico.
+- [ ] Atribuir a categoria «Sócio» às pessoas certas (Admin → Pessoas).
+

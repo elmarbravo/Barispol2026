@@ -54,6 +54,9 @@
 // marca-as como enviadas antes do envio (bsp_novidades_reclamar), para um
 // agendamento repetido nao as mandar duas vezes.
 //
+// SOCIOS (27-09-2026, versao 7): quem tem a categoria «Sócio» nao recebe
+// lembretes, avisos, resumos nem avisos de mensagens.
+//
 // COMO INSTALAR (uma vez):
 //   1. No Supabase: Edge Functions -> Deploy a new function
 //   2. Nome exacto: resumo-matinal
@@ -325,7 +328,7 @@ Deno.serve(async (req) => {
 
   const { data: linha, error } = await admin
     .from("shared_state")
-    .select("team, tasks, events, drive")
+    .select("team, tasks, events, drive, camadas")
     .eq("id", 1)
     .single();
   if (error || !linha) return responder({ erro: "Não foi possível ler os dados." }, 500);
@@ -336,7 +339,12 @@ Deno.serve(async (req) => {
      endereco pessoal continua na equipa e aparece nas listas dos colegas,
      mas nao recebe estes e-mails. */
   const daClinica = (email: unknown) => /@barispol\.com$/i.test(String(email || "").trim());
-  const destinatarios = equipa.filter((u: any) => u && daClinica(u.email));
+  /* Socios (27-09-2026, socios.sql): vem so os numeros do Painel e nao
+     recebem nada do dia-a-dia (lembretes, avisos, resumos, mensagens). As
+     novidades chegam-lhes pelo grupo 'socios', filtrado na base de dados. */
+  const camadas: any = (linha as any).camadas || {};
+  const socio = (u: any) => !!u && (u.accessLevel === "Sócio" || !!(camadas[u.accessLevel] && camadas[u.accessLevel].soNumeros));
+  const destinatarios = equipa.filter((u: any) => u && daClinica(u.email) && !socio(u));
   const tarefas: any = linha.tasks || {};
   const eventos: any[] = Array.isArray(linha.events) ? linha.events : [];
 
@@ -493,7 +501,7 @@ Deno.serve(async (req) => {
       const dest = equipa.find((u: any) => u && u.id === paraId);
       const rem = equipa.find((u: any) => u && u.id === lista[0].user_id);
       const ids2 = lista.map((m: any) => m.id);
-      if (!dest || !daClinica(dest.email)) {
+      if (!dest || !daClinica(dest.email) || socio(dest)) {
         await admin.from("avisos_mensagens").upsert(ids2.map((id: number) => ({ msg_id: id, enviado: false })));
         continue;
       }
