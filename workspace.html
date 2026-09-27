@@ -1237,6 +1237,11 @@ const DEPARTMENTS = [{
   name: 'Farmácia',
   color: '#7C3AED'
 }, {
+  /* Financeiro (27-09-2026): ve o Painel (bspVePainel). */
+  id: 'financeiro',
+  name: 'Financeiro',
+  color: '#15803D'
+}, {
   id: 'radiologia',
   name: 'Radiologia',
   color: '#475569'
@@ -1435,8 +1440,13 @@ function bspESocio(u){
   if (!u) return false;
   return u.accessLevel === 'Sócio' || !!bspCamada(u).soNumeros;
 }
+/* Quem ve o Painel (decisao do Elmar, 27-09-2026): o Elmar (u1), o
+   departamento Financeiro e os socios. A gestao, por si so, nao. O
+   servidor aplica a mesma regra (bsp_ve_painel). */
 function bspVePainel(u){
-  return bspGereMarcacoes(u) || bspESocio(u);
+  if (!u) return false;
+  const area = String(u.dept || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  return u.id === 'u1' || area === 'financeiro' || area === 'financas' || bspESocio(u);
 }
 function bspNormalizarCamada(nome, viva){
   const c = Object.assign({}, CAMADAS[nome] || {}, viva || {});
@@ -3071,7 +3081,7 @@ function Topbar({
     tasks: 'Tarefas',
     seguimento: 'CRM',
     marcacoes: 'Marcações',
-    painel: 'Painel da gestão',
+    painel: 'Painel financeiro',
     relatorios: 'Relatórios do dia',
     directory: 'Directório',
     admin: 'Painel de Administração',
@@ -19945,7 +19955,7 @@ function PainelAtalho({ onAbrir }) {
   return React.createElement(Card, { pad: 16, style: { marginBottom: 16, borderLeft: '4px solid var(--accent)' } },
     React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' } },
       React.createElement("div", { style: { flex: '1 1 160px' } },
-        React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)' } }, 'Painel da gestão'),
+        React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)' } }, 'Painel financeiro'),
         React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2 } }, d ? 'Hoje, MetaGest de 5 em 5 minutos' : 'A ler o MetaGest…')),
       d && num('Facturado hoje', bspPainelKz(res.facturado, true)),
       d && num('Atendimentos', Number(res.atendimentos || 0).toLocaleString('pt-PT')),

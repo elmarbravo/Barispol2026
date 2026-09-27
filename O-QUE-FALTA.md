@@ -1285,8 +1285,17 @@ crédito no Painel, a vermelho.
   o Painel, cartão no topo com o facturado e os atendimentos de hoje, as
   notas de crédito a vermelho quando há, e o botão «Abrir o Painel». Lê o
   servidor a cada 5 minutos. Testado no computador e no telemóvel.
-- Quem vê o Painel a 27-09-2026: Elmar (Direcção), Arlete Tatiana
-  (Coordenação) e a conta «Beb» (Direcção, sem e-mail da clínica). Nenhum
-  sócio atribuído ainda.
+- Quem vê o Painel (decisão do Elmar, 27-09-2026): só o Elmar (u1), o
+  departamento Financeiro e os sócios. A gestão, por si só, deixou de o
+  ver (Arlete Tatiana e «Beb» perderam o acesso). Servidor:
+  `bsp_ve_painel()` (`socios.sql`), usado pelo `bsp_painel`; ecrã:
+  `bspVePainel`. Departamento «Financeiro» acrescentado ao `DEPARTMENTS`.
+  O ecrã passou a chamar-se «Painel financeiro». As novidades do Painel
+  por enviar vão só para `u1`, `financeiro` e `socios`. Testado no
+  servidor (Juliana como Financeiro e Domingos como sócio vêem; Arlete,
+  «Beb», Osvaldo e Déricka não) e no ecrã (u1 vê menu e atalho; u2 e u14
+  não).
+- [ ] Pôr no departamento Financeiro quem trata das finanças (Admin →
+      Pessoas); hoje ninguém está nele.
 - [ ] Atribuir a categoria «Sócio» às pessoas certas (Admin → Pessoas).
 

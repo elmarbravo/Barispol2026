@@ -176,8 +176,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   `direccao-clinica`, uma área de `bsp_area_chave` ou um id). Sai por
   e-mail às 05h00 (`bsp-novidades`, tipo `novidades` da `resumo-matinal`)
   só quando há, e aparece no sino (tipo `sistema`).
-- Painel da gestão (27-09-2026, `painel.sql`): `bsp_painel(de, ate)`,
-  só `bsp_e_gestor`; histórico em `crm.mg_*`, hoje em `erp.sales_invoice`
+- Painel financeiro (27-09-2026, `painel.sql`): `bsp_painel(de, ate)`,
+  só `bsp_ve_painel()` = Elmar (u1), departamento Financeiro e sócios
+  (decisão do Elmar; a gestão por si só não vê; ecrã: `bspVePainel`); histórico em `crm.mg_*`, hoje em `erp.sales_invoice`
   (cron `bsp-painel-hoje`, 5 em 5 min). Ecrã `painel` (`PainelScreen`,
   `PainelColunas`, `PainelBarras`), cores `--serie-1..4`.
 - Sócios (27-09-2026, `socios.sql`): camada «Sócio» (`soNumeros`), só o

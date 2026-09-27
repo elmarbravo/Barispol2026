@@ -8,8 +8,8 @@
 --   · hoje: erp.sales_invoice / sales_invoice_item, que o agendamento
 --     bsp-painel-hoje vai buscar a API do MetaGest de 5 em 5 minutos.
 --   As duas fontes batem ao centimo (conferido em Setembro de 2026).
--- Quem ve: a gestao (bsp_e_gestor: Direccao e Coordenacao) e os socios
--- (bsp_e_socio, socios.sql). Sao dados de facturacao: nao saem do servidor,
+-- Quem ve: o Elmar, o departamento Financeiro e os socios (bsp_ve_painel,
+-- socios.sql; decisao do Elmar de 27-09-2026). Sao dados de facturacao: nao saem do servidor,
 -- e o painel nao mostra nomes de doentes. Notas de credito (27-09-2026):
 -- total por dia e lista com numero, data, valor e a factura que anulam.
 
@@ -51,7 +51,7 @@ declare
   ant_ate date := p_de - 1;
   res jsonb;
 begin
-  if not (public.bsp_e_gestor() or public.bsp_e_socio()) then raise exception 'Só a gestão e os sócios vêem o painel.'; end if;
+  if not public.bsp_ve_painel() then raise exception 'Sem acesso ao painel.'; end if;
   if p_ate < p_de or dias > 800 then raise exception 'Período inválido.'; end if;
 
   with

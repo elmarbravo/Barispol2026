@@ -146,3 +146,19 @@ as $function$
 $function$;
 
 notify pgrst, 'reload schema';
+
+-- Quem ve o Painel (pedido do Elmar, 27-09-2026): so o Elmar (u1), o
+-- departamento Financeiro e os socios. A Direccao e a Coordenacao deixam
+-- de o ver por serem gestao. Mudar junto com bspVePainel (workspace.html).
+create or replace function public.bsp_ve_painel()
+returns boolean
+language sql
+stable
+security definer
+set search_path to 'public'
+as $function$
+  select coalesce(public.bsp_meu_id() = 'u1', false)
+      or coalesce(public.bsp_minha_area(), '') in ('financeiro', 'financas')
+      or public.bsp_e_socio()
+$function$;
+grant execute on function public.bsp_ve_painel() to authenticated;
