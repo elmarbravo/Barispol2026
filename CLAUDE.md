@@ -183,6 +183,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 - Sócios (27-09-2026, `socios.sql`): camada «Sócio» (`soNumeros`), só o
   Painel. Servidor: `bsp_e_socio`, `bsp_membro_e_socio`; ecrã: `bspESocio`,
   `bspVePainel`. Nunca usar a camada de sócio como camada de recurso.
+- Qualquer `update` ao `shared_state` feito no servidor tem de pôr
+  `updated_at = now()`: os postos só relêem o estado quando essa data
+  muda, e um posto com o estado antigo pode sobrepô-lo ao gravar.
 - Anexos no chat: `enviarFicheiros(lista, opc)` no `ChatScreen` serve o
   clipe (vários ficheiros), o arrastar com o rato e as notas de voz
   (27-09-2026: `comecarGravacao`, `bspMensagemNotaVoz`, `bspEAudio`,

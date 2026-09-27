@@ -1369,7 +1369,10 @@ const CAMADAS_ANTIGAS = {
    o mesmo caminho que o window.CURRENT_USER_ID ja usa. */
 function bspCamadas(){
   const vivas = typeof window !== 'undefined' && window.__bspCamadas;
-  return (vivas && Object.keys(vivas).length) ? vivas : CAMADAS;
+  if (!(vivas && Object.keys(vivas).length)) return CAMADAS;
+  /* A camada dos socios (27-09-2026) existe sempre, mesmo num posto que
+     ainda tenha a lista gravada antes dela. */
+  return vivas['Sócio'] ? vivas : Object.assign({}, vivas, { 'Sócio': CAMADAS['Sócio'] });
 }
 /* A camada para onde recai quem tem um nivel que ja nao existe — porque
    foi apagado, ou porque chegou do servidor uma lista sem ele.
@@ -4692,7 +4695,9 @@ function StoreProvider({
         drive: state.driveFiles,
         team: state.team,
         channels: state.extraChannels || [],
-        camadas: state.camadas || {},
+        /* Um posto com a lista de camadas anterior a dos socios nao a pode
+           apagar no servidor ao gravar outra coisa (27-09-2026). */
+        camadas: state.camadas && Object.keys(state.camadas).length && !state.camadas['Sócio'] ? Object.assign({}, state.camadas, { 'Sócio': CAMADAS['Sócio'] }) : (state.camadas || {}),
         updated_at: new Date().toISOString()
       };
       cl.from('shared_state').upsert(row).then(res => {

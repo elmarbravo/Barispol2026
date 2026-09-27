@@ -1274,5 +1274,12 @@ crédito no Painel, a vermelho.
   notas), lista com data, número, factura anulada e valor a vermelho
   (8 primeiras, «Ver as N»), coluna a vermelho na tabela diária e linha a
   vermelho na caixa de cada dia do gráfico.
+- Correcção (27-09-2026): a categoria estava no servidor mas não aparecia
+  no Admin, porque o `socios.sql` mudou as camadas sem mudar o
+  `updated_at` do `shared_state`, e os postos só relêem o estado quando
+  essa data muda. `updated_at` actualizado; `bspCamadas()` junta sempre a
+  «Sócio» a uma lista antiga; e a gravação do estado nunca a apaga no
+  servidor. Regra: qualquer `update` ao `shared_state` feito no servidor
+  tem de pôr `updated_at = now()`.
 - [ ] Atribuir a categoria «Sócio» às pessoas certas (Admin → Pessoas).
 

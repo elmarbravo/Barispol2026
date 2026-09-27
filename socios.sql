@@ -50,7 +50,9 @@ update public.shared_state
          'desc', 'Sócios da clínica. Vêem só o Painel com os números do MetaGest; não vêem o Chat, o Feed, as tarefas, a agenda, o Drive, o CRM nem as marcações.',
          'canais', '[]'::jsonb, 'admin', null, 'soNumeros', true,
          'podeGerirUtilizadores', false, 'podeVerSistema', false,
-         'podeVerTarefasPessoais', false, 'podeApagarFicheiros', false))
+         'podeVerTarefasPessoais', false, 'podeApagarFicheiros', false)),
+       -- Sem isto os postos abertos nao relem o estado e nao a vem.
+       updated_at = now()
  where id = 1 and not (coalesce(camadas, '{}'::jsonb) ? 'Sócio');
 
 -- Conversas: nenhuma para socios.
