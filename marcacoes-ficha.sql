@@ -186,3 +186,39 @@ begin
 end $function$;
 
 notify pgrst, 'reload schema';
+
+-- 5. Valor pago (27-09-2026) ----------------------------------------------
+-- O que o MetaGest facturou ao paciente no dia marcado, com os actos e o
+-- valor de cada um. Facturacao: so a quem ve as Marcacoes E o CRM (a
+-- Recepcao e a gestao; a Direccao Clinica nao ve o CRM). Com paciente
+-- escolhido conta so esse; sem ele, o telefone.
+create or replace function public.bsp_marc_valores(p_de date, p_ate date)
+returns jsonb
+language sql
+stable
+security definer
+set search_path to 'public', 'crm'
+as $function$
+  select coalesce(jsonb_object_agg(x.id, jsonb_build_object('total', x.total, 'itens', x.itens)), '{}'::jsonb)
+  from (
+    select m.id,
+           (select coalesce(sum(f.total), 0) from crm.mg_facturas f where f.id = any (fs.ids)) total,
+           (select coalesce(jsonb_agg(jsonb_build_object('nome', i.item_nome, 'valor', i.valor) order by i.valor desc), '[]'::jsonb)
+              from crm.mg_factura_itens i where i.factura = any (fs.ids)) itens
+      from public.marcacoes m
+      cross join lateral (
+        select array(
+          select f.id from crm.mg_facturas f
+           where f.data = m.data_marcada
+             and ((m.paciente_id is not null and f.paciente = m.paciente_id)
+               or (m.paciente_id is null and m.tel9 is not null and (f.tel9 = m.tel9
+                    or f.paciente in (select p.id from crm.mg_pacientes p where p.tel9 = m.tel9))))) ids
+      ) fs
+     where public.bsp_ve_marcacoes() and crm.pode_ver_crm()
+       and m.data_marcada between p_de and p_ate
+       and m.data_marcada <= (now() at time zone 'Africa/Luanda')::date
+       and cardinality(fs.ids) > 0
+  ) x
+$function$;
+revoke all on function public.bsp_marc_valores(date, date) from public, anon;
+grant execute on function public.bsp_marc_valores(date, date) to authenticated;

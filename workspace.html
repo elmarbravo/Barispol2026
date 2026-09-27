@@ -19336,10 +19336,11 @@ function bspMarcDoCsv(linhas) {
   }
   return { marcacoes: saida, ignoradas: ignoradas, cabecalho: !!mapa };
 }
-function bspMarcCsv(lista) {
-  const cab = ['DIA QUE CONTACTOU', 'DATA MARCADA', 'HORA', 'SEXO', 'ATO MÉDICO', 'NOME DO(A) PACIENTE', 'CONTACTO', 'E-MAIL', 'MÉDICO(A)', 'ENTIDADE', 'SEGURADORA', 'RECECIONISTA', 'ESTADO', 'OBSERVAÇÕES', 'ORIGEM'];
+function bspMarcCsv(lista, valores) {
+  valores = valores || {};
+  const cab = ['DIA QUE CONTACTOU', 'DATA MARCADA', 'HORA', 'SEXO', 'ATO MÉDICO', 'NOME DO(A) PACIENTE', 'CONTACTO', 'E-MAIL', 'MÉDICO(A)', 'ENTIDADE', 'SEGURADORA', 'RECECIONISTA', 'ESTADO', 'OBSERVAÇÕES', 'ORIGEM', 'VALOR PAGO (KZ)'];
   const q = v => { const t = String(v == null ? '' : v); return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
-  const linhas = lista.map(m => [bspMarcDataPt(m.dia_contacto), bspMarcDataPt(m.data_marcada), m.hora, m.sexo, m.acto, m.nome, m.contacto, m.email, m.medico, m.entidade, m.seguradora, m.rececionista, m.estado, m.observacoes, m.origem].map(q).join(';'));
+  const linhas = lista.map(m => [bspMarcDataPt(m.dia_contacto), bspMarcDataPt(m.data_marcada), m.hora, m.sexo, m.acto, m.nome, m.contacto, m.email, m.medico, m.entidade, m.seguradora, m.rececionista, m.estado, m.observacoes, m.origem, valores[m.id] ? Math.round(Number(valores[m.id].total || 0)) : ''].map(q).join(';'));
   return '﻿' + cab.join(';') + '\r\n' + linhas.join('\r\n') + '\r\n';
 }
 function useMarcacoes(de, ate) {
@@ -19526,6 +19527,17 @@ function MarcacoesScreen() {
   const [ficha, setFicha] = React.useState(null);
   const [semEmail, setSemEmail] = React.useState(false);
   const veFicha = bspVeCrm(eu);
+  /* Valor pago (27-09-2026): o que o MetaGest facturou ao paciente no dia
+     marcado (bsp_marc_valores). So para quem ve o CRM: o servidor devolve
+     vazio aos outros. */
+  const [valores, setValores] = React.useState({});
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl || !veFicha || marc.estado !== 'pronto') return;
+    let vivo = true;
+    cl.rpc('bsp_marc_valores', { p_de: de, p_ate: ate }).then(r => { if (vivo && !r.error && r.data) setValores(r.data); });
+    return () => { vivo = false; };
+  }, [de, ate, veFicha, marc.estado, marc.lista.length]);
   const fich = React.useRef(null);
   const norm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const visiveis = marc.lista.filter(m => (filtroEstado === 'todos' || m.estado === filtroEstado) && (!semEmail || !m.email) &&
@@ -19539,7 +19551,7 @@ function MarcacoesScreen() {
   const guardar = async m => { const e = await marc.guardar(m); toast(e ? 'Não foi possível gravar: ' + e : (m.id ? 'Marcação actualizada.' : 'Marcação criada.')); return !e; };
   const apagar = async m => { if (!window.confirm('Apagar a marcação de ' + m.nome + ' (' + bspMarcDataPt(m.data_marcada) + ')?')) return; const e = await marc.apagar(m.id); toast(e ? 'Não foi possível apagar: ' + e : 'Marcação apagada.'); if (!e) setModal(null); };
   const exportar = () => {
-    const blob = new Blob([bspMarcCsv(visiveis)], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob([bspMarcCsv(visiveis, valores)], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'marcacoes-' + de + (ate !== de ? '-a-' + ate : '') + '.csv';
@@ -19622,6 +19634,9 @@ function MarcacoesScreen() {
               React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 3, fontSize: 11.5, fontWeight: 600 } },
                 m.email ? React.createElement("span", { style: { color: 'var(--text-3)', fontWeight: 500 } }, m.email)
                   : (m.estado === 'Agendada' || m.estado === 'Confirmada') && React.createElement("span", { style: { color: 'var(--perigo)' } }, 'sem e-mail'),
+                valores[m.id] && React.createElement("span", { style: { color: 'var(--text-1)' },
+                  title: (valores[m.id].itens || []).map(i => i.nome + ': ' + bspCrmKz(i.valor)).join('\n') },
+                  'Pago ' + bspCrmKz(valores[m.id].total) + ((valores[m.id].itens || []).length ? ' · ' + valores[m.id].itens.map(i => i.nome + ' ' + bspCrmKz(i.valor)).join(', ') : '')),
                 m.estado === 'Compareceu' && m.alterado_por === 'MetaGest' && React.createElement("span", { style: { color: 'var(--sucesso)' }, title: 'Confirmado pela factura ou consulta do MetaGest nesse dia' }, '✓ confirmado pelo MetaGest'))),
             React.createElement("div", { className: 'bsp-marc-accoes', style: { display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' } },
               veFicha && (m.tel9 || m.paciente_id) && React.createElement("button", { onClick: () => setFicha({ tel9: m.tel9 || null, paciente: m.paciente_id || null, nome: m.nome }), title: 'Abrir a ficha do paciente (MetaGest, marcações e WhatsApp)', style: { height: 32, padding: '0 10px', borderRadius: 8, border: '1px solid var(--border)', color: 'var(--accent-d)', display: 'inline-flex', alignItems: 'center', fontSize: 12, fontWeight: 700, background: 'var(--surface)', cursor: 'pointer', fontFamily: 'inherit' } }, 'Ficha'),

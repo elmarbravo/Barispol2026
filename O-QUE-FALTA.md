@@ -1001,6 +1001,13 @@ dados no Supabase e CSV.
       Testado no servidor (teste desfeito): Juliana e Elmar sugerem e vêem
       as marcações na ficha; Osvaldo sugere, sem ficha; Domingos nada;
       e-mail inválido recusado. Ecrã testado no computador e telemóvel.
+- [x] Valor pago (27-09-2026): `bsp_marc_valores(de, ate)` devolve, por
+      marcação já passada, o total facturado pelo MetaGest ao paciente no
+      dia marcado e os actos com o preço de cada um. Só para quem vê as
+      Marcações e o CRM (Recepção e gestão). Conferido: 50 marcações com
+      valor, a soma dos actos bate com o total de cada factura. No ecrã,
+      «Pago … Kz · actos»; no CSV, a coluna «VALOR PAGO (KZ)». Novidade
+      registada para 28-09 às 05h00 (Recepção e gestão).
 - [ ] E-mail de confirmação ao paciente: só com texto aprovado pelo Elmar
       (regra 3).
 - [ ] Com `paciente_id`, o «Compareceu» usa só esse paciente; sem ele usa
@@ -1175,8 +1182,10 @@ por dia às 05h00, só quando há novidades.
   gestão; Enfermagem → só Enfermagem), segunda chamada sem envios, cada um
   vê no sino só as suas. Chamada real sem novidades: «Sem novidades por
   enviar». Ecrã testado no computador e telemóvel.
-- Primeira novidade registada: «Marcações ligadas à ficha do paciente»
-  (Recepção, Direcção Clínica e gestão), sai a 28-09-2026 às 05h00.
+- Primeira novidade: «Marcações ligadas à ficha do paciente» (Recepção,
+  Direcção Clínica e gestão). A pedido do Elmar, enviada logo a
+  27-09-2026 às 12h18: 6 e-mails, sem falhas (a conta «Beb» não tem
+  endereço @barispol.com e não recebe).
 - [ ] Confirmar a 28-09 em `net._http_response` a resposta do tipo
       novidades (`enviados` = número de pessoas, sem `falhas`).
 - Regra: cada alteração que muda o trabalho de alguém leva uma linha em
