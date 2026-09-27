@@ -1151,3 +1151,34 @@ hora.
 
 O guia completo, com os erros conhecidos e o que cada um quer dizer, está
 em [`LIGAR-SERVIDOR-Supabase.md`](LIGAR-SERVIDOR-Supabase.md).
+
+
+## 3-ae. Novidades do sistema (27-09-2026)
+
+Pedido do Elmar: avisar os grupos afectados por cada actualização, uma vez
+por dia às 05h00, só quando há novidades.
+
+- Tabela `novidades` (`novidades.sql`, aplicado): título, texto
+  (parágrafos separados por linha em branco), `grupos` e `destino` (ecrã
+  do Workspace). Grupos: `todos`, `gestao`, `direccao-clinica`, uma área
+  (`bsp_area_chave`: `recepcao`, `enfermagem`, `laboratorio`…) ou um id
+  (`u12`). Só a gestão cria, muda e apaga, e só antes de enviada.
+- Agendamento `bsp-novidades` (04h00 UTC = 05h00 de Luanda) chama a
+  `resumo-matinal` com `"tipo": "novidades"` (versão 5 da função,
+  27-09-2026). `bsp_novidades_reclamar()` marca as por enviar como
+  enviadas e devolve, por pessoa @barispol.com, as que lhe dizem respeito;
+  sai um e-mail por pessoa com todas. Sem novidades, não sai nada.
+- No Workspace, as novidades enviadas aparecem no sino (tipo «Novidade»,
+  filtro «Novidades») a quem dizem respeito, uma vez por pessoa, e abrem o
+  ecrã do `destino`.
+- Testado (teste desfeito): grupos certos (Marcações → Recepção, Osvaldo e
+  gestão; Enfermagem → só Enfermagem), segunda chamada sem envios, cada um
+  vê no sino só as suas. Chamada real sem novidades: «Sem novidades por
+  enviar». Ecrã testado no computador e telemóvel.
+- Primeira novidade registada: «Marcações ligadas à ficha do paciente»
+  (Recepção, Direcção Clínica e gestão), sai a 28-09-2026 às 05h00.
+- [ ] Confirmar a 28-09 em `net._http_response` a resposta do tipo
+      novidades (`enviados` = número de pessoas, sem `falhas`).
+- Regra: cada alteração que muda o trabalho de alguém leva uma linha em
+  `novidades`, com os grupos certos, na mesma alteração.
+

@@ -47,6 +47,13 @@
 // Cada tipo tem o seu registo por dia: lembretes_enviados e
 // coletivos_enviados.
 //
+// NOVIDADES DO SISTEMA (27-09-2026), "tipo": "novidades", as 05h00 de
+// Luanda (bsp-novidades). Envia a cada pessoa, uma vez, as actualizacoes do
+// Workspace da tabela novidades que dizem respeito aos seus grupos (ver
+// novidades.sql). Sem novidades por enviar, nao sai nada. A base de dados
+// marca-as como enviadas antes do envio (bsp_novidades_reclamar), para um
+// agendamento repetido nao as mandar duas vezes.
+//
 // COMO INSTALAR (uma vez):
 //   1. No Supabase: Edge Functions -> Deploy a new function
 //   2. Nome exacto: resumo-matinal
@@ -279,7 +286,7 @@ Deno.serve(async (req) => {
 
   const corpo = await req.json().catch(() => ({} as any));
   const forcar = corpo && corpo.forcar === true;
-  const tipo = corpo && (corpo.tipo === "lembrete" || corpo.tipo === "coletivo" || corpo.tipo === "mensagens") ? corpo.tipo : "resumo";
+  const tipo = corpo && (corpo.tipo === "lembrete" || corpo.tipo === "coletivo" || corpo.tipo === "mensagens" || corpo.tipo === "novidades") ? corpo.tipo : "resumo";
   const lembrete = tipo !== "resumo";
 
   /* Uma vez por dia. O agendamento pode disparar mais do que uma vez —
@@ -288,7 +295,7 @@ Deno.serve(async (req) => {
      frente disto, que é para isso que serve. */
   const hoje = new Date().toISOString().slice(0, 10);
   const registo = ({ resumo: "resumos_enviados", lembrete: "lembretes_enviados", coletivo: "coletivos_enviados" } as Record<string, string>)[tipo];
-  if (!forcar && tipo !== "mensagens") {
+  if (!forcar && tipo !== "mensagens" && tipo !== "novidades") {
     const { error: jaFoi } = await admin
       .from(registo)
       .insert({ dia: hoje });
@@ -374,6 +381,44 @@ Deno.serve(async (req) => {
       return false;
     }
   };
+
+  /* Novidades do sistema: so quando ha, a quem dizem respeito. */
+  if (tipo === "novidades") {
+    const { data: porPessoa, error: eN } = await admin.rpc("bsp_novidades_reclamar");
+    if (eN) return responder({ erro: "Não foi possível ler as novidades: " + eN.message }, 500);
+    const lista: any[] = Array.isArray(porPessoa) ? porPessoa : [];
+    if (!lista.length) return responder({ ok: true, tipo, enviados: 0, nota: "Sem novidades por enviar." });
+    let enviadosN = 0;
+    const falhasN: string[] = [];
+    const todasIds = new Set<number>();
+    for (const p of lista) {
+      const novs: any[] = Array.isArray(p.novidades) ? p.novidades : [];
+      if (!novs.length || !daClinica(p.email)) continue;
+      novs.forEach((n: any) => todasIds.add(Number(n.id)));
+      const nome = String(p.nome || "").split(" ")[0];
+      const blocos = novs.map((n: any) => {
+        const pars = String(n.texto || "").split(/\n\s*\n/).map((t) => t.trim()).filter(Boolean);
+        return '<div style="margin:0 0 20px;padding:0 0 0 14px;border-left:3px solid ' + AZUL + '">' +
+          '<p style="margin:0 0 6px;font-family:' + FONTE + ';font-size:17px;font-weight:700;color:' + MARINHO + '">' + escapar(n.titulo) + "</p>" +
+          pars.map((t, i) => paragrafo(escapar(t).replace(/\n/g, "<br>"), i === pars.length - 1)).join("") +
+          "</div>";
+      }).join("");
+      const destino = novs.length === 1 && novs[0].destino ? String(novs[0].destino) : "";
+      const html = envelope(
+        "Bom dia, " + escapar(nome) + ".",
+        paragrafo(novs.length === 1 ? "Há uma novidade no Workspace que muda o seu trabalho:" : "Há " + novs.length + " novidades no Workspace que mudam o seu trabalho:") + blocos,
+        destino || "notificacoes",
+        destino ? "Ver no Workspace" : "Abrir o Workspace",
+        "Aviso de actualização do sistema, só quando há novidades.",
+        "Novidades do Workspace"
+      );
+      const assunto = novs.length === 1 ? "Novidade no Workspace: " + String(novs[0].titulo) : novs.length + " novidades no Workspace";
+      const ok = await enviar(p.email, assunto, html);
+      ok ? enviadosN++ : falhasN.push(p.email);
+    }
+    await admin.rpc("bsp_novidades_registar", { ids: Array.from(todasIds), n: enviadosN });
+    return responder({ ok: true, tipo, novidades: todasIds.size, enviados: enviadosN, falhas: falhasN.length ? falhasN : undefined });
+  }
 
   /* Mensagens directas por responder, a quem esta offline. */
   if (tipo === "mensagens") {

@@ -170,6 +170,12 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   Cores de aviso nas variáveis `--perigo` e `--sucesso`. A planilha entra e sai por CSV
   (`bspLerCsv`, `bspMarcDoCsv`, `bspMarcCsv`). Nomes de doentes nunca no
   repositório.
+- Novidades do sistema (27-09-2026, `novidades.sql`): cada alteração que
+  muda o trabalho de alguém leva um `insert into public.novidades (titulo,
+  texto, grupos, destino)` com os grupos afectados (`todos`, `gestao`,
+  `direccao-clinica`, uma área de `bsp_area_chave` ou um id). Sai por
+  e-mail às 05h00 (`bsp-novidades`, tipo `novidades` da `resumo-matinal`)
+  só quando há, e aparece no sino (tipo `sistema`).
 - Anexos no chat: `enviarFicheiros(lista)` no `ChatScreen` serve o clipe
   (vários ficheiros) e o arrastar com o rato.
 

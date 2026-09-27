@@ -4706,6 +4706,38 @@ function StoreProvider({
       ...notif
     }, ...s.notifications].slice(0, 30)
   });
+  /* Novidades do sistema (27-09-2026, novidades.sql). Depois de a
+     resumo-matinal as enviar por e-mail (05h00), aparecem tambem no sino,
+     so a quem dizem respeito (o servidor filtra pelos grupos). Cada uma
+     aparece uma vez por pessoa: as ja mostradas ficam guardadas neste
+     aparelho. */
+  React.useEffect(() => {
+    let vivo = true;
+    const ver = async () => {
+      const cl = bspGetClient();
+      const eu = window.CURRENT_USER_ID;
+      if (!cl || !eu) return;
+      const desde = new Date(Date.now() - 14 * 864e5).toISOString();
+      const r = await cl.from('novidades').select('id, titulo, texto, destino, enviado_em').gte('enviado_em', desde).order('id', { ascending: true }).limit(20);
+      if (!vivo || r.error || !Array.isArray(r.data) || !r.data.length) return;
+      const chave = 'bsp-novidades-vistas-' + eu;
+      let vistas = [];
+      try { vistas = JSON.parse(localStorage.getItem(chave) || '[]'); } catch (e) {}
+      const novas = r.data.filter(n => vistas.indexOf(n.id) === -1);
+      if (!novas.length) return;
+      novas.forEach(n => setState(s => pushNotif(s, {
+        type: 'sistema',
+        destino: n.destino || '',
+        text: 'Novidade no Workspace: ' + n.titulo,
+        preview: String(n.texto || '').split(/\n\s*\n/)[0].slice(0, 160),
+        ts: n.enviado_em
+      })));
+      try { localStorage.setItem(chave, JSON.stringify(vistas.concat(novas.map(n => n.id)).slice(-100))); } catch (e) {}
+    };
+    const t0 = setTimeout(ver, 4000);
+    const iv = setInterval(ver, 10 * 60000);
+    return () => { vivo = false; clearTimeout(t0); clearInterval(iv); };
+  }, []);
   const actions = React.useMemo(() => ({
     markNotifsRead: () => setState(s => ({
       ...s,
@@ -14154,6 +14186,11 @@ function NotificationsScreen({
       icon: 'Drive',
       tone: 'teal',
       label: 'Ficheiro'
+    },
+    sistema: {
+      icon: 'Sparkle',
+      tone: 'accent',
+      label: 'Novidade'
     }
   };
   /* Os numeros ao lado dos filtros contam as POR LER, nao o total. Era
@@ -14176,6 +14213,10 @@ function NotificationsScreen({
     id: 'comunicado',
     label: 'Feed',
     count: porLer('comunicado')
+  }, {
+    id: 'sistema',
+    label: 'Novidades',
+    count: porLer('sistema')
   }];
   /* Uma notificacao lida deixa de estar na lista. Deixa-la la, so
      desbotada, enche o ecra de coisas ja tratadas e esconde as que
@@ -20211,6 +20252,11 @@ function App() {
       setPage('chat');
       return;
     }
+    if (n.type === 'sistema') {
+      const d = String(n.destino || '');
+      setPage({ tarefas: 'tasks', agenda: 'calendar' }[d] || d || 'dashboard');
+      return;
+    }
     if (n.type === 'comunicado') setPage('feed');
     else if (n.type === 'task') setPage('tasks');
     else if (n.type === 'file') setPage('drive');
@@ -20229,8 +20275,8 @@ function App() {
     if (onde === 'chat' && partes[1]) {
       setAlvoChat({ conv: decodeURIComponent(partes.slice(1).join('/')), vez: Date.now() });
       setPage('chat');
-    } else if (['feed', 'tarefas', 'agenda', 'drive', 'seguimento', 'marcacoes', 'chat', 'relatorios'].indexOf(onde) !== -1) {
-      setPage({ tarefas: 'tasks', agenda: 'calendar' }[onde] || onde);
+    } else if (['feed', 'tarefas', 'agenda', 'drive', 'seguimento', 'marcacoes', 'chat', 'relatorios', 'notificacoes'].indexOf(onde) !== -1) {
+      setPage({ tarefas: 'tasks', agenda: 'calendar', notificacoes: 'notifications' }[onde] || onde);
     } else {
       return;
     }
