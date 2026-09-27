@@ -1218,3 +1218,32 @@ Pedido do Elmar: enviar áudio nos chats.
 - [ ] Testar num iPhone real: o Safari antigo (antes do iOS 17.4) pode
       não tocar as notas gravadas em WebM noutros aparelhos.
 
+
+## 3-ag. Painel da gestão (27-09-2026)
+
+Pedido do Elmar: um painel com gráficos para a gestão e a Direcção verem o
+MetaGest em tempo real.
+
+- `painel.sql` (aplicado): `bsp_painel(de, ate)` só para a gestão
+  (`bsp_e_gestor`). Dias anteriores do histórico `crm.mg_*` (desde
+  2022); hoje do `erp.sales_invoice`, que o agendamento `bsp-painel-hoje`
+  vai buscar à API do MetaGest de 5 em 5 minutos, das 06h00 às 22h00 de
+  Luanda (`bsp_painel_sincronizar_hoje`, cerca de 1,5 s). As duas fontes
+  batem ao cêntimo (conferido em Setembro). `bsp-painel-limpeza` apaga o
+  registo de sincronizações com mais de 30 dias.
+- Ecrã «Painel» (`PainelScreen`, menu só para a gestão): períodos (hoje,
+  ontem, 7 e 30 dias, este mês, mês anterior, este ano); facturado líquido
+  com comparação com o período anterior, atendimentos (pacientes por
+  dia), valor médio, facturas, em dívida e devoluções; facturação por dia
+  (com tabela), por área, quem paga (particular, seguro, empresas),
+  movimento por hora, consultas por médico e marcações. Com hoje no
+  período, volta a ler a cada minuto. Sem nomes de doentes.
+- Cores dos gráficos nas variáveis `--serie-1..4` (claro e escuro),
+  validadas para daltonismo com o azul da marca em primeiro.
+- Testado no servidor: Setembro em 0,3 s, o ano em 1,2 s, hoje em 4 ms;
+  a Juliana (Recepção) é recusada. Ecrã testado no computador, telemóvel
+  e modo escuro, sem erros.
+- Limites: «Em dívida» e «Movimento por hora» só existem desde
+  01-09-2026 (início do `erp`); «Consultas por médico» até ontem vem das
+  consultas do MetaGest e hoje das facturas com médico.
+
