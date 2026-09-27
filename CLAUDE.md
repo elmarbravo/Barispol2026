@@ -176,8 +176,10 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   `direccao-clinica`, uma área de `bsp_area_chave` ou um id). Sai por
   e-mail às 05h00 (`bsp-novidades`, tipo `novidades` da `resumo-matinal`)
   só quando há, e aparece no sino (tipo `sistema`).
-- Anexos no chat: `enviarFicheiros(lista)` no `ChatScreen` serve o clipe
-  (vários ficheiros) e o arrastar com o rato.
+- Anexos no chat: `enviarFicheiros(lista, opc)` no `ChatScreen` serve o
+  clipe (vários ficheiros), o arrastar com o rato e as notas de voz
+  (27-09-2026: `comecarGravacao`, `bspMensagemNotaVoz`, `bspEAudio`,
+  `AudioAnexo`).
 
 ## Decisões aprovadas
 

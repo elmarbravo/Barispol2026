@@ -3823,6 +3823,17 @@ function bspMensagemComAnexo(nome, caminho, bytes){
   return 'Partilhou o ficheiro \u201c' + nome + '\u201d.' + BSP_MARCA_ANEXO +
     caminho + '\u200b' + nome + '\u200b' + (bytes || 0);
 }
+/* Notas de voz (27-09-2026): um anexo como os outros, com outro texto
+   visivel, para a lista de conversas e os avisos dizerem o que e. */
+function bspDuracao(seg) {
+  const n = Math.max(0, Math.floor(Number(seg) || 0));
+  return Math.floor(n / 60) + ':' + String(n % 60).padStart(2, '0');
+}
+function bspMensagemNotaVoz(seg, nome, caminho, bytes){
+  return '\ud83c\udfa4 Nota de voz (' + bspDuracao(seg) + ').' + BSP_MARCA_ANEXO +
+    caminho + '\u200b' + nome + '\u200b' + (bytes || 0);
+}
+const bspEAudio = nome => /\.(m4a|mp3|ogg|oga|wav|aac|opus)$/i.test(nome || '') || /^nota-de-voz.*\.webm$/i.test(nome || '');
 /* Uma reaccao e uma alternancia, e nao um contador que so sabe subir:
    carregar outra vez tira a minha. Por isso guarda-se QUEM reagiu, e nao
    apenas quantos — sem saber quem, carregar cinco vezes dava cinco.
@@ -6981,7 +6992,7 @@ function ChatScreen({
      (25-09-2026). Cada ficheiro vai numa mensagem, pela ordem escolhida. */
   const [aCarregar, setACarregar] = React.useState(0);
   const [arrastar, setArrastar] = React.useState(false);
-  async function enviarFicheiros(lista) {
+  async function enviarFicheiros(lista, opc) {
     const fs = Array.from(lista || []).filter(Boolean);
     if (!fs.length) return;
     if (!bspGetClient()) {
@@ -6992,7 +7003,7 @@ function ChatScreen({
     const bons = fs.filter(f => f.size <= BSP_MAX_BYTES).slice(0, 10);
     if (grandes.length) window.alert(grandes.length === 1 ? 'O ficheiro ' + grandes[0].name + ' excede 25 MB e não foi enviado.' : grandes.length + ' ficheiros excedem 25 MB e não foram enviados.');
     if (fs.length - grandes.length > 10) window.alert('Enviam-se no máximo 10 ficheiros de cada vez. Seguem os primeiros 10.');
-    const conv = convKey;
+    const conv = opc && opc.conv || convKey;
     let falhas = 0;
     setACarregar(n => n + bons.length);
     for (const f of bons) {
@@ -7003,7 +7014,7 @@ function ChatScreen({
         const caminho = await bspUploadToStorage(f, 'conversa/' + conv);
         actions.sendMessage(conv, {
           userId: currentUser.id,
-          text: bspMensagemComAnexo(f.name, caminho, f.size)
+          text: opc && opc.texto ? opc.texto(f, caminho) : bspMensagemComAnexo(f.name, caminho, f.size)
         });
       } catch (err) {
         falhas++;
@@ -7011,6 +7022,72 @@ function ChatScreen({
       setACarregar(n => Math.max(0, n - 1));
     }
     if (falhas) window.alert(falhas === 1 ? 'Não foi possível carregar um dos ficheiros.' : 'Não foi possível carregar ' + falhas + ' ficheiros.');
+  }
+  /* Nota de voz (27-09-2026): grava com o microfone (MediaRecorder), ate
+     5 minutos, e envia como anexo da conversa onde comecou. WebM/Opus no
+     Chrome e no Android; MP4/AAC no Safari. */
+  const [gravacao, setGravacao] = React.useState(null);
+  const gravRef = React.useRef(null);
+  React.useEffect(() => () => {
+    const g = gravRef.current;
+    if (g) { g.enviar = false; try { g.rec.stop(); } catch (e) {} try { g.stream.getTracks().forEach(t => t.stop()); } catch (e) {} }
+  }, []);
+  function pararGravacao(enviar) {
+    const g = gravRef.current;
+    setGravacao(null);
+    if (!g) return;
+    g.enviar = !!enviar;
+    g.seg = (Date.now() - g.inicio) / 1000;
+    try { g.rec.stop(); } catch (e) {}
+  }
+  React.useEffect(() => {
+    if (!gravacao) return;
+    const t = setInterval(() => {
+      const g = gravRef.current;
+      if (!g) return;
+      const seg = Math.floor((Date.now() - g.inicio) / 1000);
+      setGravacao({ seg: seg });
+      if (seg >= 300) pararGravacao(true);
+    }, 500);
+    return () => clearInterval(t);
+  }, [!!gravacao]);
+  async function comecarGravacao() {
+    if (gravRef.current) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined') {
+      window.alert('Este aparelho não permite gravar áudio no Workspace. Actualize o navegador ou a aplicação.');
+      return;
+    }
+    if (!bspGetClient()) { window.alert('O servidor não está ligado neste dispositivo.'); return; }
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (e) {
+      window.alert('Sem acesso ao microfone. Autorize o microfone para o Workspace nas definições do navegador ou do telemóvel.');
+      return;
+    }
+    const tipo = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus']
+      .find(t => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) || '';
+    let rec;
+    try { rec = tipo ? new MediaRecorder(stream, { mimeType: tipo }) : new MediaRecorder(stream); }
+    catch (e) { stream.getTracks().forEach(t => t.stop()); window.alert('Não foi possível começar a gravar.'); return; }
+    const g = { rec: rec, stream: stream, partes: [], conv: convKey, inicio: Date.now(), enviar: false, seg: 0 };
+    gravRef.current = g;
+    rec.ondataavailable = ev => { if (ev.data && ev.data.size) g.partes.push(ev.data); };
+    rec.onstop = () => {
+      gravRef.current = null;
+      try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+      if (!g.enviar) return;
+      const mime = String(rec.mimeType || tipo || 'audio/webm').split(';')[0];
+      const blob = new Blob(g.partes, { type: mime });
+      if (g.seg < 1 || blob.size < 800) { window.alert('A nota de voz ficou vazia. Mantenha a gravação pelo menos um segundo.'); return; }
+      const ext = /mp4|aac|m4a/.test(mime) ? 'm4a' : /ogg/.test(mime) ? 'ogg' : 'webm';
+      const d = new Date();
+      const carimbo = bspDataLocalISO(d).replace(/-/g, '') + '-' + String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0') + String(d.getSeconds()).padStart(2, '0');
+      const ficheiro = new File([blob], 'nota-de-voz-' + carimbo + '.' + ext, { type: mime });
+      enviarFicheiros([ficheiro], { conv: g.conv, texto: (f, caminho) => bspMensagemNotaVoz(g.seg, f.name, caminho, f.size) });
+    };
+    rec.start(1000);
+    setGravacao({ seg: 0 });
   }
   function onAttach(e) {
     const lista = Array.from(e.target.files || []);
@@ -8088,6 +8165,24 @@ function ChatScreen({
     onClick: () => attachRef.current && attachRef.current.click()
   }, React.createElement(I.Paperclip, {
     size: 15
+  })), gravacao ? React.createElement("div", {
+    className: 'bsp-gravacao',
+    style: { display: 'inline-flex', alignItems: 'center', gap: 8, padding: '0 4px 0 8px', height: 30, borderRadius: 999, border: '1px solid var(--perigo)', color: 'var(--perigo)', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap' }
+  }, React.createElement("span", { className: 'bsp-gravacao-ponto', style: { width: 8, height: 8, borderRadius: '50%', background: 'var(--perigo)' } }),
+    React.createElement("span", { title: 'A gravar' }, bspDuracao(gravacao.seg)),
+    React.createElement("button", { onClick: () => pararGravacao(false), style: { border: 0, background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '0 4px' } }, 'Cancelar'),
+    React.createElement("button", { onClick: () => pararGravacao(true), style: { border: 0, background: 'var(--navy)', color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '0 10px', height: 24, borderRadius: 999 } }, 'Enviar nota'))
+  : React.createElement("button", {
+    className: "bsp-iconbtn",
+    style: {
+      width: 30,
+      height: 30
+    },
+    title: "Gravar nota de voz (até 5 minutos)",
+    "aria-label": "Gravar nota de voz",
+    onClick: comecarGravacao
+  }, React.createElement(I.Mic, {
+    size: 15
   })), React.createElement("div", {
     style: {
       position: 'relative'
@@ -8539,6 +8634,7 @@ function AnexoMensagem({ a }) {
      alguma coisa em que se possa carregar, e o motivo por baixo. */
   const img = /\.(png|jpe?g|gif|webp)$/i.test(a.name || '') && !erro;
   const abrir = () => bspAbrirFicheiro(f, m => setErro(m || 'Não foi possível abrir o ficheiro.'));
+  if (bspEAudio(a.name) && !erro) return React.createElement(AudioAnexo, { f: f, aoFalhar: m => setErro(m || 'Não foi possível tocar a nota de voz.') });
   return React.createElement("div", {
     style: { margin: '6px 0 2px' }
   }, img ? React.createElement("button", {
@@ -8573,6 +8669,23 @@ function AnexoMensagem({ a }) {
   }, a.bytes ? fmtSize(a.bytes) : 'Abrir'))), erro ? React.createElement("div", {
     style: { fontSize: 11.5, color: '#DC2626', marginTop: 4, lineHeight: 1.5, maxWidth: 300 }
   }, erro) : null);
+}
+/* Leitor da nota de voz dentro da mensagem. O endereco e assinado, como
+   o das imagens (bspSignedUrl). */
+function AudioAnexo({ f, aoFalhar }) {
+  const [src, setSrc] = React.useState(f && f.dataUrl ? f.dataUrl : null);
+  React.useEffect(() => {
+    let vivo = true;
+    if (f && f.path) bspSignedUrl(f.path, 0, m => { if (vivo && aoFalhar) aoFalhar(m); }).then(u => { if (vivo && u) setSrc(u); });
+    return () => { vivo = false; };
+  }, [f && f.path]);
+  return React.createElement("div", { style: { margin: '6px 0 2px' } },
+    src ? React.createElement("audio", { controls: true, preload: 'metadata', src: src,
+      /* O WebM gravado pelo Chrome nao traz a duracao: salta-se para o fim
+         para o navegador a calcular, e volta-se ao inicio. */
+      onLoadedMetadata: e => { const el = e.currentTarget; if (el.duration === Infinity) { el.currentTime = 1e101; el.addEventListener('timeupdate', function volta() { el.removeEventListener('timeupdate', volta); el.currentTime = 0; }); } },
+      onError: () => aoFalhar && aoFalhar('Este aparelho não consegue tocar esta nota de voz. Carregue para a descarregar.'), style: { width: 280, maxWidth: '100%', height: 40, display: 'block' } })
+      : React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, 'A carregar a nota de voz…'));
 }
 function renderText(text) {
   const rx = /(https?:\/\/[^\s]+|\*\*[^*]+\*\*|_[^_]+_|~[^~]+~|`[^`]+`|@[A-Za-zÀ-ÿ]+(?:\s[A-Z][a-zÀ-ÿ]+)?)/g;

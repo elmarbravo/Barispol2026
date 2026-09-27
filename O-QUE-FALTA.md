@@ -1191,3 +1191,30 @@ por dia às 05h00, só quando há novidades.
 - Regra: cada alteração que muda o trabalho de alguém leva uma linha em
   `novidades`, com os grupos certos, na mesma alteração.
 
+
+## 3-af. Notas de voz no Chat (27-09-2026)
+
+Pedido do Elmar: enviar áudio nos chats.
+
+- Botão do microfone ao lado do clipe (`comecarGravacao` no
+  `ChatScreen`). Grava com `MediaRecorder` até 5 minutos; barra com o
+  tempo, «Cancelar» e «Enviar nota». Vai como anexo da conversa onde
+  começou, pelo mesmo `enviarFicheiros` (com `opc.conv` e `opc.texto`),
+  com o texto «🎤 Nota de voz (m:ss).» (`bspMensagemNotaVoz`).
+- Formato: WebM/Opus no Chrome, Edge e Android; MP4/AAC no Safari
+  (iPhone). Ficheiro `nota-de-voz-AAAAMMDD-HHMMSS.webm|m4a`.
+- Na mensagem, `AudioAnexo` mostra um leitor (`<audio controls>`) com
+  endereço assinado. O WebM do Chrome vem sem duração: o leitor salta ao
+  fim e volta ao início para a calcular. Se o aparelho não tocar o
+  formato, aparece o cartão do ficheiro para descarregar.
+- A app Android já tinha `RECORD_AUDIO` (chamadas).
+- `resumo-matinal` versão 6: os e-mails de mensagem por ler mostram só o
+  texto antes do anexo («🎤 Nota de voz (0:12).», «Partilhou o
+  ficheiro…»), e já não o caminho interno do ficheiro.
+- Testado com microfone simulado no computador e no telemóvel: grava,
+  envia (cerca de 12 KB por segundo), mostra o texto e o leitor com a
+  duração certa, sem erros.
+- Novidade registada para toda a equipa (sai a 28-09 às 05h00).
+- [ ] Testar num iPhone real: o Safari antigo (antes do iOS 17.4) pode
+      não tocar as notas gravadas em WebM noutros aparelhos.
+

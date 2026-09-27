@@ -433,8 +433,11 @@ Deno.serve(async (req) => {
     };
     const textoVisivel = (t: unknown) => {
       const x = String(t || "");
-      if (x.indexOf("\u200bf\u200b") === 0) return "📎 Enviou um anexo.";
-      return x.replace(/\u200b/g, "");
+      /* O anexo vai no fim, depois da marca: mostra-se so o texto antes
+         dela («Partilhou o ficheiro…», «🎤 Nota de voz (0:12).»). */
+      const i = x.indexOf("\u200bf\u200b");
+      if (i === 0) return "📎 Enviou um anexo.";
+      return (i > 0 ? x.slice(0, i) : x).replace(/\u200b/g, "");
     };
     const { data: candidatas, error: e1 } = await admin
       .from("messages")
