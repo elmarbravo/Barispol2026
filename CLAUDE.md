@@ -172,7 +172,10 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   MetaGest (`bsp_marcacoes_comparecer`, cron `bsp-marcacoes-metagest`).
   Cores de aviso nas variáveis `--perigo` e `--sucesso`. A planilha entra e sai por CSV
   (`bspLerCsv`, `bspMarcDoCsv`, `bspMarcCsv`). Nomes de doentes nunca no
-  repositório.
+  repositório. Lembrete ao paciente (28-09-2026, `marcacoes-lembrete.sql`):
+  na véspera às 10h00 (`bsp-marcacoes-lembrete`, tipo `marcacoes` da
+  `resumo-matinal`), com rececao@barispol.com em cópia e link do GPS;
+  nunca no momento da marcação.
 - Novidades do sistema (27-09-2026, `novidades.sql`): cada alteração que
   muda o trabalho de alguém leva um `insert into public.novidades (titulo,
   texto, grupos, destino)` com os grupos afectados (`todos`, `gestao`,

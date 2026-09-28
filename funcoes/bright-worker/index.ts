@@ -18,6 +18,16 @@
 // site (https://barispol.com/...). A Resend vai busca-los ao endereco.
 // Assim ninguem usa esta funcao para mandar correio com o dominio da
 // clinica a quem esta fora dela.
+// CHAVE DO RESEND (desde 24-09-2026, projecto novo): vem do segredo
+// RESEND_API_KEY do painel ou, se faltar, do cofre da base de dados
+// (resend_api_key, lido pela funcao bsp_resend_key, so do servidor).
+// VARIOS DESTINATARIOS, CC E BCC (desde 25-09-2026): so o servidor pode
+// mandar "to" como lista e usar "cc"/"bcc" (relatorios de area e avisos
+// do atendimento do WhatsApp).
+//
+// Este ficheiro e a copia da versao publicada (versao 3), conferida a
+// 28-09-2026. O lembrete da marcacao ao paciente usa o "cc" para
+// rececao@barispol.com.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -77,6 +87,9 @@ const recusar = (erro: string, estado: number) =>
   new Response(JSON.stringify({ erro }),
     { status: estado, headers: { ...cors, "Content-Type": "application/json" } });
 
+const listaDeEnderecos = (v: unknown): string[] =>
+  (Array.isArray(v) ? v : [v]).map((x) => String(x || "").trim()).filter((x) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)).slice(0, 10);
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return recusar("Método não permitido.", 405);
@@ -106,6 +119,12 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: String(e) }), { status: 400, headers: cors });
   }
   const { to, subject, html } = pedido || {};
+
+  /* Varios destinatarios, cc e bcc: so o servidor. */
+  if (!doServidor && (Array.isArray(to) || pedido.cc || pedido.bcc)) return recusar("Só o servidor envia para vários destinatários.", 403);
+  const paraLista = doServidor ? listaDeEnderecos(to) : [to];
+  const cc = doServidor ? listaDeEnderecos(pedido.cc || []) : [];
+  const bcc = doServidor ? listaDeEnderecos(pedido.bcc || []) : [];
 
   /* Anexos: so do servidor, so do proprio site. */
   let anexos: { filename: string; path: string }[] | undefined;
@@ -148,7 +167,16 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const key = Deno.env.get("RESEND_API_KEY");
+    let key = Deno.env.get("RESEND_API_KEY") || "";
+    if (!key) {
+      const URL_SB = Deno.env.get("SUPABASE_URL") || "";
+      const SERVICO = chaveServidor();
+      if (URL_SB && SERVICO) {
+        const adm = createClient(URL_SB, SERVICO, { auth: { persistSession: false } });
+        const { data: doCofre } = await adm.rpc("bsp_resend_key");
+        if (typeof doCofre === "string" && doCofre) key = doCofre;
+      }
+    }
     if (!key) return new Response(JSON.stringify({ error: "RESEND_API_KEY em falta" }),
       { status: 500, headers: cors });
     const r = await fetch("https://api.resend.com/emails", {
@@ -156,9 +184,11 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
       body: JSON.stringify({
         from: "Barispol Workspace <geral@barispol.com>",
-        to: [to],
+        to: paraLista,
         subject: subject,
         html: html,
+        ...(cc.length ? { cc } : {}),
+        ...(bcc.length ? { bcc } : {}),
         ...(anexos ? { attachments: anexos } : {}),
       }),
     });

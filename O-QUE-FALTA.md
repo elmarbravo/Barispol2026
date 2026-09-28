@@ -1008,8 +1008,8 @@ dados no Supabase e CSV.
       valor, a soma dos actos bate com o total de cada factura. No ecrã,
       «Pago … Kz · actos»; no CSV, a coluna «VALOR PAGO (KZ)». Novidade
       registada para 28-09 às 05h00 (Recepção e gestão).
-- [ ] E-mail de confirmação ao paciente: só com texto aprovado pelo Elmar
-      (regra 3).
+- [x] E-mail ao paciente (28-09-2026): texto aprovado pelo Elmar. Não sai
+      quando se faz a marcação: sai na véspera (ver 3-aj).
 - [ ] Com `paciente_id`, o «Compareceu» usa só esse paciente; sem ele usa
       o telefone, e uma família com o mesmo número pode dar um falso
       Compareceu. Escolher o paciente na sugestão evita isso.
@@ -1347,3 +1347,36 @@ e de fim.
   nova.
 - Novidade registada para toda a equipa (sai a 29-09 às 05h00).
 - [ ] Preencher a data de fim nas 4 tarefas privadas antigas.
+
+## 3-aj. Lembrete da marcação ao paciente e fim dos grupos de WhatsApp (28-09-2026)
+
+Pedidos do Elmar: o e-mail da marcação não sai logo a seguir à marcação;
+vai para quem tem e-mail, sempre com rececao@barispol.com em cópia e com
+o link do GPS. Texto aprovado («a msg está apta»).
+
+- `marcacoes-lembrete.sql` (aplicado): tabela `marcacoes_lembretes` (um
+  lembrete por marcação, data e hora; se a marcação mudar de data ou de
+  hora, sai outro), `bsp_marc_lembretes_reclamar(dia)` e
+  `bsp_marc_lembrete_registar` (só o servidor), e o agendamento
+  `bsp-marcacoes-lembrete` todos os dias às 10h00 de Luanda (09h00 UTC)
+  para as marcações Agendada/Confirmada do dia seguinte com e-mail.
+- `resumo-matinal` versão 8: tipo `marcacoes` (aceita `dia` no corpo).
+  E-mail com acto, data, hora, médico, chegada 15 minutos antes,
+  telefones, morada e botão «Abrir o caminho no GPS»
+  (https://www.google.com/maps/dir/?api=1&destination=-8.945743,13.240542,
+  as coordenadas do site). Cópia para rececao@barispol.com. É a única
+  excepção à regra dos envios só para @barispol.com.
+- `bright-worker`: a versão publicada (3) já aceitava `cc` do servidor; o
+  ficheiro do repositório estava atrasado e foi posto igual.
+- Enviado a 28-09-2026 às 14h40: 1 lembrete para a marcação de 29-09
+  (a única de hoje e amanhã com e-mail; a de hoje, 16h00, não tem
+  e-mail). Resposta 200 da Resend.
+- Lembrete diário das 07h30 e aviso colectivo: «A 1 de Outubro os grupos
+  de WhatsApp da equipa deixam de existir. A partir desse dia, usem
+  apenas o Workspace e os e-mails da clínica.» A 1 de Outubro diz «A
+  partir de hoje…»; depois, «já não existem».
+- Novidade registada para a Recepção e a gestão (sai a 29-09 às 05h00).
+- [ ] O remetente continua «Barispol Workspace <geral@barispol.com>».
+      Para os pacientes, «Centro Médico Barispol» seria mais claro: só
+      com o acordo do Elmar.
+- [ ] Confirmar a 29-09 em `net._http_response` o envio das 10h00.

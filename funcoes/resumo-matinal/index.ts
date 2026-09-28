@@ -27,7 +27,8 @@
 //     sexta (bsp-aviso-coletivo).
 // Os dois avisam que o WhatsApp deixa em breve de ser o canal interno.
 // Sai um e-mail por endereco, para ninguem ver os enderecos dos outros.
-// Todos os envios desta funcao vao so para enderecos @barispol.com.
+// Todos os envios desta funcao vao so para enderecos @barispol.com, menos
+// o lembrete da marcacao ao paciente (ver abaixo).
 //
 // ASPECTO (26-09-2026): igual ao site novo e a caixa de contacto.
 //
@@ -56,6 +57,17 @@
 //
 // SOCIOS (27-09-2026, versao 7): quem tem a categoria «Sócio» nao recebe
 // lembretes, avisos, resumos nem avisos de mensagens.
+//
+// LEMBRETE AOS PACIENTES (28-09-2026, versao 8), "tipo": "marcacoes", as
+// 10h00 de Luanda (bsp-marcacoes-lembrete). A unica excepcao a regra do
+// @barispol.com, aprovada pelo Elmar com o texto: cada marcacao Agendada ou
+// Confirmada de amanha (ou do dia em corpo.dia) com e-mail recebe um
+// lembrete com a data, a hora, o acto e o link do GPS, sempre com
+// rececao@barispol.com em copia. Um por marcacao (marcacoes-lembrete.sql).
+//
+// FIM DOS GRUPOS DE WHATSAPP (28-09-2026): o lembrete diario e o aviso
+// colectivo dizem que a 1 de Outubro de 2026 os grupos de WhatsApp deixam
+// de existir e que se usam so o Workspace e os e-mails.
 //
 // COMO INSTALAR (uma vez):
 //   1. No Supabase: Edge Functions -> Deploy a new function
@@ -122,20 +134,20 @@ function botao(destino: string, rotulo: string) {
 /* O cartao de todos os e-mails desta funcao: cabecalho como o do site
    (logotipo pequeno e nome), etiqueta azul, titulo em marinho, botao
    recto e a pessoa juridica no rodape marinho. */
-function envelope(titulo: string, corpo: string, destino?: string, rotulo?: string, rodape?: string, etiqueta?: string) {
+function envelope(titulo: string, corpo: string, destino?: string, rotulo?: string, rodape?: string, etiqueta?: string, subtitulo?: string, botaoPronto?: string) {
   return (
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:' + CLARO + '"><tr><td align="center" style="padding:24px 12px">' +
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid ' + LINHA + '">' +
     '<tr><td style="padding:16px 24px;border-bottom:1px solid ' + LINHA + '"><table role="presentation" cellpadding="0" cellspacing="0"><tr>' +
     '<td style="padding-right:12px;vertical-align:middle"><img src="' + LOGOTIPO + '" width="44" height="44" alt="Centro Médico Barispol" style="display:block;border:0;width:44px;height:44px"></td>' +
     '<td style="vertical-align:middle;font-family:' + FONTE + '"><div style="font-size:16px;font-weight:700;color:' + MARINHO + ';line-height:1.2">Centro Médico Barispol</div>' +
-    '<div style="font-size:12.5px;font-weight:600;color:' + SUAVE + '">Workspace da equipa</div></td>' +
+    '<div style="font-size:12.5px;font-weight:600;color:' + SUAVE + '">' + (subtitulo || "Workspace da equipa") + "</div></td>" +
     "</tr></table></td></tr>" +
     '<tr><td style="padding:28px 24px 26px;font-family:' + FONTE + ';color:' + TEXTO + '">' +
     '<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:' + AZUL + '">' + (etiqueta || "Resumo da manhã") + "</div>" +
     '<h1 style="margin:8px 0 16px;font-family:' + FONTE + ';font-size:24px;line-height:1.2;font-weight:700;color:' + MARINHO + '">' + titulo + "</h1>" +
     corpo +
-    (destino ? '<div style="margin-top:22px">' + botao(destino, rotulo || "Abrir no Workspace") + "</div>" : "") +
+    (botaoPronto ? '<div style="margin-top:22px">' + botaoPronto + "</div>" : destino ? '<div style="margin-top:22px">' + botao(destino, rotulo || "Abrir no Workspace") + "</div>" : "") +
     "</td></tr>" +
     '<tr><td style="padding:16px 24px;background:' + MARINHO + ';font-family:' + FONTE + ';font-size:12.5px;line-height:1.6;color:#C9CCDA">' +
     '<b style="color:#ffffff">Centro Médico Barispol</b> · ' + (rodape || "Este é o resumo automático da manhã.") + "<br>" +
@@ -289,7 +301,7 @@ Deno.serve(async (req) => {
 
   const corpo = await req.json().catch(() => ({} as any));
   const forcar = corpo && corpo.forcar === true;
-  const tipo = corpo && (corpo.tipo === "lembrete" || corpo.tipo === "coletivo" || corpo.tipo === "mensagens" || corpo.tipo === "novidades") ? corpo.tipo : "resumo";
+  const tipo = corpo && (corpo.tipo === "lembrete" || corpo.tipo === "coletivo" || corpo.tipo === "mensagens" || corpo.tipo === "novidades" || corpo.tipo === "marcacoes") ? corpo.tipo : "resumo";
   const lembrete = tipo !== "resumo";
 
   /* Uma vez por dia. O agendamento pode disparar mais do que uma vez —
@@ -298,7 +310,7 @@ Deno.serve(async (req) => {
      frente disto, que é para isso que serve. */
   const hoje = new Date().toISOString().slice(0, 10);
   const registo = ({ resumo: "resumos_enviados", lembrete: "lembretes_enviados", coletivo: "coletivos_enviados" } as Record<string, string>)[tipo];
-  if (!forcar && tipo !== "mensagens" && tipo !== "novidades") {
+  if (!forcar && tipo !== "mensagens" && tipo !== "novidades" && tipo !== "marcacoes") {
     const { error: jaFoi } = await admin
       .from(registo)
       .insert({ dia: hoje });
@@ -374,7 +386,7 @@ Deno.serve(async (req) => {
       "</ul>"
     : "";
 
-  const enviar = async (para: string, assunto: string, html: string) => {
+  const enviar = async (para: string, assunto: string, html: string, cc?: string[]) => {
     try {
       const r = await fetch(URL_SB.replace(/\/$/, "") + "/functions/v1/bright-worker", {
         method: "POST",
@@ -382,13 +394,77 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json",
           Authorization: "Bearer " + CHAVE_SERVICO,
         },
-        body: JSON.stringify({ to: para, subject: assunto, html }),
+        body: JSON.stringify({ to: para, subject: assunto, html, ...(cc && cc.length ? { cc } : {}) }),
       });
       return r.ok;
     } catch (_) {
       return false;
     }
   };
+
+  /* Lembrete da marcacao ao paciente (28-09-2026). Texto aprovado pelo
+     Elmar; a recepcao vai sempre em copia. */
+  if (tipo === "marcacoes") {
+    const luanda = new Date(Date.now() + 3600 * 1000);
+    const amanha = new Date(Date.UTC(luanda.getUTCFullYear(), luanda.getUTCMonth(), luanda.getUTCDate() + 1)).toISOString().slice(0, 10);
+    const dia = corpo && /^\d{4}-\d{2}-\d{2}$/.test(String(corpo.dia || "")) ? String(corpo.dia) : amanha;
+    const { data: lista, error: eM } = await admin.rpc("bsp_marc_lembretes_reclamar", { p_dia: dia });
+    if (eM) return responder({ erro: "Não foi possível ler as marcações: " + eM.message }, 500);
+    const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    const MESES_C = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    const SEMANA = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
+    const d = new Date(dia + "T12:00:00Z");
+    const dataLonga = SEMANA[d.getUTCDay()] + ", " + d.getUTCDate() + " de " + MESES[d.getUTCMonth()] + " de " + d.getUTCFullYear();
+    const dataCurta = d.getUTCDate() + " " + MESES_C[d.getUTCMonth()] + " " + d.getUTCFullYear();
+    const PEQUENAS = ["de", "da", "do", "das", "dos", "e"];
+    const nomeProprio = (t: string) => t.toLowerCase().split(/\s+/).filter(Boolean)
+      .map((w, i) => i > 0 && PEQUENAS.includes(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    const frase = (t: string) => { const x = String(t || "").trim().toLowerCase(); return x ? x.charAt(0).toUpperCase() + x.slice(1) : ""; };
+    /* Direcções no Google Maps: no telemóvel abre o GPS ja com o destino. */
+    const GPS = "https://www.google.com/maps/dir/?api=1&destination=-8.945743,13.240542";
+    const botaoGps =
+      '<a href="' + GPS + '" style="display:inline-block;padding:12px 22px;border-radius:2px;background:' + MARINHO_BOTAO + ';border:1px solid ' + MARINHO_BOTAO + ';font-family:' + FONTE + ';font-size:15px;font-weight:bold;color:#ffffff;text-decoration:none">Abrir o caminho no GPS</a>' +
+      '<p style="margin:10px 0 0;font-family:' + FONTE + ';font-size:11px;color:#8A8F9E;word-break:break-all">' + GPS + "</p>";
+    const linhaDado = (rotulo: string, valor: string) =>
+      '<tr><td style="padding:6px 16px 6px 0;font-family:' + FONTE + ';font-size:15px;font-weight:700;color:' + MARINHO + ';vertical-align:top;white-space:nowrap">' + rotulo + '</td><td style="padding:6px 0;font-family:' + FONTE + ';font-size:15px;color:' + TEXTO + '">' + valor + "</td></tr>";
+    let enviadosM = 0;
+    const falhasM: string[] = [];
+    for (const m of (lista || []) as any[]) {
+      const primeiro = nomeProprio(String(m.nome || "").trim().split(/\s+/)[0] || "");
+      const medico = nomeProprio(String(m.medico || "").trim());
+      const hora = String(m.hora || "").trim();
+      const tabela =
+        '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 16px;border-top:1px solid ' + LINHA + ';border-bottom:1px solid ' + LINHA + '">' +
+        linhaDado("Acto", escapar(frase(m.acto))) +
+        linhaDado("Data", escapar(dataLonga)) +
+        (hora ? linhaDado("Hora", escapar(hora)) : "") +
+        (medico ? linhaDado("Médico", escapar(medico)) : "") +
+        "</table>";
+      const html = envelope(
+        primeiro ? "Olá, " + escapar(primeiro) + "." : "Olá.",
+        paragrafo("Lembramos a sua marcação no Centro Médico Barispol:") +
+          tabela +
+          paragrafo("Chegue 15 minutos antes, com o documento de identificação e, se tiver seguro, o cartão.") +
+          paragrafo("Se não puder vir, avise-nos para remarcar: +244 946 373 631 (Recepção e WhatsApp) ou +244 959 573 631.") +
+          paragrafo("Morada: Bairro Bom Sossego, Casa 186, Camama, Luanda. O botão abaixo abre o caminho no GPS do telemóvel.", true),
+        undefined,
+        undefined,
+        "Lembrete da sua marcação.",
+        "Lembrete de marcação",
+        "Camama, Luanda",
+        botaoGps
+      );
+      const ok = await enviar(
+        m.email,
+        "Lembrete da sua marcação — Centro Médico Barispol, " + dataCurta + (hora ? ", " + hora : ""),
+        html,
+        ["rececao@barispol.com"]
+      );
+      await admin.rpc("bsp_marc_lembrete_registar", { p_id: m.marcacao_id, p_dia: dia, p_ok: ok });
+      ok ? enviadosM++ : falhasM.push(String(m.marcacao_id));
+    }
+    return responder({ ok: true, tipo, dia, enviados: enviadosM, falhas: falhasM.length ? falhasM : undefined });
+  }
 
   /* Novidades do sistema: so quando ha, a quem dizem respeito. */
   if (tipo === "novidades") {
@@ -544,10 +620,16 @@ Deno.serve(async (req) => {
     const mudanca = hoje <= "2026-10-01"
       ? paragrafo("<b>Mudámos o Workspace de servidor.</b> Se ainda não o fez, termine a sessão (menu Mais → Terminar sessão) e volte a entrar com o mesmo e-mail e a mesma palavra-passe. No telemóvel, feche a aplicação por completo antes de a abrir de novo.")
       : "";
+    /* Fim dos grupos de WhatsApp (pedido do Elmar, 28-09-2026). */
+    const whatsapp = hoje < "2026-10-01"
+      ? "<b>A 1 de Outubro os grupos de WhatsApp da equipa deixam de existir.</b> A partir desse dia, usem apenas o Workspace e os e-mails da clínica."
+      : hoje === "2026-10-01"
+        ? "<b>A partir de hoje, 1 de Outubro, os grupos de WhatsApp da equipa deixam de existir.</b> Usem apenas o Workspace e os e-mails da clínica."
+        : "<b>Os grupos de WhatsApp da equipa já não existem.</b> Usem apenas o Workspace e os e-mails da clínica.";
     const coletivo = envelope(
       "Olá, equipa.",
       paragrafo("O Workspace é o nosso ponto de encontro. Entrem todos os dias: é lá que estão as mensagens, as tarefas e a agenda da clínica.") +
-        paragrafo("<b>Em breve deixaremos de usar o WhatsApp</b> para a comunicação interna. Usem já o Chat do Workspace para falar com os colegas e com as equipas.") +
+        paragrafo(whatsapp + " Para falar com os colegas e com as equipas, usem o Chat do Workspace.") +
         paragrafo("Se tiverem dificuldade em entrar, falem com a Administração.", true),
       "chat",
       "Abrir o Chat do Workspace",
@@ -565,7 +647,7 @@ Deno.serve(async (req) => {
             "Bom dia, " + escapar(nome) + ".",
             paragrafo("Antes de começar o dia, entre no Workspace. Veja as mensagens, as tarefas e a agenda de hoje.") +
               mudanca +
-              paragrafo("<b>Em breve deixaremos de usar o WhatsApp</b> para a comunicação interna. As conversas da equipa passam a ser feitas no Chat do Workspace.", true),
+              paragrafo(whatsapp, true),
             "chat",
             "Entrar no Workspace",
             "Lembrete diário.",
