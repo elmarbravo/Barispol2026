@@ -176,6 +176,12 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   na véspera às 10h00 (`bsp-marcacoes-lembrete`, tipo `marcacoes` da
   `resumo-matinal`), com rececao@barispol.com em cópia e link do GPS;
   nunca no momento da marcação.
+- Escalas de serviço (28-09-2026, `escalas.sql`): tabela `escalas` (área +
+  mês; `turnos` com `semana` 0 = Domingo; `dias[iso][turno]` = ids, `_n` =
+  nota). Acesso igual nos dois lados: `bspEditaEscala`/`bsp_edita_escala`
+  e `bspVeEscala`/`bsp_ve_escala`. Ecrã `EscalasScreen`; papel
+  `bspEscalaHtml`; e-mail `bspEscalaEmailCorpo` com `bspEmailWrap(..., true)`;
+  Início `EscalaHojeCartao`. Imprimir só por `bspImprimirHtml`.
 - Novidades do sistema (27-09-2026, `novidades.sql`): cada alteração que
   muda o trabalho de alguém leva um `insert into public.novidades (titulo,
   texto, grupos, destino)` com os grupos afectados (`todos`, `gestao`,

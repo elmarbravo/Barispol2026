@@ -1380,3 +1380,51 @@ o link do GPS. Texto aprovado («a msg está apta»).
       Para os pacientes, «Centro Médico Barispol» seria mais claro: só
       com o acordo do Elmar.
 - [ ] Confirmar a 29-09 em `net._http_response` o envio das 10h00.
+
+## 3-ak. Escalas de serviço (28-09-2026)
+
+Pedido do Elmar: o superior preenche a escala no Workspace e envia-a por
+e-mail ou imprime-a. Modelo: «ESCALA DA RECEPÇÃO - SETEMBRO 2026.xlsx».
+
+- `escalas.sql` (aplicado): tabela `escalas` (uma por área e mês; turnos,
+  dias, notas, rascunho/publicada). `bsp_edita_escala(area)`: gestão,
+  cargo de chefia na área (chefe, supervisor(a), coordenador(a),
+  director(a), responsável) ou superior de alguém da área.
+  `bsp_ve_escala(area)`: estes e toda a gente da área; sócios não.
+  Só a gestão apaga. Testado no servidor (teste desfeito): Juliana edita
+  a Recepção; Joaquina e Déricka vêem mas não mudam; Filomena só a
+  Enfermagem; Elmar e Arlete todas; Osvaldo, Domingos e Emmanuel não vêem
+  a da Recepção.
+- A escala da Recepção de Setembro de 2026 foi importada do Excel
+  (publicada): Juliana 08:00–17:30 de segunda a sexta; Joaquina Joice e
+  Déricka Domingos 07:00–22:30, dia sim, dia não.
+- Ecrã «Escalas» (`EscalasScreen`, menu e «Mais» no telemóvel, rota
+  `#/escalas`): grelha do mês de segunda a domingo (no telemóvel, lista
+  por dia), turnos com cores (`--serie-1..4`), hoje em destaque. Quem
+  preenche carrega num dia e escolhe as pessoas de cada turno, com nota
+  do dia e «aplicar a todas as quartas-feiras». Grava sozinho.
+  - «Preencher automaticamente» (`bspEscalaPreencher`): rotação (uma
+    pessoa por dia, pela ordem) ou fixo, só nos dias do turno.
+  - «Continuar Setembro» (`bspEscalaContinuar`): reconhece a rotação do
+    mês anterior e continua-a (Outubro começa na Joaquina, a seguir à
+    Déricka de 30 de Setembro).
+  - «Turnos»: nome, horas e dias da semana de cada turno.
+  - Avisos (`bspEscalaAnalise`): turno sem ninguém, a mesma pessoa em
+    dois turnos ao mesmo tempo, mais de 6 dias seguidos. Por pessoa:
+    dias, horas e fins-de-semana.
+  - «Publicar»: cada pessoa da escala (e, se se quiser, toda a área)
+    recebe por e-mail os seus turnos e a escala completa; quem publica
+    recebe uma cópia. `bspEmailWrap` ganhou o parâmetro `bloco`.
+  - «Imprimir» (A4 deitado, uma folha, com logotipo, legenda, horas por
+    pessoa e linha para assinar) e «Descarregar HTML» (`bspEscalaHtml`).
+    Imprime por uma moldura escondida (`bspImprimirHtml`), sem abrir
+    janela. Na app Android a impressão pode não abrir: usar
+    «Descarregar HTML».
+- Início: cartão «De serviço hoje» (`EscalaHojeCartao`) com as escalas
+  publicadas que a pessoa pode ver.
+- Testado no computador e no telemóvel com dados simulados: Setembro
+  (Juliana 22 dias/209h; Joaquina e Déricka 15 dias/232h30), Outubro pela
+  continuação, publicação com 4 e-mails, HTML de uma página A4. Sem erros.
+- Novidade registada para toda a equipa (sai a 29-09 às 05h00).
+- [ ] A Juliana preencher e publicar a escala de Outubro.
+- [ ] Testar a impressão num telemóvel real.

@@ -2671,6 +2671,12 @@ const NAV_ITEMS = [{
   icon: 'Tasks',
   badge: null
 }, {
+  /* Escalas de servico (28-09-2026): toda a gente ve a da sua area. */
+  id: 'escalas',
+  label: 'Escalas',
+  icon: 'Clock',
+  badge: null
+}, {
   id: 'seguimento',
   label: 'CRM',
   icon: 'Heart',
@@ -3623,12 +3629,12 @@ const BSP_EMAIL_LOGO = 'https://barispol.com/assets/logo-barispol.png';
    logotipo pequeno, etiqueta azul, titulo marinho e rodape marinho. O
    mesmo desenho esta na resumo-matinal (envelope) e na base de dados
    (bsp_envelope): mudar os tres juntos. */
-const BSP_EMAIL_ETIQUETAS = { tarefas: 'Tarefas', feed: 'Feed do Workspace', relatorios: 'Relatórios', chat: 'Mensagem no Workspace', agenda: 'Agenda' };
+const BSP_EMAIL_ETIQUETAS = { escalas: 'Escala de serviço', tarefas: 'Tarefas', feed: 'Feed do Workspace', relatorios: 'Relatórios', chat: 'Mensagem no Workspace', agenda: 'Agenda' };
 function bspEmailBotao(destino, rotulo) {
   const href = bspLigacaoPara(destino);
   return '<div style="margin-top:22px"><a href="' + href + '" style="display:inline-block;padding:12px 22px;border-radius:2px;background:#273069;border:1px solid #273069;font-family:' + BSP_EMAIL_FONTE + ';font-size:15px;font-weight:bold;color:#ffffff;text-decoration:none">' + (rotulo || 'Abrir no Workspace') + '</a></div>' + '<p style="margin:10px 0 0;font-family:' + BSP_EMAIL_FONTE + ';font-size:11px;color:#8A8F9E;word-break:break-all">' + href + '</p>';
 }
-function bspEmailWrap(title, body, destino, rotulo, etiqueta) {
+function bspEmailWrap(title, body, destino, rotulo, etiqueta, bloco) {
   const et = etiqueta || BSP_EMAIL_ETIQUETAS[String(destino || '').split('/')[0]] || 'Aviso do Workspace';
   return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F5F4F2"><tr><td align="center" style="padding:24px 12px">' +
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #DDDBD6">' +
@@ -3639,7 +3645,8 @@ function bspEmailWrap(title, body, destino, rotulo, etiqueta) {
     '<tr><td style="padding:28px 24px 26px;font-family:' + BSP_EMAIL_FONTE + '">' +
     '<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#2291CE">' + et + '</div>' +
     '<h1 style="margin:8px 0 16px;font-family:' + BSP_EMAIL_FONTE + ';font-size:24px;line-height:1.2;font-weight:700;color:#292F58">' + title + '</h1>' +
-    '<p style="margin:0;font-family:' + BSP_EMAIL_FONTE + ';font-size:15px;line-height:1.6;color:#1C2033">' + body + '</p>' +
+    /* bloco: o corpo ja traz os seus paragrafos e tabelas (escalas). */
+    (bloco ? '<div>' + body + '</div>' : '<p style="margin:0;font-family:' + BSP_EMAIL_FONTE + ';font-size:15px;line-height:1.6;color:#1C2033">' + body + '</p>') +
     bspEmailBotao(destino, rotulo) + '</td></tr>' +
     '<tr><td style="padding:16px 24px;background:#292F58;font-family:' + BSP_EMAIL_FONTE + ';font-size:12.5px;line-height:1.6;color:#C9CCDA"><b style="color:#ffffff">Centro Médico Barispol</b> · aviso automático do Workspace<br>Clínica Barispol, Lda. · NIF&nbsp;5000999687</td></tr>' +
     '</table></td></tr></table>';
@@ -6262,6 +6269,8 @@ function DashboardScreen({
     }
   }, bspVePainel(currentUser) && React.createElement(PainelAtalho, {
     onAbrir: () => onSwitch && onSwitch('painel')
+  }), React.createElement(EscalaHojeCartao, {
+    onAbrir: () => onSwitch && onSwitch('escalas')
   }), React.createElement("div", {
     style: {
       background: '#292F58',
@@ -17337,7 +17346,7 @@ function MobileNav({
       }
     }, n > 99 ? '99+' : n)), it.label);
   }), React.createElement("button", {
-    "data-on": ['feed', 'meetings', 'drive', 'admin', 'notifications', 'directory', 'relatorios'].includes(current),
+    "data-on": ['feed', 'meetings', 'drive', 'admin', 'notifications', 'directory', 'relatorios', 'escalas'].includes(current),
     onClick: onMore
   }, React.createElement(I.MoreH, {
     size: 20
@@ -17521,6 +17530,10 @@ function MobileMore({
     id: 'seguimento',
     label: 'CRM',
     icon: 'Heart'
+  }, {
+    id: 'escalas',
+    label: 'Escalas',
+    icon: 'Clock'
   }, {
     id: 'marcacoes',
     label: 'Marcações',
@@ -20008,6 +20021,699 @@ function PainelTile({ rotulo, valor, delta, nota, grande, perigo }) {
 /* Atalho do Painel no Inicio (27-09-2026): os numeros de hoje e o botao
    para o abrir, so para quem ve o Painel. Le o servidor a cada 5 minutos,
    ao ritmo a que o dia de hoje chega do MetaGest. */
+/* Escalas de servico (pedido do Elmar, 28-09-2026; escalas.sql). Uma
+   escala por area e por mes: os turnos (nome, horas, dias da semana em que
+   ha) e quem esta em cada turno de cada dia. Quem chefia a area preenche,
+   publica, envia por e-mail (cada pessoa recebe os seus turnos) e imprime.
+   As mesmas regras de acesso estao no servidor (bsp_edita_escala e
+   bsp_ve_escala): mudar os dois lados juntos. */
+const BSP_ESCALA_CHEFIA = /(chefe|supervis|coordenad|director|directora|respons)/i;
+const BSP_ESCALA_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+/* Cores dos turnos no ecra (variaveis) e no papel e no e-mail (os mesmos
+   valores, escritos, porque o documento impresso nao tem as variaveis). */
+const BSP_ESCALA_CORES = ['--serie-1', '--serie-2', '--serie-3', '--serie-4'];
+const BSP_ESCALA_CORES_PAPEL = ['#2291CE', '#EB6834', '#1BAF7A', '#EDA100'];
+function bspEditaEscala(u, area) {
+  if (!u || !area || bspESocio(u)) return false;
+  if (bspGereMarcacoes(u)) return true;
+  if (bspAreaChave(u.dept) === area && BSP_ESCALA_CHEFIA.test(String(u.role || ''))) return true;
+  return (window.USERS || []).some(x => x && x.superior === u.id && bspAreaChave(x.dept) === area);
+}
+function bspVeEscala(u, area) {
+  if (!u || bspESocio(u)) return false;
+  return bspEditaEscala(u, area) || bspAreaChave(u.dept) === area;
+}
+function bspEscalaAreas() {
+  const vistas = {};
+  return DEPARTMENTS.map(d => ({ chave: bspAreaChave(d.name), nome: d.name }))
+    .filter(a => a.chave && !vistas[a.chave] && (vistas[a.chave] = true));
+}
+function bspEscalaAreaNome(chave) {
+  const a = bspEscalaAreas().find(x => x.chave === chave);
+  return a ? a.nome : chave;
+}
+function bspTurnosPadrao(area) {
+  const todos = [0, 1, 2, 3, 4, 5, 6];
+  if (area === 'recepcao') return [
+    { id: 't1', nome: 'Dia', inicio: '08:00', fim: '17:30', semana: [1, 2, 3, 4, 5] },
+    { id: 't2', nome: 'Turno longo', inicio: '07:00', fim: '22:30', semana: todos }];
+  return [
+    { id: 't1', nome: 'Manhã', inicio: '07:00', fim: '15:00', semana: todos },
+    { id: 't2', nome: 'Tarde', inicio: '15:00', fim: '22:30', semana: todos }];
+}
+function bspDiasDoMes(mes) {
+  const out = [];
+  let d = String(mes).slice(0, 8) + '01';
+  const m = d.slice(0, 7);
+  while (d.slice(0, 7) === m) { out.push(d); d = bspSomarDias(d, 1); }
+  return out;
+}
+const bspDiaSemana = iso => bspDataDe(iso).getDay();
+function bspMinutos(h) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(h || '').trim());
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+/* Duracao do turno em minutos. Um turno que passa a meia-noite (22:00 as
+   07:00) conta as horas certas. */
+function bspTurnoMinutos(t) {
+  const a = bspMinutos(t && t.inicio), b = bspMinutos(t && t.fim);
+  if (a == null || b == null) return 0;
+  return ((b - a + 1440) % 1440) || 1440;
+}
+function bspTurnoAplica(t, iso) {
+  const s = t && Array.isArray(t.semana) && t.semana.length ? t.semana : [0, 1, 2, 3, 4, 5, 6];
+  return s.indexOf(bspDiaSemana(iso)) !== -1;
+}
+function bspHorasTxt(min) {
+  const h = Math.floor(min / 60), m = Math.round(min % 60);
+  return h + 'h' + (m ? String(m).padStart(2, '0') : '');
+}
+function bspNomeCurto(id) {
+  const u = window.userById ? window.userById(id) : null;
+  if (!u || !u.name) return 'Colega';
+  return String(u.name).trim().split(/\s+/).slice(0, 2).join(' ');
+}
+function bspMesExtenso(mes) {
+  const d = bspDataDe(mes);
+  return BSP_MESES_EXTENSO[d.getMonth()] + ' de ' + d.getFullYear();
+}
+/* Contas e avisos da escala: dias, horas e fins-de-semana de cada pessoa;
+   turnos sem ninguem; a mesma pessoa em dois turnos ao mesmo tempo; mais
+   de 6 dias seguidos. */
+function bspEscalaAnalise(e) {
+  const dias = bspDiasDoMes(e.mes);
+  const pessoas = {};
+  const avisos = [];
+  const vazios = {};
+  (e.turnos || []).forEach(t => { vazios[t.id] = []; });
+  dias.forEach(iso => {
+    const d = (e.dias || {})[iso] || {};
+    const noDia = {};
+    (e.turnos || []).forEach(t => {
+      const lista = (d[t.id] || []).filter(Boolean);
+      if (bspTurnoAplica(t, iso) && !lista.length) vazios[t.id].push(iso);
+      const min = bspTurnoMinutos(t), ini = bspMinutos(t.inicio) || 0;
+      lista.forEach(uid => {
+        const p = pessoas[uid] = pessoas[uid] || { id: uid, dias: {}, minutos: 0, fds: 0, turnos: 0 };
+        p.minutos += min;
+        p.turnos++;
+        if (!p.dias[iso]) {
+          p.dias[iso] = true;
+          const w = bspDiaSemana(iso);
+          if (w === 0 || w === 6) p.fds++;
+        }
+        (noDia[uid] = noDia[uid] || []).push([ini, ini + min, t.nome]);
+      });
+    });
+    Object.keys(noDia).forEach(uid => {
+      const v = noDia[uid];
+      for (let i = 0; i < v.length; i++) for (let j = i + 1; j < v.length; j++) {
+        if (v[i][0] < v[j][1] && v[j][0] < v[i][1]) avisos.push({ tipo: 'sobreposto', texto: bspNomeCurto(uid) + ' está em dois turnos ao mesmo tempo a ' + bspDataCurta(iso) + ' («' + v[i][2] + '» e «' + v[j][2] + '»).' });
+      }
+    });
+  });
+  const lista = Object.keys(pessoas).map(id => {
+    const p = pessoas[id];
+    let seguidos = 0, max = 0;
+    dias.forEach(iso => { if (p.dias[iso]) { seguidos++; if (seguidos > max) max = seguidos; } else seguidos = 0; });
+    if (max > 6) avisos.push({ tipo: 'seguidos', texto: bspNomeCurto(id) + ' tem ' + max + ' dias seguidos de serviço, sem folga.' });
+    return { id, nDias: Object.keys(p.dias).length, minutos: p.minutos, fds: p.fds, turnos: p.turnos, seguidosMax: max };
+  }).sort((a, b) => bspCompararTexto(bspNomeCurto(a.id), bspNomeCurto(b.id)));
+  (e.turnos || []).slice().reverse().forEach(t => {
+    const v = vazios[t.id];
+    if (v.length) avisos.unshift({ tipo: 'vazio', texto: '«' + t.nome + '» sem ninguém em ' + v.length + (v.length === 1 ? ' dia' : ' dias') + ': ' + v.slice(0, 8).map(x => Number(x.slice(8))).join(', ') + (v.length > 8 ? '…' : '') + '.' });
+  });
+  return { pessoas: lista, avisos, vazios };
+}
+/* Preenchimento automatico de um turno: em rotacao (uma pessoa por dia,
+   pela ordem escolhida) ou fixo (as mesmas pessoas todos os dias do
+   turno). A rotacao conta todos os dias do turno, mesmo os que ja estao
+   preenchidos, para a alternancia nao se desfazer. */
+function bspEscalaPreencher(e, tid, pessoas, modo, soVazios) {
+  const t = (e.turnos || []).find(x => x.id === tid);
+  if (!t || !pessoas.length) return e;
+  const dias = Object.assign({}, e.dias || {});
+  let k = 0;
+  bspDiasDoMes(e.mes).forEach(iso => {
+    if (!bspTurnoAplica(t, iso)) return;
+    const d = Object.assign({}, dias[iso] || {});
+    if (!(soVazios && (d[tid] || []).length)) {
+      d[tid] = modo === 'fixo' ? pessoas.slice() : [pessoas[k % pessoas.length]];
+      dias[iso] = d;
+    }
+    k++;
+  });
+  return Object.assign({}, e, { dias });
+}
+/* Continuar o mes anterior: os mesmos turnos e, em cada turno, a mesma
+   sequencia. Se a sequencia se repete (dia sim, dia nao; todos os dias a
+   mesma pessoa), continua de onde ficou; se nao, repete-se o que houve em
+   cada dia da semana na ultima semana. */
+function bspEscalaContinuar(ant, mes) {
+  const turnos = (ant.turnos || []).map(t => Object.assign({}, t, { semana: (t.semana || []).slice() }));
+  const dias = {};
+  const chave = l => (l || []).slice().sort().join(',');
+  turnos.forEach(t => {
+    const antDias = bspDiasDoMes(ant.mes).filter(iso => bspTurnoAplica(t, iso));
+    const seq = antDias.map(iso => ((ant.dias || {})[iso] || {})[t.id] || []);
+    const n = seq.length;
+    let k = 0;
+    for (let p = 1; p <= Math.min(14, Math.floor(n / 2)); p++) {
+      let ok = true;
+      for (let i = p; i < n; i++) if (chave(seq[i]) !== chave(seq[i - p])) { ok = false; break; }
+      if (ok) { k = p; break; }
+    }
+    const porSemana = {};
+    antDias.forEach((iso, i) => { porSemana[bspDiaSemana(iso)] = seq[i]; });
+    let j = 0;
+    bspDiasDoMes(mes).forEach(iso => {
+      if (!bspTurnoAplica(t, iso)) return;
+      const lista = k ? seq[n - k + (j % k)] : (porSemana[bspDiaSemana(iso)] || []);
+      j++;
+      if (lista && lista.length) {
+        dias[iso] = dias[iso] || {};
+        dias[iso][t.id] = lista.slice();
+      }
+    });
+  });
+  return { area: ant.area, mes, turnos, dias, notas: '', estado: 'rascunho' };
+}
+/* Semanas do mes para a grelha, de segunda a domingo (como o Calendario). */
+function bspEscalaSemanas(mes) {
+  const dias = bspDiasDoMes(mes);
+  const semanas = [];
+  let s = [];
+  const antes = (bspDiaSemana(dias[0]) + 6) % 7;
+  for (let i = 0; i < antes; i++) s.push(null);
+  dias.forEach(iso => { s.push(iso); if (s.length === 7) { semanas.push(s); s = []; } });
+  if (s.length) { while (s.length < 7) s.push(null); semanas.push(s); }
+  return semanas;
+}
+const bspEscHtml = t => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+/* A escala em papel: um documento HTML completo, A4 deitado, com a marca,
+   a grelha do mes, as horas de cada pessoa e espaco para assinar. Serve
+   para imprimir e para descarregar. */
+function bspEscalaHtml(e) {
+  const area = bspEscalaAreaNome(e.area);
+  const an = bspEscalaAnalise(e);
+  const cor = i => BSP_ESCALA_CORES_PAPEL[i % BSP_ESCALA_CORES_PAPEL.length];
+  const turnos = e.turnos || [];
+  const cab = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map(d => '<th>' + d + '</th>').join('');
+  const linhas = bspEscalaSemanas(e.mes).map(sem => '<tr>' + sem.map(iso => {
+    if (!iso) return '<td class="fora"></td>';
+    const d = (e.dias || {})[iso] || {};
+    const w = bspDiaSemana(iso);
+    const blocos = turnos.map((t, i) => {
+      const lista = d[t.id] || [];
+      if (!lista.length && !bspTurnoAplica(t, iso)) return '';
+      return '<div class="t" style="border-left-color:' + cor(i) + '"><span class="h">' + bspEscHtml(t.inicio + '–' + t.fim) + '</span>' +
+        (lista.length ? lista.map(id => '<b>' + bspEscHtml(bspNomeCurto(id)) + '</b>').join('') : '<b class="v">—</b>') + '</div>';
+    }).join('');
+    return '<td class="' + (w === 0 || w === 6 ? 'fds' : '') + '"><div class="n">' + Number(iso.slice(8)) + '</div>' + blocos +
+      (d._n ? '<div class="nota">' + bspEscHtml(d._n) + '</div>' : '') + '</td>';
+  }).join('') + '</tr>').join('');
+  const legenda = turnos.map((t, i) => '<span class="lg"><i style="background:' + cor(i) + '"></i>' + bspEscHtml(t.nome) + ' · ' + bspEscHtml(t.inicio + '–' + t.fim) + ' · ' +
+    ((t.semana || []).length === 7 || !(t.semana || []).length ? 'todos os dias' : (t.semana || []).slice().sort().map(x => BSP_ESCALA_SEMANA[x]).join(', ')) + '</span>').join('');
+  const resumo = an.pessoas.map(p => '<tr><td>' + bspEscHtml((window.userById(p.id) || {}).name || bspNomeCurto(p.id)) + '</td><td>' + p.nDias + '</td><td>' + bspHorasTxt(p.minutos) + '</td><td>' + p.fds + '</td></tr>').join('');
+  const quem = e.publicada_por ? ((window.userById(e.publicada_por) || {}).name || '') : '';
+  const estado = e.estado === 'publicada' && e.publicada_em ? 'Publicada' + (quem ? ' por ' + quem : '') + ' a ' + bspDataExacta(new Date(e.publicada_em)) : 'Rascunho, ainda por publicar';
+  return '<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><title>Escala ' + bspEscHtml(area) + ' — ' + bspEscHtml(bspMesExtenso(e.mes)) + '</title><style>' +
+    '@page{size:A4 landscape;margin:10mm}*{box-sizing:border-box}body{margin:0;font-family:"Titillium Web","Segoe UI",Arial,sans-serif;color:#1C2033;background:#fff}' +
+    '.cab{display:flex;align-items:center;gap:12px;border-bottom:2px solid #292F58;padding-bottom:8px;margin-bottom:10px}.cab img{width:42px;height:42px}' +
+    '.cab .m{font-size:15px;font-weight:700;color:#292F58}.cab .s{font-size:11px;color:#4E5366}.cab .tt{margin-left:auto;text-align:right}' +
+    '.cab .tt .e{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#2291CE}.cab .tt h1{margin:2px 0 0;font-size:20px;color:#292F58}' +
+    'table.g{width:100%;border-collapse:collapse;table-layout:fixed}table.g th{background:#292F58;color:#fff;font-size:11px;padding:5px;text-transform:uppercase;letter-spacing:.05em}' +
+    'table.g td{border:1px solid #DDDBD6;vertical-align:top;padding:4px 5px;height:84px}table.g td.fds{background:#F5F4F2}table.g td.fora{background:#fafafa;border-color:#eee}' +
+    '.n{font-size:12px;font-weight:700;color:#292F58;margin-bottom:3px}.t{border-left:3px solid;padding:1px 0 1px 5px;margin-bottom:3px;font-size:10.5px;line-height:1.25}' +
+    '.t .h{display:block;color:#4E5366;font-size:9.5px}.t b{display:block;font-weight:700;text-transform:uppercase;font-size:10px}.t b.v{color:#B42318}' +
+    '.nota{font-size:9.5px;color:#4E5366;font-style:italic}.lg{display:inline-flex;align-items:center;gap:5px;margin:8px 16px 0 0;font-size:11px}.lg i{width:10px;height:10px;display:inline-block}' +
+    '.baixo{display:flex;gap:24px;margin-top:10px;align-items:flex-start;page-break-inside:avoid}.r{border-collapse:collapse;font-size:11px}.r th,.r td{border:1px solid #DDDBD6;padding:3px 8px;text-align:left}.r th{background:#F5F4F2}' +
+    '.notas{flex:1;font-size:11px;white-space:pre-wrap}.ass{margin-left:auto;font-size:11px;text-align:center;min-width:200px}.ass div{border-top:1px solid #1C2033;margin-top:34px;padding-top:3px}' +
+    '.rod{margin-top:8px;font-size:9.5px;color:#4E5366;display:flex;justify-content:space-between}' +
+    '</style></head><body>' +
+    '<div class="cab"><img src="' + BSP_EMAIL_LOGO + '" alt=""><div><div class="m">Centro Médico Barispol</div><div class="s">Clínica Barispol, Lda. · NIF 5000999687</div></div>' +
+    '<div class="tt"><div class="e">Escala de serviço · ' + bspEscHtml(area) + '</div><h1>' + bspEscHtml(bspMesExtenso(e.mes)) + '</h1></div></div>' +
+    '<table class="g"><thead><tr>' + cab + '</tr></thead><tbody>' + linhas + '</tbody></table>' +
+    '<div>' + legenda + '</div>' +
+    '<div class="baixo"><table class="r"><thead><tr><th>Pessoa</th><th>Dias</th><th>Horas</th><th>Fins-de-semana</th></tr></thead><tbody>' + resumo + '</tbody></table>' +
+    '<div class="notas">' + (e.notas ? '<b>Notas</b><br>' + bspEscHtml(e.notas) : '') + '</div>' +
+    '<div class="ass"><div>' + bspEscHtml(quem || 'O(A) responsável') + '</div></div></div>' +
+    '<div class="rod"><span>' + bspEscHtml(estado) + '</span><span>Workspace Barispol</span></div>' +
+    '</body></html>';
+}
+/* O corpo do e-mail: os turnos da pessoa (quando ha pessoa) e a escala
+   do mes dia a dia, que se le bem no telemovel. */
+function bspEscalaEmailCorpo(e, uid) {
+  const F = BSP_EMAIL_FONTE;
+  const turnos = e.turnos || [];
+  const cor = i => BSP_ESCALA_CORES_PAPEL[i % BSP_ESCALA_CORES_PAPEL.length];
+  const dias = bspDiasDoMes(e.mes);
+  const meus = [];
+  if (uid) dias.forEach(iso => {
+    const d = (e.dias || {})[iso] || {};
+    turnos.forEach(t => { if ((d[t.id] || []).indexOf(uid) !== -1) meus.push([iso, t]); });
+  });
+  const diaTxt = iso => BSP_ESCALA_SEMANA[bspDiaSemana(iso)] + ' ' + Number(iso.slice(8));
+  let html = '';
+  if (uid) {
+    const u = window.userById(uid) || {};
+    const min = meus.reduce((s, x) => s + bspTurnoMinutos(x[1]), 0);
+    html += '<p style="margin:0 0 12px;font-family:' + F + ';font-size:15px;line-height:1.6;color:#1C2033">Olá, ' + bspEscHtml(String(u.name || '').split(' ')[0]) + '. ' +
+      (meus.length ? 'Estes são os seus turnos de ' + bspEscHtml(bspMesExtenso(e.mes)) + ': <b>' + meus.length + (meus.length === 1 ? ' turno' : ' turnos') + ', ' + bspHorasTxt(min) + '</b>.' : 'Não tem turnos nesta escala.') + '</p>';
+    if (meus.length) html += '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 18px;border-top:1px solid #DDDBD6;width:100%">' +
+      meus.map(x => '<tr><td style="padding:6px 12px 6px 0;border-bottom:1px solid #DDDBD6;font-family:' + F + ';font-size:14px;font-weight:700;color:#292F58;white-space:nowrap">' + diaTxt(x[0]) + '</td>' +
+        '<td style="padding:6px 0;border-bottom:1px solid #DDDBD6;font-family:' + F + ';font-size:14px;color:#1C2033"><span style="display:inline-block;width:8px;height:8px;background:' + cor(turnos.indexOf(x[1])) + ';margin-right:6px"></span>' + bspEscHtml(x[1].nome) + ' · ' + bspEscHtml(x[1].inicio + '–' + x[1].fim) + '</td></tr>').join('') + '</table>';
+  }
+  html += '<p style="margin:0 0 6px;font-family:' + F + ';font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#4E5366">A escala completa</p>' +
+    '<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-top:1px solid #DDDBD6">' +
+    dias.map(iso => {
+      const d = (e.dias || {})[iso] || {};
+      const w = bspDiaSemana(iso);
+      const partes = turnos.map((t, i) => {
+        const l = d[t.id] || [];
+        if (!l.length) return '';
+        return '<span style="display:inline-block;margin:0 10px 2px 0"><span style="display:inline-block;width:8px;height:8px;background:' + cor(i) + ';margin-right:5px"></span>' +
+          bspEscHtml(t.inicio + '–' + t.fim) + ' ' + l.map(id => id === uid ? '<b>' + bspEscHtml(bspNomeCurto(id)) + '</b>' : bspEscHtml(bspNomeCurto(id))).join(', ') + '</span>';
+      }).join('');
+      const meu = uid && turnos.some(t => (d[t.id] || []).indexOf(uid) !== -1);
+      return '<tr style="background:' + (meu ? '#EAF4FB' : (w === 0 || w === 6 ? '#F5F4F2' : '#ffffff')) + '"><td style="padding:5px 10px 5px 6px;border-bottom:1px solid #DDDBD6;font-family:' + F + ';font-size:13px;font-weight:700;color:#292F58;white-space:nowrap;vertical-align:top">' + diaTxt(iso) + '</td>' +
+        '<td style="padding:5px 0;border-bottom:1px solid #DDDBD6;font-family:' + F + ';font-size:13px;color:#1C2033">' + (partes || '<span style="color:#8A8F9E">—</span>') + (d._n ? '<br><i style="color:#4E5366">' + bspEscHtml(d._n) + '</i>' : '') + '</td></tr>';
+    }).join('') + '</table>' +
+    (e.notas ? '<p style="margin:14px 0 0;font-family:' + F + ';font-size:14px;line-height:1.6;color:#1C2033"><b>Notas:</b> ' + bspEmailTexto(e.notas) + '</p>' : '');
+  return html;
+}
+/* Imprimir sem abrir outra janela (na app, uma janela nova prende o
+   Workspace): o documento vai para uma moldura escondida e imprime-se
+   dali. */
+function bspImprimirHtml(html) {
+  const f = document.createElement('iframe');
+  f.setAttribute('aria-hidden', 'true');
+  f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+  document.body.appendChild(f);
+  const doc = f.contentWindow.document;
+  doc.open(); doc.write(html); doc.close();
+  setTimeout(() => {
+    try { f.contentWindow.focus(); f.contentWindow.print(); } catch (x) {}
+    setTimeout(() => { try { f.remove(); } catch (x) {} }, 60000);
+  }, 500);
+}
+function bspDescarregarTexto(nome, texto, tipo) {
+  const blob = new Blob([texto], { type: tipo || 'text/html;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = nome;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function useEscala(area, mes) {
+  const [st, setSt] = React.useState({ estado: 'a-carregar', escala: null, erro: '' });
+  const [tick, setTick] = React.useState(0);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) { setSt({ estado: 'sem-servidor', escala: null, erro: '' }); return; }
+    let vivo = true;
+    setSt({ estado: 'a-carregar', escala: null, erro: '' });
+    cl.from('escalas').select('*').eq('area', area).eq('mes', mes).maybeSingle().then(r => {
+      if (!vivo) return;
+      if (r.error) {
+        const m = String(r.error.message || '');
+        setSt({ estado: /relation|does not exist|schema cache/i.test(m) ? 'sem-tabela' : 'erro', escala: null, erro: m });
+        return;
+      }
+      setSt({ estado: 'pronto', escala: r.data || null, erro: '' });
+    });
+    return () => { vivo = false; };
+  }, [area, mes, tick]);
+  return Object.assign({}, st, { recarregar: () => setTick(t => t + 1) });
+}
+async function bspGuardarEscala(e) {
+  const cl = bspGetClient();
+  if (!cl) return { erro: 'O servidor não está ligado.' };
+  const campos = { area: e.area, mes: e.mes, turnos: e.turnos || [], dias: e.dias || {}, notas: e.notas || '', estado: e.estado || 'rascunho' };
+  const r = e.id ? await cl.from('escalas').update(campos).eq('id', e.id).select('*') : await cl.from('escalas').insert(campos).select('*');
+  if (r.error) return { erro: r.error.message || 'Não foi possível gravar.' };
+  if (!r.data || !r.data.length) return { erro: 'não tem permissão para mudar esta escala.' };
+  return { escala: r.data[0] };
+}
+const bspEscBotao = principal => ({ height: 36, padding: '0 14px', borderRadius: 6, border: '1px solid ' + (principal ? 'var(--navy)' : 'var(--border)'), background: principal ? 'var(--navy)' : 'var(--surface)', color: principal ? '#fff' : 'var(--text-1)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' });
+const bspEscChip = (on, cor) => ({ minHeight: 32, padding: '4px 12px', borderRadius: 999, border: '1px solid ' + (on ? (cor || 'var(--accent-d)') : 'var(--border)'), background: on ? 'var(--accent-soft)' : 'var(--surface)', color: on ? 'var(--accent-d)' : 'var(--text-2)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6 });
+const bspEscCampo = { height: 36, padding: '0 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 13, boxSizing: 'border-box', minWidth: 0 };
+/* Pessoas da area primeiro; as outras so quando se pedem. */
+function EscalaPessoas({ area, escolhidas, onMudar, ordem }) {
+  const [todas, setTodas] = React.useState(false);
+  const daArea = (window.USERS || []).filter(u => bspAreaChave(u.dept) === area);
+  const outras = (window.USERS || []).filter(u => bspAreaChave(u.dept) !== area && !bspESocio(u));
+  const lista = daArea.concat(todas ? outras : outras.filter(u => escolhidas.indexOf(u.id) !== -1));
+  const alternar = id => onMudar(escolhidas.indexOf(id) !== -1 ? escolhidas.filter(x => x !== id) : escolhidas.concat([id]));
+  return React.createElement("div", null,
+    React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } },
+      lista.map(u => {
+        const i = escolhidas.indexOf(u.id);
+        return React.createElement("button", { key: u.id, type: 'button', onClick: () => alternar(u.id), style: bspEscChip(i !== -1) },
+          ordem && i !== -1 ? React.createElement("span", { style: { width: 18, height: 18, borderRadius: 999, background: 'var(--navy)', color: '#fff', fontSize: 11, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' } }, i + 1) : null,
+          bspNomeCurto(u.id));
+      }),
+      !lista.length && React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Ninguém nesta área.')),
+    React.createElement("button", { type: 'button', onClick: () => setTodas(v => !v), style: { marginTop: 8, border: 0, background: 'transparent', color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 } },
+      todas ? 'Mostrar só a área' : 'Pôr alguém de outra área'));
+}
+function EscalaDiaModal({ open, iso, escala, onClose, onGuardar }) {
+  const [d, setD] = React.useState({});
+  const [repetir, setRepetir] = React.useState(false);
+  React.useEffect(() => {
+    if (open && iso) { setD(JSON.parse(JSON.stringify((escala.dias || {})[iso] || {}))); setRepetir(false); }
+  }, [open, iso]);
+  if (!open || !iso) return null;
+  const w = bspDiaSemana(iso);
+  const nomeDia = BSP_DIAS_SEMANA[w].toLowerCase();
+  const plural = nomeDia.replace('-feira', 's-feiras').replace(/^sábado$/, 'sábados').replace(/^domingo$/, 'domingos');
+  return React.createElement(Modal, {
+    open, onClose, width: 520,
+    title: BSP_DIAS_SEMANA[w] + ', ' + bspDataCurta(iso),
+    footer: React.createElement(React.Fragment, null,
+      React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: onClose }, 'Cancelar'),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: () => { onGuardar(iso, d, repetir); onClose(); } }, 'Guardar'))
+  }, React.createElement("div", { style: { padding: 20, display: 'flex', flexDirection: 'column', gap: 18 } },
+    (escala.turnos || []).map((t, i) => React.createElement("div", { key: t.id },
+      React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 } },
+        React.createElement("span", { style: { width: 10, height: 10, background: 'var(' + BSP_ESCALA_CORES[i % 4] + ')', flex: 'none' } }),
+        React.createElement("b", { style: { fontSize: 13.5, color: 'var(--text-1)' } }, t.nome),
+        React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, t.inicio + '–' + t.fim + (bspTurnoAplica(t, iso) ? '' : ' · normalmente não há a ' + nomeDia))),
+      React.createElement(EscalaPessoas, { area: escala.area, escolhidas: d[t.id] || [], onMudar: l => setD(x => Object.assign({}, x, { [t.id]: l })) }))),
+    React.createElement("label", { style: { display: 'block' } },
+      React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 6 } }, 'Nota do dia (folga, troca, feriado…)'),
+      React.createElement("input", { value: d._n || '', onChange: ev => setD(x => Object.assign({}, x, { _n: ev.target.value })), placeholder: 'Opcional', style: Object.assign({}, bspEscCampo, { width: '100%' }) })),
+    React.createElement("label", { style: { display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, color: 'var(--text-1)', cursor: 'pointer' } },
+      React.createElement("input", { type: 'checkbox', checked: repetir, onChange: ev => setRepetir(ev.target.checked) }),
+      'Aplicar também a todas as ' + plural + ' de ' + bspMesExtenso(escala.mes).split(' de ')[0])));
+}
+function EscalaTurnosModal({ open, escala, onClose, onGuardar }) {
+  const [ts, setTs] = React.useState([]);
+  React.useEffect(() => { if (open) setTs(JSON.parse(JSON.stringify(escala.turnos || []))); }, [open]);
+  if (!open) return null;
+  const mudar = (i, campo, v) => setTs(l => l.map((t, k) => k === i ? Object.assign({}, t, { [campo]: v }) : t));
+  const erro = ts.some(t => !String(t.nome || '').trim() || bspMinutos(t.inicio) == null || bspMinutos(t.fim) == null) ? 'Cada turno precisa de nome, hora de início e hora de fim.' : '';
+  return React.createElement(Modal, {
+    open, onClose, width: 620, title: 'Turnos da escala',
+    footer: React.createElement(React.Fragment, null,
+      React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: onClose }, 'Cancelar'),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: () => { if (erro) return; onGuardar(ts); onClose(); } }, 'Guardar turnos'))
+  }, React.createElement("div", { style: { padding: 20, display: 'flex', flexDirection: 'column', gap: 12 } },
+    ts.map((t, i) => React.createElement("div", { key: t.id, style: { border: '1px solid var(--border)', borderLeft: '4px solid var(' + BSP_ESCALA_CORES[i % 4] + ')', borderRadius: 8, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 } },
+      React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 96px 96px auto', gap: 8, alignItems: 'center' } },
+        React.createElement("input", { value: t.nome, onChange: e => mudar(i, 'nome', e.target.value), placeholder: 'Nome do turno', 'aria-label': 'Nome do turno', style: bspEscCampo }),
+        React.createElement("input", { type: 'time', value: t.inicio, onChange: e => mudar(i, 'inicio', e.target.value), 'aria-label': 'Início', style: bspEscCampo }),
+        React.createElement("input", { type: 'time', value: t.fim, onChange: e => mudar(i, 'fim', e.target.value), 'aria-label': 'Fim', style: bspEscCampo }),
+        React.createElement("button", { type: 'button', title: 'Tirar este turno', onClick: () => setTs(l => l.filter((x, k) => k !== i)), style: { border: 0, background: 'transparent', color: 'var(--perigo)', cursor: 'pointer', fontSize: 18, padding: '0 4px' } }, '×')),
+      React.createElement("div", { style: { display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' } },
+        React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)', marginRight: 4 } }, 'Há em:'),
+        [1, 2, 3, 4, 5, 6, 0].map(w => {
+          const on = (t.semana || []).indexOf(w) !== -1;
+          return React.createElement("button", { key: w, type: 'button', onClick: () => mudar(i, 'semana', on ? (t.semana || []).filter(x => x !== w) : (t.semana || []).concat([w])), style: Object.assign(bspEscChip(on), { minHeight: 28, padding: '0 10px' }) }, BSP_ESCALA_SEMANA[w]);
+        }),
+        React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)', marginLeft: 6 } }, bspHorasTxt(bspTurnoMinutos(t)) + ' por turno')))),
+    React.createElement("button", { type: 'button', onClick: () => setTs(l => l.concat([{ id: 't' + Date.now().toString(36), nome: '', inicio: '08:00', fim: '16:00', semana: [0, 1, 2, 3, 4, 5, 6] }])), style: bspEscBotao(false) }, React.createElement(I.Plus, { size: 14 }), 'Acrescentar turno'),
+    erro && React.createElement("div", { role: 'alert', style: { fontSize: 12.5, color: 'var(--perigo)' } }, erro)));
+}
+function EscalaPreencherModal({ open, escala, onClose, onAplicar }) {
+  const turnos = escala ? escala.turnos || [] : [];
+  const [tid, setTid] = React.useState('');
+  const [modo, setModo] = React.useState('alternar');
+  const [pessoas, setPessoas] = React.useState([]);
+  const [soVazios, setSoVazios] = React.useState(false);
+  React.useEffect(() => { if (open) { setTid(turnos[0] ? turnos[0].id : ''); setModo('alternar'); setPessoas([]); setSoVazios(false); } }, [open]);
+  if (!open) return null;
+  const t = turnos.find(x => x.id === tid);
+  const nDias = t ? bspDiasDoMes(escala.mes).filter(iso => bspTurnoAplica(t, iso)).length : 0;
+  const previa = !t || !pessoas.length ? '' : modo === 'fixo'
+    ? pessoas.map(bspNomeCurto).join(', ') + ' em todos os ' + nDias + ' dias do turno «' + t.nome + '».'
+    : 'Um por dia, pela ordem: ' + Array.from({ length: Math.min(6, nDias) }, (x, k) => bspNomeCurto(pessoas[k % pessoas.length])).join(', ') + (nDias > 6 ? '… (' + nDias + ' dias)' : '.');
+  return React.createElement(Modal, {
+    open, onClose, width: 560, title: 'Preencher automaticamente',
+    footer: React.createElement(React.Fragment, null,
+      React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: onClose }, 'Cancelar'),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: () => { if (!t || !pessoas.length) return; onAplicar(tid, pessoas, modo, soVazios); onClose(); } }, 'Preencher'))
+  }, React.createElement("div", { style: { padding: 20, display: 'flex', flexDirection: 'column', gap: 16 } },
+    React.createElement("div", null,
+      React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 } }, 'Turno'),
+      React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } }, turnos.map(x => React.createElement("button", { key: x.id, type: 'button', onClick: () => setTid(x.id), style: bspEscChip(tid === x.id) }, x.nome + ' · ' + x.inicio + '–' + x.fim)))),
+    React.createElement("div", null,
+      React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 } }, 'Como'),
+      React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+        React.createElement("button", { type: 'button', onClick: () => setModo('alternar'), style: bspEscChip(modo === 'alternar') }, 'Rotação: uma pessoa por dia'),
+        React.createElement("button", { type: 'button', onClick: () => setModo('fixo'), style: bspEscChip(modo === 'fixo') }, 'Fixo: as mesmas todos os dias'))),
+    React.createElement("div", null,
+      React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 } }, modo === 'alternar' ? 'Pessoas, pela ordem da rotação (a 1.ª fica com o dia 1)' : 'Pessoas'),
+      React.createElement(EscalaPessoas, { area: escala.area, escolhidas: pessoas, onMudar: setPessoas, ordem: modo === 'alternar' })),
+    React.createElement("label", { style: { display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, color: 'var(--text-1)', cursor: 'pointer' } },
+      React.createElement("input", { type: 'checkbox', checked: soVazios, onChange: e => setSoVazios(e.target.checked) }), 'Só os dias ainda vazios'),
+    previa && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', background: 'var(--surface-2)', padding: '10px 12px', borderRadius: 8 } }, previa)));
+}
+function EscalaPublicarModal({ open, escala, analise, onClose, onPublicar }) {
+  const [enviar, setEnviar] = React.useState(true);
+  const [aArea, setAArea] = React.useState(false);
+  React.useEffect(() => { if (open) { setEnviar(true); setAArea(false); } }, [open]);
+  if (!open) return null;
+  const naEscala = analise.pessoas.map(p => p.id);
+  const daArea = (window.USERS || []).filter(u => bspAreaChave(u.dept) === escala.area).map(u => u.id);
+  const dest = Array.from(new Set(naEscala.concat(aArea ? daArea : []))).filter(id => (window.userById(id) || {}).email);
+  const jaPublicada = escala.estado === 'publicada';
+  return React.createElement(Modal, {
+    open, onClose, width: 520, title: jaPublicada ? 'Enviar a escala de novo' : 'Publicar a escala',
+    footer: React.createElement(React.Fragment, null,
+      React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: onClose }, 'Cancelar'),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: () => { onPublicar(enviar ? dest : []); onClose(); } }, jaPublicada ? (enviar ? 'Enviar' : 'Fechar') : (enviar ? 'Publicar e enviar' : 'Publicar')))
+  }, React.createElement("div", { style: { padding: 20, display: 'flex', flexDirection: 'column', gap: 14, fontSize: 13.5, color: 'var(--text-1)', lineHeight: 1.5 } },
+    analise.avisos.length > 0 && React.createElement("div", { style: { borderLeft: '4px solid var(--perigo)', background: 'var(--surface-2)', padding: '10px 12px', borderRadius: 6 } },
+      React.createElement("b", { style: { color: 'var(--perigo)' } }, 'Antes de publicar, veja:'),
+      React.createElement("ul", { style: { margin: '6px 0 0', paddingLeft: 18 } }, analise.avisos.slice(0, 6).map((a, i) => React.createElement("li", { key: i }, a.texto)))),
+    React.createElement("label", { style: { display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer' } },
+      React.createElement("input", { type: 'checkbox', checked: enviar, onChange: e => setEnviar(e.target.checked), style: { marginTop: 3 } }),
+      React.createElement("span", null, 'Enviar por e-mail a cada pessoa, com os seus turnos e a escala completa (' + dest.length + (dest.length === 1 ? ' pessoa' : ' pessoas') + ').')),
+    enviar && React.createElement("label", { style: { display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', marginLeft: 24 } },
+      React.createElement("input", { type: 'checkbox', checked: aArea, onChange: e => setAArea(e.target.checked) }),
+      'Também a quem é da área e não tem turnos')));
+}
+function EscalasScreen({ currentUser }) {
+  const toast = useToast();
+  const isMobile = useIsMobile();
+  const eu = currentUser || window.userById(window.CURRENT_USER_ID);
+  const areas = bspEscalaAreas().filter(a => bspVeEscala(eu, a.chave));
+  const minha = bspAreaChave(eu && eu.dept);
+  const [area, setArea] = React.useState(() => {
+    let g = '';
+    try { g = localStorage.getItem('bsp-escala-area') || ''; } catch (e) {}
+    if (g && areas.some(a => a.chave === g)) return g;
+    if (areas.some(a => a.chave === minha)) return minha;
+    return areas.some(a => a.chave === 'recepcao') ? 'recepcao' : (areas[0] ? areas[0].chave : '');
+  });
+  React.useEffect(() => { try { localStorage.setItem('bsp-escala-area', area); } catch (e) {} }, [area]);
+  const hoje = bspDataLocalISO(new Date());
+  const [mes, setMes] = React.useState(hoje.slice(0, 8) + '01');
+  const esc = useEscala(area, mes);
+  const edita = bspEditaEscala(eu, area);
+  const [rasc, setRasc] = React.useState(null);
+  const [gravacao, setGravacao] = React.useState({ estado: '', quando: null });
+  const versao = React.useRef(0);
+  const ocupado = React.useRef(false);
+  const [dia, setDia] = React.useState(null);
+  const [modal, setModal] = React.useState('');
+  const [anterior, setAnterior] = React.useState(undefined);
+  React.useEffect(() => { if (esc.estado === 'pronto') { setRasc(esc.escala); versao.current = 0; setGravacao({ estado: '', quando: null }); } else setRasc(null); }, [esc.estado, esc.escala]);
+  /* O mes anterior, para «Continuar a rotação». */
+  React.useEffect(() => {
+    setAnterior(undefined);
+    const cl = bspGetClient();
+    if (!cl || !area) return;
+    let vivo = true;
+    cl.from('escalas').select('*').eq('area', area).eq('mes', bspSomarMeses(mes, -1)).maybeSingle().then(r => { if (vivo) setAnterior(r.error ? null : r.data || null); });
+    return () => { vivo = false; };
+  }, [area, mes]);
+  /* Grava sozinho, pouco depois de cada mudanca. */
+  const mudar = fn => { setRasc(e => fn(e)); versao.current++; setGravacao(g => Object.assign({}, g, { estado: 'por-gravar' })); };
+  React.useEffect(() => {
+    if (!rasc || gravacao.estado !== 'por-gravar') return;
+    const v = versao.current;
+    const t = setTimeout(async () => {
+      /* Uma gravacao de cada vez: a seguinte parte quando esta acabar. */
+      if (ocupado.current) return;
+      ocupado.current = true;
+      setGravacao(g => Object.assign({}, g, { estado: 'a-gravar' }));
+      const r = await bspGuardarEscala(rasc);
+      ocupado.current = false;
+      if (r.erro) { setGravacao({ estado: 'erro', quando: null }); toast('Não foi possível gravar a escala: ' + r.erro); return; }
+      setRasc(e => Object.assign({}, e, { id: r.escala.id, publicada_em: r.escala.publicada_em, publicada_por: r.escala.publicada_por, alterado_em: r.escala.alterado_em, alterado_por: r.escala.alterado_por }));
+      setGravacao({ estado: versao.current === v ? 'gravado' : 'por-gravar', quando: new Date() });
+    }, 800);
+    return () => clearTimeout(t);
+  }, [rasc, gravacao.estado]);
+  const comecar = base => { setRasc(base); versao.current++; setGravacao({ estado: 'por-gravar', quando: null }); };
+  const guardarDia = (iso, d, repetir) => mudar(e => {
+    const dias = Object.assign({}, e.dias || {});
+    const alvo = repetir ? bspDiasDoMes(e.mes).filter(x => bspDiaSemana(x) === bspDiaSemana(iso)) : [iso];
+    alvo.forEach(x => { dias[x] = JSON.parse(JSON.stringify(x === iso ? d : Object.assign({}, d, { _n: (dias[x] || {})._n || '' }))); });
+    return Object.assign({}, e, { dias });
+  });
+  const publicar = async dest => {
+    const nova = Object.assign({}, rasc, { estado: 'publicada' });
+    setRasc(nova);
+    const r = await bspGuardarEscala(nova);
+    if (r.erro) { toast('Não foi possível publicar: ' + r.erro); return; }
+    const final = Object.assign({}, nova, r.escala);
+    setRasc(final);
+    setGravacao({ estado: 'gravado', quando: new Date() });
+    const titulo = 'Escala de serviço: ' + bspEscalaAreaNome(final.area) + ', ' + bspMesExtenso(final.mes);
+    dest.forEach(id => {
+      const u = window.userById(id);
+      if (u && u.email) bspSendEmail(u.email, '[Workspace] ' + titulo, bspEmailWrap(titulo, bspEscalaEmailCorpo(final, id), 'escalas', 'Ver a escala no Workspace', 'Escala de serviço', true));
+    });
+    const meu = window.userById(window.CURRENT_USER_ID);
+    if (meu && meu.email && dest.indexOf(meu.id) === -1 && dest.length) bspSendEmail(meu.email, '[Workspace] ' + titulo + ' (cópia)', bspEmailWrap(titulo, bspEscalaEmailCorpo(final, null), 'escalas', 'Ver a escala no Workspace', 'Escala de serviço', true));
+    toast(dest.length ? 'Escala publicada e enviada a ' + dest.length + (dest.length === 1 ? ' pessoa.' : ' pessoas.') : 'Escala publicada.');
+  };
+  const e = rasc;
+  const analise = React.useMemo(() => e ? bspEscalaAnalise(e) : { pessoas: [], avisos: [], vazios: {} }, [e]);
+  const vazio = t => React.createElement("div", { style: { padding: '40px 20px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13.5 } }, t);
+  const nomeArea = bspEscalaAreaNome(area);
+  const podeVerRascunho = edita || (e && e.estado === 'publicada');
+  const alteradaDepois = e && e.estado === 'publicada' && e.publicada_em && e.alterado_em && new Date(e.alterado_em) - new Date(e.publicada_em) > 5000;
+  const estadoTxt = !e ? '' : e.estado === 'publicada'
+    ? 'Publicada' + (e.publicada_por ? ' por ' + bspNomeCurto(e.publicada_por) : '') + (e.publicada_em ? ' a ' + bspDataExacta(new Date(e.publicada_em)) : '') + (alteradaDepois ? ' · alterada depois' : '')
+    : 'Rascunho: a equipa ainda não a vê';
+  const gravTxt = gravacao.estado === 'a-gravar' ? 'A gravar…' : gravacao.estado === 'por-gravar' ? 'Por gravar…' : gravacao.estado === 'erro' ? 'Não gravou' : gravacao.quando ? 'Gravado a ' + bspDataExacta(gravacao.quando) : '';
+  /* Uma celula do dia: os turnos com as pessoas; a vermelho o turno sem
+     ninguem. */
+  const blocoTurnos = (iso, compacto) => {
+    const d = (e.dias || {})[iso] || {};
+    return (e.turnos || []).map((t, i) => {
+      const l = d[t.id] || [];
+      if (!l.length && !bspTurnoAplica(t, iso)) return null;
+      return React.createElement("div", { key: t.id, style: { borderLeft: '3px solid var(' + BSP_ESCALA_CORES[i % 4] + ')', paddingLeft: 6, marginTop: 4, fontSize: compacto ? 11.5 : 13, lineHeight: 1.3 } },
+        !compacto && React.createElement("span", { style: { color: 'var(--text-3)', marginRight: 6 } }, t.nome + ' ' + t.inicio + '–' + t.fim),
+        l.length ? React.createElement("span", { style: { fontWeight: 600, color: l.indexOf(eu.id) !== -1 ? 'var(--accent-d)' : 'var(--text-1)' } }, l.map(bspNomeCurto).join(', '))
+          : React.createElement("span", { style: { color: 'var(--perigo)', fontWeight: 700 } }, compacto ? '—' : 'ninguém'));
+    }).concat(d._n ? [React.createElement("div", { key: '_n', style: { fontSize: 11, color: 'var(--text-3)', fontStyle: 'italic', marginTop: 3 } }, d._n)] : []);
+  };
+  const cabeca = React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flex: 'none' } },
+    areas.length > 1 && React.createElement("select", { value: area, onChange: ev => setArea(ev.target.value), 'aria-label': 'Área', style: Object.assign({}, bspEscCampo, { fontWeight: 600 }) },
+      areas.map(a => React.createElement("option", { key: a.chave, value: a.chave }, a.nome))),
+    React.createElement("div", { style: { display: 'inline-flex', alignItems: 'center', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)' } },
+      React.createElement("button", { onClick: () => setMes(m => bspSomarMeses(m, -1)), 'aria-label': 'Mês anterior', style: { height: 34, width: 34, border: 0, background: 'transparent', cursor: 'pointer', color: 'var(--text-1)', fontSize: 16 } }, '‹'),
+      React.createElement("b", { style: { minWidth: 150, textAlign: 'center', fontSize: 14, color: 'var(--text-1)' } }, bspMesExtenso(mes)),
+      React.createElement("button", { onClick: () => setMes(m => bspSomarMeses(m, 1)), 'aria-label': 'Mês seguinte', style: { height: 34, width: 34, border: 0, background: 'transparent', cursor: 'pointer', color: 'var(--text-1)', fontSize: 16 } }, '›')),
+    mes !== hoje.slice(0, 8) + '01' && React.createElement("button", { onClick: () => setMes(hoje.slice(0, 8) + '01'), style: bspEscChip(false) }, 'Este mês'),
+    React.createElement("span", { style: { flex: 1 } }),
+    e && podeVerRascunho && React.createElement("button", { onClick: () => bspImprimirHtml(bspEscalaHtml(e)), style: bspEscBotao(false), title: 'Imprimir em A4 deitado' }, 'Imprimir'),
+    e && podeVerRascunho && React.createElement("button", { onClick: () => bspDescarregarTexto('escala-' + e.area + '-' + e.mes.slice(0, 7) + '.html', bspEscalaHtml(e)), style: bspEscBotao(false), title: 'Guardar a escala como página HTML' }, 'Descarregar HTML'),
+    e && edita && React.createElement("button", { onClick: () => setModal('publicar'), style: bspEscBotao(true) }, React.createElement(I.Send, { size: 14 }), e.estado === 'publicada' ? 'Enviar de novo' : 'Publicar'));
+  const ferramentas = e && edita && React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', flex: 'none' } },
+    React.createElement("button", { onClick: () => setModal('preencher'), style: bspEscChip(false) }, React.createElement(I.Sparkle, { size: 13 }), 'Preencher automaticamente'),
+    React.createElement("button", { onClick: () => setModal('turnos'), style: bspEscChip(false) }, React.createElement(I.Clock, { size: 13 }), 'Turnos'),
+    anterior && React.createElement("button", { onClick: () => { if (window.confirm('Substituir o que está neste mês pela continuação de ' + bspMesExtenso(anterior.mes) + '?')) mudar(x => Object.assign({}, bspEscalaContinuar(anterior, mes), { id: x.id, estado: x.estado, publicada_em: x.publicada_em, publicada_por: x.publicada_por, notas: x.notas })); }, style: bspEscChip(false) }, 'Continuar ' + bspMesExtenso(anterior.mes).split(' de ')[0]),
+    React.createElement("button", { onClick: () => { if (window.confirm('Apagar todas as pessoas deste mês? Os turnos ficam.')) mudar(x => Object.assign({}, x, { dias: {} })); }, style: bspEscChip(false) }, 'Limpar mês'),
+    React.createElement("span", { style: { fontSize: 12, color: gravacao.estado === 'erro' ? 'var(--perigo)' : 'var(--text-3)', marginLeft: 4 } }, gravTxt));
+  let corpo;
+  if (!areas.length) corpo = vazio('Ainda não tem nenhuma área com escala.');
+  else if (esc.estado === 'a-carregar') corpo = vazio('A carregar…');
+  else if (esc.estado === 'sem-servidor') corpo = vazio('O servidor não está ligado neste aparelho.');
+  else if (esc.estado === 'sem-tabela') corpo = vazio('A tabela das escalas ainda não existe. Corra o escalas.sql no Supabase.');
+  else if (esc.estado === 'erro') corpo = vazio('Não foi possível carregar. ' + esc.erro);
+  else if (!e || !podeVerRascunho) {
+    corpo = React.createElement(Card, { pad: 24, style: { textAlign: 'center' } },
+      React.createElement("div", { style: { fontSize: 16, fontWeight: 700, color: 'var(--text-1)' } }, e ? 'A escala de ' + bspMesExtenso(mes) + ' está a ser preparada.' : 'Ainda não há escala de ' + nomeArea + ' para ' + bspMesExtenso(mes) + '.'),
+      edita ? React.createElement("div", { style: { display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginTop: 16 } },
+        anterior && React.createElement("button", { onClick: () => comecar(bspEscalaContinuar(anterior, mes)), style: bspEscBotao(true) }, React.createElement(I.Sparkle, { size: 14 }), 'Continuar a rotação de ' + bspMesExtenso(anterior.mes).split(' de ')[0]),
+        React.createElement("button", { onClick: () => comecar({ area, mes, turnos: bspTurnosPadrao(area), dias: {}, notas: '', estado: 'rascunho' }), style: bspEscBotao(!anterior) }, React.createElement(I.Plus, { size: 14 }), 'Começar do zero'))
+        : React.createElement("p", { style: { margin: '8px 0 0', fontSize: 13, color: 'var(--text-3)' } }, 'Quando for publicada, aparece aqui e recebe-a por e-mail.'),
+      anterior === undefined && edita && React.createElement("p", { style: { margin: '10px 0 0', fontSize: 12, color: 'var(--text-3)' } }, 'A procurar a escala do mês anterior…'));
+  } else if (isMobile) {
+    corpo = React.createElement(Card, { pad: 0, style: { flex: 1, overflow: 'auto', minHeight: 0 } },
+      bspDiasDoMes(e.mes).map(iso => {
+        const w = bspDiaSemana(iso);
+        return React.createElement("div", { key: iso, onClick: edita ? () => setDia(iso) : undefined, className: edita ? 'bsp-row-hover' : '', style: { display: 'grid', gridTemplateColumns: '54px minmax(0,1fr)', gap: 10, padding: '10px 14px', borderBottom: '1px solid var(--border)', background: iso === hoje ? 'var(--accent-soft)' : (w === 0 || w === 6 ? 'var(--surface-2)' : 'transparent'), cursor: edita ? 'pointer' : 'default' } },
+          React.createElement("div", null,
+            React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase' } }, BSP_ESCALA_SEMANA[w]),
+            React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: iso === hoje ? 'var(--accent-d)' : 'var(--text-1)' } }, Number(iso.slice(8)))),
+          React.createElement("div", { style: { minWidth: 0 } }, blocoTurnos(iso, false)));
+      }));
+  } else {
+    corpo = React.createElement(Card, { pad: 0, style: { flex: 1, overflow: 'auto', minHeight: 0 } },
+      React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0,1fr))', position: 'sticky', top: 0, zIndex: 1, background: 'var(--navy)' } },
+        ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map(d => React.createElement("div", { key: d, style: { padding: '7px 8px', fontSize: 11.5, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '.05em' } }, d))),
+      bspEscalaSemanas(e.mes).map((sem, k) => React.createElement("div", { key: k, style: { display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0,1fr))' } },
+        sem.map((iso, j) => {
+          if (!iso) return React.createElement("div", { key: j, style: { borderRight: '1px solid var(--border)', borderBottom: '1px solid var(--border)', background: 'var(--surface-2)', opacity: .5 } });
+          const w = bspDiaSemana(iso);
+          return React.createElement("div", { key: iso, onClick: edita ? () => setDia(iso) : undefined, className: edita ? 'bsp-row-hover' : '', title: edita ? 'Mudar este dia' : undefined, style: { minHeight: 96, padding: '6px 8px', borderRight: '1px solid var(--border)', borderBottom: '1px solid var(--border)', background: iso === hoje ? 'var(--accent-soft)' : (w === 0 || w === 6 ? 'var(--surface-2)' : 'var(--surface)'), cursor: edita ? 'pointer' : 'default', minWidth: 0 } },
+            React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: iso === hoje ? 'var(--accent-d)' : 'var(--text-1)' } }, Number(iso.slice(8))),
+            blocoTurnos(iso, true));
+        }))));
+  }
+  const lateral = e && podeVerRascunho && React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, flex: 'none', width: isMobile ? 'auto' : 300, overflow: isMobile ? 'visible' : 'auto', minHeight: 0 } },
+    React.createElement(Card, { pad: 14 },
+      React.createElement("div", { style: { fontSize: 12, color: e.estado === 'publicada' ? 'var(--sucesso)' : 'var(--text-3)', fontWeight: 600 } }, estadoTxt),
+      React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 4, marginTop: 10 } },
+        (e.turnos || []).map((t, i) => React.createElement("div", { key: t.id, style: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'var(--text-1)' } },
+          React.createElement("span", { style: { width: 10, height: 10, background: 'var(' + BSP_ESCALA_CORES[i % 4] + ')', flex: 'none' } }),
+          React.createElement("b", null, t.nome), React.createElement("span", { style: { color: 'var(--text-3)' } }, t.inicio + '–' + t.fim + ' · ' + bspHorasTxt(bspTurnoMinutos(t))))))),
+    analise.avisos.length > 0 && React.createElement(Card, { pad: 14, style: { borderLeft: '4px solid var(--perigo)' } },
+      React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: 'var(--perigo)', marginBottom: 6 } }, analise.avisos.length === 1 ? '1 aviso' : analise.avisos.length + ' avisos'),
+      analise.avisos.slice(0, 8).map((a, i) => React.createElement("div", { key: i, style: { fontSize: 12.5, color: 'var(--text-1)', lineHeight: 1.45, marginBottom: 4 } }, a.texto))),
+    React.createElement(Card, { pad: 14 },
+      React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 } }, 'Por pessoa'),
+      analise.pessoas.length ? React.createElement("table", { style: { width: '100%', borderCollapse: 'collapse', fontSize: 12.5 } },
+        React.createElement("thead", null, React.createElement("tr", null, ['', 'Dias', 'Horas', 'FdS'].map((h, i) => React.createElement("th", { key: i, style: { textAlign: i ? 'right' : 'left', fontWeight: 600, color: 'var(--text-3)', padding: '4px 0', borderBottom: '1px solid var(--border)' } }, h)))),
+        React.createElement("tbody", null, analise.pessoas.map(p => React.createElement("tr", { key: p.id },
+          React.createElement("td", { style: { padding: '5px 0', color: p.id === eu.id ? 'var(--accent-d)' : 'var(--text-1)', fontWeight: 600 } }, bspNomeCurto(p.id)),
+          React.createElement("td", { style: { textAlign: 'right' } }, p.nDias),
+          React.createElement("td", { style: { textAlign: 'right' } }, bspHorasTxt(p.minutos)),
+          React.createElement("td", { style: { textAlign: 'right' } }, p.fds)))))
+        : React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Ainda ninguém na escala.')),
+    React.createElement(Card, { pad: 14 },
+      React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: 'var(--text-1)', marginBottom: 6 } }, 'Notas'),
+      edita ? React.createElement("textarea", { value: e.notas || '', onChange: ev => { const v = ev.target.value; mudar(x => Object.assign({}, x, { notas: v })); }, rows: 3, placeholder: 'Trocas, folgas, contactos de recurso…', style: Object.assign({}, bspEscCampo, { width: '100%', height: 'auto', padding: 8, resize: 'vertical' }) })
+        : React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', whiteSpace: 'pre-wrap' } }, e.notas || '—')));
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: isMobile ? 'auto' : '100%', overflow: isMobile ? 'visible' : 'hidden' } },
+    e && React.createElement(EscalaDiaModal, { open: !!dia, iso: dia, escala: e, onClose: () => setDia(null), onGuardar: guardarDia }),
+    e && React.createElement(EscalaTurnosModal, { open: modal === 'turnos', escala: e, onClose: () => setModal(''), onGuardar: ts => mudar(x => Object.assign({}, x, { turnos: ts })) }),
+    e && React.createElement(EscalaPreencherModal, { open: modal === 'preencher', escala: e, onClose: () => setModal(''), onAplicar: (tid, ps, modo, so) => mudar(x => bspEscalaPreencher(x, tid, ps, modo, so)) }),
+    e && React.createElement(EscalaPublicarModal, { open: modal === 'publicar', escala: e, analise, onClose: () => setModal(''), onPublicar: publicar }),
+    cabeca, ferramentas,
+    React.createElement("div", { style: { display: 'flex', gap: 12, flex: 1, minHeight: 0, flexDirection: isMobile ? 'column' : 'row' } },
+      React.createElement("div", { style: { flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' } }, corpo),
+      lateral));
+}
+/* No Inicio: quem esta de servico hoje, nas escalas publicadas que a
+   pessoa pode ver. */
+function EscalaHojeCartao({ onAbrir }) {
+  const [lista, setLista] = React.useState(null);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    const mes = bspDataLocalISO(new Date()).slice(0, 8) + '01';
+    cl.from('escalas').select('area, mes, turnos, dias').eq('mes', mes).eq('estado', 'publicada').then(r => { if (vivo && !r.error) setLista(r.data || []); });
+    return () => { vivo = false; };
+  }, []);
+  const hoje = bspDataLocalISO(new Date());
+  const linhas = (lista || []).map(e => {
+    const d = (e.dias || {})[hoje] || {};
+    const turnos = (e.turnos || []).map((t, i) => ({ t, i, l: d[t.id] || [] })).filter(x => x.l.length);
+    return { e, turnos, nota: d._n };
+  }).filter(x => x.turnos.length || x.nota).sort((a, b) => bspCompararTexto(bspEscalaAreaNome(a.e.area), bspEscalaAreaNome(b.e.area)));
+  if (!linhas.length) return null;
+  return React.createElement(Card, { pad: 16, style: { marginBottom: 16 } },
+    React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 } },
+      React.createElement(I.Clock, { size: 16, stroke: 'var(--accent-d)' }),
+      React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)', flex: 1 } }, 'De serviço hoje'),
+      React.createElement("button", { onClick: onAbrir, style: { border: 0, background: 'transparent', color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' } }, 'Ver escalas →')),
+    linhas.map(x => React.createElement("div", { key: x.e.area, style: { marginBottom: 8 } },
+      linhas.length > 1 && React.createElement("div", { style: { fontSize: 11.5, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.05em' } }, bspEscalaAreaNome(x.e.area)),
+      x.turnos.map(y => React.createElement("div", { key: y.t.id, style: { borderLeft: '3px solid var(' + BSP_ESCALA_CORES[y.i % 4] + ')', paddingLeft: 8, marginTop: 4, fontSize: 13, color: 'var(--text-1)' } },
+        React.createElement("span", { style: { color: 'var(--text-3)' } }, y.t.inicio + '–' + y.t.fim + ' · '),
+        React.createElement("b", null, y.l.map(bspNomeCurto).join(', ')))),
+      x.nota && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', fontStyle: 'italic', marginTop: 3 } }, x.nota))));
+}
 function PainelAtalho({ onAbrir }) {
   const [d, setD] = React.useState(null);
   React.useEffect(() => {
@@ -20800,7 +21506,7 @@ function App() {
     if (onde === 'chat' && partes[1]) {
       setAlvoChat({ conv: decodeURIComponent(partes.slice(1).join('/')), vez: Date.now() });
       setPage('chat');
-    } else if (['feed', 'tarefas', 'agenda', 'drive', 'seguimento', 'marcacoes', 'painel', 'chat', 'relatorios', 'notificacoes'].indexOf(onde) !== -1) {
+    } else if (['feed', 'tarefas', 'agenda', 'drive', 'seguimento', 'marcacoes', 'escalas', 'painel', 'chat', 'relatorios', 'notificacoes'].indexOf(onde) !== -1) {
       setPage({ tarefas: 'tasks', agenda: 'calendar', notificacoes: 'notifications' }[onde] || onde);
     } else {
       return;
@@ -20898,7 +21604,7 @@ function App() {
   }), pg === 'meetings' && React.createElement(MeetingsScreen, null), pg === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), pg === 'seguimento' && (bspVeCrm(currentUser) ? React.createElement(CrmScreen, null) : null), pg === 'marcacoes' && (bspVeMarcacoes(currentUser) ? React.createElement(MarcacoesScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), pg === 'directory' && React.createElement(DirectoryScreen, null), pg === 'admin' && React.createElement(AdminScreen, {
+  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), pg === 'seguimento' && (bspVeCrm(currentUser) ? React.createElement(CrmScreen, null) : null), pg === 'marcacoes' && (bspVeMarcacoes(currentUser) ? React.createElement(MarcacoesScreen, null) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), pg === 'directory' && React.createElement(DirectoryScreen, null), pg === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
   }), pg === 'notifications' && React.createElement(NotificationsScreen, {
     onAbrir: abrirNotificacao
