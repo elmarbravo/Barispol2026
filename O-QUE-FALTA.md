@@ -1218,6 +1218,27 @@ Pedido do Elmar: enviar áudio nos chats.
 - [ ] Testar num iPhone real: o Safari antigo (antes do iOS 17.4) pode
       não tocar as notas gravadas em WebM noutros aparelhos.
 
+### Correcção de 28-09-2026: «O áudio no chat não se ouve»
+
+- Causa provável: a única nota enviada (28-09, 07h06) ficou em WebM, que
+  o iPhone e alguns telemóveis não tocam.
+- A gravação passa a WAV (PCM 16 bits, mono, 16 kHz), que todos os
+  aparelhos tocam. Lê o microfone pela Web Audio (`AudioContext` +
+  `ScriptProcessor`) e monta o ficheiro em `bspWavDeAmostras`. Sobe o
+  volume das gravações baixas (até 6 vezes, pico a 0,9). Ficheiro
+  `nota-de-voz-AAAAMMDD-HHMMSS.wav`, `audio/wav`, cerca de 32 KB por
+  segundo (5 minutos ≈ 10 MB, abaixo do limite de 25 MB).
+- O `AudioContext` da gravação nasce no próprio toque, antes do pedido
+  do microfone (no iPhone, criado depois, grava silêncio), e fecha-se no
+  fim. O dos avisos continua a ser o `bspAudio`.
+- O leitor mantém o acerto da duração para as notas WebM antigas.
+- Testado com microfone simulado, no computador e no telemóvel: ficheiro
+  WAV com som (pico 32645 de 32767), duração certa no leitor (2,6 s),
+  sem erros.
+- [ ] Confirmar com o Elmar num iPhone e num Android reais. A nota WebM
+      de 28-09 pode continuar sem tocar nalguns aparelhos: aí aparece o
+      cartão para a descarregar.
+
 
 ## 3-ag. Painel da gestão (27-09-2026)
 

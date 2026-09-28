@@ -190,7 +190,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 - Anexos no chat: `enviarFicheiros(lista, opc)` no `ChatScreen` serve o
   clipe (vários ficheiros), o arrastar com o rato e as notas de voz
   (27-09-2026: `comecarGravacao`, `bspMensagemNotaVoz`, `bspEAudio`,
-  `AudioAnexo`).
+  `AudioAnexo`). Desde 28-09-2026 as notas gravam-se em WAV
+  (`bspWavDeAmostras`), porque o WebM não tocava no iPhone. Nunca voltar
+  ao `MediaRecorder`.
 
 ## Decisões aprovadas
 

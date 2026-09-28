@@ -3885,6 +3885,39 @@ function bspMensagemNotaVoz(seg, nome, caminho, bytes){
   return '\ud83c\udfa4 Nota de voz (' + bspDuracao(seg) + ').' + BSP_MARCA_ANEXO +
     caminho + '\u200b' + nome + '\u200b' + (bytes || 0);
 }
+/* Junta as amostras gravadas, passa-as a outra taxa (media simples), sobe o
+   volume se a gravacao ficou baixa (ate 6 vezes, pico a 0,9) e devolve um
+   WAV PCM de 16 bits, mono. */
+function bspWavDeAmostras(partes, taxaOrig, taxaNova) {
+  let total = 0;
+  partes.forEach(p => { total += p.length; });
+  if (!total) return null;
+  const passo = taxaOrig / taxaNova;
+  const n = Math.floor(total / passo);
+  const saida = new Float32Array(n);
+  let k = 0, acum = 0, conta = 0, alvo = passo, pos = 0;
+  for (const p of partes) {
+    for (let i = 0; i < p.length; i++) {
+      acum += p[i]; conta++; pos++;
+      if (pos >= alvo && k < n) { saida[k++] = acum / conta; acum = 0; conta = 0; alvo += passo; }
+    }
+  }
+  let pico = 0;
+  for (let i = 0; i < k; i++) { const a = Math.abs(saida[i]); if (a > pico) pico = a; }
+  const ganho = pico > 0 ? Math.min(6, 0.9 / pico) : 1;
+  const buf = new ArrayBuffer(44 + k * 2);
+  const v = new DataView(buf);
+  const txt = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+  txt(0, 'RIFF'); v.setUint32(4, 36 + k * 2, true); txt(8, 'WAVE');
+  txt(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, taxaNova, true); v.setUint32(28, taxaNova * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  txt(36, 'data'); v.setUint32(40, k * 2, true);
+  for (let i = 0; i < k; i++) {
+    const x = Math.max(-1, Math.min(1, saida[i] * (ganho > 1 ? ganho : 1)));
+    v.setInt16(44 + i * 2, x < 0 ? x * 0x8000 : x * 0x7FFF, true);
+  }
+  return new Blob([buf], { type: 'audio/wav' });
+}
 const bspEAudio = nome => /\.(m4a|mp3|ogg|oga|wav|aac|opus)$/i.test(nome || '') || /^nota-de-voz.*\.webm$/i.test(nome || '');
 /* Uma reaccao e uma alternancia, e nao um contador que so sabe subir:
    carregar outra vez tira a minha. Por isso guarda-se QUEM reagiu, e nao
@@ -7079,14 +7112,14 @@ function ChatScreen({
     }
     if (falhas) window.alert(falhas === 1 ? 'Não foi possível carregar um dos ficheiros.' : 'Não foi possível carregar ' + falhas + ' ficheiros.');
   }
-  /* Nota de voz (27-09-2026): grava com o microfone (MediaRecorder), ate
-     5 minutos, e envia como anexo da conversa onde comecou. WebM/Opus no
-     Chrome e no Android; MP4/AAC no Safari. */
+  /* Nota de voz (27-09-2026): grava com o microfone, ate 5 minutos, e
+     envia como anexo da conversa onde comecou. Formato WAV desde
+     28-09-2026 (ver comecarGravacao). */
   const [gravacao, setGravacao] = React.useState(null);
   const gravRef = React.useRef(null);
   React.useEffect(() => () => {
     const g = gravRef.current;
-    if (g) { g.enviar = false; try { g.rec.stop(); } catch (e) {} try { g.stream.getTracks().forEach(t => t.stop()); } catch (e) {} }
+    if (g) { g.enviar = false; try { g.parar(); } catch (e) {} }
   }, []);
   function pararGravacao(enviar) {
     const g = gravRef.current;
@@ -7094,7 +7127,7 @@ function ChatScreen({
     if (!g) return;
     g.enviar = !!enviar;
     g.seg = (Date.now() - g.inicio) / 1000;
-    try { g.rec.stop(); } catch (e) {}
+    g.parar();
   }
   React.useEffect(() => {
     if (!gravacao) return;
@@ -7107,42 +7140,62 @@ function ChatScreen({
     }, 500);
     return () => clearInterval(t);
   }, [!!gravacao]);
+  /* Grava em WAV (28-09-2026). O WebM do Chrome nao tocava em iPhones nem
+     em alguns telemoveis: o WAV toca em todos. Le o microfone pela Web
+     Audio, passa a 16 kHz mono (cerca de 1,9 MB por minuto) e sobe o
+     volume das gravacoes baixas. O AudioContext e so desta gravacao e
+     fecha-se no fim; o dos avisos continua a ser o bspAudio. */
   async function comecarGravacao() {
     if (gravRef.current) return;
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined') {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !Ctx) {
       window.alert('Este aparelho não permite gravar áudio no Workspace. Actualize o navegador ou a aplicação.');
       return;
     }
     if (!bspGetClient()) { window.alert('O servidor não está ligado neste dispositivo.'); return; }
+    /* O AudioContext nasce ja, dentro do toque: no iPhone, criado depois
+       do pedido do microfone, fica parado e grava silencio. */
+    let ctx;
+    try { ctx = new Ctx(); ctx.resume && ctx.resume().catch(() => {}); } catch (e) { window.alert('Não foi possível começar a gravar.'); return; }
     let stream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     } catch (e) {
+      try { ctx.close(); } catch (x) {}
       window.alert('Sem acesso ao microfone. Autorize o microfone para o Workspace nas definições do navegador ou do telemóvel.');
       return;
     }
-    const tipo = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus']
-      .find(t => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) || '';
-    let rec;
-    try { rec = tipo ? new MediaRecorder(stream, { mimeType: tipo }) : new MediaRecorder(stream); }
-    catch (e) { stream.getTracks().forEach(t => t.stop()); window.alert('Não foi possível começar a gravar.'); return; }
-    const g = { rec: rec, stream: stream, partes: [], conv: convKey, inicio: Date.now(), enviar: false, seg: 0 };
-    gravRef.current = g;
-    rec.ondataavailable = ev => { if (ev.data && ev.data.size) g.partes.push(ev.data); };
-    rec.onstop = () => {
+    let fonte, proc;
+    try {
+      if (ctx.state === 'suspended') await ctx.resume();
+      fonte = ctx.createMediaStreamSource(stream);
+      proc = ctx.createScriptProcessor(4096, 1, 1);
+    } catch (e) {
+      stream.getTracks().forEach(t => t.stop());
+      try { ctx && ctx.close(); } catch (x) {}
+      window.alert('Não foi possível começar a gravar.');
+      return;
+    }
+    const partes = [];
+    proc.onaudioprocess = ev => { partes.push(new Float32Array(ev.inputBuffer.getChannelData(0))); };
+    fonte.connect(proc);
+    proc.connect(ctx.destination);
+    const g = { conv: convKey, inicio: Date.now(), enviar: false, seg: 0 };
+    g.parar = () => {
       gravRef.current = null;
+      try { fonte.disconnect(); proc.disconnect(); } catch (e) {}
       try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+      const taxa = ctx.sampleRate;
+      try { ctx.close(); } catch (e) {}
       if (!g.enviar) return;
-      const mime = String(rec.mimeType || tipo || 'audio/webm').split(';')[0];
-      const blob = new Blob(g.partes, { type: mime });
-      if (g.seg < 1 || blob.size < 800) { window.alert('A nota de voz ficou vazia. Mantenha a gravação pelo menos um segundo.'); return; }
-      const ext = /mp4|aac|m4a/.test(mime) ? 'm4a' : /ogg/.test(mime) ? 'ogg' : 'webm';
+      const blob = bspWavDeAmostras(partes, taxa, 16000);
+      if (g.seg < 1 || !blob || blob.size < 8000) { window.alert('A nota de voz ficou vazia. Mantenha a gravação pelo menos um segundo.'); return; }
       const d = new Date();
       const carimbo = bspDataLocalISO(d).replace(/-/g, '') + '-' + String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0') + String(d.getSeconds()).padStart(2, '0');
-      const ficheiro = new File([blob], 'nota-de-voz-' + carimbo + '.' + ext, { type: mime });
+      const ficheiro = new File([blob], 'nota-de-voz-' + carimbo + '.wav', { type: 'audio/wav' });
       enviarFicheiros([ficheiro], { conv: g.conv, texto: (f, caminho) => bspMensagemNotaVoz(g.seg, f.name, caminho, f.size) });
     };
-    rec.start(1000);
+    gravRef.current = g;
     setGravacao({ seg: 0 });
   }
   function onAttach(e) {
