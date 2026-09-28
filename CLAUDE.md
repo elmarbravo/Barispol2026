@@ -182,6 +182,11 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   e `bspVeEscala`/`bsp_ve_escala`. Ecrã `EscalasScreen`; papel
   `bspEscalaHtml`; e-mail `bspEscalaEmailCorpo` com `bspEmailWrap(..., true)`;
   Início `EscalaHojeCartao`. Imprimir só por `bspImprimirHtml`.
+- «Ver como» (28-09-2026): `bspEmVerComo()` é só leitura. Qualquer escrita
+  nova ao servidor tem de passar por `bspGetClient()` (que a bloqueia) ou
+  verificar `bspEmVerComo()`; funções RPC novas que só lêem vão para
+  `BSP_RPC_LEITURA`. Nunca gravar o `shared_state` nem anunciar presença
+  durante a vista.
 - Novidades do sistema (27-09-2026, `novidades.sql`): cada alteração que
   muda o trabalho de alguém leva um `insert into public.novidades (titulo,
   texto, grupos, destino)` com os grupos afectados (`todos`, `gestao`,

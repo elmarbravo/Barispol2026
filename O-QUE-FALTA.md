@@ -1434,3 +1434,27 @@ e-mail ou imprime-a. Modelo: «ESCALA DA RECEPÇÃO - SETEMBRO 2026.xlsx».
 - Novidade registada para toda a equipa (sai a 29-09 às 05h00).
 - [ ] A Juliana preencher e publicar a escala de Outubro.
 - [ ] Testar a impressão num telemóvel real.
+
+## 3-al. «Ver como» outra pessoa (28-09-2026)
+
+Pedido do Elmar: a Direcção vê o Workspace com os olhos de outra camada ou
+de outra área.
+
+- Botão do olho na barra de cima (computador e telemóvel), só para quem
+  tem a camada Direcção ou `podeVerSistema` (`bspPodeVerComo`). Escolhe-se
+  uma pessoa, ou uma camada e uma área (pessoa fictícia `u-vista`).
+- A página recarrega como essa pessoa (`sessionStorage` `bsp-ver-como`;
+  `bspUtilizadorVista`): menus, canais, ecrãs e permissões dela. Faixa
+  em baixo «A ver como … · só leitura · Voltar a mim» (`FaixaVerComo`).
+- Só leitura (`bspClienteSoLeitura`): o cliente do servidor recusa
+  insert/update/upsert/delete, uploads e funções que mudam dados (só
+  passam as de leitura, `BSP_RPC_LEITURA`); o estado partilhado não se
+  grava; não se anuncia presença nem se liga o canal das chamadas; não
+  saem e-mails nem se criam contas. Sair recarrega e descarta o que se
+  mexeu.
+- Limite: o servidor responde com as permissões de quem está na sessão
+  (o Elmar). O ecrã filtra como a pessoa veria, mas um ecrã pode mostrar
+  mais do que ela vê de facto. A faixa explica-o («O que isto mostra?»).
+- Quem não é da Direcção e tenha a vista guardada sai dela sozinho.
+- Testado no computador e no telemóvel: vista da Joaquina (sem Admin,
+  Painel nem CRM), três gravações recusadas, regresso ao Elmar.

@@ -1686,6 +1686,7 @@ const ADMIN_METRICS = {
 };
 const ACTIVITY_LOG = [];
 function userById(id) {
+  if (id === 'u-vista' && window.__bspVistaUser) return window.__bspVistaUser;
   return USERS.find(u => u.id === id);
 }
 function deptColor(name) {
@@ -3071,7 +3072,8 @@ function Topbar({
   current,
   currentUser,
   openTweaks,
-  onSwitchPage
+  onSwitchPage,
+  onVerComo
 }) {
   const {
     state: tbState
@@ -3087,6 +3089,7 @@ function Topbar({
     tasks: 'Tarefas',
     seguimento: 'CRM',
     marcacoes: 'Marcações',
+    escalas: 'Escalas de serviço',
     painel: 'Painel financeiro',
     relatorios: 'Relatórios do dia',
     directory: 'Directório',
@@ -3189,7 +3192,14 @@ function Topbar({
       gap: 6,
       flex: 'none'
     }
-  }, React.createElement(BotaoTema, null), !bspESocio(currentUser) && React.createElement("button", {
+  }, React.createElement(BotaoTema, null), onVerComo && React.createElement("button", {
+    title: "Ver como outra pessoa",
+    "aria-label": "Ver como outra pessoa",
+    className: "bsp-iconbtn",
+    onClick: onVerComo
+  }, React.createElement(I.Eye, {
+    size: 16
+  })), !bspESocio(currentUser) && React.createElement("button", {
     title: "Nova mensagem",
     className: "bsp-iconbtn",
     onClick: () => onSwitchPage && onSwitchPage('chat')
@@ -3580,6 +3590,7 @@ async function bspTestemunho() {
   }
 }
 async function bspSendEmail(to, subject, html) {
+  if (bspEmVerComo()) return;
   try {
     const cfg = bspGetCfg();
     if (!cfg || !cfg.url || !to) return;
@@ -3698,6 +3709,7 @@ async function bspGerirLogin(email, password, apagar) {
     testemunho = data && data.session && data.session.access_token || '';
   } catch (e) {}
   if (!testemunho) return 'A sua sessão expirou. Volte a entrar.';
+  if (bspEmVerComo()) return BSP_VER_COMO_ERRO;
   try {
     const r = await fetch(cfg.url.replace(/\/$/, '') + '/functions/v1/criar-utilizador', {
       method: 'POST',
@@ -3719,7 +3731,67 @@ async function bspGerirLogin(email, password, apagar) {
     return 'Não foi possível falar com o servidor.';
   }
 }
+/* «Ver como» (pedido do Elmar, 28-09-2026): a Direccao ve o Workspace com
+   os olhos de outra pessoa, ou de uma camada numa area. E so leitura:
+   enquanto dura, o cliente do servidor recusa gravar (tabelas, ficheiros,
+   funcoes que mudam dados), nao se anuncia presenca nem chamadas e nao
+   saem e-mails. Entrar e sair recarrega a pagina, para nada do que se
+   mexeu durante a vista ficar por gravar. O servidor continua a responder
+   com as permissoes de quem esta de facto na sessao. */
+let __bspVerComoGuardado = null;
+try { __bspVerComoGuardado = JSON.parse(sessionStorage.getItem('bsp-ver-como') || 'null'); } catch (e) {}
+window.__bspVerComo = __bspVerComoGuardado && __bspVerComoGuardado.tipo ? __bspVerComoGuardado : null;
+function bspEmVerComo() { return !!window.__bspVerComo; }
+function bspPodeVerComo(u) {
+  if (!u || u.id === 'self' || bspESocio(u)) return false;
+  return u.accessLevel === 'Direcção' || !!bspCamada(u).podeVerSistema;
+}
+function bspEntrarVerComo(v) {
+  try { sessionStorage.setItem('bsp-ver-como', JSON.stringify(v)); } catch (e) {}
+  location.reload();
+}
+function bspSairVerComo() {
+  try { sessionStorage.removeItem('bsp-ver-como'); } catch (e) {}
+  location.reload();
+}
+function bspUtilizadorVista(v) {
+  if (!v) return null;
+  if (v.tipo === 'pessoa') return (window.USERS || []).find(x => x.id === v.id) || null;
+  if (v.tipo === 'camada') {
+    const area = String(v.dept || '');
+    window.__bspVistaUser = { id: 'u-vista', name: v.camada + (area ? ' · ' + area : ''), short: 'VC', role: v.cargo || 'Colaborador(a)', dept: area, email: '', phone: '', status: 'online', accessLevel: v.camada, bio: '' };
+    return window.__bspVistaUser;
+  }
+  return null;
+}
+const BSP_RPC_LEITURA = ['bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'bsp_e_gestor'];
+const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
+function bspBloqueado() {
+  const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
+  const p = new Proxy(function () {}, {
+    get(_, k) { if (k === 'then') return (ok, ko) => Promise.resolve(r).then(ok, ko); return () => p; },
+    apply() { return p; }
+  });
+  return p;
+}
+function bspClienteSoLeitura(real) {
+  const liga = (o, k) => { const v = o[k]; return typeof v === 'function' ? v.bind(o) : v; };
+  return new Proxy(real, {
+    get(t, k) {
+      if (k === 'from') return tabela => new Proxy(t.from(tabela), {
+        get(q, k2) { return ['insert', 'update', 'upsert', 'delete'].indexOf(k2) !== -1 ? () => bspBloqueado() : liga(q, k2); }
+      });
+      if (k === 'rpc') return (nome, args, opc) => BSP_RPC_LEITURA.indexOf(nome) !== -1 ? t.rpc(nome, args, opc) : bspBloqueado();
+      if (k === 'storage') return { from: b => new Proxy(t.storage.from(b), {
+        get(s2, k2) { return ['upload', 'remove', 'move', 'copy', 'update'].indexOf(k2) !== -1 ? () => bspBloqueado() : liga(s2, k2); }
+      }) };
+      return liga(t, k);
+    }
+  });
+}
+let __bspClienteLeitura = null;
 function bspGetClient() {
+  if (__bspClient && bspEmVerComo()) return __bspClienteLeitura || (__bspClienteLeitura = bspClienteSoLeitura(__bspClient));
   if (__bspClient) return __bspClient;
   const cfg = bspGetCfg();
   if (!cfg || !cfg.url || !cfg.key) return null;
@@ -3730,6 +3802,7 @@ function bspGetClient() {
       autoRefreshToken: true
     }
   });
+  if (bspEmVerComo()) return __bspClienteLeitura || (__bspClienteLeitura = bspClienteSoLeitura(__bspClient));
   return __bspClient;
 }
 const BSP_BUCKET = 'drive';
@@ -4616,7 +4689,7 @@ function StoreProvider({
               }));
             } catch (e) {}
           }).subscribe(st => {
-            if (st === 'SUBSCRIBED') {
+            if (st === 'SUBSCRIBED' && !bspEmVerComo()) {
               try {
                 pch.track({
                   id: window.CURRENT_USER_ID,
@@ -4735,6 +4808,7 @@ function StoreProvider({
       channels: state.extraChannels || [],
       camadas: state.camadas || {}
     });
+    if (bspEmVerComo()) return;
     if (payload === lastPushedRef.current) return;
     lastPushedRef.current = payload;
     try {
@@ -17212,7 +17286,8 @@ function MobileTopbar({
   current,
   currentUser,
   onMenu,
-  onSwitchPage
+  onSwitchPage,
+  onVerComo
 }) {
   /* Sino com o numero de notificacoes por ler, sempre a vista no topo
      (24-09-2026). Antes estavam escondidas em «Mais». */
@@ -17260,7 +17335,12 @@ function MobileTopbar({
     }
   }, titles[current] || 'Workspace')), React.createElement("div", {
     style: { display: 'flex', alignItems: 'center', gap: 6 }
-  }, React.createElement(BotaoTema, { tamanho: 18 }), React.createElement("button", {
+  }, React.createElement(BotaoTema, { tamanho: 18 }), onVerComo && React.createElement("button", {
+    onClick: onVerComo,
+    className: "bsp-iconbtn",
+    style: { width: 38, height: 38 },
+    "aria-label": "Ver como outra pessoa"
+  }, React.createElement(I.Eye, { size: 18 })), React.createElement("button", {
     onClick: () => onSwitchPage && onSwitchPage('notifications'),
     className: "bsp-iconbtn",
     style: { width: 38, height: 38, position: 'relative' },
@@ -18004,7 +18084,7 @@ function ChamadasProvider({
      uma chamada possa chegar esteja o utilizador em que ecra estiver. */
   React.useEffect(() => {
     const cl = bspGetClient();
-    if (!cl || !eu) return;
+    if (!cl || !eu || bspEmVerComo()) return;
     let vivo = true;
     const c = cl.channel('bsp-chamadas', {
       config: {
@@ -20689,6 +20769,51 @@ function EscalasScreen({ currentUser }) {
       React.createElement("div", { style: { flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' } }, corpo),
       lateral));
 }
+/* A faixa do «Ver como»: sempre a vista, com o regresso a um toque. */
+function FaixaVerComo({ vista, real }) {
+  const [info, setInfo] = React.useState(false);
+  return React.createElement("div", { role: 'status', style: { position: 'fixed', left: '50%', transform: 'translateX(-50%)', bottom: 76, zIndex: 99000, maxWidth: 'calc(100vw - 24px)', background: 'var(--navy)', color: '#fff', border: '2px solid var(--accent)', borderRadius: 12, padding: '8px 10px 8px 14px', boxShadow: '0 6px 24px rgba(0,0,0,.25)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' } },
+    React.createElement(I.Eye, { size: 16, stroke: '#fff' }),
+    React.createElement("span", { style: { minWidth: 0 } }, 'A ver como ', React.createElement("b", null, vista.name), ' · só leitura'),
+    React.createElement("button", { onClick: () => setInfo(v => !v), style: { border: 0, background: 'transparent', color: '#fff', textDecoration: 'underline', fontFamily: 'inherit', fontSize: 12, cursor: 'pointer', padding: 0 } }, info ? 'Fechar' : 'O que isto mostra?'),
+    React.createElement("button", { onClick: bspSairVerComo, style: { height: 30, padding: '0 12px', borderRadius: 6, border: 0, background: '#fff', color: 'var(--navy-texto)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' } }, 'Voltar a mim'),
+    info && React.createElement("div", { style: { flexBasis: '100%', fontSize: 12, lineHeight: 1.5, color: 'rgba(255,255,255,.88)', maxWidth: 520 } },
+      'Menus, canais, ecrãs e permissões são os de ' + vista.name + '. Nada se grava nem se envia. Os dados vêm do servidor com as permissões de ' + String(real && real.name || '').split(' ')[0] + ': algum ecrã pode mostrar mais do que esta pessoa vê de facto.'));
+}
+function VerComoModal({ open, real, onClose }) {
+  const [tipo, setTipo] = React.useState('pessoa');
+  const [pessoa, setPessoa] = React.useState('');
+  const [camada, setCamada] = React.useState('');
+  const [dept, setDept] = React.useState('');
+  const camadas = Object.keys(bspCamadas()).sort((a, b) => (bspCamadas()[a].ordem || 99) - (bspCamadas()[b].ordem || 99));
+  React.useEffect(() => { if (open) { setTipo('pessoa'); setPessoa(''); setCamada(camadas[camadas.length - 1] || ''); setDept(''); } }, [open]);
+  if (!open) return null;
+  const pessoas = (window.USERS || []).filter(u => u.id !== (real && real.id));
+  const pronto = tipo === 'pessoa' ? !!pessoa : !!camada;
+  const campo = { width: '100%', height: 40, padding: '0 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 13.5, boxSizing: 'border-box' };
+  const rot = t => React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 6 } }, t);
+  return React.createElement(Modal, {
+    open, onClose, width: 480, title: 'Ver como outra pessoa',
+    footer: React.createElement(React.Fragment, null,
+      React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: onClose }, 'Cancelar'),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: () => { if (!pronto) return; bspEntrarVerComo(tipo === 'pessoa' ? { tipo: 'pessoa', id: pessoa } : { tipo: 'camada', camada, dept }); } }, 'Ver como'))
+  }, React.createElement("div", { style: { padding: 20, display: 'flex', flexDirection: 'column', gap: 16 } },
+    React.createElement("p", { style: { margin: 0, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 } }, 'O Workspace recarrega como se fosse essa pessoa: menus, canais, ecrãs e permissões. Fica em só leitura até carregar em «Voltar a mim».'),
+    React.createElement("div", { style: { display: 'flex', gap: 6 } },
+      React.createElement("button", { type: 'button', onClick: () => setTipo('pessoa'), style: bspEscChip(tipo === 'pessoa') }, 'Uma pessoa'),
+      React.createElement("button", { type: 'button', onClick: () => setTipo('camada'), style: bspEscChip(tipo === 'camada') }, 'Uma camada e área')),
+    tipo === 'pessoa' ? React.createElement("label", null, rot('Pessoa'),
+      React.createElement("select", { value: pessoa, onChange: e => setPessoa(e.target.value), style: campo },
+        React.createElement("option", { value: '' }, 'Escolha…'),
+        pessoas.map(u => React.createElement("option", { key: u.id, value: u.id }, u.name + (u.dept ? ' · ' + u.dept : '') + (u.accessLevel ? ' (' + u.accessLevel + ')' : '')))))
+    : React.createElement(React.Fragment, null,
+      React.createElement("label", null, rot('Camada'),
+        React.createElement("select", { value: camada, onChange: e => setCamada(e.target.value), style: campo }, camadas.map(c => React.createElement("option", { key: c, value: c }, c)))),
+      React.createElement("label", null, rot('Área'),
+        React.createElement("select", { value: dept, onChange: e => setDept(e.target.value), style: campo },
+          React.createElement("option", { value: '' }, 'Sem área'),
+          DEPARTMENTS.map(d => React.createElement("option", { key: d.id, value: d.name }, d.name)))))));
+}
 /* No Inicio: quem esta de servico hoje, nas escalas publicadas que a
    pessoa pode ver. */
 function EscalaHojeCartao({ onAbrir }) {
@@ -21522,7 +21647,15 @@ function App() {
   const isMobile = useIsMobile();
   const [moreOpen, setMoreOpen] = React.useState(false);
   const [t, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
-  const currentUserBase = bspResolveUser(authedEmail, window.USERS);
+  const utilizadorReal = bspResolveUser(authedEmail, window.USERS);
+  const podeVerComo = bspPodeVerComo(utilizadorReal);
+  const vista = window.__bspVerComo && podeVerComo ? bspUtilizadorVista(window.__bspVerComo) : null;
+  /* Quem nao pode, ou uma vista que ja nao existe, sai do «Ver como». */
+  React.useEffect(() => {
+    if (window.__bspVerComo && authed && utilizadorReal && utilizadorReal.id !== 'self' && (!podeVerComo || !vista)) bspSairVerComo();
+  }, [authed, utilizadorReal && utilizadorReal.id, podeVerComo, !!vista]);
+  const [verComoAberto, setVerComoAberto] = React.useState(false);
+  const currentUserBase = vista || utilizadorReal;
   if (currentUserBase && currentUserBase.id && currentUserBase.id !== 'self') window.CURRENT_USER_ID = currentUserBase.id;
   const currentUser = {
     ...currentUserBase,
@@ -21583,15 +21716,19 @@ function App() {
       minWidth: 0,
       overflow: 'hidden'
     }
-  }, isMobile ? React.createElement(MobileTopbar, {
+  }, vista && React.createElement(FaixaVerComo, { vista: vista, real: utilizadorReal }),
+  React.createElement(VerComoModal, { open: verComoAberto, real: utilizadorReal, onClose: () => setVerComoAberto(false) }),
+  isMobile ? React.createElement(MobileTopbar, {
     current: pg,
     currentUser: currentUser,
     onMenu: () => setMoreOpen(true),
-    onSwitchPage: setPage
+    onSwitchPage: setPage,
+    onVerComo: podeVerComo && !vista ? () => setVerComoAberto(true) : null
   }) : React.createElement(Topbar, {
     current: pg,
     currentUser: currentUser,
-    onSwitchPage: setPage
+    onSwitchPage: setPage,
+    onVerComo: podeVerComo && !vista ? () => setVerComoAberto(true) : null
   }), React.createElement("main", {
     style: {
       flex: 1,
