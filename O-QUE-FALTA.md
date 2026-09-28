@@ -1398,8 +1398,12 @@ e-mail ou imprime-a. Modelo: «ESCALA DA RECEPÇÃO - SETEMBRO 2026.xlsx».
 - A escala da Recepção de Setembro de 2026 foi importada do Excel
   (publicada): Juliana 07:00–15:00 de segunda a sexta (corrigido pelo
   Elmar a 28-09-2026: o Excel dizia 08:00–17:30); Joaquina Joice e
-  Déricka Domingos 07:00–22:30, dia sim, dia não. Os turnos que o ecrã
-  propõe para a Recepção (`bspTurnosPadrao`) seguem o mesmo horário.
+  Déricka Domingos 07:00–22:30, dia sim, dia não. Numa escala nova da
+  Recepção e das áreas de saúde (Clínica, Enfermagem, Farmácia,
+  Laboratório, Radiologia), o ecrã propõe «Chefia» 07:00–15:00 de
+  segunda a sexta e «Turno longo» 07:00–22:30 todos os dias
+  (`bspTurnosPadrao`; pedido do Elmar, 28-09-2026). Editáveis em
+  «Turnos».
 - Ecrã «Escalas» (`EscalasScreen`, menu e «Mais» no telemóvel, rota
   `#/escalas`): grelha do mês de segunda a domingo (no telemóvel, lista
   por dia), turnos com cores (`--serie-1..4`), hoje em destaque. Quem

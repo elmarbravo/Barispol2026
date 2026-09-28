@@ -20054,8 +20054,10 @@ function bspEscalaAreaNome(chave) {
 }
 function bspTurnosPadrao(area) {
   const todos = [0, 1, 2, 3, 4, 5, 6];
-  if (area === 'recepcao') return [
-    { id: 't1', nome: 'Dia', inicio: '07:00', fim: '15:00', semana: [1, 2, 3, 4, 5] },
+  /* Recepcao e areas de saude (Elmar, 28-09-2026): a chefe da area faz
+     07:00-15:00 de segunda a sexta; os de rotacao, 07:00-22:30. */
+  if (area === 'recepcao' || BSP_AREAS_SAUDE.indexOf(area) !== -1) return [
+    { id: 't1', nome: 'Chefia', inicio: '07:00', fim: '15:00', semana: [1, 2, 3, 4, 5] },
     { id: 't2', nome: 'Turno longo', inicio: '07:00', fim: '22:30', semana: todos }];
   return [
     { id: 't1', nome: 'Manhã', inicio: '07:00', fim: '15:00', semana: todos },
