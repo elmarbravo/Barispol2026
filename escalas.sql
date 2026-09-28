@@ -95,11 +95,12 @@ create policy bsp_escalas_mudar on public.escalas for update to authenticated us
 create policy bsp_escalas_apagar on public.escalas for delete to authenticated using (public.bsp_e_gestor());
 
 -- A escala da Recepção de Setembro de 2026, tirada do Excel: Juliana
--- (u12) das 08:00 às 17:30 de segunda a sexta; Joaquina Joice (u8) e
+-- (u12) das 07:00 às 15:00 de segunda a sexta (horário corrigido pelo
+-- Elmar a 28-09-2026; o Excel dizia 08:00-17:30); Joaquina Joice (u8) e
 -- Déricka Domingos (u15) das 07:00 às 22:30, dia sim, dia não.
 insert into public.escalas (area, mes, turnos, dias, estado, criado_por, publicada_por)
 select 'recepcao', date '2026-09-01',
-  '[{"id":"t1","nome":"Dia","inicio":"08:00","fim":"17:30","semana":[1,2,3,4,5]},{"id":"t2","nome":"Turno longo","inicio":"07:00","fim":"22:30","semana":[0,1,2,3,4,5,6]}]'::jsonb,
+  '[{"id":"t1","nome":"Dia","inicio":"07:00","fim":"15:00","semana":[1,2,3,4,5]},{"id":"t2","nome":"Turno longo","inicio":"07:00","fim":"22:30","semana":[0,1,2,3,4,5,6]}]'::jsonb,
   '{"2026-09-01":{"t1":["u12"],"t2":["u8"]},"2026-09-02":{"t1":["u12"],"t2":["u15"]},"2026-09-03":{"t1":["u12"],"t2":["u8"]},"2026-09-04":{"t1":["u12"],"t2":["u15"]},"2026-09-05":{"t2":["u8"]},"2026-09-06":{"t2":["u15"]},"2026-09-07":{"t1":["u12"],"t2":["u8"]},"2026-09-08":{"t1":["u12"],"t2":["u15"]},"2026-09-09":{"t1":["u12"],"t2":["u8"]},"2026-09-10":{"t1":["u12"],"t2":["u15"]},"2026-09-11":{"t1":["u12"],"t2":["u8"]},"2026-09-12":{"t2":["u15"]},"2026-09-13":{"t2":["u8"]},"2026-09-14":{"t1":["u12"],"t2":["u15"]},"2026-09-15":{"t1":["u12"],"t2":["u8"]},"2026-09-16":{"t1":["u12"],"t2":["u15"]},"2026-09-17":{"t1":["u12"],"t2":["u8"]},"2026-09-18":{"t1":["u12"],"t2":["u15"]},"2026-09-19":{"t2":["u8"]},"2026-09-20":{"t2":["u15"]},"2026-09-21":{"t1":["u12"],"t2":["u8"]},"2026-09-22":{"t1":["u12"],"t2":["u15"]},"2026-09-23":{"t1":["u12"],"t2":["u8"]},"2026-09-24":{"t1":["u12"],"t2":["u15"]},"2026-09-25":{"t1":["u12"],"t2":["u8"]},"2026-09-26":{"t2":["u15"]},"2026-09-27":{"t2":["u8"]},"2026-09-28":{"t1":["u12"],"t2":["u15"]},"2026-09-29":{"t1":["u12"],"t2":["u8"]},"2026-09-30":{"t1":["u12"],"t2":["u15"]}}'::jsonb,
   'publicada', 'u12', 'u12'
 where not exists (select 1 from public.escalas where area = 'recepcao' and mes = date '2026-09-01');
