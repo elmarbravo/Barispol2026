@@ -157,6 +157,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   privada vai por `pess.actualizar`, nunca por `actions.updateTask`. A edição
   também muda `user_id` e `partilhada_com` (todos os da tarefa; só quem
   delega muda o dono).
+- Datas das tarefas (28-09-2026): início e fim obrigatórios
+  (`bspTarefaErroDatas` no `TaskComposer`; gatilho `bsp_tarefa_datas`,
+  `tarefas-datas.sql`). Equipa: `start`/`due`; privadas: `inicio`/`prazo`.
 - Marcações (26-09-2026): tabela `marcacoes` no Supabase
   (`marcacoes.sql`), ecrã `marcacoes` (`MarcacoesScreen`). Acesso igual
   nos dois lados: `bspVeMarcacoes` (Recepção, u14, gestão) e

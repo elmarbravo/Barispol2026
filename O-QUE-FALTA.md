@@ -1320,3 +1320,30 @@ crédito no Painel, a vermelho.
       Pessoas); hoje ninguém está nele.
 - [ ] Atribuir a categoria «Sócio» às pessoas certas (Admin → Pessoas).
 
+
+## 3-ai. Tarefas com data de início e de fim (28-09-2026)
+
+Pedido do Elmar: as tarefas têm de ter, obrigatoriamente, data de início
+e de fim.
+
+- «Nova tarefa» e «Editar tarefa» (`TaskComposer`) têm «Data de início»
+  (hoje, por omissão) e «Data de fim», as duas obrigatórias. Sem uma
+  delas, ou com o fim antes do início, não grava e diz porquê
+  (`bspTarefaErroDatas`, campos em `CampoDataTarefa`).
+- Tarefas da equipa: `start` e `due` em `shared_state.tasks`. Tarefas
+  privadas: colunas `inicio` e `prazo` em `tarefas_pessoais`
+  (`tarefas-datas.sql`).
+- Servidor: o gatilho `bsp_tarefa_datas` recusa uma tarefa privada nova
+  sem as duas datas ou com o fim antes do início. Mover no quadro não
+  pede datas; mudar as datas pede as duas.
+- As 8 tarefas privadas que já existiam receberam como início o dia em
+  que foram criadas. 4 não têm fim: o cartão diz «Sem data de fim: edite
+  a tarefa», a vermelho, e ao editar é preciso preenchê-lo. O quadro da
+  equipa estava vazio.
+- O cartão mostra «Início: … · Fim: …»; o fim fica a vermelho quando
+  passou. Os e-mails de tarefa delegada ou atribuída dizem as duas datas.
+- Testado no computador e no telemóvel: cartões, recusa sem fim, recusa
+  com fim antes do início, gravação de uma tarefa antiga e criação de uma
+  nova.
+- Novidade registada para toda a equipa (sai a 29-09 às 05h00).
+- [ ] Preencher a data de fim nas 4 tarefas privadas antigas.

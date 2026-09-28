@@ -11539,6 +11539,36 @@ function CallBtn({
     }
   }, icon);
 }
+/* Datas da tarefa (28-09-2026): as duas sao obrigatorias e o fim nao
+   vem antes do inicio. Devolve o motivo, ou '' se estiver tudo bem. A
+   mesma regra esta no servidor (bsp_tarefa_datas, tarefas-datas.sql). */
+function bspTarefaErroDatas(inicio, fim) {
+  const ok = v => /^\d{4}-\d{2}-\d{2}$/.test(v || '');
+  if (!ok(inicio) && !ok(fim)) return 'Indique a data de início e a data de fim.';
+  if (!ok(inicio)) return 'Indique a data de início.';
+  if (!ok(fim)) return 'Indique a data de fim.';
+  if (fim < inicio) return 'A data de fim não pode ser anterior à de início.';
+  return '';
+}
+function CampoDataTarefa({ rotulo, valor, minimo, mudar }) {
+  return React.createElement("label", { style: { display: 'block', minWidth: 0 } }, React.createElement("span", {
+    style: { fontSize: 12, fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 6 }
+  }, rotulo, React.createElement("span", { style: { color: 'var(--perigo)' } }, ' *')), React.createElement("input", {
+    type: "date",
+    required: true,
+    value: valor,
+    min: minimo || undefined,
+    onChange: e => mudar(e.target.value),
+    style: {
+      width: '100%',
+      /* No iPhone o campo de data ficava mais largo do que os outros. */
+      boxSizing: 'border-box', display: 'block', minWidth: 0, maxWidth: '100%',
+      WebkitAppearance: 'none', appearance: 'none', textAlign: 'left',
+      height: 40, padding: '0 12px', border: '1px solid var(--border)', borderRadius: 8,
+      fontSize: 13.5, fontFamily: 'inherit', color: 'var(--text-1)', background: 'var(--surface)', outline: 'none'
+    }
+  }));
+}
 function TaskComposer({
   open,
   onClose,
@@ -11587,6 +11617,10 @@ function TaskComposer({
      as outras partilham-na. Quem nao delega so escolhe com quem partilha. */
   const [pessoas, setPessoas] = React.useState([window.CURRENT_USER_ID]);
   const [prazo, setPrazo] = React.useState('');
+  /* Datas obrigatorias (pedido do Elmar, 28-09-2026): inicio e fim. O
+     fim continua em due / prazo; o inicio vai em start / inicio. */
+  const [inicio, setInicio] = React.useState('');
+  const [erroDatas, setErroDatas] = React.useState('');
   /* Quem esta na tarefa (dono, partilhada ou quem delega) edita-a toda
      depois de criada, pessoas incluidas (pedido do Elmar, 25-09-2026). */
   const mudaPessoas = !!(editTask && editTask.pessoal && editTask.donoId);
@@ -11606,10 +11640,14 @@ function TaskComposer({
       setParaQuem(window.CURRENT_USER_ID);
       setPessoas(editTask && editTask.pessoal && editTask.donoId ? [editTask.donoId].concat(editTask.partilhadaCom || []) : [window.CURRENT_USER_ID]);
       setPrazo(editTask && editTask.due ? String(editTask.due).slice(0, 10) : '');
+      setInicio(editTask && editTask.start ? String(editTask.start).slice(0, 10) : (editTask ? '' : bspDataLocalISO(new Date())));
+      setErroDatas('');
     }
   }, [open, defaultCol, editTask]);
   const submit = () => {
     if (!title.trim()) return;
+    const faltaData = bspTarefaErroDatas(inicio, prazo);
+    if (faltaData) { setErroDatas(faltaData); return; }
     if (editTask && editTask.pessoal && onUpdatePessoal) {
       /* Antes, editar uma tarefa privada ia para o quadro da equipa e nao
          gravava nada (25-09-2026). */
@@ -11617,7 +11655,8 @@ function TaskComposer({
         coluna: col,
         titulo: title.trim(),
         prioridade: prio,
-        prazo: prazo || null
+        inicio: inicio,
+        prazo: prazo
       };
       /* Pessoas (25-09-2026): quem esta na tarefa muda com quem se partilha;
          a Direccao e a Coordenacao mudam tambem a quem pertence. */
@@ -11640,6 +11679,7 @@ function TaskComposer({
         title: title.trim(),
         priority: prio,
         assignees: who,
+        start: inicio,
         due: prazo
       });
       onClose();
@@ -11658,6 +11698,7 @@ function TaskComposer({
       dono: pessoal ? dono : undefined,
       partilhadaCom: partilhadaCom,
       tags: [],
+      start: inicio,
       due: prazo,
       proj: ''
     });
@@ -11665,12 +11706,12 @@ function TaskComposer({
     if (pessoal) escolhidos.filter(id => id !== eu).forEach(idPessoa => {
       const u = USERS.find(x => x.id === idPessoa);
       const partilhada = escolhidos.length > 1;
-      if (u && u.email) bspSendEmail(u.email, '[Workspace] Nova tarefa para si: ' + title.trim(), bspEmailWrap(partilhada ? 'Tem uma tarefa partilhada' : 'Foi-lhe delegada uma tarefa', bspEmailTexto((me ? me.name : 'A Direcção') + (partilhada ? ' partilhou consigo a tarefa “' : ' delegou-lhe a tarefa “') + title.trim() + '”' + (prazo ? ', com prazo a ' + bspDataCurta(prazo) : '') + '. Só as pessoas da tarefa, a Direcção e a Coordenação a vêem.'), 'tarefas', 'Ver a tarefa'));
+      if (u && u.email) bspSendEmail(u.email, '[Workspace] Nova tarefa para si: ' + title.trim(), bspEmailWrap(partilhada ? 'Tem uma tarefa partilhada' : 'Foi-lhe delegada uma tarefa', bspEmailTexto((me ? me.name : 'A Direcção') + (partilhada ? ' partilhou consigo a tarefa “' : ' delegou-lhe a tarefa “') + title.trim() + '”, de ' + bspDataCurta(inicio) + ' a ' + bspDataCurta(prazo) + '. Só as pessoas da tarefa, a Direcção e a Coordenação a vêem.'), 'tarefas', 'Ver a tarefa'));
     });
     if (!pessoal) who.forEach(id => {
       if (id === window.CURRENT_USER_ID) return;
       const u = USERS.find(x => x.id === id);
-      if (u && u.email) bspSendEmail(u.email, '[Workspace] Nova tarefa para si: ' + title.trim(), bspEmailWrap('Foi-lhe atribuída uma tarefa', (me ? me.name : 'Um colega') + ' atribuiu-lhe a tarefa “' + title.trim() + '”.', 'tarefas', 'Ver a tarefa'));
+      if (u && u.email) bspSendEmail(u.email, '[Workspace] Nova tarefa para si: ' + title.trim(), bspEmailWrap('Foi-lhe atribuída uma tarefa', (me ? me.name : 'Um colega') + ' atribuiu-lhe a tarefa “' + title.trim() + '”, de ' + bspDataCurta(inicio) + ' a ' + bspDataCurta(prazo) + '.', 'tarefas', 'Ver a tarefa'));
     });
     onClose();
   };
@@ -11788,44 +11829,21 @@ function TaskComposer({
     value: title,
     onChange: setTitle,
     placeholder: "Ex.: Confirmar escala de enfermagem"
-  })), React.createElement("div", null, React.createElement("label", {
-    style: {
-      fontSize: 12,
-      fontWeight: 600,
-      color: 'var(--text-2)',
-      display: 'block',
-      marginBottom: 6
-    }
-  }, "Prazo ", React.createElement("span", {
-    style: {
-      fontWeight: 400,
-      color: 'var(--text-3)'
-    }
-  }, "(opcional)")), React.createElement("input", {
-    type: "date",
-    value: prazo,
-    onChange: e => setPrazo(e.target.value),
-    style: {
-      width: '100%',
-      /* No iPhone o campo de data ficava mais largo do que os outros. */
-      boxSizing: 'border-box',
-      display: 'block',
-      minWidth: 0,
-      maxWidth: '100%',
-      WebkitAppearance: 'none',
-      appearance: 'none',
-      textAlign: 'left',
-      height: 40,
-      padding: '0 12px',
-      border: '1px solid var(--border)',
-      borderRadius: 8,
-      fontSize: 13.5,
-      fontFamily: 'inherit',
-      color: 'var(--text-1)',
-      background: 'var(--surface)',
-      outline: 'none'
-    }
-  })), React.createElement("div", null, React.createElement("label", {
+  })), React.createElement("div", null, React.createElement("div", {
+    style: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 10 }
+  }, React.createElement(CampoDataTarefa, {
+    rotulo: 'Data de início',
+    valor: inicio,
+    mudar: v => { setInicio(v); setErroDatas(''); }
+  }), React.createElement(CampoDataTarefa, {
+    rotulo: 'Data de fim',
+    valor: prazo,
+    minimo: inicio,
+    mudar: v => { setPrazo(v); setErroDatas(''); }
+  })), erroDatas ? React.createElement("div", {
+    role: 'alert',
+    style: { fontSize: 12, color: 'var(--perigo)', marginTop: 6 }
+  }, erroDatas) : null), React.createElement("div", null, React.createElement("label", {
     style: {
       fontSize: 12,
       fontWeight: 600,
@@ -12165,6 +12183,7 @@ function useTarefasPessoais() {
       coluna: coluna,
       titulo: dados.title,
       prioridade: dados.priority || 'media',
+      inicio: dados.start || null,
       prazo: dados.due || null,
       partilhada_com: Array.isArray(dados.partilhadaCom) ? dados.partilhadaCom : [],
       ordem: Date.now() % 2000000000
@@ -12219,6 +12238,7 @@ function useTarefasPessoais() {
         title: t.titulo,
         priority: t.prioridade,
         due: t.prazo || '',
+        start: t.inicio || '',
         /* Partilhada: o dono e as outras pessoas aparecem nos avatares. */
         partilhada: Array.isArray(t.partilhada_com) && t.partilhada_com.length > 0,
         donoId: t.user_id,
@@ -12732,16 +12752,17 @@ function TaskCard({
       opacity: t.done ? .6 : 1,
       cursor: 'pointer'
     }
-  }, t.title), t.due && React.createElement("div", {
-    /* Prazo (25-09-2026): a vermelho quando ja passou. */
+  }, t.title), React.createElement("div", {
+    /* Datas (28-09-2026): inicio e fim; o fim a vermelho quando ja passou
+       (25-09-2026), e as antigas sem fim assinaladas. */
     style: {
       fontSize: 11.5,
       fontWeight: 600,
       marginBottom: 6,
       /* Concluida nao esta em atraso (26-09-2026). */
-      color: !concluida && !t.done && String(t.due).slice(0, 10) < bspDataLocalISO(new Date()) ? '#DC2626' : 'var(--text-2)'
+      color: !concluida && !t.done && (!t.due || String(t.due).slice(0, 10) < bspDataLocalISO(new Date())) ? 'var(--perigo)' : 'var(--text-2)'
     }
-  }, 'Prazo: ' + bspDataCurta(t.due) + (!concluida && !t.done && String(t.due).slice(0, 10) < bspDataLocalISO(new Date()) ? ' · em atraso' : '')), t.proj && React.createElement("div", {
+  }, (t.start ? 'Início: ' + bspDataCurta(t.start) + ' · ' : '') + (t.due ? 'Fim: ' + bspDataCurta(t.due) : 'Sem data de fim: edite a tarefa') + (t.due && !concluida && !t.done && String(t.due).slice(0, 10) < bspDataLocalISO(new Date()) ? ' · em atraso' : '')), t.proj && React.createElement("div", {
     style: {
       fontSize: 11,
       color: 'var(--text-3)',
