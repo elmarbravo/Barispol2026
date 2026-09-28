@@ -20174,7 +20174,10 @@ function bspHorasTxt(min) {
   const h = Math.floor(min / 60), m = Math.round(min % 60);
   return h + 'h' + (m ? String(m).padStart(2, '0') : '');
 }
+/* Pessoas sem conta no Workspace entram na escala so pelo nome, com o
+   prefixo «x:» (28-09-2026: Servicos Gerais). Nao recebem e-mail. */
 function bspNomeCurto(id) {
+  if (String(id || '').indexOf('x:') === 0) return String(id).slice(2);
   const u = window.userById ? window.userById(id) : null;
   if (!u || !u.name) return 'Colega';
   return String(u.name).trim().split(/\s+/).slice(0, 2).join(' ');
@@ -20197,7 +20200,7 @@ function bspEscalaAnalise(e) {
     const noDia = {};
     (e.turnos || []).forEach(t => {
       const lista = (d[t.id] || []).filter(Boolean);
-      if (bspTurnoAplica(t, iso) && !lista.length) vazios[t.id].push(iso);
+      if (bspTurnoAplica(t, iso) && !lista.length && !t.opcional) vazios[t.id].push(iso);
       const min = bspTurnoMinutos(t), ini = bspMinutos(t.inicio) || 0;
       lista.forEach(uid => {
         const p = pessoas[uid] = pessoas[uid] || { id: uid, dias: {}, minutos: 0, fds: 0, turnos: 0 };
@@ -20311,7 +20314,7 @@ function bspEscalaHtml(e) {
     const w = bspDiaSemana(iso);
     const blocos = turnos.map((t, i) => {
       const lista = d[t.id] || [];
-      if (!lista.length && !bspTurnoAplica(t, iso)) return '';
+      if (!lista.length && (t.opcional || !bspTurnoAplica(t, iso))) return '';
       return '<div class="t" style="border-left-color:' + cor(i) + '"><span class="h">' + bspEscHtml(t.inicio + '–' + t.fim) + '</span>' +
         (lista.length ? lista.map(id => '<b>' + bspEscHtml(bspNomeCurto(id)) + '</b>').join('') : '<b class="v">—</b>') + '</div>';
     }).join('');
@@ -20445,11 +20448,15 @@ const bspEscBotao = principal => ({ height: 36, padding: '0 14px', borderRadius:
 const bspEscChip = (on, cor) => ({ minHeight: 32, padding: '4px 12px', borderRadius: 999, border: '1px solid ' + (on ? (cor || 'var(--accent-d)') : 'var(--border)'), background: on ? 'var(--accent-soft)' : 'var(--surface)', color: on ? 'var(--accent-d)' : 'var(--text-2)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6 });
 const bspEscCampo = { height: 36, padding: '0 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 13, boxSizing: 'border-box', minWidth: 0 };
 /* Pessoas da area primeiro; as outras so quando se pedem. */
-function EscalaPessoas({ area, escolhidas, onMudar, ordem }) {
+function EscalaPessoas({ area, escolhidas, onMudar, ordem, extras }) {
   const [todas, setTodas] = React.useState(false);
+  const [novo, setNovo] = React.useState('');
   const daArea = (window.USERS || []).filter(u => bspAreaChave(u.dept) === area);
   const outras = (window.USERS || []).filter(u => bspAreaChave(u.dept) !== area && !bspESocio(u));
-  const lista = daArea.concat(todas ? outras : outras.filter(u => escolhidas.indexOf(u.id) !== -1));
+  /* Quem nao tem conta: os que ja estao na escala e os escolhidos agora. */
+  const semConta = Array.from(new Set((extras || []).concat(escolhidas.filter(id => String(id).indexOf('x:') === 0)))).map(id => ({ id }));
+  const lista = daArea.concat(todas ? outras : outras.filter(u => escolhidas.indexOf(u.id) !== -1)).concat(semConta);
+  const juntarNovo = () => { const n = novo.trim().replace(/\s+/g, ' '); if (!n) return; const id = 'x:' + n; if (escolhidas.indexOf(id) === -1) onMudar(escolhidas.concat([id])); setNovo(''); };
   const alternar = id => onMudar(escolhidas.indexOf(id) !== -1 ? escolhidas.filter(x => x !== id) : escolhidas.concat([id]));
   return React.createElement("div", null,
     React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } },
@@ -20461,7 +20468,16 @@ function EscalaPessoas({ area, escolhidas, onMudar, ordem }) {
       }),
       !lista.length && React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Ninguém nesta área.')),
     React.createElement("button", { type: 'button', onClick: () => setTodas(v => !v), style: { marginTop: 8, border: 0, background: 'transparent', color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 } },
-      todas ? 'Mostrar só a área' : 'Pôr alguém de outra área'));
+      todas ? 'Mostrar só a área' : 'Pôr alguém de outra área'),
+    React.createElement("div", { style: { display: 'flex', gap: 6, marginTop: 8 } },
+      React.createElement("input", { value: novo, onChange: e => setNovo(e.target.value), onKeyDown: e => { if (e.key === 'Enter') { e.preventDefault(); juntarNovo(); } }, placeholder: 'Nome de quem não tem conta no Workspace', style: Object.assign({}, bspEscCampo, { flex: 1, height: 32 }) }),
+      React.createElement("button", { type: 'button', onClick: juntarNovo, style: Object.assign(bspEscChip(false), { minHeight: 32 }) }, 'Juntar')));
+}
+/* Os nomes sem conta que ja aparecem numa escala. */
+function bspEscalaSemConta(e) {
+  const vistos = {};
+  Object.keys((e && e.dias) || {}).forEach(iso => { const d = e.dias[iso] || {}; Object.keys(d).forEach(k => { if (Array.isArray(d[k])) d[k].forEach(id => { if (String(id).indexOf('x:') === 0) vistos[id] = true; }); }); });
+  return Object.keys(vistos).sort(bspCompararTexto);
 }
 function EscalaDiaModal({ open, iso, escala, onClose, onGuardar }) {
   const [d, setD] = React.useState({});
@@ -20485,7 +20501,7 @@ function EscalaDiaModal({ open, iso, escala, onClose, onGuardar }) {
         React.createElement("span", { style: { width: 10, height: 10, background: 'var(' + BSP_ESCALA_CORES[i % 4] + ')', flex: 'none' } }),
         React.createElement("b", { style: { fontSize: 13.5, color: 'var(--text-1)' } }, t.nome),
         React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, t.inicio + '–' + t.fim + (bspTurnoAplica(t, iso) ? '' : ' · normalmente não há a ' + nomeDia))),
-      React.createElement(EscalaPessoas, { area: escala.area, escolhidas: d[t.id] || [], onMudar: l => setD(x => Object.assign({}, x, { [t.id]: l })) }))),
+      React.createElement(EscalaPessoas, { area: escala.area, escolhidas: d[t.id] || [], extras: bspEscalaSemConta(escala), onMudar: l => setD(x => Object.assign({}, x, { [t.id]: l })) }))),
     React.createElement("label", { style: { display: 'block' } },
       React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 6 } }, 'Nota do dia (folga, troca, feriado…)'),
       React.createElement("input", { value: d._n || '', onChange: ev => setD(x => Object.assign({}, x, { _n: ev.target.value })), placeholder: 'Opcional', style: Object.assign({}, bspEscCampo, { width: '100%' }) })),
@@ -20517,7 +20533,9 @@ function EscalaTurnosModal({ open, escala, onClose, onGuardar }) {
           const on = (t.semana || []).indexOf(w) !== -1;
           return React.createElement("button", { key: w, type: 'button', onClick: () => mudar(i, 'semana', on ? (t.semana || []).filter(x => x !== w) : (t.semana || []).concat([w])), style: Object.assign(bspEscChip(on), { minHeight: 28, padding: '0 10px' }) }, BSP_ESCALA_SEMANA[w]);
         }),
-        React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)', marginLeft: 6 } }, bspHorasTxt(bspTurnoMinutos(t)) + ' por turno')))),
+        React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)', marginLeft: 6 } }, bspHorasTxt(bspTurnoMinutos(t)) + ' por turno'),
+        React.createElement("label", { style: { display: 'inline-flex', gap: 6, alignItems: 'center', fontSize: 12, color: 'var(--text-2)', marginLeft: 'auto', cursor: 'pointer' } },
+          React.createElement("input", { type: 'checkbox', checked: !!t.opcional, onChange: e => mudar(i, 'opcional', e.target.checked) }), 'Pode ficar vazio')))),
     React.createElement("button", { type: 'button', onClick: () => setTs(l => l.concat([{ id: 't' + Date.now().toString(36), nome: '', inicio: '08:00', fim: '16:00', semana: [0, 1, 2, 3, 4, 5, 6] }])), style: bspEscBotao(false) }, React.createElement(I.Plus, { size: 14 }), 'Acrescentar turno'),
     erro && React.createElement("div", { role: 'alert', style: { fontSize: 12.5, color: 'var(--perigo)' } }, erro)));
 }
@@ -20550,7 +20568,7 @@ function EscalaPreencherModal({ open, escala, onClose, onAplicar }) {
         React.createElement("button", { type: 'button', onClick: () => setModo('fixo'), style: bspEscChip(modo === 'fixo') }, 'Fixo: as mesmas todos os dias'))),
     React.createElement("div", null,
       React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 } }, modo === 'alternar' ? 'Pessoas, pela ordem da rotação (a 1.ª fica com o dia 1)' : 'Pessoas'),
-      React.createElement(EscalaPessoas, { area: escala.area, escolhidas: pessoas, onMudar: setPessoas, ordem: modo === 'alternar' })),
+      React.createElement(EscalaPessoas, { area: escala.area, escolhidas: pessoas, extras: bspEscalaSemConta(escala), onMudar: setPessoas, ordem: modo === 'alternar' })),
     React.createElement("label", { style: { display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, color: 'var(--text-1)', cursor: 'pointer' } },
       React.createElement("input", { type: 'checkbox', checked: soVazios, onChange: e => setSoVazios(e.target.checked) }), 'Só os dias ainda vazios'),
     previa && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', background: 'var(--surface-2)', padding: '10px 12px', borderRadius: 8 } }, previa)));
@@ -20673,7 +20691,7 @@ function EscalasScreen({ currentUser }) {
     const d = (e.dias || {})[iso] || {};
     return (e.turnos || []).map((t, i) => {
       const l = d[t.id] || [];
-      if (!l.length && !bspTurnoAplica(t, iso)) return null;
+      if (!l.length && (t.opcional || !bspTurnoAplica(t, iso))) return null;
       return React.createElement("div", { key: t.id, style: { borderLeft: '3px solid var(' + BSP_ESCALA_CORES[i % 4] + ')', paddingLeft: 6, marginTop: 4, fontSize: compacto ? 11.5 : 13, lineHeight: 1.3 } },
         !compacto && React.createElement("span", { style: { color: 'var(--text-3)', marginRight: 6 } }, t.nome + ' ' + t.inicio + '–' + t.fim),
         l.length ? React.createElement("span", { style: { fontWeight: 600, color: l.indexOf(eu.id) !== -1 ? 'var(--accent-d)' : 'var(--text-1)' } }, l.map(bspNomeCurto).join(', '))

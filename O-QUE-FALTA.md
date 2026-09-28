@@ -1458,3 +1458,24 @@ de outra área.
 - Quem não é da Direcção e tenha a vista guardada sai dela sozinho.
 - Testado no computador e no telemóvel: vista da Joaquina (sem Admin,
   Painel nem CRM), três gravações recusadas, regresso ao Elmar.
+
+## 3-am. Escalas do Laboratório e dos Serviços Gerais (28-09-2026)
+
+- Turnos que podem ficar vazios (`opcional`, caixa «Pode ficar vazio» em
+  «Turnos»): não dão aviso nem aparecem vazios na grelha nem no papel.
+- Pessoas sem conta no Workspace entram na escala só pelo nome (id
+  `x:Nome`, campo «Nome de quem não tem conta» ao escolher pessoas). Não
+  recebem e-mail.
+- Laboratório, Setembro de 2026 (do PDF assinado pela Rosa Queirós e pelo
+  Osvaldo Pacheco), publicada, sem e-mails: Chefia 07:00–15:45 e Chefia
+  (até às 15:00) 07:00–15:00 para a Rosa; Turno longo 07:00–22:30 e Tarde
+  15:00–22:30 para a Cássia e o Nicolau. No PDF, o dia 28 aparece como
+  «24» e os dias 2 e 10 trazem um «2» antes do nome: lidos como gralhas.
+- Serviços Gerais, Outubro de 2026 (do Excel), em rascunho: Manhã
+  07:00–15:45 (duas pessoas) e Tarde 15:00–22:30, com Maria, Angelina,
+  Inês e Loide, que não estão na equipa do Workspace (entram como
+  pessoas sem conta).
+- [ ] Decidir se Maria, Angelina, Inês e Loide entram na equipa (com
+      e-mail, para receberem a escala) e publicar a de Outubro.
+- Há rascunhos de Setembro feitos no ecrã: Administração e Clínica
+  vazios, Enfermagem com 30 dias. Não foram mexidos.
