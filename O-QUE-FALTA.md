@@ -1515,8 +1515,9 @@ só de quem sai às 22:30; as rotas mudam com as pessoas de serviço.
   - Testado no telemóvel e no computador como o Emmanuel: lista das 22:30
     pelas escalas, pedido de motivo (17 km), rota com «Deixado», fim de
     viagem, contas do mês. Sem erros.
-- [ ] Identificar a «Rosa (Mufulama)» do dia 24 (Joana e Isabel são do
-      Raio X, Afonso é enfermeiro; todos sem conta).
+- A «Rosa (Mufulama)» do dia 24 é a Rosa Queirós (u13, Laboratório):
+  corrigido na viagem e nos bairros (29-09-2026). Joana e Isabel são do
+  Raio X e Afonso é enfermeiro, todos sem conta.
 - Feito (29-09-2026, pedido do Elmar): alterações na rota e verificação.
   «Juntar pessoa» (`TranspJuntarModal`) com motivo; «Não foi» pede o
   motivo (`BSP_TRANSP_MOTIVOS`: por conta própria, faltou, trocou de
