@@ -1479,3 +1479,18 @@ de outra área.
       e-mail, para receberem a escala) e publicar a de Outubro.
 - Há rascunhos de Setembro feitos no ecrã: Administração e Clínica
   vazios, Enfermagem com 30 dias. Não foram mexidos.
+
+## 3-an. Transporte (29-09-2026)
+
+Pedido do motorista (Emmanuel, u22): reportar as rotas. Respostas do
+Elmar: transporte de pessoal, amostras e compras (nunca doentes); pessoal
+só de quem sai às 22:30; as rotas mudam com as pessoas de serviço.
+
+- Feito: grupo privado `#transporte` (id `g-1790640961575`) no
+  `shared_state.channels`, com Emmanuel (u22), Arlete (u2) e Elmar (u1);
+  a Direcção e a Coordenação vêem os grupos privados.
+- [ ] Ecrã «Transporte»: lista das 22:30 tirada das escalas publicadas,
+      paragens por ordem, «deixado às …» por pessoa, amostras e compras,
+      km e combustível, relatório diário à Arlete e à Direcção. Zonas de
+      residência visíveis só ao motorista, à Arlete e à Direcção. Espera
+      pelas últimas rotas que o Elmar vai enviar.
