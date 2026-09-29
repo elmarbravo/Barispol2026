@@ -20920,6 +20920,52 @@ function bspDiaServico(d) {
   const x = d || new Date();
   return x.getHours() < 6 ? bspSomarDias(bspDataLocalISO(x), -1) : bspDataLocalISO(x);
 }
+/* Verificacao da rota (29-09-2026): quem usou o transporte, quem nao usou
+   e porque, e quem entrou fora da escala (para a chefe acertar a escala). */
+const BSP_TRANSP_MOTIVOS = ['Foi por conta própria', 'Faltou ao serviço', 'Trocou de turno', 'Ficou na clínica', 'Outro'];
+function bspParagemTexto(p, nomeDe) {
+  return nomeDe(p.quem) + (p.zona ? ' (' + p.zona + ')' : '') +
+    (p.falta ? ' — não usou' + (p.motivo ? ': ' + p.motivo.toLowerCase() : '') : p.deixado_em ? ' — ' + bspHoraCurta(p.deixado_em) : '') +
+    (p.fora_escala ? ' · fora da escala' : '') + (p.nota ? ' · ' + p.nota : '');
+}
+function bspTranspVerificacao(paragens) {
+  const l = paragens || [];
+  return { usaram: l.filter(p => !p.falta).length, naoUsaram: l.filter(p => p.falta).length, fora: l.filter(p => p.fora_escala && !p.falta).length };
+}
+function TranspNaoFoiModal({ open, nome, onClose, onGravar }) {
+  const [motivo, setMotivo] = React.useState('');
+  const [outro, setOutro] = React.useState('');
+  const [subst, setSubst] = React.useState([]);
+  React.useEffect(() => { if (open) { setMotivo(''); setOutro(''); setSubst([]); } }, [open]);
+  if (!open) return null;
+  const final = motivo === 'Outro' ? outro.trim() : motivo;
+  return React.createElement(Modal, {
+    open, onClose, width: 480, title: nome + ' não usou o transporte',
+    footer: React.createElement(React.Fragment, null,
+      React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: onClose }, 'Cancelar'),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: () => { if (!final) return; onGravar(final, subst); onClose(); } }, 'Gravar'))
+  }, React.createElement("div", { style: { padding: 20, display: 'flex', flexDirection: 'column', gap: 16 } },
+    React.createElement("div", null, bspTranspRot('Porquê?'),
+      React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } }, BSP_TRANSP_MOTIVOS.map(m => React.createElement("button", { key: m, type: 'button', onClick: () => setMotivo(m), style: bspEscChip(motivo === m) }, m))),
+      motivo === 'Outro' && React.createElement("input", { value: outro, onChange: e => setOutro(e.target.value), placeholder: 'Escreva o motivo', style: Object.assign({}, bspTranspCampo, { marginTop: 8 }) })),
+    (motivo === 'Trocou de turno' || motivo === 'Faltou ao serviço') && React.createElement("div", null, bspTranspRot('Quem ficou no lugar dela (opcional)'),
+      React.createElement(EscalaPessoas, { area: '', escolhidas: subst, onMudar: l => setSubst(l.slice(-1)) }))));
+}
+function TranspJuntarModal({ open, onClose, onGravar }) {
+  const [quem, setQuem] = React.useState([]);
+  const [nota, setNota] = React.useState('');
+  React.useEffect(() => { if (open) { setQuem([]); setNota(''); } }, [open]);
+  if (!open) return null;
+  return React.createElement(Modal, {
+    open, onClose, width: 480, title: 'Juntar pessoa à rota',
+    footer: React.createElement(React.Fragment, null,
+      React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: onClose }, 'Cancelar'),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: () => { if (!quem.length) return; onGravar(quem, nota.trim()); onClose(); } }, 'Juntar à rota'))
+  }, React.createElement("div", { style: { padding: 20, display: 'flex', flexDirection: 'column', gap: 16 } },
+    React.createElement("div", null, bspTranspRot('Quem'), React.createElement(EscalaPessoas, { area: '', escolhidas: quem, onMudar: setQuem })),
+    React.createElement("label", null, bspTranspRot('Porquê (opcional)'),
+      React.createElement("input", { value: nota, onChange: e => setNota(e.target.value), placeholder: 'Ex.: ficou até mais tarde, substitui colega', style: bspTranspCampo }))));
+}
 function useTransporte() {
   const [st, setSt] = React.useState({ estado: 'a-carregar', viagens: [], abast: [], zonas: {}, erro: '' });
   const [tick, setTick] = React.useState(0);
@@ -20997,7 +21043,8 @@ function TranspIniciarModal({ open, tipo, ultimoKm, zonas, saidas, onClose, onFe
         const r0 = await cl.from('transporte_viagens').insert({ data: dia, tipo: 'ligacao', km_inicio: ultimoKm, km_fim: n, hora_fim: new Date().toISOString(), nota: motivo.trim() });
         if (r0.error) throw r0.error;
       }
-      const paragens = quem.map(id => ({ quem: id, zona: zonas[id] || '' }));
+      const naEscala = (saidas || []).map(x => x.pessoa);
+      const paragens = quem.map(id => Object.assign({ quem: id, zona: zonas[id] || '' }, tipo === 'pessoal' && naEscala.indexOf(id) === -1 ? { fora_escala: true } : {}));
       const r = await cl.from('transporte_viagens').insert({ data: dia, tipo, km_inicio: n, hora_inicio: new Date().toISOString(), destino: destino.trim(), paragens, foto_inicio: caminho });
       if (r.error) throw r.error;
       onFeito(); onClose();
@@ -21050,7 +21097,7 @@ function TranspKmModal({ open, titulo, minimo, pedirFoto, pedirNota, onClose, on
       React.createElement("input", { value: nota, onChange: e => setNota(e.target.value), placeholder: 'Trânsito, avaria, atraso…', style: bspTranspCampo })),
     erro && km && React.createElement("div", { role: 'alert', style: { fontSize: 13, color: 'var(--perigo)' } }, erro)));
 }
-function TranspAbastModal({ open, ultimoKm, onClose, onFeito }) {
+function TranspAbastModal({ open, ultimoKm, anteriores, onClose, onFeito }) {
   const toast = useToast();
   const [f, setF] = React.useState({ km: '', litros: '', valor: '', nota: '' });
   const [foto, setFoto] = React.useState(null);
@@ -21067,6 +21114,10 @@ function TranspAbastModal({ open, ultimoKm, onClose, onFeito }) {
       const caminho = foto ? await bspTranspFoto(foto) : null;
       const r = await bspGetClient().from('transporte_abastecimentos').insert({ km: Math.round(num(f.km)), litros: num(f.litros), valor: num(f.valor) || 0, nota: f.nota.trim(), foto: caminho });
       if (r.error) throw r.error;
+      /* Consumo desde o abastecimento anterior (deposito cheio). */
+      const ant = (anteriores || []).filter(a => a.km < num(f.km)).sort((a, b) => b.km - a.km)[0];
+      if (ant) toast('Desde o último abastecimento: ' + (Math.round(num(f.km)) - ant.km) + ' km · ' + ((Math.round(num(f.km)) - ant.km) / num(f.litros)).toFixed(1).replace('.', ',') + ' km por litro.');
+      else toast('Abastecimento gravado.');
       onFeito(); onClose();
     } catch (e) { toast('Não foi possível gravar: ' + (e && e.message || e)); setAGravar(false); }
   };
@@ -21129,6 +21180,15 @@ function TransporteScreen({ currentUser }) {
   };
   const paragens = aberta ? (aberta.paragens || []) : [];
   const mexerParagem = (i, fn) => mudarAberta({ paragens: paragens.map((p, k) => k === i ? fn(Object.assign({}, p)) : p) });
+  const [naoFoi, setNaoFoi] = React.useState(null);
+  const naEscalaHoje = saidas.map(x => x.pessoa);
+  const gravarNaoFoi = (motivo, subst) => {
+    const i = naoFoi;
+    const l = paragens.map((p, k) => k === i ? Object.assign({}, p, { falta: true, motivo }) : p);
+    if (subst && subst[0] && !l.some(p => p.quem === subst[0])) l.splice(i + 1, 0, { quem: subst[0], zona: t.zonas[subst[0]] || '', fora_escala: naEscalaHoje.indexOf(subst[0]) === -1, nota: 'no lugar de ' + nomeDe(paragens[i].quem) });
+    mudarAberta({ paragens: l });
+  };
+  const juntar = (ids, nota) => mudarAberta({ paragens: paragens.concat(ids.filter(id => !paragens.some(p => p.quem === id)).map(id => Object.assign({ quem: id, zona: t.zonas[id] || '' }, naEscalaHoje.indexOf(id) === -1 ? { fora_escala: true } : {}, nota ? { nota } : {}))) });
   const moverParagem = (i, d) => { const l = paragens.slice(); const j = i + d; if (j < 0 || j >= l.length) return; const x = l[i]; l[i] = l[j]; l[j] = x; mudarAberta({ paragens: l }); };
   /* O resumo vai para o grupo #transporte, como o motorista fazia no
      WhatsApp. */
@@ -21136,7 +21196,9 @@ function TransporteScreen({ currentUser }) {
     const canal = (state.extraChannels || []).find(c => String(c.name || '').toLowerCase() === 'transporte');
     if (!canal) return;
     const km = v.km_fim - v.km_inicio;
-    const linhas = (v.paragens || []).map(p => '• ' + nomeDe(p.quem) + (p.zona ? ' (' + p.zona + ')' : '') + (p.falta ? ' — não foi' : p.deixado_em ? ' — ' + bspHoraCurta(p.deixado_em) : ''));
+    const linhas = (v.paragens || []).map(p => '• ' + bspParagemTexto(p, nomeDe));
+    const vf = bspTranspVerificacao(v.paragens);
+    if ((v.paragens || []).length) linhas.push('Usaram: ' + vf.usaram + ' · Não usaram: ' + vf.naoUsaram + (vf.fora ? ' · Fora da escala: ' + vf.fora + ' (verificar a escala)' : ''));
     const texto = '🚗 ' + BSP_TRANSP_TIPOS[v.tipo] + ' · ' + bspDataCurta(v.data) + '\n' +
       (v.destino ? 'Destino: ' + v.destino + '\n' : '') +
       (linhas.length ? linhas.join('\n') + '\n' : '') +
@@ -21181,12 +21243,16 @@ function TransporteScreen({ currentUser }) {
             React.createElement("button", { onClick: () => moverParagem(i, 1), 'aria-label': 'Descer', style: { border: 0, background: 'transparent', cursor: 'pointer', color: 'var(--text-3)', fontSize: 14, padding: 0 } }, '▼')),
           React.createElement("div", { style: { minWidth: 0 } },
             React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)', textDecoration: p.falta ? 'line-through' : 'none' } }, (i + 1) + '. ' + nomeDe(p.quem)),
-            React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, (p.zona || 'Bairro por saber') + (p.deixado_em ? ' · deixado às ' + bspHoraCurta(p.deixado_em) : p.falta ? ' · não foi' : ''))),
+            React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, (p.zona || 'Bairro por saber') + (p.deixado_em ? ' · deixado às ' + bspHoraCurta(p.deixado_em) : p.falta ? ' · não usou' + (p.motivo ? ': ' + p.motivo.toLowerCase() : '') : '') + (p.nota ? ' · ' + p.nota : '')),
+            p.fora_escala && React.createElement("div", { style: { fontSize: 11.5, fontWeight: 700, color: 'var(--perigo)' } }, 'Fora da escala de hoje')),
           p.deixado_em ? React.createElement("span", { style: { color: 'var(--sucesso)', fontWeight: 700, fontSize: 13 } }, '✓')
             : React.createElement("div", { style: { display: 'flex', gap: 6 } },
               !p.falta && React.createElement("button", { onClick: () => mexerParagem(i, x => Object.assign(x, { deixado_em: new Date().toISOString() })), style: Object.assign(bspEscBotao(true), { height: 40 }) }, 'Deixado'),
-              React.createElement("button", { onClick: () => mexerParagem(i, x => Object.assign(x, { falta: !x.falta })), style: Object.assign(bspEscBotao(false), { height: 40 }) }, p.falta ? 'Afinal foi' : 'Não foi'))))),
+              React.createElement("button", { onClick: () => p.falta ? mexerParagem(i, x => Object.assign(x, { falta: false, motivo: '' })) : setNaoFoi(i), style: Object.assign(bspEscBotao(false), { height: 40 }) }, p.falta ? 'Afinal foi' : 'Não foi'))))),
+      paragens.length > 0 && (() => { const vf = bspTranspVerificacao(paragens); return React.createElement("div", { style: { marginTop: 10, fontSize: 12.5, color: 'var(--text-2)' } }, 'Usaram: ' + vf.usaram + ' · Não usaram: ' + vf.naoUsaram + (vf.fora ? ' · Fora da escala: ' + vf.fora : '')); })(),
       React.createElement("div", { style: { display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' } },
+        aberta.tipo === 'pessoal' && botaoGrande('Juntar pessoa', () => setModal('juntar'), false, React.createElement(I.Plus, { size: 16 })),
+        botaoGrande('Abastecimento', () => setModal('abast'), false),
         botaoGrande('Terminar viagem', () => setModal('terminar'), true, React.createElement(I.Check, { size: 16 }))))
       : React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
         React.createElement(Card, { pad: 18 },
@@ -21235,7 +21301,8 @@ function TransporteScreen({ currentUser }) {
             React.createElement("div", { style: { padding: '10px 16px', borderBottom: '1px solid var(--border)', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 10 } },
               React.createElement("div", { style: { minWidth: 0 } },
                 React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)' } }, BSP_TRANSP_TIPOS[v.tipo] + (v.destino ? ' · ' + v.destino : '') + (v.hora_inicio || v.hora_fim ? ' · ' + [bspHoraCurta(v.hora_inicio), bspHoraCurta(v.hora_fim)].filter(Boolean).join('–') : '')),
-                (v.paragens || []).length > 0 && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', marginTop: 2 } }, (v.paragens || []).map(p => nomeDe(p.quem) + (p.zona ? ' (' + p.zona + ')' : '') + (p.falta ? ' — não foi' : p.deixado_em ? ' ' + bspHoraCurta(p.deixado_em) : '')).join(' · ')),
+                (v.paragens || []).length > 0 && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', marginTop: 2 } }, (v.paragens || []).map(p => bspParagemTexto(p, nomeDe)).join(' · ')),
+                (v.paragens || []).some(p => p.falta || p.fora_escala) && (() => { const vf = bspTranspVerificacao(v.paragens); return React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: vf.fora ? 'var(--perigo)' : 'var(--text-3)', marginTop: 2 } }, 'Usaram ' + vf.usaram + ' · não usaram ' + vf.naoUsaram + (vf.fora ? ' · fora da escala ' + vf.fora : '')); })(),
                 v.nota && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2, fontStyle: 'italic' } }, v.nota),
                 (v.foto_inicio || v.foto_fim) && React.createElement("div", { style: { display: 'flex', gap: 10, marginTop: 4 } },
                   v.foto_inicio && React.createElement("button", { onClick: () => bspVerFotoTransp(v.foto_inicio), style: { border: 0, background: 'transparent', color: 'var(--accent-d)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, padding: 0 } }, 'Foto do início'),
@@ -21267,7 +21334,9 @@ function TransporteScreen({ currentUser }) {
     React.createElement(TranspIniciarModal, { open: modal === 'iniciar', tipo: tipoNovo, ultimoKm, zonas: t.zonas, saidas: tipoNovo === 'pessoal' ? saidas : [], onClose: () => setModal(''), onFeito: t.recarregar }),
     aberta && React.createElement(TranspKmModal, { open: modal === 'terminar', titulo: 'Terminar viagem', minimo: aberta.km_inicio, pedirFoto: true, pedirNota: true, onClose: () => setModal(''), onGravar: terminar }),
     React.createElement(TranspKmModal, { open: modal === 'casa', titulo: 'Cheguei a casa', minimo: ultimoKm, pedirFoto: true, onClose: () => setModal(''), onGravar: casa }),
-    React.createElement(TranspAbastModal, { open: modal === 'abast', ultimoKm, onClose: () => setModal(''), onFeito: t.recarregar }),
+    React.createElement(TranspAbastModal, { open: modal === 'abast', ultimoKm, anteriores: t.abast, onClose: () => setModal(''), onFeito: t.recarregar }),
+    React.createElement(TranspJuntarModal, { open: modal === 'juntar', onClose: () => setModal(''), onGravar: juntar }),
+    React.createElement(TranspNaoFoiModal, { open: naoFoi != null, nome: naoFoi != null && paragens[naoFoi] ? nomeDe(paragens[naoFoi].quem) : '', onClose: () => setNaoFoi(null), onGravar: gravarNaoFoi }),
     abas, corpo);
 }
 function PainelAtalho({ onAbrir }) {

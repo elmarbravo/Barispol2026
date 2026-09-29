@@ -1517,4 +1517,14 @@ só de quem sai às 22:30; as rotas mudam com as pessoas de serviço.
     viagem, contas do mês. Sem erros.
 - [ ] Identificar a «Rosa (Mufulama)» do dia 24 (Joana e Isabel são do
       Raio X, Afonso é enfermeiro; todos sem conta).
+- Feito (29-09-2026, pedido do Elmar): alterações na rota e verificação.
+  «Juntar pessoa» (`TranspJuntarModal`) com motivo; «Não foi» pede o
+  motivo (`BSP_TRANSP_MOTIVOS`: por conta própria, faltou, trocou de
+  turno, ficou na clínica, outro) e, se trocou ou faltou, quem ficou no
+  lugar dela. Quem não está na escala publicada do dia fica marcado «fora
+  da escala» (`fora_escala`). O resumo no #transporte e o histórico dizem
+  «Usaram · Não usaram · Fora da escala» (`bspTranspVerificacao`), para a
+  chefe da área acertar a escala. «Abastecimento» também durante a rota;
+  ao gravar mostra os km e os km por litro desde o abastecimento
+  anterior. Testado no telemóvel.
 - [ ] Pedir ao Emmanuel que registe os abastecimentos, para haver consumo.
