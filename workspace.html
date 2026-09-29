@@ -7289,8 +7289,19 @@ function ChatScreen({
       }
     }
   }
-  React.useEffect(() => {
-    if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+  /* Desce ao fim só quando chega uma mensagem nova no fim ou se muda de
+     conversa. Mensagens antigas («Ver mensagens anteriores», históricos)
+     entram por cima e a vista fica onde estava (30-09-2026: o botão
+     parecia não fazer nada, porque a conversa saltava para o fundo). */
+  const ultimaChave = messages.length ? String(messages[messages.length - 1].sid || messages[messages.length - 1].id) : '';
+  const posicaoRef = React.useRef({ conv: null, ultima: null, altura: 0 });
+  React.useLayoutEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const r = posicaoRef.current;
+    if (r.conv !== convKey || r.ultima !== ultimaChave) el.scrollTop = el.scrollHeight;
+    else el.scrollTop += el.scrollHeight - r.altura;
+    posicaoRef.current = { conv: convKey, ultima: ultimaChave, altura: el.scrollHeight };
   }, [messages.length, convKey]);
   function detectarMencao(texto, pos) {
     const antes = String(texto).slice(0, pos);

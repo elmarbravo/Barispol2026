@@ -1578,6 +1578,10 @@ canais do Workspace.
   o último, e as importadas têm ids negativos; o tempo real estava
   desligado durante a importação. Agora, ao abrir uma conversa, o
   Workspace pede as 300 mais recentes dessa conversa ao servidor.
+- «Ver mensagens anteriores» parecia não abrir (30-09-2026): as mensagens
+  entravam, mas a conversa saltava para o fundo. Agora só desce quando
+  chega uma mensagem nova no fim; as antigas entram por cima e a vista
+  fica no mesmo sítio.
 - Testado com servidor simulado: ordem, nomes sem conta e botão.
 
 ## 3-ap. Painel com todos os médicos e seguradoras; lembretes das marcações (29-09-2026)
