@@ -1568,6 +1568,16 @@ canais do Workspace.
   Paulo. Ficaram de fora 75 linhas (automáticas, eliminadas ou vazias). Uma palavra-passe escrita
   no grupo (19-02-2026) ficou como «[removida na importação]». Cada bloco
   foi conferido com uma soma MD5 contra o ficheiro.
+- Ferramenta (30-09-2026): `ferramentas/whatsapp-importar.py` faz tudo o
+  que se fez à mão na Farmácia e no Laboratório (linhas automáticas,
+  anexos, palavras-passe, blocos de 450, soma MD5 e consulta de
+  conferência). O mapa de remetentes (nome no WhatsApp → id ou «x:Nome»)
+  fica fora do repositório. Próximo `--base` livre: 3000000.
+- Histórico que não aparecia (30-09-2026, a Gizela não via o da
+  Farmácia): um aparelho já aberto só pedia mensagens com id maior do que
+  o último, e as importadas têm ids negativos; o tempo real estava
+  desligado durante a importação. Agora, ao abrir uma conversa, o
+  Workspace pede as 300 mais recentes dessa conversa ao servidor.
 - Testado com servidor simulado: ordem, nomes sem conta e botão.
 
 ## 3-ap. Painel com todos os médicos e seguradoras; lembretes das marcações (29-09-2026)
@@ -1649,3 +1659,21 @@ sabendo que há biométrico.
 - Proposta: ligar o biométrico (marca/modelo e forma de exportação por
   saber) e, até lá, mostrar na escala «sem sinal no Workspace» 30 min
   depois da hora de entrada, sem chamar ausência. À espera do Elmar.
+
+## 3-as. Transporte no chat, consultas no Painel e PDF na Drive (30-09-2026)
+
+- Transporte: cada registo do motorista vai para o grupo #transporte
+  (`avisarChat` no `TransporteScreen`): saída (com quem leva e km sem
+  registo), abastecimento (litros, valor, km/L), fim da viagem (já
+  existia) e ida para casa. Até 30-09-2026 o Emmanuel ainda não tinha
+  registado nada no ecrã: as 8 viagens lá são o histórico carregado.
+- Painel (`bsp_painel`, `painel.sql`): «Consultas por médico» conta os
+  doentes com um acto do grupo CONSULTAS pago; os outros doentes do
+  médico aparecem como «só exames»; facturas anuladas por nota de crédito
+  não contam. Pedido do Elmar: a Luidmila (Verónica Chitata) a 28-09 teve
+  só exames. Atenção: há duas médicas parecidas no MetaGest, «Ludmila Da
+  Silva» e «Luidmila Verónica Chitata».
+- Leitor de PDF dentro do Workspace (`bspVerPdf`, `LeitorPdf`, PDF.js
+  3.11.174 em `vendor/pdfjs`, licença Apache 2.0): qualquer PDF da Drive
+  ou do chat abre no visor, com zoom, sem sair da app.
+- Testado com servidor simulado (PC e telemóvel), sem erros.

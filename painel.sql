@@ -105,17 +105,28 @@ begin
       from fp group by 1
   ),
   -- Medicos pela factura (29-09-2026): crm.mg_consultas so tem uma
-  -- parte das consultas). erp.sales_invoice tem o historico desde 2022
-  -- (fila erp.historico_fila, 29-09-2026). Atendimento = doente por dia.
-  medicos as (
-    select max(s.practitioner_name) medico,
-           count(distinct (s.posting_date, coalesce(s.patient, s.customer, s.name))) consultas,
-           coalesce(sum(s.grand_total), 0) valor
+  -- parte das consultas. Consulta = doente por dia com um acto do grupo
+  -- CONSULTAS pago; os outros doentes do medico contam como «so exames»
+  -- (30-09-2026: a Luidmila aparecia com consultas que eram analises).
+  -- Facturas anuladas por nota de credito nao contam.
+  fm as (
+    select s.name, s.posting_date, s.ref_practitioner, s.practitioner_name, s.grand_total,
+           coalesce(s.patient, s.customer, s.name) quem,
+           exists (select 1 from erp.sales_invoice_item i where i.parent = s.name
+                    and coalesce(i.item_group, '') ~* 'CONSULTA' and i.amount > 0) tem_consulta
       from erp.sales_invoice s
      where s.docstatus = 1 and not s.is_return and s.posting_date between p_de and p_ate
        and s.ref_practitioner is not null
        and coalesce(btrim(s.practitioner_name), '') not in ('', 'EXTERNO')
-     group by s.ref_practitioner order by 2 desc, 3 desc limit 15
+       and not exists (select 1 from erp.sales_invoice r where r.docstatus = 1 and r.is_return and r.return_against = s.name)
+  ),
+  medicos as (
+    select max(practitioner_name) medico,
+           count(distinct (posting_date, quem)) filter (where tem_consulta) consultas,
+           count(distinct (posting_date, quem)) - count(distinct (posting_date, quem)) filter (where tem_consulta) exames,
+           coalesce(sum(grand_total), 0) valor
+      from fm
+     group by ref_practitioner order by 2 desc, 3 desc, 4 desc limit 15
   ),
   seguradoras as (
     select btrim(s.seguradora) seguradora, count(*) n,

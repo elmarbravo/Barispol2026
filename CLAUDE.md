@@ -112,6 +112,8 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   o Chat.
 - Imagens abrem em `bspVerImagem(url, nome)` (o `VisorImagem`), nunca
   com `window.open`: na app, isso prende o Workspace.
+  PDF abrem em `bspVerPdf(url, nome)` (`LeitorPdf`, PDF.js em
+  `vendor/pdfjs`, 30-09-2026). `bspAbrirFicheiro` escolhe sozinho.
 - No telemóvel, `main > div` tem altura automática. O Chat é a excepção
   (classe `bsp-chat-ecra`) e abre na lista de conversas.
 - Menções no chat: lista em `ChatScreen` (`detectarMencao`,
@@ -219,6 +221,10 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 - Qualquer `update` ao `shared_state` feito no servidor tem de pôr
   `updated_at = now()`: os postos só relêem o estado quando essa data
   muda, e um posto com o estado antigo pode sobrepô-lo ao gravar.
+- Históricos do WhatsApp: `ferramentas/whatsapp-importar.py` (ids
+  negativos, `cid` «wa-<canal>-n»). Ao abrir uma conversa, o `ChatScreen`
+  pede as 300 mais recentes dessa conversa: um aparelho aberto nunca
+  recebia as importadas.
 - Anexos no chat: `enviarFicheiros(lista, opc)` no `ChatScreen` serve o
   clipe (vários ficheiros), o arrastar com o rato e as notas de voz
   (27-09-2026: `comecarGravacao`, `bspMensagemNotaVoz`, `bspEAudio`,

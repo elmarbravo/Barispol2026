@@ -4083,6 +4083,84 @@ function bspVerImagem(url, nome) {
     window.open(url, '_blank', 'noopener');
   }
 }
+/* PDF dentro do Workspace (30-09-2026, pedido do Elmar: «na Drive, um
+   leitor de PDF dentro»). O PDF.js (vendor/pdfjs, Mozilla, licença
+   Apache 2.0) só carrega quando se abre o primeiro PDF. Desenha cada
+   página numa imagem à largura do ecrã: funciona igual no computador, no
+   iPhone e na app Android, que não mostra PDF dentro de uma página. */
+const BSP_PDF = /\.pdf([?#]|$)/i;
+function bspVerPdf(url, nome) {
+  try {
+    window.dispatchEvent(new CustomEvent('bsp-ver-imagem', { detail: { url: url, nome: nome || '', pdf: true } }));
+  } catch (e) {
+    window.open(url, '_blank', 'noopener');
+  }
+}
+let bspPdfJs = null;
+function bspCarregarPdfJs() {
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if (bspPdfJs) return bspPdfJs;
+  bspPdfJs = new Promise((ok, falha) => {
+    const sc = document.createElement('script');
+    sc.src = 'vendor/pdfjs/pdf.min.js';
+    sc.onload = () => {
+      try { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdfjs/pdf.worker.min.js'; } catch (e) {}
+      window.pdfjsLib ? ok(window.pdfjsLib) : falha(new Error('Leitor de PDF indisponível.'));
+    };
+    sc.onerror = () => { bspPdfJs = null; falha(new Error('Não foi possível carregar o leitor de PDF.')); };
+    document.head.appendChild(sc);
+  });
+  return bspPdfJs;
+}
+function LeitorPdf({ url }) {
+  const caixa = React.useRef(null);
+  const [estado, setEstado] = React.useState('A abrir o PDF…');
+  const [zoom, setZoom] = React.useState(1);
+  const docRef = React.useRef(null);
+  React.useEffect(() => {
+    let vivo = true;
+    setEstado('A abrir o PDF…');
+    bspCarregarPdfJs().then(lib => lib.getDocument({ url: url }).promise).then(doc => {
+      if (!vivo) return;
+      docRef.current = doc;
+      setEstado('');
+    }).catch(e => { if (vivo) setEstado('Não foi possível abrir o PDF. ' + (e && e.message || '')); });
+    return () => { vivo = false; try { docRef.current && docRef.current.destroy(); } catch (e) {} docRef.current = null; };
+  }, [url]);
+  React.useEffect(() => {
+    const doc = docRef.current, el = caixa.current;
+    if (estado || !doc || !el) return;
+    let vivo = true;
+    el.innerHTML = '';
+    const largura = Math.min(el.clientWidth - 8, 1100) * zoom;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    (async () => {
+      for (let n = 1; n <= doc.numPages && vivo; n++) {
+        const pag = await doc.getPage(n);
+        const base = pag.getViewport({ scale: 1 });
+        const vp = pag.getViewport({ scale: largura / base.width * dpr });
+        const cv = document.createElement('canvas');
+        cv.width = Math.floor(vp.width); cv.height = Math.floor(vp.height);
+        cv.style.width = Math.floor(vp.width / dpr) + 'px';
+        cv.style.height = Math.floor(vp.height / dpr) + 'px';
+        cv.style.display = 'block'; cv.style.margin = '0 auto 10px'; cv.style.background = '#fff'; cv.style.borderRadius = '4px';
+        cv.setAttribute('aria-label', 'Página ' + n + ' de ' + doc.numPages);
+        if (!vivo) return;
+        el.appendChild(cv);
+        await pag.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+      }
+    })().catch(() => {});
+    return () => { vivo = false; };
+  }, [estado, zoom]);
+  const bz = { height: 34, minWidth: 40, padding: '0 12px', borderRadius: 17, border: 'none', background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' };
+  return React.createElement("div", { onClick: e => e.stopPropagation(), style: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' } },
+    estado ? React.createElement("div", { style: { color: '#fff', textAlign: 'center', padding: 30, fontSize: 14 } }, estado)
+      : React.createElement("div", { style: { display: 'flex', gap: 8, justifyContent: 'center', padding: '0 0 8px' } },
+        React.createElement("button", { onClick: () => setZoom(z => Math.max(0.5, +(z - 0.25).toFixed(2))), style: bz, 'aria-label': 'Reduzir' }, '−'),
+        React.createElement("span", { style: { color: '#fff', fontSize: 13, alignSelf: 'center', minWidth: 48, textAlign: 'center' } }, Math.round(zoom * 100) + '%'),
+        React.createElement("button", { onClick: () => setZoom(z => Math.min(3, +(z + 0.25).toFixed(2))), style: bz, 'aria-label': 'Ampliar' }, '+')),
+    React.createElement("div", { ref: caixa, style: { flex: 1, minHeight: 0, overflow: 'auto', padding: '0 4px calc(env(safe-area-inset-bottom, 0px) + 14px)', WebkitOverflowScrolling: 'touch' } }));
+}
 function VisorImagem() {
   const [img, setImg] = React.useState(null);
   const comHistorico = React.useRef(false);
@@ -4125,7 +4203,7 @@ function VisorImagem() {
   return ReactDOM.createPortal(React.createElement("div", {
     onClick: fechar,
     style: {
-      position: 'fixed', inset: 0, zIndex: 100001, background: 'rgba(6,10,20,.92)',
+      position: 'fixed', inset: 0, zIndex: 100001, background: img.pdf ? 'rgb(6,10,20)' : 'rgba(6,10,20,.92)',
       display: 'flex', flexDirection: 'column'
     }
   }, React.createElement("div", {
@@ -4140,7 +4218,7 @@ function VisorImagem() {
     href: img.url, download: img.nome || 'imagem', target: '_blank', rel: 'noopener noreferrer', style: botao
   }, "Guardar"), React.createElement("button", {
     onClick: fechar, style: botao, "aria-label": "Fechar"
-  }, "✕ Fechar")), React.createElement("div", {
+  }, "✕ Fechar")), img.pdf ? React.createElement(LeitorPdf, { url: img.url }) : React.createElement("div", {
     style: {
       flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: '0 10px calc(env(safe-area-inset-bottom, 0px) + 14px)'
@@ -4160,6 +4238,10 @@ async function bspAbrirFicheiro(f, aoFalhar) {
       bspVerImagem(url, f.name);
       return true;
     }
+    if (url && BSP_PDF.test(f.name || f.path || '')) {
+      bspVerPdf(url, f.name);
+      return true;
+    }
     if (url) {
       window.open(url, '_blank', 'noopener');
       return true;
@@ -4167,6 +4249,10 @@ async function bspAbrirFicheiro(f, aoFalhar) {
   }
   if (f && f.dataUrl && BSP_IMAGEM.test(f.name || '')) {
     bspVerImagem(f.dataUrl, f.name);
+    return true;
+  }
+  if (f && f.dataUrl && (BSP_PDF.test(f.name || '') || /^data:application\/pdf/.test(f.dataUrl))) {
+    bspVerPdf(f.dataUrl, f.name);
     return true;
   }
   if (f && f.dataUrl) {
@@ -7147,6 +7233,19 @@ function ChatScreen({
   const dmUser = activeDm ? window.userById(activeDm.userId) : null;
   const convKey = isDM ? `dm-${dmId}` : channelId;
   const messages = (messagesByChan[convKey] || []).filter(m => !bspLinhaDeControlo(m.text));
+  /* Ao abrir uma conversa, as 300 mais recentes vêm do servidor
+     (30-09-2026). Um aparelho aberto só pedia mensagens com id maior do que
+     o último: os históricos importados (ids negativos, datas antigas)
+     nunca lhe chegavam sem recarregar a página. */
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl || !convKey) return;
+    let vivo = true;
+    cl.from('messages').select('*').eq('conv_key', convKey).order('created_at', { ascending: false }).limit(300).then(r => {
+      if (vivo && !r.error && window.__bspIngerirAntigas) window.__bspIngerirAntigas(r.data || []);
+    });
+    return () => { vivo = false; };
+  }, [convKey]);
   /* Recibo de leitura: ao ter a conversa aberta, regista até onde leu. */
   const ultimoLidoRef = React.useRef({});
   React.useEffect(() => {
@@ -21156,7 +21255,7 @@ function CampoFoto({ valor, onMudar, rotulo }) {
 }
 /* Iniciar uma viagem. Se os km nao continuam da ultima viagem, pede o
    motivo e regista a diferenca como viagem de ligacao. */
-function TranspIniciarModal({ open, tipo, ultimoKm, zonas, saidas, onClose, onFeito }) {
+function TranspIniciarModal({ open, tipo, ultimoKm, zonas, saidas, onClose, onFeito, onAvisar }) {
   const toast = useToast();
   const [km, setKm] = React.useState('');
   const [foto, setFoto] = React.useState(null);
@@ -21188,6 +21287,9 @@ function TranspIniciarModal({ open, tipo, ultimoKm, zonas, saidas, onClose, onFe
       const paragens = quem.map(id => Object.assign({ quem: id, zona: zonas[id] || '' }, tipo === 'pessoal' && naEscala.indexOf(id) === -1 ? { fora_escala: true } : {}));
       const r = await cl.from('transporte_viagens').insert({ data: dia, tipo, km_inicio: n, hora_inicio: new Date().toISOString(), destino: destino.trim(), paragens, foto_inicio: caminho });
       if (r.error) throw r.error;
+      if (onAvisar) onAvisar('🚗 Saída: ' + BSP_TRANSP_TIPOS[tipo] + ' · ' + bspHoraCurta(new Date().toISOString()) + ' · ' + bspKm(n) + ' km' +
+        (destino.trim() ? '\nDestino: ' + destino.trim() : '') + (dif ? '\nKm sem registo desde a última viagem: ' + (n - ultimoKm) + (motivo.trim() ? ' (' + motivo.trim() + ')' : '') : '') +
+        (paragens.length ? '\nLeva: ' + paragens.map(p => bspNomeCurto(p.quem) + (p.zona ? ' (' + p.zona + ')' : '') + (p.fora_escala ? ' · fora da escala' : '')).join(', ') : ''));
       onFeito(); onClose();
     } catch (e) {
       toast('Não foi possível gravar: ' + (e && e.message || e));
@@ -21238,7 +21340,7 @@ function TranspKmModal({ open, titulo, minimo, pedirFoto, pedirNota, onClose, on
       React.createElement("input", { value: nota, onChange: e => setNota(e.target.value), placeholder: 'Trânsito, avaria, atraso…', style: bspTranspCampo })),
     erro && km && React.createElement("div", { role: 'alert', style: { fontSize: 13, color: 'var(--perigo)' } }, erro)));
 }
-function TranspAbastModal({ open, ultimoKm, anteriores, onClose, onFeito }) {
+function TranspAbastModal({ open, ultimoKm, anteriores, onClose, onFeito, onAvisar }) {
   const toast = useToast();
   const [f, setF] = React.useState({ km: '', litros: '', valor: '', nota: '' });
   const [foto, setFoto] = React.useState(null);
@@ -21257,8 +21359,11 @@ function TranspAbastModal({ open, ultimoKm, anteriores, onClose, onFeito }) {
       if (r.error) throw r.error;
       /* Consumo desde o abastecimento anterior (deposito cheio). */
       const ant = (anteriores || []).filter(a => a.km < num(f.km)).sort((a, b) => b.km - a.km)[0];
-      if (ant) toast('Desde o último abastecimento: ' + (Math.round(num(f.km)) - ant.km) + ' km · ' + ((Math.round(num(f.km)) - ant.km) / num(f.litros)).toFixed(1).replace('.', ',') + ' km por litro.');
+      const consumo = ant ? (Math.round(num(f.km)) - ant.km) + ' km · ' + ((Math.round(num(f.km)) - ant.km) / num(f.litros)).toFixed(1).replace('.', ',') + ' km por litro' : '';
+      if (ant) toast('Desde o último abastecimento: ' + consumo + '.');
       else toast('Abastecimento gravado.');
+      if (onAvisar) onAvisar('⛽ Abastecimento: ' + String(num(f.litros)).replace('.', ',') + ' L' + (num(f.valor) ? ' · ' + bspCrmKz(num(f.valor)) : '') + ' · ' + bspKm(Math.round(num(f.km))) + ' km' +
+        (consumo ? '\nDesde o anterior: ' + consumo : '') + (f.nota.trim() ? '\nNota: ' + f.nota.trim() : '') + (caminho ? '\nCom fotografia do recibo (ecrã Transporte).' : ''));
       onFeito(); onClose();
     } catch (e) { toast('Não foi possível gravar: ' + (e && e.message || e)); setAGravar(false); }
   };
@@ -21333,9 +21438,14 @@ function TransporteScreen({ currentUser }) {
   const moverParagem = (i, d) => { const l = paragens.slice(); const j = i + d; if (j < 0 || j >= l.length) return; const x = l[i]; l[i] = l[j]; l[j] = x; mudarAberta({ paragens: l }); };
   /* O resumo vai para o grupo #transporte, como o motorista fazia no
      WhatsApp. */
-  const publicarResumo = v => {
+  /* Cada registo do motorista vai também para o grupo #transporte
+     (30-09-2026, pedido do Elmar: «assim não precisamos de lá ir ver»):
+     saída, abastecimento, fim da viagem e ida para casa. */
+  const avisarChat = texto => {
     const canal = (state.extraChannels || []).find(c => String(c.name || '').toLowerCase() === 'transporte');
-    if (!canal) return;
+    if (canal && !bspEmVerComo()) actions.sendMessage(canal.id, { userId: currentUser.id, text: texto });
+  };
+  const publicarResumo = v => {
     const km = v.km_fim - v.km_inicio;
     const linhas = (v.paragens || []).map(p => '• ' + bspParagemTexto(p, nomeDe));
     const vf = bspTranspVerificacao(v.paragens);
@@ -21345,7 +21455,7 @@ function TransporteScreen({ currentUser }) {
       (linhas.length ? linhas.join('\n') + '\n' : '') +
       'Km: ' + bspKm(v.km_inicio) + ' → ' + bspKm(v.km_fim) + ' = ' + km + ' km' +
       (v.hora_inicio ? ' · ' + bspHoraCurta(v.hora_inicio) + '–' + bspHoraCurta(v.hora_fim) : '') + (v.nota ? '\nNota: ' + v.nota : '');
-    actions.sendMessage(canal.id, { userId: currentUser.id, text: texto });
+    avisarChat(texto);
   };
   const terminar = async (n, foto, nota) => {
     const caminho = foto ? await bspTranspFoto(foto).catch(() => null) : null;
@@ -21359,6 +21469,7 @@ function TransporteScreen({ currentUser }) {
     const r = await bspGetClient().from('transporte_viagens').insert({ data: bspDiaServico(), tipo: 'casa', km_inicio: ultimoKm, km_fim: n, hora_fim: new Date().toISOString(), foto_fim: caminho });
     if (r.error) { toast('Não foi possível gravar: ' + r.error.message); return false; }
     t.recarregar(); toast('Registado: ' + (n - ultimoKm) + ' km até casa.');
+    avisarChat('🏠 Em casa · ' + bspHoraCurta(new Date().toISOString()) + '\nKm: ' + bspKm(ultimoKm) + ' → ' + bspKm(n) + ' = ' + (n - ultimoKm) + ' km');
     return true;
   };
   const vazio = x => React.createElement("div", { style: { padding: '40px 20px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13.5 } }, x);
@@ -21472,10 +21583,10 @@ function TransporteScreen({ currentUser }) {
         React.createElement("input", { defaultValue: t.zonas[p.id] || '', onBlur: e => { if (e.target.value.trim() !== (t.zonas[p.id] || '')) gravarZona(p.id, e.target.value); }, placeholder: 'Bairro', style: Object.assign({}, bspTranspCampo, { height: 38, fontSize: 14 }) }))));
   }
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'auto', paddingBottom: 12 } },
-    React.createElement(TranspIniciarModal, { open: modal === 'iniciar', tipo: tipoNovo, ultimoKm, zonas: t.zonas, saidas: tipoNovo === 'pessoal' ? saidas : [], onClose: () => setModal(''), onFeito: t.recarregar }),
+    React.createElement(TranspIniciarModal, { open: modal === 'iniciar', tipo: tipoNovo, ultimoKm, zonas: t.zonas, saidas: tipoNovo === 'pessoal' ? saidas : [], onClose: () => setModal(''), onFeito: t.recarregar, onAvisar: avisarChat }),
     aberta && React.createElement(TranspKmModal, { open: modal === 'terminar', titulo: 'Terminar viagem', minimo: aberta.km_inicio, pedirFoto: true, pedirNota: true, onClose: () => setModal(''), onGravar: terminar }),
     React.createElement(TranspKmModal, { open: modal === 'casa', titulo: 'Cheguei a casa', minimo: ultimoKm, pedirFoto: true, onClose: () => setModal(''), onGravar: casa }),
-    React.createElement(TranspAbastModal, { open: modal === 'abast', ultimoKm, anteriores: t.abast, onClose: () => setModal(''), onFeito: t.recarregar }),
+    React.createElement(TranspAbastModal, { open: modal === 'abast', ultimoKm, anteriores: t.abast, onClose: () => setModal(''), onFeito: t.recarregar, onAvisar: avisarChat }),
     React.createElement(TranspJuntarModal, { open: modal === 'juntar', onClose: () => setModal(''), onGravar: juntar }),
     React.createElement(TranspNaoFoiModal, { open: naoFoi != null, nome: naoFoi != null && paragens[naoFoi] ? nomeDe(paragens[naoFoi].quem) : '', onClose: () => setNaoFoi(null), onGravar: gravarNaoFoi }),
     abas, corpo);
@@ -21608,9 +21719,9 @@ function PainelScreen() {
             React.createElement("span", { style: { width: 44, textAlign: 'right', color: 'var(--text-3)', fontVariantNumeric: 'tabular-nums' } }, Math.round(100 * x.valor / cliTot) + '%')))),
         React.createElement(Card, { pad: 16 }, tit('Movimento por hora'), sub('Facturas emitidas em cada hora do dia' + (d.horas_desde && d.de < d.horas_desde ? ' (dados desde ' + bspMarcDataPt(d.horas_desde) + ')' : '')),
           horas.length ? React.createElement(PainelColunas, { dados: horas, formatar: v => v + (v === 1 ? ' factura' : ' facturas'), cor: '--serie-1', altura: 180 }) : sub('Sem facturas neste período.')),
-        React.createElement(Card, { pad: 16 }, tit('Atendimentos por médico'), sub('Número de atendimentos (doentes por dia) e valor, pelo médico da factura' + (d.horas_desde && d.de < d.horas_desde ? ' (dados desde ' + bspMarcDataPt(d.horas_desde) + ')' : '')),
+        React.createElement(Card, { pad: 16 }, tit('Consultas por médico'), sub('Doentes com consulta paga, por dia, pelo médico da factura; «só exames» são os doentes do médico sem consulta. Facturas anuladas não contam' + (d.horas_desde && d.de < d.horas_desde ? ' (dados desde ' + bspMarcDataPt(d.horas_desde) + ')' : '')),
           !(d.medicos || []).length ? sub('Sem facturas com médico neste período.')
-            : React.createElement(PainelBarras, { dados: d.medicos.map(m => ({ rotulo: m.medico, valor: Number(m.consultas), extra: bspPainelKz(m.valor, true) })), formatar: v => Number(v).toLocaleString('pt-PT') })),
+            : React.createElement(PainelBarras, { dados: d.medicos.map(m => ({ rotulo: m.medico, valor: Number(m.consultas), extra: (Number(m.exames) ? m.exames + ' só exames · ' : '') + bspPainelKz(m.valor, true) })), formatar: v => Number(v).toLocaleString('pt-PT') })),
         React.createElement(Card, { pad: 16 }, tit('Seguradoras'), sub('Valor facturado a cada seguradora; o co-pagamento é a parte do doente'),
           !(d.seguradoras || []).length ? sub('Sem facturas de seguradoras neste período.')
             : React.createElement(PainelBarras, { dados: d.seguradoras.map(x => ({ rotulo: bspNomeSeguradora(x.seguradora), valor: Number(x.valor), extra: x.n + (x.n === 1 ? ' factura' : ' facturas') + (Number(x.copagamento) > 0 ? ' · co-pagamento ' + bspPainelKz(x.copagamento, true) : '') })), formatar: v => bspPainelKz(v, true), cor: '--serie-2' })),
