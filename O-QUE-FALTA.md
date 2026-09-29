@@ -1558,6 +1558,16 @@ canais do Workspace.
   avisa. Durante a gravação, `messages` sai da publicação
   `supabase_realtime` e volta a entrar no fim. O texto das conversas fica
   só na base de dados, nunca no repositório.
+- Importado (29-09-2026): «WhatsApp Chat - DC - LABORATÓRIO» para o
+  canal #laboratório (`c-laboratorio`): 1644 mensagens, de 18-02-2025 a
+  29-09-2026, ids de -2000000 a -2001644 (o -2001183 ficou vazio: era uma
+  linha automática). Com conta: Rosa Queirós (u13), Elmar (u1), Nicolau
+  (u3, «Nicolau Mateus» no WhatsApp), Arlete (u2), Cássia (u19) e Osvaldo
+  (u14); sem conta («x:Nome»): Edgar, Dra Alda Mendes, Helder Noy, Maria
+  Miguel, Latídia Ernesto, Dr Pedro Feliciano, Juliana Lue e Dra Alice
+  Paulo. Ficaram de fora 75 linhas (automáticas, eliminadas ou vazias). Uma palavra-passe escrita
+  no grupo (19-02-2026) ficou como «[removida na importação]». Cada bloco
+  foi conferido com uma soma MD5 contra o ficheiro.
 - Testado com servidor simulado: ordem, nomes sem conta e botão.
 
 ## 3-ap. Painel com todos os médicos e seguradoras; lembretes das marcações (29-09-2026)
@@ -1599,3 +1609,43 @@ mais médicos, hoje só vejo 1» e «um lembrete nas marcações, 1 hora antes e
   `marcacoes-lembrete.sql`.
 - Testado com servidor simulado (PC e telemóvel): lembretes certos, sino,
   botões de estado; sem erros nem página mais larga do que o ecrã.
+
+## 3-aq. CRM: serviço certo e facturado por acto (29-09-2026)
+
+Pedido do Elmar: «no WhatsApp tem dados irreais, não facturamos com
+ortopedia e tem valores, facturamos com ecografia e está vazio».
+
+- Causa 1: a regra de Ortopedia procurava «osso», que está dentro de
+  «posso» («Posso saber mais informações?», a frase dos anúncios) e de
+  «Bom Sossego» (a morada). 599 das 716 conversas de Ortopedia eram isso.
+- Causa 2: o texto do anúncio não contava; os anúncios de ecografia caíam
+  noutro serviço.
+- Causa 3: o valor ficava preso ao serviço da conversa; quem escreveu
+  «quero marcar» e fez uma ecografia não contava na Ecografia. Quem
+  escreveu várias vezes contava a mesma factura várias vezes.
+- Correcção (`crm-pedidos.sql`, aplicado no mesmo dia):
+  `crm.servico_do_texto` (palavras inteiras), `crm.servico_do_anuncio`
+  (sem a morada), `crm.servico_do_item` (serviço de cada linha da
+  factura), tabela `crm.pedidos_facturas` e nova `crm.gerar_pedidos`.
+  `crm_resultados` soma cada factura uma só vez e devolve `por_acto`.
+- Ecrã CRM → Resultados: nova tabela «O que foi facturado, por acto»; a
+  coluna da tabela por serviço pedido passa a «Pagaram (tudo)».
+- Depois da correcção (desde 20-05-2026): Ortopedia 16 pedidos, 0 Kz;
+  Ecografia 1020 pedidos. Nos últimos 90 dias, quem escreveu fez 23
+  ecografias (486 671 Kz).
+- Limite que fica: a ligação conversa → factura faz-se pelo telefone. Das
+  77 facturas de ecografia desde 20-05, 29 são de telefones sem conversa
+  no WhatsApp (outro número, ou marcaram por outra via).
+
+## 3-ar. Escalas e presença (por decidir, 29-09-2026)
+
+Pergunta do Elmar: marcar ausente quem não abriu o sistema no dia,
+sabendo que há biométrico.
+
+- Já existe `presenca_dias` (primeira e última abertura do Workspace por
+  pessoa e dia, desde 24-09-2026).
+- Abrir o Workspace não prova presença (abre-se no telemóvel em casa) e
+  quem não tem conta nunca aparece. O biométrico é a fonte certa.
+- Proposta: ligar o biométrico (marca/modelo e forma de exportação por
+  saber) e, até lá, mostrar na escala «sem sinal no Workspace» 30 min
+  depois da hora de entrada, sem chamar ausência. À espera do Elmar.

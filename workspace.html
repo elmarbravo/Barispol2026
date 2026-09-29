@@ -22086,6 +22086,7 @@ function CrmResultados() {
     const t = dados.total || {};
     const origens = dados.por_origem || [];
     const servicos = dados.por_servico || [];
+    const actos = dados.por_acto || [];
     corpo = React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 14 } },
       React.createElement("div", { style: { display: 'flex', gap: 12, flexWrap: 'wrap' } },
         cartao('Pedidos', t.pedidos || 0, 'doentes que escreveram'),
@@ -22109,13 +22110,28 @@ function CrmResultados() {
       React.createElement(Card, { pad: 0, style: { overflow: 'auto' } },
         React.createElement("table", { style: { width: '100%', borderCollapse: 'collapse' } },
           React.createElement("thead", null, React.createElement("tr", null,
-            ['Serviço pedido', 'Pedidos', 'Vieram', 'Conversão', 'Facturado'].map(h => React.createElement("th", { key: h, style: th }, h)))),
+            ['Serviço pedido', 'Pedidos', 'Vieram', 'Conversão', 'Pagaram (tudo)'].map(h => React.createElement("th", { key: h, style: th }, h)))),
           React.createElement("tbody", null, servicos.map(s => React.createElement("tr", { key: s.servico },
             React.createElement("td", { style: Object.assign({}, td, { fontWeight: 600 }) }, s.servico),
             React.createElement("td", { style: td }, s.pedidos),
             React.createElement("td", { style: td }, s.compareceram),
             React.createElement("td", { style: td }, pct(s.compareceram, s.pedidos)),
-            React.createElement("td", { style: td }, bspCrmKz(s.valor))))))));
+            React.createElement("td", { style: td }, bspCrmKz(s.valor))))))),
+      /* O que foi facturado a quem escreveu, pelo acto de cada linha da
+         factura (29-09-2026): quem pediu «uma marcação» e fez uma ecografia
+         conta na Ecografia. Cada factura conta uma só vez. */
+      React.createElement(Card, { pad: 0, style: { overflow: 'auto' } },
+        React.createElement("div", { style: { padding: '12px 12px 4px', fontSize: 13, fontWeight: 700, color: 'var(--text-1)' } }, 'O que foi facturado, por acto'),
+        React.createElement("div", { style: { padding: '0 12px 8px', fontSize: 12, color: 'var(--text-3)' } }, 'Facturas do MetaGest de quem escreveu, nos 30 dias após o contacto. Cada factura conta uma só vez.'),
+        !actos.length ? React.createElement("div", { style: { padding: '8px 12px 14px', fontSize: 13, color: 'var(--text-3)' } }, 'Ainda sem facturas neste período.')
+          : React.createElement("table", { style: { width: '100%', borderCollapse: 'collapse' } },
+            React.createElement("thead", null, React.createElement("tr", null,
+              ['Acto facturado', 'Actos', 'Pessoas', 'Facturado'].map(h => React.createElement("th", { key: h, style: th }, h)))),
+            React.createElement("tbody", null, actos.map(a => React.createElement("tr", { key: a.servico },
+              React.createElement("td", { style: Object.assign({}, td, { fontWeight: 600 }) }, a.servico),
+              React.createElement("td", { style: td }, a.actos),
+              React.createElement("td", { style: td }, a.pessoas),
+              React.createElement("td", { style: td }, bspCrmKz(a.valor))))))));
   }
 
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'auto' } },

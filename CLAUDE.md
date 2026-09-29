@@ -211,6 +211,11 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 - Sócios (27-09-2026, `socios.sql`): camada «Sócio» (`soNumeros`), só o
   Painel. Servidor: `bsp_e_socio`, `bsp_membro_e_socio`; ecrã: `bspESocio`,
   `bspVePainel`. Nunca usar a camada de sócio como camada de recurso.
+- CRM, pedidos do WhatsApp (29-09-2026, `crm-pedidos.sql`): o serviço
+  sai de `crm.servico_do_texto` (palavras inteiras: «osso» apanhava
+  «posso») e do anúncio (`crm.servico_do_anuncio`, sem a morada); o
+  facturado sai das linhas da factura (`crm.servico_do_item`) e cada
+  factura conta uma vez (`crm.pedidos_facturas`).
 - Qualquer `update` ao `shared_state` feito no servidor tem de pôr
   `updated_at = now()`: os postos só relêem o estado quando essa data
   muda, e um posto com o estado antigo pode sobrepô-lo ao gravar.
