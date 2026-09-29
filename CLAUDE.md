@@ -222,7 +222,8 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   `updated_at = now()`: os postos só relêem o estado quando essa data
   muda, e um posto com o estado antigo pode sobrepô-lo ao gravar.
 - Históricos do WhatsApp: `ferramentas/whatsapp-importar.py` (ids
-  negativos, `cid` «wa-<canal>-n»). Ao abrir uma conversa, o `ChatScreen`
+  negativos, `cid` «wa-<canal>-n»; bases usadas até 4000000, a seguinte
+  é 5000000; procurar palavras-passe soltas antes de aplicar). Ao abrir uma conversa, o `ChatScreen`
   pede as 300 mais recentes dessa conversa: um aparelho aberto nunca
   recebia as importadas.
 - Anexos no chat: `enviarFicheiros(lista, opc)` no `ChatScreen` serve o

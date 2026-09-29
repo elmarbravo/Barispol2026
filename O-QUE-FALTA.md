@@ -1572,7 +1572,26 @@ canais do Workspace.
   que se fez à mão na Farmácia e no Laboratório (linhas automáticas,
   anexos, palavras-passe, blocos de 450, soma MD5 e consulta de
   conferência). O mapa de remetentes (nome no WhatsApp → id ou «x:Nome»)
-  fica fora do repositório. Próximo `--base` livre: 3000000.
+  fica fora do repositório. Próximo `--base` livre: 5000000.
+- Importado (30-09-2026): «WhatsApp Chat - DC - Enfermagem Barispol» para
+  o canal #enfermagem (`c-enfermagem`): 648 mensagens, de 10-06-2025 a
+  28-09-2026, ids de -3000000 a -3000647 (`--base 3000000`). Com conta:
+  Elmar (u1), Arlete (u2), Osvaldo (u14) e u9, u10 e u11 («Paulo Focante»
+  no WhatsApp é o Paulo Manuel, u11); sem conta: Dra Alda Mendes.
+- Importado (30-09-2026): «WhatsApp Chat - RP» («DAF - RELAÇÕES PÚBLICAS -
+  BARISPOL») para o grupo «rp» (`g-1790353145179`): 6416 mensagens, de
+  07-04-2025 a 29-09-2026, ids de -4000000 a -4006415 (`--base 4000000`).
+  Com conta: Emmanuel (u22, dois números), Arlete (u2) e Elmar (u1); sem
+  conta: «Aurélio (motorista)». Três palavras-passe ou códigos escritos no
+  grupo e uma chave `eyJ…` do projecto antigo ficaram como «[removida na
+  importação]». Os 15 blocos foram conferidos com a soma MD5.
+- A ferramenta passou a (30-09-2026): normalizar os acentos (NFC; na
+  Enfermagem um «ú» decomposto estragava a soma); tapar sozinha qualquer
+  `eyJ…` ou `sb_secret_…`; escrever os caracteres invisíveis (espaço
+  inseparável, U+2060, U+200B, tabulação) como «§a0§», «§2060§»… que o SQL
+  repõe com `chr()`, porque se perdiam ao copiar o bloco. Antes de aplicar,
+  procurar à mão palavras-passe soltas (uma linha só com a palavra-passe
+  não tem «senha:» à frente e escapa ao filtro).
 - Histórico que não aparecia (30-09-2026, a Gizela não via o da
   Farmácia): um aparelho já aberto só pedia mensagens com id maior do que
   o último, e as importadas têm ids negativos; o tempo real estava
