@@ -2020,6 +2020,21 @@ const I = {
   }), React.createElement("path", {
     d: "M3 9h18M8 3v4M16 3v4M8 13h2M14 13h2M8 17h2M14 17h2"
   })),
+  Car: p => React.createElement(Icon, p, React.createElement("path", {
+    d: "M5 16V11l2-5h10l2 5v5"
+  }), React.createElement("path", {
+    d: "M3 16h18v3H3z"
+  }), React.createElement("circle", {
+    cx: "7.5",
+    cy: "19",
+    r: "1.5"
+  }), React.createElement("circle", {
+    cx: "16.5",
+    cy: "19",
+    r: "1.5"
+  }), React.createElement("path", {
+    d: "M5 11h14"
+  })),
   Clock: p => React.createElement(Icon, p, React.createElement("circle", {
     cx: "12",
     cy: "12",
@@ -2678,6 +2693,13 @@ const NAV_ITEMS = [{
   icon: 'Clock',
   badge: null
 }, {
+  /* Transporte (29-09-2026): o motorista e a gestao. */
+  id: 'transporte',
+  label: 'Transporte',
+  icon: 'Car',
+  badge: null,
+  transporteOnly: true
+}, {
   id: 'seguimento',
   label: 'CRM',
   icon: 'Heart',
@@ -2867,6 +2889,7 @@ function Sidebar({
     if (item.crmOnly && !bspVeCrm(currentUser)) return null;
     if (item.marcacoesOnly && !bspVeMarcacoes(currentUser)) return null;
     if (item.painelOnly && !bspVePainel(currentUser)) return null;
+    if (item.transporteOnly && !bspVeTransporte(currentUser)) return null;
     if (bspESocio(currentUser) && item.id !== 'painel') return null;
     const active = current === item.id;
     const IconComp = I[item.icon];
@@ -3090,6 +3113,7 @@ function Topbar({
     seguimento: 'CRM',
     marcacoes: 'Marcações',
     escalas: 'Escalas de serviço',
+    transporte: 'Transporte',
     painel: 'Painel financeiro',
     relatorios: 'Relatórios do dia',
     directory: 'Directório',
@@ -3764,7 +3788,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'bsp_e_gestor'];
+const BSP_RPC_LEITURA = ['bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'bsp_e_gestor'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -17426,7 +17450,7 @@ function MobileNav({
       }
     }, n > 99 ? '99+' : n)), it.label);
   }), React.createElement("button", {
-    "data-on": ['feed', 'meetings', 'drive', 'admin', 'notifications', 'directory', 'relatorios', 'escalas'].includes(current),
+    "data-on": ['feed', 'meetings', 'drive', 'admin', 'notifications', 'directory', 'relatorios', 'escalas', 'transporte'].includes(current),
     onClick: onMore
   }, React.createElement(I.MoreH, {
     size: 20
@@ -17615,6 +17639,10 @@ function MobileMore({
     label: 'Escalas',
     icon: 'Clock'
   }, {
+    id: 'transporte',
+    label: 'Transporte',
+    icon: 'Car'
+  }, {
     id: 'marcacoes',
     label: 'Marcações',
     icon: 'Cal'
@@ -17646,6 +17674,10 @@ function MobileMore({
   }
   if (!vePainel) {
     const k = items.findIndex(x => x.id === 'painel');
+    if (k !== -1) items.splice(k, 1);
+  }
+  if (!bspVeTransporte(window.userById(window.CURRENT_USER_ID))) {
+    const k = items.findIndex(x => x.id === 'transporte');
     if (k !== -1) items.splice(k, 1);
   }
   if (soPainel) items.splice(0, items.length, { id: 'painel', label: 'Painel', icon: 'TrendUp' });
@@ -20863,6 +20895,381 @@ function EscalaHojeCartao({ onAbrir }) {
         React.createElement("b", null, y.l.map(bspNomeCurto).join(', ')))),
       x.nota && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', fontStyle: 'italic', marginTop: 3 } }, x.nota))));
 }
+/* Transporte (pedido do motorista e do Elmar, 29-09-2026; transporte.sql).
+   O motorista regista a rota das 22:30 (quem sai vem das escalas
+   publicadas), a hora a que deixa cada pessoa, as viagens de dia
+   (amostras, compras), a ida para casa e os abastecimentos. Cada viagem
+   tem km de inicio e de fim; os km que nao continuam de uma viagem para a
+   seguinte aparecem «sem registo» e, ao iniciar, o ecra pede o motivo.
+   Ve e regista: a gestao e quem tem o cargo de motorista (igual a
+   bsp_ve_transporte no servidor). Os bairros sao dados pessoais: so estes
+   os vem. */
+function bspVeTransporte(u) {
+  if (!u || bspESocio(u)) return false;
+  return bspGereMarcacoes(u) || /motorista/i.test(String(u.role || ''));
+}
+const BSP_TRANSP_TIPOS = {
+  pessoal: 'Rota do pessoal', amostras: 'Amostras', compras: 'Compras', outro: 'Outro serviço',
+  casa: 'Para casa', ligacao: 'Km entre viagens'
+};
+const bspKm = n => Number(n || 0).toLocaleString('pt-PT');
+const bspHoraCurta = iso => { if (!iso) return ''; const d = new Date(iso); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+/* O dia de servico: uma rota que acaba depois da meia-noite conta para o
+   dia em que comecou. */
+function bspDiaServico(d) {
+  const x = d || new Date();
+  return x.getHours() < 6 ? bspSomarDias(bspDataLocalISO(x), -1) : bspDataLocalISO(x);
+}
+function useTransporte() {
+  const [st, setSt] = React.useState({ estado: 'a-carregar', viagens: [], abast: [], zonas: {}, erro: '' });
+  const [tick, setTick] = React.useState(0);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) { setSt(s => Object.assign({}, s, { estado: 'sem-servidor' })); return; }
+    let vivo = true;
+    const desde = bspSomarDias(bspDataLocalISO(new Date()), -400);
+    Promise.all([
+      cl.from('transporte_viagens').select('*').gte('data', desde).order('km_inicio', { ascending: true }).limit(5000),
+      cl.from('transporte_abastecimentos').select('*').gte('quando', desde + 'T00:00:00').order('quando', { ascending: true }).limit(2000),
+      cl.from('transporte_zonas').select('*').limit(2000)
+    ]).then(([v, a, z]) => {
+      if (!vivo) return;
+      const e = v.error || a.error || z.error;
+      if (e) {
+        const m = String(e.message || '');
+        setSt({ estado: /relation|does not exist|schema cache/i.test(m) ? 'sem-tabela' : 'erro', viagens: [], abast: [], zonas: {}, erro: m });
+        return;
+      }
+      const zonas = {};
+      (z.data || []).forEach(r => { zonas[r.pessoa] = r.zona; });
+      setSt({ estado: 'pronto', viagens: v.data || [], abast: a.data || [], zonas, erro: '' });
+    });
+    return () => { vivo = false; };
+  }, [tick]);
+  return Object.assign({}, st, { recarregar: () => setTick(t => t + 1) });
+}
+/* Uma fotografia do conta-quilometros ou do recibo: fica na pasta privada
+   de quem a tira (so ele e a gestao a vem). */
+async function bspTranspFoto(file) {
+  if (!file) return null;
+  return bspUploadToStorage(file, 'privado/' + window.CURRENT_USER_ID + '/transporte');
+}
+async function bspVerFotoTransp(caminho) {
+  const u = await bspSignedUrl(caminho, 0, () => {});
+  if (u) bspVerImagem(u, 'Fotografia');
+}
+const bspTranspCampo = { height: 44, padding: '0 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 15, width: '100%', boxSizing: 'border-box' };
+const bspTranspRot = t => React.createElement("span", { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 6 } }, t);
+function CampoFoto({ valor, onMudar, rotulo }) {
+  const ref = React.useRef(null);
+  return React.createElement("div", null, bspTranspRot(rotulo || 'Fotografia do conta-quilómetros'),
+    React.createElement("input", { ref, type: 'file', accept: 'image/*', capture: 'environment', style: { display: 'none' }, onChange: e => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) onMudar(f); } }),
+    React.createElement("button", { type: 'button', onClick: () => ref.current && ref.current.click(), style: bspEscBotao(false) }, React.createElement(I.Image, { size: 15 }), valor ? 'Trocar fotografia' : 'Tirar fotografia'),
+    valor && React.createElement("span", { style: { marginLeft: 10, fontSize: 12.5, color: 'var(--sucesso)' } }, '✓ ' + valor.name));
+}
+/* Iniciar uma viagem. Se os km nao continuam da ultima viagem, pede o
+   motivo e regista a diferenca como viagem de ligacao. */
+function TranspIniciarModal({ open, tipo, ultimoKm, zonas, saidas, onClose, onFeito }) {
+  const toast = useToast();
+  const [km, setKm] = React.useState('');
+  const [foto, setFoto] = React.useState(null);
+  const [motivo, setMotivo] = React.useState('');
+  const [destino, setDestino] = React.useState('');
+  const [quem, setQuem] = React.useState([]);
+  const [aGravar, setAGravar] = React.useState(false);
+  React.useEffect(() => {
+    if (!open) return;
+    setKm(ultimoKm ? String(ultimoKm) : ''); setFoto(null); setMotivo(''); setDestino(''); setAGravar(false);
+    setQuem(tipo === 'pessoal' ? Array.from(new Set((saidas || []).map(s => s.pessoa))) : []);
+  }, [open]);
+  if (!open) return null;
+  const n = parseInt(String(km).replace(/\D/g, ''), 10);
+  const dif = ultimoKm && n > ultimoKm ? n - ultimoKm : 0;
+  const erro = !n ? 'Escreva os km do conta-quilómetros.' : ultimoKm && n < ultimoKm ? 'Os km não podem ser menos do que no fim da última viagem (' + bspKm(ultimoKm) + ').' : dif && !motivo.trim() ? 'Diga o que o carro fez nestes ' + dif + ' km.' : tipo !== 'pessoal' && !destino.trim() ? 'Diga o destino.' : '';
+  const gravar = async () => {
+    if (erro || aGravar) return;
+    setAGravar(true);
+    const cl = bspGetClient();
+    const dia = bspDiaServico();
+    try {
+      const caminho = foto ? await bspTranspFoto(foto) : null;
+      if (dif) {
+        const r0 = await cl.from('transporte_viagens').insert({ data: dia, tipo: 'ligacao', km_inicio: ultimoKm, km_fim: n, hora_fim: new Date().toISOString(), nota: motivo.trim() });
+        if (r0.error) throw r0.error;
+      }
+      const paragens = quem.map(id => ({ quem: id, zona: zonas[id] || '' }));
+      const r = await cl.from('transporte_viagens').insert({ data: dia, tipo, km_inicio: n, hora_inicio: new Date().toISOString(), destino: destino.trim(), paragens, foto_inicio: caminho });
+      if (r.error) throw r.error;
+      onFeito(); onClose();
+    } catch (e) {
+      toast('Não foi possível gravar: ' + (e && e.message || e));
+      setAGravar(false);
+    }
+  };
+  return React.createElement(Modal, {
+    open, onClose, width: 520, title: tipo === 'pessoal' ? 'Iniciar a rota das 22:30' : 'Iniciar viagem: ' + BSP_TRANSP_TIPOS[tipo],
+    footer: React.createElement(React.Fragment, null,
+      React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: onClose }, 'Cancelar'),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: gravar }, aGravar ? 'A gravar…' : 'Iniciar'))
+  }, React.createElement("div", { style: { padding: 20, display: 'flex', flexDirection: 'column', gap: 16 } },
+    React.createElement("label", null, bspTranspRot('Km no conta-quilómetros'),
+      React.createElement("input", { value: km, onChange: e => setKm(e.target.value), inputMode: 'numeric', placeholder: 'Ex.: 54881', style: bspTranspCampo })),
+    dif > 0 && React.createElement("div", { style: { borderLeft: '4px solid var(--perigo)', paddingLeft: 12 } },
+      bspTranspRot(dif + ' km desde o fim da última viagem (' + bspKm(ultimoKm) + '). O que fez o carro?'),
+      React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 } },
+        ['De casa para a clínica', 'Serviço de dia (amostras, compras)', 'Abastecer'].map(m => React.createElement("button", { key: m, type: 'button', onClick: () => setMotivo(m), style: bspEscChip(motivo === m) }, m))),
+      React.createElement("input", { value: motivo, onChange: e => setMotivo(e.target.value), placeholder: 'Ou escreva o motivo', style: bspTranspCampo })),
+    tipo !== 'pessoal' && React.createElement("label", null, bspTranspRot('Destino'),
+      React.createElement("input", { value: destino, onChange: e => setDestino(e.target.value), placeholder: tipo === 'amostras' ? 'Ex.: Laboratório de referência' : 'Ex.: Fornecedor', style: bspTranspCampo })),
+    tipo === 'pessoal' && React.createElement("div", null, bspTranspRot('Quem vai (' + quem.length + ')'),
+      !(saidas || []).length && React.createElement("p", { style: { margin: '0 0 8px', fontSize: 12.5, color: 'var(--text-3)' } }, 'As escalas publicadas não trazem ninguém a sair às 22:30 hoje. Junte as pessoas à mão.'),
+      React.createElement(EscalaPessoas, { area: '', escolhidas: quem, onMudar: setQuem, extras: Object.keys(zonas).filter(k => k.indexOf('x:') === 0) })),
+    React.createElement(CampoFoto, { valor: foto, onMudar: setFoto }),
+    erro && km && React.createElement("div", { role: 'alert', style: { fontSize: 13, color: 'var(--perigo)' } }, erro)));
+}
+function TranspKmModal({ open, titulo, minimo, pedirFoto, pedirNota, onClose, onGravar }) {
+  const [km, setKm] = React.useState('');
+  const [foto, setFoto] = React.useState(null);
+  const [nota, setNota] = React.useState('');
+  const [aGravar, setAGravar] = React.useState(false);
+  React.useEffect(() => { if (open) { setKm(''); setFoto(null); setNota(''); setAGravar(false); } }, [open]);
+  if (!open) return null;
+  const n = parseInt(String(km).replace(/\D/g, ''), 10);
+  const erro = !n ? 'Escreva os km do conta-quilómetros.' : n < minimo ? 'Tem de ser pelo menos ' + bspKm(minimo) + ' km.' : '';
+  return React.createElement(Modal, {
+    open, onClose, width: 460, title: titulo,
+    footer: React.createElement(React.Fragment, null,
+      React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: onClose }, 'Cancelar'),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: async () => { if (erro || aGravar) return; setAGravar(true); const ok = await onGravar(n, foto, nota.trim()); if (ok) onClose(); else setAGravar(false); } }, aGravar ? 'A gravar…' : 'Gravar'))
+  }, React.createElement("div", { style: { padding: 20, display: 'flex', flexDirection: 'column', gap: 16 } },
+    React.createElement("label", null, bspTranspRot('Km no conta-quilómetros'),
+      React.createElement("input", { value: km, onChange: e => setKm(e.target.value), inputMode: 'numeric', placeholder: minimo ? 'A partir de ' + bspKm(minimo) : '', style: bspTranspCampo }),
+      n > minimo && minimo ? React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-2)', display: 'block', marginTop: 6 } }, '= ' + (n - minimo) + ' km') : null),
+    pedirFoto && React.createElement(CampoFoto, { valor: foto, onMudar: setFoto }),
+    pedirNota && React.createElement("label", null, bspTranspRot('Ocorrências (opcional)'),
+      React.createElement("input", { value: nota, onChange: e => setNota(e.target.value), placeholder: 'Trânsito, avaria, atraso…', style: bspTranspCampo })),
+    erro && km && React.createElement("div", { role: 'alert', style: { fontSize: 13, color: 'var(--perigo)' } }, erro)));
+}
+function TranspAbastModal({ open, ultimoKm, onClose, onFeito }) {
+  const toast = useToast();
+  const [f, setF] = React.useState({ km: '', litros: '', valor: '', nota: '' });
+  const [foto, setFoto] = React.useState(null);
+  const [aGravar, setAGravar] = React.useState(false);
+  React.useEffect(() => { if (open) { setF({ km: ultimoKm ? String(ultimoKm) : '', litros: '', valor: '', nota: '' }); setFoto(null); setAGravar(false); } }, [open]);
+  if (!open) return null;
+  const num = v => Number(String(v).replace(/\s/g, '').replace(',', '.'));
+  const erro = !num(f.km) ? 'Escreva os km.' : !(num(f.litros) > 0) ? 'Escreva os litros.' : '';
+  const campo = (k, rot, ph) => React.createElement("label", null, bspTranspRot(rot), React.createElement("input", { value: f[k], onChange: e => setF(x => Object.assign({}, x, { [k]: e.target.value })), inputMode: k === 'nota' ? 'text' : 'decimal', placeholder: ph, style: bspTranspCampo }));
+  const gravar = async () => {
+    if (erro || aGravar) return;
+    setAGravar(true);
+    try {
+      const caminho = foto ? await bspTranspFoto(foto) : null;
+      const r = await bspGetClient().from('transporte_abastecimentos').insert({ km: Math.round(num(f.km)), litros: num(f.litros), valor: num(f.valor) || 0, nota: f.nota.trim(), foto: caminho });
+      if (r.error) throw r.error;
+      onFeito(); onClose();
+    } catch (e) { toast('Não foi possível gravar: ' + (e && e.message || e)); setAGravar(false); }
+  };
+  return React.createElement(Modal, {
+    open, onClose, width: 460, title: 'Abastecimento',
+    footer: React.createElement(React.Fragment, null,
+      React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: onClose }, 'Cancelar'),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: gravar }, aGravar ? 'A gravar…' : 'Gravar'))
+  }, React.createElement("div", { style: { padding: 20, display: 'flex', flexDirection: 'column', gap: 14 } },
+    campo('km', 'Km no conta-quilómetros', ''), campo('litros', 'Litros', 'Ex.: 30'), campo('valor', 'Valor pago (Kz)', 'Ex.: 12 000'), campo('nota', 'Posto / nota (opcional)', ''),
+    React.createElement(CampoFoto, { valor: foto, onMudar: setFoto, rotulo: 'Fotografia do recibo' }),
+    erro && (f.litros || f.km) && React.createElement("div", { role: 'alert', style: { fontSize: 13, color: 'var(--perigo)' } }, erro)));
+}
+/* Contas de um periodo: km por tipo, km sem registo entre viagens,
+   pessoas levadas e combustivel. */
+function bspTranspContas(viagens, abast, de, ate) {
+  const v = viagens.filter(x => x.data >= de && x.data <= ate && x.km_fim != null);
+  const porTipo = {};
+  v.forEach(x => { porTipo[x.tipo] = (porTipo[x.tipo] || 0) + (x.km_fim - x.km_inicio); });
+  const ord = viagens.filter(x => x.km_fim != null).slice().sort((a, b) => a.km_inicio - b.km_inicio);
+  const falhas = [];
+  for (let i = 1; i < ord.length; i++) {
+    const a = ord[i - 1], b = ord[i];
+    if (b.km_inicio > a.km_fim && b.data >= de && b.data <= ate) falhas.push({ depois: a, antes: b, km: b.km_inicio - a.km_fim });
+  }
+  const semRegisto = falhas.reduce((s, x) => s + x.km, 0);
+  const pessoas = v.filter(x => x.tipo === 'pessoal').reduce((s, x) => s + (x.paragens || []).filter(p => !p.falta).length, 0);
+  const rotas = v.filter(x => x.tipo === 'pessoal').length;
+  const ab = abast.filter(a => { const d = bspDataLocalISO(new Date(a.quando)); return d >= de && d <= ate; });
+  const litros = ab.reduce((s, a) => s + Number(a.litros || 0), 0);
+  const valor = ab.reduce((s, a) => s + Number(a.valor || 0), 0);
+  const total = Object.keys(porTipo).reduce((s, k) => s + porTipo[k], 0) + semRegisto;
+  return { porTipo, falhas, semRegisto, pessoas, rotas, litros, valor, total, abast: ab };
+}
+function TransporteScreen({ currentUser }) {
+  const toast = useToast();
+  const { state, actions } = useStore();
+  const t = useTransporte();
+  const hoje = bspDiaServico();
+  const [aba, setAba] = React.useState('hoje');
+  const [modal, setModal] = React.useState('');
+  const [tipoNovo, setTipoNovo] = React.useState('pessoal');
+  const [saidas, setSaidas] = React.useState([]);
+  const [mes, setMes] = React.useState(hoje.slice(0, 8) + '01');
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    cl.rpc('bsp_transporte_saidas', { p_dia: hoje }).then(r => { if (vivo && !r.error) setSaidas(r.data || []); });
+    return () => { vivo = false; };
+  }, [hoje]);
+  const aberta = t.viagens.slice().reverse().find(v => v.km_fim == null) || null;
+  const ultimoKm = t.viagens.reduce((m, v) => Math.max(m, v.km_fim != null ? v.km_fim : v.km_inicio), 0);
+  const nomeDe = id => { const u = String(id).indexOf('x:') === 0 ? null : window.userById(id); return u ? String(u.name).split(/\s+/).slice(0, 2).join(' ') : bspNomeCurto(id); };
+  const mudarAberta = async campos => {
+    const r = await bspGetClient().from('transporte_viagens').update(campos).eq('id', aberta.id).select('id');
+    if (r.error || !r.data || !r.data.length) { toast('Não foi possível gravar: ' + (r.error ? r.error.message : 'sem permissão')); return false; }
+    t.recarregar();
+    return true;
+  };
+  const paragens = aberta ? (aberta.paragens || []) : [];
+  const mexerParagem = (i, fn) => mudarAberta({ paragens: paragens.map((p, k) => k === i ? fn(Object.assign({}, p)) : p) });
+  const moverParagem = (i, d) => { const l = paragens.slice(); const j = i + d; if (j < 0 || j >= l.length) return; const x = l[i]; l[i] = l[j]; l[j] = x; mudarAberta({ paragens: l }); };
+  /* O resumo vai para o grupo #transporte, como o motorista fazia no
+     WhatsApp. */
+  const publicarResumo = v => {
+    const canal = (state.extraChannels || []).find(c => String(c.name || '').toLowerCase() === 'transporte');
+    if (!canal) return;
+    const km = v.km_fim - v.km_inicio;
+    const linhas = (v.paragens || []).map(p => '• ' + nomeDe(p.quem) + (p.zona ? ' (' + p.zona + ')' : '') + (p.falta ? ' — não foi' : p.deixado_em ? ' — ' + bspHoraCurta(p.deixado_em) : ''));
+    const texto = '🚗 ' + BSP_TRANSP_TIPOS[v.tipo] + ' · ' + bspDataCurta(v.data) + '\n' +
+      (v.destino ? 'Destino: ' + v.destino + '\n' : '') +
+      (linhas.length ? linhas.join('\n') + '\n' : '') +
+      'Km: ' + bspKm(v.km_inicio) + ' → ' + bspKm(v.km_fim) + ' = ' + km + ' km' +
+      (v.hora_inicio ? ' · ' + bspHoraCurta(v.hora_inicio) + '–' + bspHoraCurta(v.hora_fim) : '') + (v.nota ? '\nNota: ' + v.nota : '');
+    actions.sendMessage(canal.id, { userId: currentUser.id, text: texto });
+  };
+  const terminar = async (n, foto, nota) => {
+    const caminho = foto ? await bspTranspFoto(foto).catch(() => null) : null;
+    const campos = { km_fim: n, hora_fim: new Date().toISOString(), foto_fim: caminho, nota: [aberta.nota, nota].filter(Boolean).join(' · ') };
+    const ok = await mudarAberta(campos);
+    if (ok) { publicarResumo(Object.assign({}, aberta, campos)); toast('Viagem terminada: ' + (n - aberta.km_inicio) + ' km.'); }
+    return ok;
+  };
+  const casa = async (n, foto) => {
+    const caminho = foto ? await bspTranspFoto(foto).catch(() => null) : null;
+    const r = await bspGetClient().from('transporte_viagens').insert({ data: bspDiaServico(), tipo: 'casa', km_inicio: ultimoKm, km_fim: n, hora_fim: new Date().toISOString(), foto_fim: caminho });
+    if (r.error) { toast('Não foi possível gravar: ' + r.error.message); return false; }
+    t.recarregar(); toast('Registado: ' + (n - ultimoKm) + ' km até casa.');
+    return true;
+  };
+  const vazio = x => React.createElement("div", { style: { padding: '40px 20px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13.5 } }, x);
+  if (t.estado === 'a-carregar') return vazio('A carregar…');
+  if (t.estado === 'sem-servidor') return vazio('O servidor não está ligado neste aparelho.');
+  if (t.estado === 'sem-tabela') return vazio('As tabelas do transporte ainda não existem. Corra o transporte.sql no Supabase.');
+  if (t.estado === 'erro') return vazio('Não foi possível carregar. ' + t.erro);
+  const botaoGrande = (rotulo, onClick, principal, icone) => React.createElement("button", { onClick, style: Object.assign(bspEscBotao(principal), { height: 52, fontSize: 15, justifyContent: 'center', flex: '1 1 200px' }) }, icone, rotulo);
+  const abas = React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap', flex: 'none' } },
+    [['hoje', 'Hoje'], ['historico', 'Histórico e contas'], ['zonas', 'Bairros']].map(a => React.createElement("button", { key: a[0], onClick: () => setAba(a[0]), style: bspEscChip(aba === a[0]) }, a[1])),
+    React.createElement("span", { style: { flex: 1 } }),
+    React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-3)', alignSelf: 'center' } }, 'Último registo: ' + bspKm(ultimoKm) + ' km'));
+  let corpo;
+  if (aba === 'hoje') {
+    corpo = aberta ? React.createElement(Card, { pad: 18, style: { borderLeft: '4px solid var(--accent)' } },
+      React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: 'var(--accent-d)', textTransform: 'uppercase', letterSpacing: '.06em' } }, 'Em curso'),
+      React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: 'var(--text-1)', marginTop: 4 } }, BSP_TRANSP_TIPOS[aberta.tipo] + (aberta.destino ? ' · ' + aberta.destino : '')),
+      React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 2 } }, 'Saída às ' + bspHoraCurta(aberta.hora_inicio) + ' com ' + bspKm(aberta.km_inicio) + ' km'),
+      paragens.length > 0 && React.createElement("div", { style: { marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 } },
+        paragens.map((p, i) => React.createElement("div", { key: i, style: { display: 'grid', gridTemplateColumns: 'auto minmax(0,1fr) auto', gap: 10, alignItems: 'center', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8, background: p.deixado_em ? 'var(--surface-2)' : 'var(--surface)', opacity: p.falta ? .55 : 1 } },
+          React.createElement("div", { style: { display: 'flex', flexDirection: 'column' } },
+            React.createElement("button", { onClick: () => moverParagem(i, -1), 'aria-label': 'Subir', style: { border: 0, background: 'transparent', cursor: 'pointer', color: 'var(--text-3)', fontSize: 14, padding: 0 } }, '▲'),
+            React.createElement("button", { onClick: () => moverParagem(i, 1), 'aria-label': 'Descer', style: { border: 0, background: 'transparent', cursor: 'pointer', color: 'var(--text-3)', fontSize: 14, padding: 0 } }, '▼')),
+          React.createElement("div", { style: { minWidth: 0 } },
+            React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)', textDecoration: p.falta ? 'line-through' : 'none' } }, (i + 1) + '. ' + nomeDe(p.quem)),
+            React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, (p.zona || 'Bairro por saber') + (p.deixado_em ? ' · deixado às ' + bspHoraCurta(p.deixado_em) : p.falta ? ' · não foi' : ''))),
+          p.deixado_em ? React.createElement("span", { style: { color: 'var(--sucesso)', fontWeight: 700, fontSize: 13 } }, '✓')
+            : React.createElement("div", { style: { display: 'flex', gap: 6 } },
+              !p.falta && React.createElement("button", { onClick: () => mexerParagem(i, x => Object.assign(x, { deixado_em: new Date().toISOString() })), style: Object.assign(bspEscBotao(true), { height: 40 }) }, 'Deixado'),
+              React.createElement("button", { onClick: () => mexerParagem(i, x => Object.assign(x, { falta: !x.falta })), style: Object.assign(bspEscBotao(false), { height: 40 }) }, p.falta ? 'Afinal foi' : 'Não foi'))))),
+      React.createElement("div", { style: { display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' } },
+        botaoGrande('Terminar viagem', () => setModal('terminar'), true, React.createElement(I.Check, { size: 16 }))))
+      : React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+        React.createElement(Card, { pad: 18 },
+          React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)', marginBottom: 4 } }, 'Rota das 22:30 de hoje'),
+          React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginBottom: 12 } },
+            saidas.length ? 'Pelas escalas publicadas saem à noite: ' + Array.from(new Set(saidas.map(s => s.pessoa))).map(id => nomeDe(id) + (t.zonas[id] ? ' (' + t.zonas[id] + ')' : '')).join(', ') + '.' : 'As escalas publicadas de hoje ainda não trazem ninguém a sair às 22:30. Pode juntar as pessoas ao iniciar.'),
+          React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+            botaoGrande('Iniciar a rota', () => { setTipoNovo('pessoal'); setModal('iniciar'); }, true, React.createElement(I.Car, { size: 16 })))),
+        React.createElement(Card, { pad: 18 },
+          React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)', marginBottom: 12 } }, 'Outros registos'),
+          React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+            botaoGrande('Amostras', () => { setTipoNovo('amostras'); setModal('iniciar'); }, false),
+            botaoGrande('Compras', () => { setTipoNovo('compras'); setModal('iniciar'); }, false),
+            botaoGrande('Outro serviço', () => { setTipoNovo('outro'); setModal('iniciar'); }, false),
+            botaoGrande('Cheguei a casa', () => setModal('casa'), false),
+            botaoGrande('Abastecimento', () => setModal('abast'), false))));
+  } else if (aba === 'historico') {
+    const fimMes = bspSomarDias(bspSomarMeses(mes, 1), -1);
+    const c = bspTranspContas(t.viagens, t.abast, mes, fimMes);
+    const doMes = t.viagens.filter(v => v.data >= mes && v.data <= fimMes).slice().sort((a, b) => b.km_inicio - a.km_inicio);
+    const falhaDepois = {};
+    c.falhas.forEach(f => { falhaDepois[f.antes.id] = f; });
+    const tile = (rot, val, perigo) => React.createElement(Card, { pad: 14, style: { flex: '1 1 140px' } },
+      React.createElement("div", { style: { fontSize: 11.5, fontWeight: 600, color: perigo ? 'var(--perigo)' : 'var(--text-3)' } }, rot),
+      React.createElement("div", { style: { fontSize: 20, fontWeight: 700, color: perigo ? 'var(--perigo)' : 'var(--text-1)' } }, val));
+    const dias = [];
+    doMes.forEach(v => { const g = dias[dias.length - 1]; if (g && g.dia === v.data) g.l.push(v); else dias.push({ dia: v.data, l: [v] }); });
+    corpo = React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+      React.createElement("div", { style: { display: 'inline-flex', alignItems: 'center', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', alignSelf: 'flex-start' } },
+        React.createElement("button", { onClick: () => setMes(m => bspSomarMeses(m, -1)), 'aria-label': 'Mês anterior', style: { height: 34, width: 34, border: 0, background: 'transparent', cursor: 'pointer', color: 'var(--text-1)', fontSize: 16 } }, '‹'),
+        React.createElement("b", { style: { minWidth: 150, textAlign: 'center', fontSize: 14, color: 'var(--text-1)' } }, bspMesExtenso(mes)),
+        React.createElement("button", { onClick: () => setMes(m => bspSomarMeses(m, 1)), 'aria-label': 'Mês seguinte', style: { height: 34, width: 34, border: 0, background: 'transparent', cursor: 'pointer', color: 'var(--text-1)', fontSize: 16 } }, '›')),
+      React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } },
+        tile('Km no mês', bspKm(c.total)),
+        tile('Rotas do pessoal', bspKm(c.porTipo.pessoal || 0) + ' km · ' + c.rotas + (c.rotas === 1 ? ' noite' : ' noites')),
+        tile('Pessoas levadas', c.pessoas),
+        tile('Para casa', bspKm(c.porTipo.casa || 0) + ' km'),
+        tile('Serviço de dia', bspKm((c.porTipo.amostras || 0) + (c.porTipo.compras || 0) + (c.porTipo.outro || 0) + (c.porTipo.ligacao || 0)) + ' km'),
+        tile('Sem registo', bspKm(c.semRegisto) + ' km', c.semRegisto > 0),
+        tile('Combustível', c.litros ? c.litros.toLocaleString('pt-PT') + ' L · ' + bspPainelKz(c.valor, true) : 'Sem abastecimentos'),
+        c.litros > 0 && tile('Consumo', (c.total / c.litros).toFixed(1).replace('.', ',') + ' km/L · ' + bspPainelKz(c.valor / Math.max(1, c.total), true) + '/km')),
+      React.createElement(Card, { pad: 0 },
+        !dias.length ? vazio('Sem viagens neste mês.') : dias.map(g => React.createElement("div", { key: g.dia },
+          React.createElement("div", { style: { background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', padding: '8px 16px', fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.04em' } }, bspDiaExtenso(g.dia + 'T12:00:00')),
+          g.l.map(v => React.createElement(React.Fragment, { key: v.id },
+            React.createElement("div", { style: { padding: '10px 16px', borderBottom: '1px solid var(--border)', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 10 } },
+              React.createElement("div", { style: { minWidth: 0 } },
+                React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)' } }, BSP_TRANSP_TIPOS[v.tipo] + (v.destino ? ' · ' + v.destino : '') + (v.hora_inicio || v.hora_fim ? ' · ' + [bspHoraCurta(v.hora_inicio), bspHoraCurta(v.hora_fim)].filter(Boolean).join('–') : '')),
+                (v.paragens || []).length > 0 && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', marginTop: 2 } }, (v.paragens || []).map(p => nomeDe(p.quem) + (p.zona ? ' (' + p.zona + ')' : '') + (p.falta ? ' — não foi' : p.deixado_em ? ' ' + bspHoraCurta(p.deixado_em) : '')).join(' · ')),
+                v.nota && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2, fontStyle: 'italic' } }, v.nota),
+                (v.foto_inicio || v.foto_fim) && React.createElement("div", { style: { display: 'flex', gap: 10, marginTop: 4 } },
+                  v.foto_inicio && React.createElement("button", { onClick: () => bspVerFotoTransp(v.foto_inicio), style: { border: 0, background: 'transparent', color: 'var(--accent-d)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, padding: 0 } }, 'Foto do início'),
+                  v.foto_fim && React.createElement("button", { onClick: () => bspVerFotoTransp(v.foto_fim), style: { border: 0, background: 'transparent', color: 'var(--accent-d)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, padding: 0 } }, 'Foto do fim'))),
+              React.createElement("div", { style: { textAlign: 'right', whiteSpace: 'nowrap' } },
+                React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)' } }, v.km_fim != null ? (v.km_fim - v.km_inicio) + ' km' : 'em curso'),
+                React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)' } }, bspKm(v.km_inicio) + ' → ' + (v.km_fim != null ? bspKm(v.km_fim) : '…')))),
+            falhaDepois[v.id] && React.createElement("div", { style: { padding: '8px 16px', borderBottom: '1px solid var(--border)', fontSize: 12.5, fontWeight: 600, color: 'var(--perigo)' } },
+              '⚠ ' + falhaDepois[v.id].km + ' km sem registo antes desta viagem (de ' + bspKm(falhaDepois[v.id].depois.km_fim) + ' a ' + bspKm(v.km_inicio) + ')')))))),
+      c.abast.length > 0 && React.createElement(Card, { pad: 14 },
+        React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 } }, 'Abastecimentos'),
+        c.abast.map(a => React.createElement("div", { key: a.id, style: { fontSize: 13, color: 'var(--text-1)', padding: '4px 0' } },
+          bspDataExacta(new Date(a.quando)) + ' · ' + bspKm(a.km) + ' km · ' + Number(a.litros).toLocaleString('pt-PT') + ' L · ' + bspPainelKz(a.valor, true) + (a.nota ? ' · ' + a.nota : ''),
+          a.foto && React.createElement("button", { onClick: () => bspVerFotoTransp(a.foto), style: { marginLeft: 8, border: 0, background: 'transparent', color: 'var(--accent-d)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, padding: 0 } }, 'Recibo')))));
+  } else {
+    const conhecidos = Array.from(new Set(Object.keys(t.zonas).concat(t.viagens.reduce((l, v) => l.concat((v.paragens || []).map(p => p.quem)), []))));
+    const lista = conhecidos.map(id => ({ id, nome: nomeDe(id) })).sort((a, b) => bspCompararTexto(a.nome, b.nome));
+    const gravarZona = async (id, zona) => {
+      const r = await bspGetClient().from('transporte_zonas').upsert({ pessoa: id, zona: zona.trim() });
+      if (r.error) toast('Não foi possível gravar: ' + r.error.message); else t.recarregar();
+    };
+    corpo = React.createElement(Card, { pad: 16 },
+      React.createElement("p", { style: { margin: '0 0 12px', fontSize: 13, color: 'var(--text-2)' } }, 'O bairro de cada pessoa aparece na rota. Só o motorista, a Arlete e a Direcção vêem esta lista.'),
+      lista.map(p => React.createElement("div", { key: p.id, style: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 10, alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)' } },
+        React.createElement("span", { style: { fontSize: 14, fontWeight: 600, color: 'var(--text-1)' } }, p.nome, String(p.id).indexOf('x:') === 0 ? React.createElement("span", { style: { fontWeight: 400, color: 'var(--text-3)', fontSize: 12 } }, ' · sem conta') : null),
+        React.createElement("input", { defaultValue: t.zonas[p.id] || '', onBlur: e => { if (e.target.value.trim() !== (t.zonas[p.id] || '')) gravarZona(p.id, e.target.value); }, placeholder: 'Bairro', style: Object.assign({}, bspTranspCampo, { height: 38, fontSize: 14 }) }))));
+  }
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'auto', paddingBottom: 12 } },
+    React.createElement(TranspIniciarModal, { open: modal === 'iniciar', tipo: tipoNovo, ultimoKm, zonas: t.zonas, saidas: tipoNovo === 'pessoal' ? saidas : [], onClose: () => setModal(''), onFeito: t.recarregar }),
+    aberta && React.createElement(TranspKmModal, { open: modal === 'terminar', titulo: 'Terminar viagem', minimo: aberta.km_inicio, pedirFoto: true, pedirNota: true, onClose: () => setModal(''), onGravar: terminar }),
+    React.createElement(TranspKmModal, { open: modal === 'casa', titulo: 'Cheguei a casa', minimo: ultimoKm, pedirFoto: true, onClose: () => setModal(''), onGravar: casa }),
+    React.createElement(TranspAbastModal, { open: modal === 'abast', ultimoKm, onClose: () => setModal(''), onFeito: t.recarregar }),
+    abas, corpo);
+}
 function PainelAtalho({ onAbrir }) {
   const [d, setD] = React.useState(null);
   React.useEffect(() => {
@@ -21655,7 +22062,7 @@ function App() {
     if (onde === 'chat' && partes[1]) {
       setAlvoChat({ conv: decodeURIComponent(partes.slice(1).join('/')), vez: Date.now() });
       setPage('chat');
-    } else if (['feed', 'tarefas', 'agenda', 'drive', 'seguimento', 'marcacoes', 'escalas', 'painel', 'chat', 'relatorios', 'notificacoes'].indexOf(onde) !== -1) {
+    } else if (['feed', 'tarefas', 'agenda', 'drive', 'seguimento', 'marcacoes', 'escalas', 'transporte', 'painel', 'chat', 'relatorios', 'notificacoes'].indexOf(onde) !== -1) {
       setPage({ tarefas: 'tasks', agenda: 'calendar', notificacoes: 'notifications' }[onde] || onde);
     } else {
       return;
@@ -21765,7 +22172,7 @@ function App() {
   }), pg === 'meetings' && React.createElement(MeetingsScreen, null), pg === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), pg === 'seguimento' && (bspVeCrm(currentUser) ? React.createElement(CrmScreen, null) : null), pg === 'marcacoes' && (bspVeMarcacoes(currentUser) ? React.createElement(MarcacoesScreen, null) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), pg === 'directory' && React.createElement(DirectoryScreen, null), pg === 'admin' && React.createElement(AdminScreen, {
+  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), pg === 'seguimento' && (bspVeCrm(currentUser) ? React.createElement(CrmScreen, null) : null), pg === 'marcacoes' && (bspVeMarcacoes(currentUser) ? React.createElement(MarcacoesScreen, null) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), pg === 'directory' && React.createElement(DirectoryScreen, null), pg === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
   }), pg === 'notifications' && React.createElement(NotificationsScreen, {
     onAbrir: abrirNotificacao

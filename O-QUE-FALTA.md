@@ -1489,8 +1489,32 @@ só de quem sai às 22:30; as rotas mudam com as pessoas de serviço.
 - Feito: grupo privado `#transporte` (id `g-1790640961575`) no
   `shared_state.channels`, com Emmanuel (u22), Arlete (u2) e Elmar (u1);
   a Direcção e a Coordenação vêem os grupos privados.
-- [ ] Ecrã «Transporte»: lista das 22:30 tirada das escalas publicadas,
-      paragens por ordem, «deixado às …» por pessoa, amostras e compras,
-      km e combustível, relatório diário à Arlete e à Direcção. Zonas de
-      residência visíveis só ao motorista, à Arlete e à Direcção. Espera
-      pelas últimas rotas que o Elmar vai enviar.
+- Feito (29-09-2026): `transporte.sql` (aplicado) e ecrã «Transporte»
+  (`TransporteScreen`, menu só para o motorista e a gestão,
+  `bspVeTransporte` / `bsp_ve_transporte`).
+  - Tabelas `transporte_viagens` (tipo pessoal, amostras, compras, outro,
+    casa, ligacao; km de início e fim; paragens com «deixado às» e «não
+    foi»; fotografias em `privado/<motorista>/transporte/`),
+    `transporte_abastecimentos` (km, litros, Kz, recibo) e
+    `transporte_zonas` (bairro por pessoa, dado pessoal).
+  - `bsp_transporte_saidas(dia)`: quem sai às 22:00 ou depois, pelas
+    escalas publicadas de todas as áreas (o motorista não vê as escalas).
+  - Hoje: «Iniciar a rota» com as pessoas das escalas e o bairro;
+    «Deixado» e «Não foi» por pessoa; ordem com ▲▼; «Terminar viagem» com
+    km, fotografia e ocorrências; o resumo vai para o grupo #transporte.
+    Amostras, Compras, Outro serviço, Cheguei a casa e Abastecimento.
+  - Se os km não continuam da última viagem, pede o motivo e regista a
+    diferença como «Km entre viagens».
+  - Histórico e contas por mês: km por tipo, pessoas levadas, km sem
+    registo (a vermelho, entre as viagens), combustível e consumo.
+  - Bairros: lista editável, só para o motorista e a gestão.
+  - Histórico de 24 a 28-09-2026 carregado do WhatsApp (DAF - Relações
+    Públicas): 357 km, 169 km de rotas, 51 km para casa, 137 km sem
+    registo (45 + 19 + 5 + 68). A noite de 26 não trazia a lista de
+    pessoas. Nomes e bairros só na base de dados.
+  - Testado no telemóvel e no computador como o Emmanuel: lista das 22:30
+    pelas escalas, pedido de motivo (17 km), rota com «Deixado», fim de
+    viagem, contas do mês. Sem erros.
+- [ ] Identificar a «Rosa (Mufulama)» do dia 24 (Joana e Isabel são do
+      Raio X, Afonso é enfermeiro; todos sem conta).
+- [ ] Pedir ao Emmanuel que registe os abastecimentos, para haver consumo.

@@ -182,6 +182,11 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   e `bspVeEscala`/`bsp_ve_escala`. Ecrã `EscalasScreen`; papel
   `bspEscalaHtml`; e-mail `bspEscalaEmailCorpo` com `bspEmailWrap(..., true)`;
   Início `EscalaHojeCartao`. Imprimir só por `bspImprimirHtml`.
+- Transporte (29-09-2026, `transporte.sql`): `transporte_viagens`,
+  `transporte_abastecimentos`, `transporte_zonas`; acesso
+  `bspVeTransporte`/`bsp_ve_transporte` (gestão e cargo «motorista»).
+  Quem sai à noite vem de `bsp_transporte_saidas(dia)`. Bairros são dados
+  pessoais: nunca no repositório. O dia de serviço é `bspDiaServico()`.
 - «Ver como» (28-09-2026): `bspEmVerComo()` é só leitura. Qualquer escrita
   nova ao servidor tem de passar por `bspGetClient()` (que a bloqueia) ou
   verificar `bspEmVerComo()`; funções RPC novas que só lêem vão para
