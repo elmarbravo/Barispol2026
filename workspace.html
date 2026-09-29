@@ -4713,6 +4713,7 @@ function StoreProvider({
             } catch (e) {}
           });
         } catch (e) {}
+        window.__bspIngerirAntigas = lista => (lista || []).slice().reverse().forEach(m => ingest(m, true));
         const {
           data: msgs,
           error: e1
@@ -4722,10 +4723,12 @@ function StoreProvider({
         /* As 3000 mais recentes (29-09-2026). Antes eram as 2000 mais
            antigas: com os historicos do WhatsApp importados, as conversas
            de hoje deixavam de aparecer. As anteriores carregam-se em cada
-           conversa («Ver mensagens anteriores»). */
-        if (e1) throw e1;
+           conversa («Ver mensagens anteriores»).
+           Se esta carga falhar (29-09-2026: o servidor esgotava o tempo
+           para quem nao era da gestao), o resto arranca na mesma: antes
+           parava tudo, sem tempo real e sem o historico de cada conversa. */
+        if (e1) console.warn('Barispol: primeira carga das mensagens falhou', e1);
         if (!cancelled && msgs) msgs.slice().reverse().forEach(m => ingest(m, true));
-        window.__bspIngerirAntigas = lista => (lista || []).slice().reverse().forEach(m => ingest(m, true));
         const {
           data: posts,
           error: e2

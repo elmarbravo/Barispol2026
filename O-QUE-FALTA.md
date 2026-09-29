@@ -1700,3 +1700,31 @@ sabendo que há biométrico.
   3.11.174 em `vendor/pdfjs`, licença Apache 2.0): qualquer PDF da Drive
   ou do chat abre no visor, com zoom, sem sair da app.
 - Testado com servidor simulado (PC e telemóvel), sem erros.
+
+## 3-at. Chat parado para quem não é da gestão (29-09-2026)
+
+- Sintoma: a Gizela (Farmácia) não via o histórico importado, nem
+  mensagens novas sem recarregar.
+- Causa: a regra de leitura `bsp_msg_ler` chamava `bsp_ve_conversa` em
+  cada linha de `messages`. Com os históricos do WhatsApp (cerca de
+  13 000 linhas), a primeira carga («as 3000 mais recentes») levava
+  19,7 s para quem não é da gestão. O limite é 8 s: o servidor devolvia
+  erro 500. Com esse erro, o Workspace parava o arranque: sem tempo real,
+  sem equipa do servidor e sem o histórico ao abrir a conversa.
+- Servidor (`mensagens-leitura-rapida.sql`, aplicado): a função
+  `bsp_conversas_que_vejo()` calcula uma vez por consulta a lista das
+  conversas que a pessoa vê (uma chamada a `bsp_ve_conversa` por
+  conversa, com `materialized`, porque sem isso o Postgres voltava a
+  chamá-la em cada linha). A regra só compara a chave. A carga passou de
+  19,7 s para 63 ms. Acesso conferido: a Gizela vê as suas conversas e a
+  #farmácia (928), e nada do Laboratório, das RP, da Enfermagem nem
+  directas alheias; o Emmanuel vê as RP, o #transporte e as suas.
+- Workspace: se a primeira carga falhar, o resto arranca na mesma, e o
+  histórico de cada conversa entra ao abri-la.
+- Testado com servidor simulado que devolve erro 500 na primeira carga:
+  a versão nova mostra a #farmácia e o histórico; a antiga nem mostrava
+  o canal.
+- A quem ainda não vê: recarregar a página (Ctrl+F5 no PC; na app,
+  fechar e abrir).
+- Regra para o futuro: nenhuma regra de acesso de uma tabela grande
+  chama uma função por linha. Calcular a lista uma vez com `(select …)`.

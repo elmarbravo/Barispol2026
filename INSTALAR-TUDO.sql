@@ -111,6 +111,7 @@ drop policy if exists "bsp_msg_criar" on messages;
 drop policy if exists "bsp_msg_apagar" on messages;
 drop policy if exists "bsp_msg_editar" on messages;
 
+-- Versao lenta: correr a seguir mensagens-leitura-rapida.sql (29-09-2026).
 create policy "bsp_msg_ler" on messages for select
   to authenticated using (bsp_ve_conversa(conv_key));
 create policy "bsp_msg_criar" on messages for insert

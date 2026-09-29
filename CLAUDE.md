@@ -226,6 +226,10 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   é 5000000; procurar palavras-passe soltas antes de aplicar). Ao abrir uma conversa, o `ChatScreen`
   pede as 300 mais recentes dessa conversa: um aparelho aberto nunca
   recebia as importadas.
+- Leitura de `messages` (29-09-2026, `mensagens-leitura-rapida.sql`): a
+  regra `bsp_msg_ler` usa `bsp_conversas_que_vejo()` (lista calculada uma
+  vez por consulta). Nunca voltar a chamar `bsp_ve_conversa` por linha:
+  com os históricos, a carga passava os 8 s e o Chat parava.
 - Anexos no chat: `enviarFicheiros(lista, opc)` no `ChatScreen` serve o
   clipe (vários ficheiros), o arrastar com o rato e as notas de voz
   (27-09-2026: `comecarGravacao`, `bspMensagemNotaVoz`, `bspEAudio`,
