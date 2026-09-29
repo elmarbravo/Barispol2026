@@ -1687,6 +1687,12 @@ const ADMIN_METRICS = {
 const ACTIVITY_LOG = [];
 function userById(id) {
   if (id === 'u-vista' && window.__bspVistaUser) return window.__bspVistaUser;
+  /* Quem escreveu no WhatsApp e nao tem conta (historicos importados,
+     29-09-2026): «x:Nome». */
+  if (String(id || '').indexOf('x:') === 0) {
+    const nome = String(id).slice(2);
+    return { id: id, name: nome, short: nome.split(/\s+/).map(w => w[0] || '').join('').toUpperCase().slice(0, 2), role: 'Via WhatsApp', dept: '', email: '', phone: '', status: 'offline', accessLevel: '', bio: '' };
+  }
   return USERS.find(u => u.id === id);
 }
 function deptColor(name) {
@@ -4302,6 +4308,10 @@ function StoreProvider({
         ts: fmtTs(m.created_at),
         iso: m.created_at
       });
+      /* Uma mensagem mais antiga do que a ultima (historico importado,
+         «Ver mensagens anteriores») vai para o seu lugar. */
+      const pen = arr[arr.length - 2];
+      if (pen && m.created_at && pen.iso && String(m.created_at) < String(pen.iso)) arr.sort((a, b) => String(a.iso || '9').localeCompare(String(b.iso || '9')));
       return {
         ...s,
         channelMessages: {
@@ -4581,7 +4591,10 @@ function StoreProvider({
         return;
       }
       addMsg(m);
-      if (!silencioso) notifMsg(m);
+      /* Sem aviso para mensagens com mais de 15 minutos (historicos
+         importados): so as novas tocam e vao para o sino. */
+      const velha = m.created_at && Date.now() - new Date(m.created_at).getTime() > 15 * 60000;
+      if (!silencioso && !velha) notifMsg(m);
     };
     const ingestPost = (p, silencioso) => {
       if (!p || p.id == null || seenP.has(p.id)) return;
@@ -4618,10 +4631,15 @@ function StoreProvider({
           data: msgs,
           error: e1
         } = await client.from('messages').select('*').order('created_at', {
-          ascending: true
-        }).limit(2000);
+          ascending: false
+        }).limit(3000);
+        /* As 3000 mais recentes (29-09-2026). Antes eram as 2000 mais
+           antigas: com os historicos do WhatsApp importados, as conversas
+           de hoje deixavam de aparecer. As anteriores carregam-se em cada
+           conversa («Ver mensagens anteriores»). */
         if (e1) throw e1;
-        if (!cancelled && msgs) msgs.forEach(m => ingest(m, true));
+        if (!cancelled && msgs) msgs.slice().reverse().forEach(m => ingest(m, true));
+        window.__bspIngerirAntigas = lista => (lista || []).slice().reverse().forEach(m => ingest(m, true));
         const {
           data: posts,
           error: e2
@@ -7890,7 +7908,7 @@ function ChatScreen({
       color: 'var(--text-2)',
       marginTop: 4
     }
-  }, activeChannel.desc, "."))), messages.map((m, i) => {
+  }, activeChannel.desc, "."))), messages.length > 0 && React.createElement(VerAnteriores, { conv: convKey, desde: messages[0].iso }), messages.map((m, i) => {
     const u = window.userById(m.userId);
     const prev = messages[i - 1];
     const isOwn = m.userId === currentUser.id;
@@ -8842,6 +8860,24 @@ function FileMini({
 }
 /* O cartao que se ve na conversa quando a mensagem traz um ficheiro.
    Se for imagem, mostra-a; se nao, um botao para abrir. */
+/* Historico mais antigo de uma conversa, aos bocados de 300 (29-09-2026). */
+function VerAnteriores({ conv, desde }) {
+  const [estado, setEstado] = React.useState('');
+  React.useEffect(() => { setEstado(''); }, [conv]);
+  if (!desde || estado === 'fim') return null;
+  const carregar = async () => {
+    const cl = bspGetClient();
+    if (!cl || !window.__bspIngerirAntigas) return;
+    setEstado('a-carregar');
+    const r = await cl.from('messages').select('*').eq('conv_key', conv).lt('created_at', desde).order('created_at', { ascending: false }).limit(300);
+    if (r.error) { setEstado(''); return; }
+    window.__bspIngerirAntigas(r.data || []);
+    setEstado((r.data || []).length < 300 ? 'fim' : '');
+  };
+  return React.createElement("div", { style: { textAlign: 'center', margin: '4px 0 10px' } },
+    React.createElement("button", { onClick: carregar, disabled: estado === 'a-carregar', style: { border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-2)', borderRadius: 999, height: 30, padding: '0 14px', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, cursor: 'pointer' } },
+      estado === 'a-carregar' ? 'A carregar…' : 'Ver mensagens anteriores'));
+}
 function AnexoMensagem({ a }) {
   const [erro, setErro] = React.useState('');
   if (!a) return null;

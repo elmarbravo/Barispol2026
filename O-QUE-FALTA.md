@@ -1528,3 +1528,21 @@ só de quem sai às 22:30; as rotas mudam com as pessoas de serviço.
   ao gravar mostra os km e os km por litro desde o abastecimento
   anterior. Testado no telemóvel.
 - [ ] Pedir ao Emmanuel que registe os abastecimentos, para haver consumo.
+
+## 3-ao. Chat preparado para históricos do WhatsApp (29-09-2026)
+
+Pedido do Elmar: importar as conversas dos grupos de WhatsApp para os
+canais do Workspace.
+
+- Ao abrir, o Workspace carrega as 3000 mensagens mais recentes (antes: as
+  2000 mais antigas, o que esconderia as de hoje depois de importar anos
+  de histórico). Em cada conversa, «Ver mensagens anteriores»
+  (`VerAnteriores`, 300 de cada vez).
+- Mensagens mais antigas do que a última vão para o seu lugar, pela data.
+- Mensagens com mais de 15 minutos não tocam nem vão para o sino.
+- Remetentes sem conta: `user_id` «x:Nome» (`userById` devolve o nome).
+- Primeiro ficheiro recebido: «WhatsApp Chat - Farmácia Barispol» (690
+  mensagens, 18-02-2025 a 28-08-2026, 259 anexos que não vieram na
+  exportação). Aguarda confirmação do canal (o Elmar escreveu
+  «laboratório»).
+- Testado com servidor simulado: ordem, nomes sem conta e botão.
