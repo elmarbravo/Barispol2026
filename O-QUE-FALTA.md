@@ -1542,8 +1542,20 @@ canais do Workspace.
 - Mensagens mais antigas do que a última vão para o seu lugar, pela data.
 - Mensagens com mais de 15 minutos não tocam nem vão para o sino.
 - Remetentes sem conta: `user_id` «x:Nome» (`userById` devolve o nome).
-- Primeiro ficheiro recebido: «WhatsApp Chat - Farmácia Barispol» (690
-  mensagens, 18-02-2025 a 28-08-2026, 259 anexos que não vieram na
-  exportação). Aguarda confirmação do canal (o Elmar escreveu
-  «laboratório»).
+- Importado (29-09-2026): «WhatsApp Chat - Farmácia Barispol» para o
+  canal #farmácia (`c-farmacia`), confirmado pelo Elmar: 921 mensagens,
+  de 18-02-2025 a 27-08-2026. Solange (u17), Gizela (u18), Elmar (u1),
+  Arlete (u2), Rosa Simão (u16) e Osvaldo (u14) com a sua conta; Dra Alda
+  Mendes, Catarina Baptista e Dr Pedro Feliciano como «x:Nome». Ficaram de
+  fora 29 linhas automáticas (entradas e saídas do grupo, chamadas,
+  mensagens eliminadas). Imagens e documentos não vieram na exportação:
+  «📷 Imagem (não veio na exportação do WhatsApp)» ou o nome do ficheiro.
+- Método (para os próximos históricos): cada mensagem com a data original,
+  `cid` «wa-<canal>-<n>» (não repete se se correr outra vez) e `id`
+  negativo (`overriding system value`; Farmácia de -1000000 a -1000920;
+  os próximos canais a partir de -2000000, -3000000…). Com o `id`
+  negativo, nenhuma versão do Workspace as conta como por ler nem as
+  avisa. Durante a gravação, `messages` sai da publicação
+  `supabase_realtime` e volta a entrar no fim. O texto das conversas fica
+  só na base de dados, nunca no repositório.
 - Testado com servidor simulado: ordem, nomes sem conta e botão.
