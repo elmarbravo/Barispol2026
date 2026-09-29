@@ -170,6 +170,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   `marcacoes-ficha.sql`): `email`, `paciente_id`, `tel9`; `crm_ficha`
   devolve `marcacoes`; `bsp_marc_sugerir`; «Compareceu» automático pelo
   MetaGest (`bsp_marcacoes_comparecer`, cron `bsp-marcacoes-metagest`).
+  Lembretes para a Recepção (29-09-2026): 1 h antes e 30 min depois de
+  cada marcação de hoje em aberto (`bspMarcLembretes`, `MarcLembretes`,
+  sino com `lembrete: true`).
   Cores de aviso nas variáveis `--perigo` e `--sucesso`. A planilha entra e sai por CSV
   (`bspLerCsv`, `bspMarcDoCsv`, `bspMarcCsv`). Nomes de doentes nunca no
   repositório. Lembrete ao paciente (28-09-2026, `marcacoes-lembrete.sql`):
@@ -201,7 +204,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 - Painel financeiro (27-09-2026, `painel.sql`): `bsp_painel(de, ate)`,
   só `bsp_ve_painel()` = Elmar (u1), departamento Financeiro e sócios
   (decisão do Elmar; a gestão por si só não vê; ecrã: `bspVePainel`); histórico em `crm.mg_*`, hoje em `erp.sales_invoice`
-  (cron `bsp-painel-hoje`, 5 em 5 min). Ecrã `painel` (`PainelScreen`,
+  (cron `bsp-painel-hoje`, 5 em 5 min). Médicos e seguradoras vêm de
+  `erp.sales_invoice` (histórico desde 2022, `metagest-historico.sql`),
+  nunca de `crm.mg_consultas`, que está incompleto. Ecrã `painel` (`PainelScreen`,
   `PainelColunas`, `PainelBarras`), cores `--serie-1..4`.
 - Sócios (27-09-2026, `socios.sql`): camada «Sócio» (`soNumeros`), só o
   Painel. Servidor: `bsp_e_socio`, `bsp_membro_e_socio`; ecrã: `bspESocio`,

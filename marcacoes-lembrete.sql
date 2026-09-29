@@ -89,4 +89,14 @@ select 'Lembrete por e-mail aos pacientes',
        array['recepcao', 'gestao'], 'marcacoes'
  where not exists (select 1 from public.novidades where titulo = 'Lembrete por e-mail aos pacientes');
 
+-- Lembretes para a Recepcao (29-09-2026): 1 hora antes de cada marcacao
+-- e 30 minutos depois, no ecra Marcacoes e no sino. Correm no Workspace
+-- (MarcLembretes e o efeito junto das novidades do sino); nada no servidor alem
+-- desta novidade.
+insert into public.novidades (titulo, texto, grupos, destino)
+select 'Lembretes das marcações',
+       'O ecrã Marcações mostra no topo os lembretes de hoje. Uma hora antes de cada marcação: ligue ao paciente para confirmar e avise o médico. Trinta minutos depois da hora, se continuar «Agendada» ou «Confirmada»: ligue e actualize o estado (Compareceu, Faltou, Remarcado ou Cancelou). Quem é da Recepção recebe também um aviso no sino, com som.',
+       array['recepcao', 'gestao'], 'marcacoes'
+ where not exists (select 1 from public.novidades where titulo = 'Lembretes das marcações');
+
 notify pgrst, 'reload schema';

@@ -4959,6 +4959,45 @@ function StoreProvider({
     const iv = setInterval(ver, 10 * 60000);
     return () => { vivo = false; clearTimeout(t0); clearInterval(iv); };
   }, []);
+  /* Lembretes das marcacoes no sino (29-09-2026): a quem e da Recepcao,
+     1 hora antes de cada marcacao de hoje e 30 minutos depois, com som.
+     Cada lembrete sai uma vez por aparelho (fica guardado o id). Durante
+     o «Ver como» nao sai nada. */
+  React.useEffect(() => {
+    let vivo = true;
+    const ver = async () => {
+      const eu = window.userById && window.userById(window.CURRENT_USER_ID);
+      if (!eu || bspEmVerComo() || bspAreaChave(eu.dept) !== 'recepcao') return;
+      const cl = bspGetClient();
+      if (!cl) return;
+      const agora = new Date();
+      const hoje = bspDataLocalISO(agora);
+      const r = await cl.from('marcacoes').select('id, data_marcada, hora, nome, acto, medico, contacto, estado').eq('data_marcada', hoje).in('estado', BSP_MARC_EM_ABERTO).limit(500);
+      if (!vivo || r.error || !Array.isArray(r.data)) return;
+      const { antes, depois } = bspMarcLembretes(r.data, agora);
+      const chave = 'bsp-marc-lembretes-' + eu.id + '-' + hoje;
+      let vistos = [];
+      try { vistos = JSON.parse(localStorage.getItem(chave) || '[]'); } catch (e) {}
+      const novos = antes.map(m => ['a', m]).concat(depois.map(m => ['d', m])).filter(([t, m]) => vistos.indexOf(t + m.id) === -1);
+      if (!novos.length) return;
+      novos.forEach(([t, m]) => setState(s => pushNotif(s, {
+        type: 'sistema',
+        lembrete: true,
+        destino: 'marcacoes',
+        text: t === 'a' ? 'Marcação às ' + m.hora + ': ligue a ' + m.nome + ' e avise o médico' : 'Marcação das ' + m.hora + ' continua «' + m.estado + '»: ligue a ' + m.nome + ' e actualize o estado',
+        preview: [m.acto, m.medico, m.contacto].filter(Boolean).join(' · ')
+      })));
+      bspPlayChime();
+      bspBrowserNotify('Lembretes das marcações', novos.length === 1 ? 'Marcação das ' + novos[0][1].hora + ': ' + novos[0][1].nome : novos.length + ' marcações pedem uma chamada.');
+      try {
+        localStorage.setItem(chave, JSON.stringify(vistos.concat(novos.map(([t, m]) => t + m.id))));
+        Object.keys(localStorage).filter(k => k.indexOf('bsp-marc-lembretes-') === 0 && k !== chave).forEach(k => localStorage.removeItem(k));
+      } catch (e) {}
+    };
+    const t0 = setTimeout(ver, 6000);
+    const iv = setInterval(ver, 60000);
+    return () => { vivo = false; clearTimeout(t0); clearInterval(iv); };
+  }, []);
   const actions = React.useMemo(() => ({
     markNotifsRead: () => setState(s => ({
       ...s,
@@ -14834,7 +14873,7 @@ function NotificationsScreen({
     }
   }, verLidas ? 'Nada aqui.' : lidas ? 'Está tudo lido. As ' + lidas + ' que já viu ficam guardadas acima.' : 'Sem notificações por ler.')), list.map((n, i) => {
     const u = n.userId ? window.userById(n.userId) : null;
-    const m = typeMeta[n.type] || typeMeta.message;
+    const m = n.lembrete ? { ...typeMeta.sistema, icon: 'Clock', label: 'Lembrete' } : typeMeta[n.type] || typeMeta.message;
     const Ic = I[m.icon];
     /* Cada linha e agora um botao: leva a pessoa ao sitio de onde a
        notificacao veio e marca-a como lida. Ate aqui nao acontecia nada
@@ -19919,6 +19958,62 @@ function MarcacaoModal({ open, inicial, onClose, onGuardar, onApagar, podeApagar
     React.createElement("div", null, rot('Observações'), React.createElement("textarea", { value: m.observacoes, onChange: e => muda('observacoes', e.target.value), rows: 3, style: { ...campo, height: 'auto', padding: 10, resize: 'vertical' } })),
     !valido && React.createElement("p", { style: { margin: 0, fontSize: 12, color: 'var(--text-3)' } }, emailMau ? 'Corrija o e-mail ou apague-o.' : 'Preencha a data marcada, o nome e o acto médico.')));
 }
+/* Lembretes das marcacoes (pedido do Elmar, 29-09-2026): todos os dias,
+   1 hora antes de cada marcacao (ligar ao paciente e ao medico) e 30
+   minutos depois (ligar e actualizar o estado). Contam so as marcacoes de
+   hoje ainda «Agendada» ou «Confirmada»: mudar o estado apaga o lembrete.
+   Aparecem no ecra Marcacoes (MarcLembretes) e, a quem e da Recepcao, no
+   sino com som (efeito ao lado das novidades do sistema). */
+const BSP_MARC_EM_ABERTO = ['Agendada', 'Confirmada'];
+function bspMarcMinutos(hora) {
+  const m = /^(\d{1,2})[:hH.](\d{2})/.exec(String(hora || '').trim());
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+function bspMarcLembretes(lista, agora) {
+  const hoje = bspDataLocalISO(agora);
+  const min = agora.getHours() * 60 + agora.getMinutes();
+  const antes = [], depois = [];
+  (lista || []).forEach(m => {
+    if (m.data_marcada !== hoje || BSP_MARC_EM_ABERTO.indexOf(m.estado) === -1) return;
+    const h = bspMarcMinutos(m.hora);
+    if (h == null) return;
+    if (min >= h - 60 && min < h) antes.push(m);
+    else if (min >= h + 30) depois.push(m);
+  });
+  const ord = (a, b) => bspMarcMinutos(a.hora) - bspMarcMinutos(b.hora);
+  return { antes: antes.sort(ord), depois: depois.sort(ord) };
+}
+function MarcLembretes({ lista, mudarEstado }) {
+  const toast = useToast();
+  const [agora, setAgora] = React.useState(() => new Date());
+  React.useEffect(() => { const iv = setInterval(() => setAgora(new Date()), 30000); return () => clearInterval(iv); }, []);
+  const { antes, depois } = bspMarcLembretes(lista, agora);
+  if (!antes.length && !depois.length) return null;
+  const btn = (cor, fundo) => ({ height: 30, padding: '0 10px', borderRadius: 8, border: '1px solid ' + (cor || 'var(--border)'), background: fundo || 'var(--surface)', color: cor || 'var(--text-1)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', textDecoration: 'none', whiteSpace: 'nowrap' });
+  const mudar = async (m, novo) => { const e = await mudarEstado(m.id, novo); toast(e ? 'Não foi possível mudar: ' + e : m.nome + ': ' + novo + '.'); };
+  const linha = (m, tipo) => {
+    const tel = String(m.contacto || '').replace(/\D/g, '');
+    const tel244 = tel.length === 9 ? '244' + tel : tel;
+    const estados = tipo === 'antes' ? (m.estado === 'Agendada' ? ['Confirmada'] : []) : ['Compareceu', 'Faltou', 'Remarcado', 'Cancelou'];
+    return React.createElement("div", { key: tipo + m.id, className: 'bsp-marc-linha', style: { display: 'grid', gridTemplateColumns: '56px minmax(0,1fr) auto', gap: 10, alignItems: 'center', padding: '9px 0', borderTop: '1px solid var(--border)' } },
+      React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)' } }, m.hora),
+      React.createElement("div", { style: { minWidth: 0 } },
+        React.createElement("div", { style: { fontSize: 13.5, fontWeight: 600, color: 'var(--text-1)' } }, m.nome, React.createElement("span", { style: { fontWeight: 500, color: bspMarcEstado(m.estado).cor } }, ' · ' + m.estado)),
+        React.createElement("div", { style: { fontSize: 12, color: 'var(--text-2)', marginTop: 1 } }, [m.acto, m.medico ? 'Médico: ' + m.medico : null, m.contacto].filter(Boolean).join(' · '))),
+      React.createElement("div", { className: 'bsp-marc-accoes', style: { display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' } },
+        tel && React.createElement("a", { href: 'tel:+' + tel244, style: btn('var(--accent-d)') }, 'Ligar'),
+        tel && React.createElement("a", { href: 'https://wa.me/' + tel244, target: '_blank', rel: 'noopener', style: btn() }, 'WhatsApp'),
+        estados.map(e => { const est = bspMarcEstado(e); return React.createElement("button", { key: e, onClick: () => mudar(m, e), style: btn(est.cor, est.fundo) }, e); })));
+  };
+  const bloco = (titulo, nota, itens, tipo, cor) => itens.length > 0 && React.createElement("div", { style: { marginTop: 10 } },
+    React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: cor } }, titulo + ' (' + itens.length + ')'),
+    React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', margin: '2px 0 4px' } }, nota),
+    itens.map(m => linha(m, tipo)));
+  return React.createElement(Card, { pad: 14, style: { flex: 'none', borderLeft: '4px solid ' + (depois.length ? 'var(--perigo)' : 'var(--accent)'), maxHeight: '42vh', overflow: 'auto' } },
+    React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)' } }, 'Lembretes de hoje'),
+    bloco('Daqui a menos de 1 hora', 'Ligue ao paciente para confirmar a vinda e avise o médico.', antes, 'antes', 'var(--accent-d)'),
+    bloco('Passaram 30 minutos', 'Ligue a quem não apareceu e actualize o estado da marcação.', depois, 'depois', 'var(--perigo)'));
+}
 function MarcacoesScreen() {
   const toast = useToast();
   const eu = window.userById(window.CURRENT_USER_ID);
@@ -19936,6 +20031,8 @@ function MarcacoesScreen() {
   const p = periodos.find(x => x[0] === periodo) || periodos[0];
   const de = dia || p[2], ate = dia || p[3];
   const marc = useMarcacoes(de, ate);
+  const marcHoje = useMarcacoes(hoje, hoje);
+  const mudarHoje = async (id, novo) => { const e = await marcHoje.mudarEstado(id, novo); marc.recarregar(); return e; };
   const [busca, setBusca] = React.useState('');
   const [filtroEstado, setFiltroEstado] = React.useState('todos');
   const [modal, setModal] = React.useState(null);
@@ -19964,8 +20061,8 @@ function MarcacoesScreen() {
   const comEmail = marc.lista.filter(m => m.email).length;
   const chip = (on, cor, fundo) => ({ height: 32, padding: '0 12px', borderRadius: 999, border: '1px solid ' + (on ? (cor || 'var(--accent-d)') : 'var(--border)'), background: on ? (fundo || 'var(--accent-soft)') : 'var(--surface)', color: on ? (cor || 'var(--accent-d)') : 'var(--text-2)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' });
   const botao = principal => ({ height: 36, padding: '0 14px', borderRadius: 6, border: '1px solid ' + (principal ? 'var(--navy)' : 'var(--border)'), background: principal ? 'var(--navy)' : 'var(--surface)', color: principal ? '#fff' : 'var(--text-1)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 });
-  const guardar = async m => { const e = await marc.guardar(m); toast(e ? 'Não foi possível gravar: ' + e : (m.id ? 'Marcação actualizada.' : 'Marcação criada.')); return !e; };
-  const apagar = async m => { if (!window.confirm('Apagar a marcação de ' + m.nome + ' (' + bspMarcDataPt(m.data_marcada) + ')?')) return; const e = await marc.apagar(m.id); toast(e ? 'Não foi possível apagar: ' + e : 'Marcação apagada.'); if (!e) setModal(null); };
+  const guardar = async m => { const e = await marc.guardar(m); marcHoje.recarregar(); toast(e ? 'Não foi possível gravar: ' + e : (m.id ? 'Marcação actualizada.' : 'Marcação criada.')); return !e; };
+  const apagar = async m => { if (!window.confirm('Apagar a marcação de ' + m.nome + ' (' + bspMarcDataPt(m.data_marcada) + ')?')) return; const e = await marc.apagar(m.id); marcHoje.recarregar(); toast(e ? 'Não foi possível apagar: ' + e : 'Marcação apagada.'); if (!e) setModal(null); };
   const exportar = () => {
     const blob = new Blob([bspMarcCsv(visiveis, valores)], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
@@ -20003,6 +20100,7 @@ function MarcacoesScreen() {
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' } },
     ficha && React.createElement(CrmFicha, { alvo: ficha, onClose: () => setFicha(null) }),
     React.createElement(MarcacaoModal, { open: !!modal, inicial: modal && modal.id ? modal : null, onClose: () => setModal(null), onGuardar: guardar, onApagar: apagar, podeApagar: bspGereMarcacoes(eu) }),
+    marcHoje.estado === 'pronto' && React.createElement(MarcLembretes, { lista: marcHoje.lista, mudarEstado: mudarHoje }),
     React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flex: 'none' } },
       React.createElement("button", { onClick: () => setModal({}), style: botao(true) }, React.createElement(I.Plus, { size: 14 }), 'Nova marcação'),
       React.createElement("span", { style: { flex: 1 } }),
@@ -20057,7 +20155,7 @@ function MarcacoesScreen() {
             React.createElement("div", { className: 'bsp-marc-accoes', style: { display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' } },
               veFicha && (m.tel9 || m.paciente_id) && React.createElement("button", { onClick: () => setFicha({ tel9: m.tel9 || null, paciente: m.paciente_id || null, nome: m.nome }), title: 'Abrir a ficha do paciente (MetaGest, marcações e WhatsApp)', style: { height: 32, padding: '0 10px', borderRadius: 8, border: '1px solid var(--border)', color: 'var(--accent-d)', display: 'inline-flex', alignItems: 'center', fontSize: 12, fontWeight: 700, background: 'var(--surface)', cursor: 'pointer', fontFamily: 'inherit' } }, 'Ficha'),
               tel && React.createElement("a", { href: 'https://wa.me/' + tel244, target: '_blank', rel: 'noopener', title: 'WhatsApp', style: { height: 32, padding: '0 10px', borderRadius: 8, border: '1px solid var(--border)', color: '#128C7E', display: 'inline-flex', alignItems: 'center', fontSize: 12, fontWeight: 700, textDecoration: 'none', background: 'var(--surface)' } }, 'WhatsApp'),
-              React.createElement("select", { value: m.estado, onChange: async e => { const er = await marc.mudarEstado(m.id, e.target.value); if (er) toast('Não foi possível mudar: ' + er); }, title: 'Estado', style: { height: 32, padding: '0 8px', borderRadius: 8, border: '1px solid ' + est.cor, background: est.fundo, color: est.cor, fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' } },
+              React.createElement("select", { value: m.estado, onChange: async e => { const er = await marc.mudarEstado(m.id, e.target.value); marcHoje.recarregar(); if (er) toast('Não foi possível mudar: ' + er); }, title: 'Estado', style: { height: 32, padding: '0 8px', borderRadius: 8, border: '1px solid ' + est.cor, background: est.fundo, color: est.cor, fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' } },
                 BSP_MARC_ESTADOS.map(e => React.createElement("option", { key: e.id, value: e.id }, e.id)))));
         })))));
 }
@@ -20148,13 +20246,20 @@ function PainelColunas({ dados, formatar, cor, altura, destacar }) {
       dados[dica.i].alerta && React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: 'var(--perigo)', marginTop: 2 } }, dados[dica.i].alerta)));
 }
 /* Barras horizontais de uma serie, com o valor na ponta. */
+/* Nome curto da seguradora no Painel (29-09-2026): «NOSSA SEGUROS - NOVA
+   SOCIEDADE…» passa a «NOSSA SEGUROS»; o nome inteiro fica no title. */
+function bspNomeSeguradora(nome) {
+  const t = String(nome || '').split(/\s+-\s+|,/)[0].replace(/\s+S\.?\s?A\.?\s*$/i, '').trim();
+  return t || String(nome || '');
+}
 function PainelBarras({ dados, formatar, cor }) {
   const max = Math.max(1, ...dados.map(d => d.valor));
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 9 } },
     dados.map((d, i) => React.createElement("div", { key: i, title: d.rotulo + ': ' + formatar(d.valor) + (d.extra ? ' · ' + d.extra : ''), tabIndex: 0, style: { display: 'grid', gridTemplateColumns: 'minmax(90px, 38%) 1fr', gap: 10, alignItems: 'center' } },
-      React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, d.rotulo),
+      React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, d.rotulo,
+        d.extra && React.createElement("span", { style: { display: 'block', fontSize: 11, color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis' } }, d.extra)),
       React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 } },
-        React.createElement("div", { style: { height: 14, width: Math.max(2, 100 * Math.max(0, d.valor) / max) * 0.72 + '%', background: 'var(' + (cor || '--serie-1') + ')', borderRadius: '0 4px 4px 0', flex: 'none' } }),
+        React.createElement("div", { style: { height: 14, width: Math.max(2, 100 * Math.max(0, d.valor) / max) * 0.58 + '%', background: 'var(' + (cor || '--serie-1') + ')', borderRadius: '0 4px 4px 0', flex: '0 1 auto', minWidth: 2 } }),
         React.createElement("span", { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--text-1)', whiteSpace: 'nowrap' } }, formatar(d.valor))))));
 }
 function PainelTile({ rotulo, valor, delta, nota, grande, perigo }) {
@@ -21503,9 +21608,12 @@ function PainelScreen() {
             React.createElement("span", { style: { width: 44, textAlign: 'right', color: 'var(--text-3)', fontVariantNumeric: 'tabular-nums' } }, Math.round(100 * x.valor / cliTot) + '%')))),
         React.createElement(Card, { pad: 16 }, tit('Movimento por hora'), sub('Facturas emitidas em cada hora do dia' + (d.horas_desde && d.de < d.horas_desde ? ' (dados desde ' + bspMarcDataPt(d.horas_desde) + ')' : '')),
           horas.length ? React.createElement(PainelColunas, { dados: horas, formatar: v => v + (v === 1 ? ' factura' : ' facturas'), cor: '--serie-1', altura: 180 }) : sub('Sem facturas neste período.')),
-        React.createElement(Card, { pad: 16 }, tit('Consultas por médico'),
-          !(d.medicos || []).length ? sub('Sem consultas registadas neste período.')
-            : React.createElement(PainelBarras, { dados: d.medicos.map(m => ({ rotulo: m.medico, valor: Number(m.consultas) })), formatar: v => v + (v === 1 ? ' consulta' : ' consultas') })),
+        React.createElement(Card, { pad: 16 }, tit('Atendimentos por médico'), sub('Número de atendimentos (doentes por dia) e valor, pelo médico da factura' + (d.horas_desde && d.de < d.horas_desde ? ' (dados desde ' + bspMarcDataPt(d.horas_desde) + ')' : '')),
+          !(d.medicos || []).length ? sub('Sem facturas com médico neste período.')
+            : React.createElement(PainelBarras, { dados: d.medicos.map(m => ({ rotulo: m.medico, valor: Number(m.consultas), extra: bspPainelKz(m.valor, true) })), formatar: v => Number(v).toLocaleString('pt-PT') })),
+        React.createElement(Card, { pad: 16 }, tit('Seguradoras'), sub('Valor facturado a cada seguradora; o co-pagamento é a parte do doente'),
+          !(d.seguradoras || []).length ? sub('Sem facturas de seguradoras neste período.')
+            : React.createElement(PainelBarras, { dados: d.seguradoras.map(x => ({ rotulo: bspNomeSeguradora(x.seguradora), valor: Number(x.valor), extra: x.n + (x.n === 1 ? ' factura' : ' facturas') + (Number(x.copagamento) > 0 ? ' · co-pagamento ' + bspPainelKz(x.copagamento, true) : '') })), formatar: v => bspPainelKz(v, true), cor: '--serie-2' })),
         React.createElement(Card, { pad: 16, style: { borderLeft: notas.length ? '4px solid var(--perigo)' : undefined } },
           React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: notas.length ? 'var(--perigo)' : 'var(--text-1)', marginBottom: 12 } }, 'Notas de crédito' + (notas.length ? ' (' + notas.length + ')' : '')),
           !notas.length ? sub('Sem notas de crédito neste período.')

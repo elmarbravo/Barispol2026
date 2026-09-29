@@ -1559,3 +1559,43 @@ canais do Workspace.
   `supabase_realtime` e volta a entrar no fim. O texto das conversas fica
   só na base de dados, nunca no repositório.
 - Testado com servidor simulado: ordem, nomes sem conta e botão.
+
+## 3-ap. Painel com todos os médicos e seguradoras; lembretes das marcações (29-09-2026)
+
+Pedido do Elmar: «No relatório painel faltam dados, no MetaGest ontem teve
+mais médicos, hoje só vejo 1» e «um lembrete nas marcações, 1 hora antes e
+30 min após, para ligarem e actualizarem o estado».
+
+**Painel (`painel.sql`, `bsp_painel`):**
+- Causa: os médicos vinham de `crm.mg_consultas`, que só tem uma parte
+  das consultas (28-09: 4 consultas, 1 médico). As facturas têm o médico.
+- Agora: «Atendimentos por médico» sai de `erp.sales_invoice` (médico da
+  factura, sem «EXTERNO»), com atendimentos (doente por dia) e valor. A
+  28-09 dá 4 médicos; em Setembro, 17.
+- Novo cartão «Seguradoras»: valor, número de facturas e co-pagamento de
+  cada uma (17 em Setembro). Nome curto com `bspNomeSeguradora`.
+- Histórico (`metagest-historico.sql`): `erp.sales_invoice` só tinha
+  Setembro de 2026. A fila `erp.historico_fila` traz Agosto de 2022 a
+  Agosto de 2026, um mês por minuto (agendamento
+  `bsp-metagest-historico`, que se apaga quando acaba). Sem o documento
+  original (`raw`) antes de Setembro de 2026, para poupar espaço.
+  Andamento: `select * from erp.historico_fila order by mes desc`.
+- **Por confirmar:** a fila acabou sem `erro`, e os totais por mês de
+  `erp.sales_invoice` batem com `crm.mg_facturas`.
+- Hoje de manhã não havia facturas às 09h10: é normal (a primeira
+  factura sai entre as 08h00 e as 11h45). A sincronização de 5 em 5
+  minutos corre sem erros.
+
+**Lembretes das marcações (`workspace.html`):**
+- No topo do ecrã Marcações, «Lembretes de hoje» (`MarcLembretes`,
+  `bspMarcLembretes`): «Daqui a menos de 1 hora» (ligar ao paciente e
+  avisar o médico; botão «Confirmada») e «Passaram 30 minutos» (ligar e
+  mudar o estado: Compareceu, Faltou, Remarcado, Cancelou). Contam só as
+  marcações de hoje em «Agendada» ou «Confirmada»; mudar o estado apaga
+  o lembrete. Botões «Ligar» e «WhatsApp».
+- Quem é da Recepção recebe cada lembrete no sino (etiqueta «Lembrete»),
+  com som, uma vez por aparelho. Nada durante o «Ver como».
+- Novidade «Lembretes das marcações» (Recepção e gestão), em
+  `marcacoes-lembrete.sql`.
+- Testado com servidor simulado (PC e telemóvel): lembretes certos, sino,
+  botões de estado; sem erros nem página mais larga do que o ecrã.

@@ -12,6 +12,7 @@
 -- socios.sql; decisao do Elmar de 27-09-2026). Sao dados de facturacao: nao saem do servidor,
 -- e o painel nao mostra nomes de doentes. Notas de credito (27-09-2026):
 -- total por dia e lista com numero, data, valor e a factura que anulam.
+-- Medicos e seguradoras (29-09-2026): pelas facturas de erp.sales_invoice.
 
 -- Hoje, de 5 em 5 minutos, das 06h00 as 22h00 de Luanda (05h-20h UTC).
 create or replace function public.bsp_painel_sincronizar_hoje()
@@ -103,14 +104,26 @@ begin
            sum(total) filter (where total > 0) valor, count(*) filter (where total > 0) n
       from fp group by 1
   ),
+  -- Medicos pela factura (29-09-2026): crm.mg_consultas so tem uma
+  -- parte das consultas). erp.sales_invoice tem o historico desde 2022
+  -- (fila erp.historico_fila, 29-09-2026). Atendimento = doente por dia.
   medicos as (
-    select medico, count(*) consultas from (
-      select c.medico from crm.mg_consultas c where c.data between p_de and least(p_ate, hoje - 1)
-      union all
-      select s.practitioner_name from erp.sales_invoice s
-       where s.docstatus = 1 and not s.is_return and s.posting_date = hoje and hoje between p_de and p_ate
-         and s.practitioner_name is not null
-    ) m where coalesce(btrim(medico), '') <> '' group by 1 order by 2 desc limit 12
+    select max(s.practitioner_name) medico,
+           count(distinct (s.posting_date, coalesce(s.patient, s.customer, s.name))) consultas,
+           coalesce(sum(s.grand_total), 0) valor
+      from erp.sales_invoice s
+     where s.docstatus = 1 and not s.is_return and s.posting_date between p_de and p_ate
+       and s.ref_practitioner is not null
+       and coalesce(btrim(s.practitioner_name), '') not in ('', 'EXTERNO')
+     group by s.ref_practitioner order by 2 desc, 3 desc limit 15
+  ),
+  seguradoras as (
+    select btrim(s.seguradora) seguradora, count(*) n,
+           coalesce(sum(s.grand_total), 0) valor, coalesce(sum(s.copagamento), 0) copagamento
+      from erp.sales_invoice s
+     where s.docstatus = 1 and not s.is_return and s.posting_date between p_de and p_ate
+       and coalesce(btrim(s.seguradora), '') <> ''
+     group by 1 order by 3 desc, 2 desc limit 15
   ),
   horas as (
     select extract(hour from s.posting_time)::int hora, count(*) n, sum(s.grand_total) valor
@@ -139,6 +152,7 @@ begin
     'areas', (select coalesce(jsonb_agg(to_jsonb(areas)), '[]') from areas),
     'clientes', (select coalesce(jsonb_agg(to_jsonb(clientes)), '[]') from clientes),
     'medicos', (select coalesce(jsonb_agg(to_jsonb(medicos)), '[]') from medicos),
+    'seguradoras', (select coalesce(jsonb_agg(to_jsonb(seguradoras)), '[]') from seguradoras),
     'horas', (select coalesce(jsonb_agg(to_jsonb(horas)), '[]') from horas),
     'horas_desde', (select min(posting_date) from erp.sales_invoice),
     'divida', (select to_jsonb(divida) from divida),
