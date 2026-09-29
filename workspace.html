@@ -988,7 +988,7 @@ const USERS = [{
   name: "Elmar Francisco Pereira Bravo",
   short: 'EB',
   role: "Director Geral",
-  dept: "Direcção",
+  dept: "Administração",
   email: "elmar.bravo@barispol.com",
   phone: '',
   status: 'offline',
@@ -1065,22 +1065,22 @@ const USERS = [{
   name: "Joaquina Joice Vicente da Silva",
   short: 'JS',
   role: "",
-  dept: "",
+  dept: "Recepção",
   email: "joaquina.silva@barispol.com",
   phone: '',
   status: 'offline',
-  accessLevel: 'Operações',
+  accessLevel: 'Recepcionista',
   bio: ''
 }, {
   id: 'u9',
   name: "Filomena Silva",
   short: 'FS',
   role: "",
-  dept: "",
+  dept: "Enfermagem",
   email: "filomena.silva@barispol.com",
   phone: '',
   status: 'offline',
-  accessLevel: 'Operações',
+  accessLevel: 'Enfermagem',
   bio: ''
 }, {
   id: 'u10',
@@ -1091,25 +1091,25 @@ const USERS = [{
   email: "domingos.henriques@barispol.com",
   phone: '',
   status: 'offline',
-  accessLevel: 'Clínica',
+  accessLevel: 'Enfermagem',
   bio: ''
 }, {
   id: 'u11',
   name: "Paulo Manuel",
   short: 'PM',
   role: "",
-  dept: "",
+  dept: "Enfermagem",
   email: "paulo.manuel@barispol.com",
   phone: '',
   status: 'offline',
-  accessLevel: 'Operações',
+  accessLevel: 'Enfermagem',
   bio: ''
 }, {
   id: 'u12',
   name: "Juliana Lourenço",
   short: 'JL',
   role: "",
-  dept: "",
+  dept: "Recepção",
   email: "juliana.lourenco@barispol.com",
   phone: '',
   status: 'offline',
@@ -1120,7 +1120,7 @@ const USERS = [{
   name: "Rosa Queirós",
   short: 'RQ',
   role: "",
-  dept: "",
+  dept: "Laboratório",
   email: "r.queiros@barispol.com",
   phone: '',
   status: 'offline',
@@ -1131,7 +1131,7 @@ const USERS = [{
   name: "Osvaldo Pacheco",
   short: 'OP',
   role: "",
-  dept: "",
+  dept: "Clínica",
   email: "osvaldo.pacheco@barispol.com",
   phone: '',
   status: 'offline',
@@ -1146,25 +1146,25 @@ const USERS = [{
   email: "d.domingos@barispol.com",
   phone: '',
   status: 'offline',
-  accessLevel: 'Operações',
+  accessLevel: 'Recepcionista',
   bio: ''
 }, {
   id: 'u16',
   name: "Rosa Simão Ndongo Salvador",
   short: 'RS',
   role: "",
-  dept: "",
+  dept: "Farmácia",
   email: "rosa.salvador@barispol.com",
   phone: '',
   status: 'offline',
-  accessLevel: 'Operações',
+  accessLevel: 'Clínica',
   bio: ''
 }, {
   id: 'u17',
   name: "Solange Orlando",
   short: 'SO',
   role: "",
-  dept: "",
+  dept: "Farmácia",
   email: "solange.orlando@barispol.com",
   phone: '',
   status: 'offline',
@@ -1175,7 +1175,7 @@ const USERS = [{
   name: "Gizela Joaquim",
   short: 'GJ',
   role: "",
-  dept: "",
+  dept: "Farmácia",
   email: "gizela.joaquim@barispol.com",
   phone: '',
   status: 'offline',
@@ -1186,7 +1186,7 @@ const USERS = [{
   name: "Cassia Peixoto",
   short: 'CP',
   role: "",
-  dept: "",
+  dept: "Laboratório",
   email: "c.peixoto@barispol.com",
   phone: '',
   status: 'offline',
@@ -1208,7 +1208,7 @@ const USERS = [{
   name: "Emmanuel Domingos",
   short: 'ED',
   role: "Motorista e Relações Públicas",
-  dept: "Operações",
+  dept: "Serviços Gerais",
   email: "e.domingos@barispol.com",
   phone: '',
   status: 'offline',
@@ -16322,14 +16322,37 @@ function AdminRoles() {
   const equipa = (state.team && state.team.length) ? state.team : USERS;
   const podeEditar = bspCamada(bspResolveUser(null, equipa)).podeVerSistema;
   const todosCanais = CHANNELS.concat(state.extraChannels || []);
+  /* Desde 25-09-2026 o canal de area vem do departamento de cada pessoa,
+     e nao da camada (bspVeCanal / bsp_ve_conversa). O cartao mostra por
+     isso os departamentos e o canal que cada um abre (29-09-2026). Antes
+     mostrava a lista antiga de canais da camada, que ja nao decidia nada. */
+  const canaisArea = todosCanais.filter(c => c.dept && c.dept !== 'escalas' && !(c.membros && c.membros.length));
   const nomesCanais = camada => {
     if (!camada || camada.canais === '*') return ['Todos os canais'];
-    return todosCanais.filter(c => camada.canais.indexOf(c.dept || null) !== -1).map(c => '#' + c.name);
+    return ['Canais gerais', 'Canal do seu departamento'];
+  };
+  const departamentos = (camada, membros) => {
+    const grupos = {};
+    membros.forEach(u => {
+      const d = String(u.dept || '').trim() || 'Sem departamento';
+      (grupos[d] = grupos[d] || []).push(u);
+    });
+    return Object.keys(grupos).sort(bspCompararTexto).map(d => {
+      const canal = canaisArea.find(c => bspAreaChave(c.dept) === bspAreaChave(d));
+      const pessoas = grupos[d].slice().sort(bspPorNome).map(u => {
+        /* Canais de area que a pessoa ve para alem do seu (Direccao
+           Clinica, ou dados a mao no Admin). */
+        const extra = camada.canais === '*' ? [] : canaisArea.filter(c => c !== canal && bspVeCanal(u, c)).map(c => '#' + c.name);
+        return u.name + (extra.length ? ' (+ ' + extra.join(', ') + ')' : '');
+      });
+      return { dept: d, canal: camada.canais === '*' ? 'todos os canais' : canal ? '#' + canal.name : 'sem canal de área', pessoas: pessoas };
+    });
   };
   const roles = Object.keys(cs)
     .sort((a, b) => (cs[a].ordem || 99) - (cs[b].ordem || 99))
     .map(nome => {
       const c = cs[nome];
+      const membros = equipa.filter(u => bspCamadaNome(u) === nome);
       const perms = nomesCanais(c).slice();
       if (c.podeGerirUtilizadores) perms.push('Gerir utilizadores');
       if (c.podeVerSistema) perms.push('Configurar servidor');
@@ -16338,8 +16361,9 @@ function AdminRoles() {
       return {
         name: nome,
         desc: c.desc,
-        members: equipa.filter(u => bspCamadaNome(u) === nome).length,
-        perms: perms
+        members: membros.length,
+        perms: perms,
+        depts: departamentos(c, membros)
       };
     });
   return React.createElement("div", null, podeEditar && React.createElement("div", {
@@ -16359,7 +16383,7 @@ function AdminRoles() {
       maxWidth: 560,
       lineHeight: 1.5
     }
-  }, "Crie as camadas que a clínica precisar. Cada uma define os canais que alcança e o que pode administrar.", bspGetCfg() && React.createElement("span", {
+  }, "Crie as camadas que a clínica precisar. O canal de área de cada pessoa vem do seu departamento (Admin → Utilizadores); a camada define os canais gerais e o que pode administrar.", bspGetCfg() && React.createElement("span", {
     style: {
       display: 'block',
       marginTop: 6,
@@ -16445,7 +16469,14 @@ function AdminRoles() {
     key: p,
     tone: "outline",
     size: "xs"
-  }, p)))))), React.createElement(CamadaModal, {
+  }, p))), r.depts.length > 0 && React.createElement("div", {
+    style: { marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }
+  }, React.createElement("div", {
+    style: { fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 8 }
+  }, "Departamentos"), r.depts.map(d => React.createElement("div", {
+    key: d.dept,
+    style: { fontSize: 12.5, lineHeight: 1.5, marginBottom: 8 }
+  }, React.createElement("div", null, React.createElement("strong", { style: { color: 'var(--text-1)' } }, d.dept), React.createElement("span", { style: { color: 'var(--text-3)' } }, " · ", d.canal)), React.createElement("div", { style: { color: 'var(--text-2)' } }, d.pessoas.join(', ')))))))), React.createElement(CamadaModal, {
     open: editar !== undefined,
     nome: editar,
     onClose: () => setEditar(undefined)

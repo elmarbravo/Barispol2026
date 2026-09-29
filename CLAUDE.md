@@ -142,6 +142,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   utilizador principal». Os estados do CRM mantêm a ordem do processo
   (o primeiro é o valor por omissão); só os menus os mostram por ordem. Nas listas com
   «Ordenar:» usar `bspOrdenar` + `useOrdem` + `OrdemSelect` (25-09-2026).
+- Lista embutida `USERS` (29-09-2026): departamento e camada iguais aos
+  do servidor. É o recurso quando o `shared_state` não chega; sem
+  departamento a pessoa perde o canal da sua área.
 - Canais de área pela função (25-09-2026): o departamento da pessoa
   decide (`bspVeCanal` + `bspAreaChave`, e no servidor `bsp_ve_conversa`
   com `bsp_area_chave`/`bsp_minha_area`). Direcção e Coordenação vêem
@@ -273,11 +276,10 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
    colectivo 12h00. Sem `falhas`.
 3. Passo 0.6: só com autorização expressa do Elmar. Antes, testar a
    `criar-utilizador` (0.5-e).
-4. Departamento e cargo de 7 pessoas: Cassia Peixoto, Filomena Silva,
-   Gizela Joaquim, Juliana Lourenço (Supervisora da Recepção), Paulo
-   Manuel, Rosa Queirós e Solange Orlando. Ficam em `shared_state.team`.
-   (Osvaldo Pacheco: Director Clínico, Clínica. Catarina Ndundu Baptista:
-   eliminada a 24-09-2026.)
+4. Departamentos de toda a equipa já estão em `shared_state.team`
+   (29-09-2026) e copiados para a lista embutida `USERS`. Falta o cargo da
+   Gizela Joaquim. Confirmar a conta «Beb» (beb@beb.com) na camada
+   Direcção. (Catarina Ndundu Baptista: eliminada a 24-09-2026.)
 5. Decidir se se cria o canal `#radiologia`.
 6. Tarefas a partir de e-mails, no Workspace de cada pessoa. Falta decidir
    entre uma caixa por pessoa e uma caixa partilhada; a via recomendada é

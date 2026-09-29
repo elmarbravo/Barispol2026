@@ -1728,3 +1728,27 @@ sabendo que há biométrico.
   fechar e abrir).
 - Regra para o futuro: nenhuma regra de acesso de uma tabela grande
   chama uma função por linha. Calcular a lista uma vez com `(select …)`.
+
+## 3-au. Departamentos nas Permissões; a Rosa Queirós sem a sua área (29-09-2026)
+
+- Sintoma: a Rosa Queirós (Laboratório) não via nada da sua área.
+- Causa: a mesma da 3-at. Com a primeira carga a falhar, o Workspace não
+  recebia a equipa do servidor e usava a lista embutida na página, onde
+  12 pessoas (entre elas a Rosa) não tinham departamento. Sem
+  departamento, o #laboratório não aparecia.
+- O servidor estava certo para as 24 pessoas (simulado pessoa a pessoa:
+  canais de área, escala da área, marcações).
+- Lista embutida (`USERS`): departamento e camada iguais aos do servidor
+  para u1, u8–u19 e u22. Testado com o servidor a falhar em tudo: a Rosa
+  vê o #laboratório.
+- Admin → Permissões: cada camada mostra os departamentos, as pessoas de
+  cada um e o canal de área que abre (e os canais a mais, como os da
+  Direcção Clínica). Antes mostrava a lista antiga de canais da camada,
+  que desde 25-09-2026 já não decide nada: decide o departamento.
+- Por rever no Admin (dados, não código):
+  - «Beb» (beb@beb.com, cargo «leitor») está na camada Direcção: vê e
+    administra tudo. Confirmar se é para ficar.
+  - Gizela Joaquim continua sem cargo («Colaborador(a)»).
+  - «Retirar acesso» antigo em canais de área (Rosa Simão: #farmácia;
+    Emmanuel: #escalas e outros) não tem efeito nos canais de área e o
+    servidor ignora-o; o #escalas do Emmanuel só some no ecrã.
