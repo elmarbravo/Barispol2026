@@ -253,7 +253,7 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   pessoa; menu só com `bspVeActividade`. Nunca abrir `erp.*` a quem entra.
 - Prints de ecrã (30-09-2026): a app Android tem `FLAG_SECURE` na
   `MainActivity`. No navegador, `ProteccaoEcra` em todos os ecrãs: marca de
-  água (`MarcaDagua`), PrintScreen escurece e regista em `capturas_ecra`,
+  água (`MarcaDagua`, uma só linha ao centro, nunca repetida), PrintScreen escurece e regista em `capturas_ecra`,
   impressão em branco; nos ecrãs de `BSP_ECRAS_SENSIVEIS` o conteúdo tapa-se
   quando a janela perde o foco. Um ecrã novo com dados sensíveis entra nessa
   lista. Imprimir documentos só por `bspImprimirHtml` (iframe próprio).
@@ -263,6 +263,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   `AudioAnexo`). Desde 28-09-2026 as notas gravam-se em WAV
   (`bspWavDeAmostras`), porque o WebM não tocava no iPhone. Nunca voltar
   ao `MediaRecorder`.
+  Fotografias do Chat reduzidas antes de subir (`bspReduzirImagem`,
+  30-09-2026); endereços assinados em lote (`bspSignedUrlEmLote`). Uma
+  mensagem de quem já saiu da equipa mostra «Antigo colaborador».
 
 ## Decisões aprovadas
 

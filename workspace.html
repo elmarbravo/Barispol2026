@@ -3870,6 +3870,38 @@ function bspSlugFicheiro(nome) {
      sem prefixo                  a equipa, como sempre foi
 
    Os ficheiros que ja la estao nao tem prefixo e continuam da equipa. */
+/* Reduz uma fotografia para o Chat (30-09-2026): lado maior ate 1600 px,
+   JPEG a 82 %. So JPEG, PNG e WebP acima de 400 KB; GIF e o resto seguem
+   como estao. Se alguma coisa falhar, envia-se o original. */
+async function bspReduzirImagem(f) {
+  try {
+    if (!f || !/^image\/(jpeg|png|webp)$/i.test(f.type || '') || f.size < 400 * 1024) return f;
+    const url = URL.createObjectURL(f);
+    const img = await new Promise((ok, falha) => {
+      const i = new Image();
+      i.onload = () => ok(i);
+      i.onerror = falha;
+      i.src = url;
+    });
+    URL.revokeObjectURL(url);
+    const lado = Math.max(img.naturalWidth, img.naturalHeight);
+    const esc = lado > 1600 ? 1600 / lado : 1;
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(img.naturalWidth * esc));
+    c.height = Math.max(1, Math.round(img.naturalHeight * esc));
+    const ctx = c.getContext('2d');
+    /* Fundo branco: um PNG transparente ficaria preto em JPEG. */
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    const blob = await new Promise(ok => c.toBlob(ok, 'image/jpeg', 0.82));
+    if (!blob || blob.size >= f.size) return f;
+    const nome = String(f.name || 'imagem').replace(/\.[^.]*$/, '') + '.jpg';
+    return new File([blob], nome, { type: 'image/jpeg' });
+  } catch (e) {
+    return f;
+  }
+}
 async function bspUploadToStorage(file, prefixo) {
   const cl = bspGetClient();
   if (!cl) throw new Error('sem-servidor');
@@ -3907,6 +3939,34 @@ function bspMotivoAcesso(erro, caminho) {
   if (/network|fetch|failed/.test(m)) return 'Sem ligação ao servidor neste momento.';
   return 'O servidor não deixou abrir este ficheiro' + (m ? ' (' + m + ')' : '') + '.';
 }
+/* Varios anexos no ecra (30-09-2026): em vez de um pedido ao servidor por
+   imagem, os que chegam no mesmo instante vao juntos (createSignedUrls).
+   Uma conversa com 20 fotografias fazia 20 pedidos seguidos. */
+const __bspUrlLote = { fila: [], temporizador: null };
+function bspSignedUrlEmLote(caminho) {
+  return new Promise(resolve => {
+    __bspUrlLote.fila.push({ caminho: caminho, resolve: resolve });
+    if (__bspUrlLote.temporizador) return;
+    __bspUrlLote.temporizador = setTimeout(async () => {
+      const fila = __bspUrlLote.fila.splice(0);
+      __bspUrlLote.temporizador = null;
+      const caminhos = Array.from(new Set(fila.map(x => x.caminho)));
+      const cl = bspGetClient();
+      let porCaminho = {};
+      try {
+        const { data } = cl ? await cl.storage.from(BSP_BUCKET).createSignedUrls(caminhos, 3600) : { data: null };
+        (data || []).forEach(d => {
+          if (d && d.path && d.signedUrl && !d.error) porCaminho[d.path] = d.signedUrl;
+        });
+      } catch (e) {}
+      const agora = Date.now();
+      Object.keys(porCaminho).forEach(c => {
+        __bspUrlCache[c] = { url: porCaminho[c], expira: agora + (3600 - 60) * 1000 };
+      });
+      fila.forEach(x => x.resolve(porCaminho[x.caminho] || null));
+    }, 30);
+  });
+}
 async function bspSignedUrl(caminho, segundos, aoFalhar) {
   if (!caminho) return null;
   const agora = Date.now();
@@ -3916,6 +3976,12 @@ async function bspSignedUrl(caminho, segundos, aoFalhar) {
   if (!cl) {
     if (aoFalhar) aoFalhar(bspMotivoAcesso(null, caminho));
     return null;
+  }
+  /* Pedido normal (uma hora): vai no lote. Se o lote falhar para este
+     ficheiro, pede-se sozinho abaixo, para ter o motivo do erro. */
+  if (!segundos || segundos === 3600) {
+    const doLote = await bspSignedUrlEmLote(caminho);
+    if (doLote) return doLote;
   }
   const dur = segundos || 3600;
   const {
@@ -7439,10 +7505,13 @@ function ChatScreen({
         /* Nada de uploadFile: o ficheiro fica na conversa, e nao no Drive
            da equipa. Antes, um documento mandado numa mensagem directa
            aparecia no Drive de toda a gente. */
-        const caminho = await bspUploadToStorage(f, 'conversa/' + conv);
+        /* Fotografias reduzidas antes de subir (30-09-2026): uma foto do
+           telemovel tinha 3 a 5 MB e demorava a abrir no Chat. */
+        const fe = opc && opc.texto ? f : await bspReduzirImagem(f);
+        const caminho = await bspUploadToStorage(fe, 'conversa/' + conv);
         actions.sendMessage(conv, {
           userId: currentUser.id,
-          text: opc && opc.texto ? opc.texto(f, caminho) : bspMensagemComAnexo(f.name, caminho, f.size)
+          text: opc && opc.texto ? opc.texto(fe, caminho) : bspMensagemComAnexo(fe.name, caminho, fe.size)
         });
       } catch (err) {
         falhas++;
@@ -8123,7 +8192,9 @@ function ChatScreen({
       marginTop: 4
     }
   }, activeChannel.desc, "."))), messages.length > 0 && React.createElement(VerAnteriores, { conv: convKey, desde: messages[0].iso }), messages.map((m, i) => {
-    const u = window.userById(m.userId);
+    /* Quem ja saiu da equipa deixa as mensagens (30-09-2026): sem isto,
+       uma so mensagem dessa pessoa impedia o canal de abrir. */
+    const u = window.userById(m.userId) || { id: 'x:' + m.userId, name: 'Antigo colaborador', short: '?', role: 'Já não está na equipa', dept: '', email: '', phone: '', status: 'offline', accessLevel: '', bio: '' };
     const prev = messages[i - 1];
     const isOwn = m.userId === currentUser.id;
     /* Um separador sempre que muda o dia, e so se agrupam mensagens da
@@ -22193,16 +22264,20 @@ function MarcaDagua({ forte }) {
   }, []);
   const u = window.__bspQuemEsta;
   const nome = u && u.name && u.id !== 'self' ? String(u.name).split(/\s+/).slice(0, 2).join(' ') : 'Workspace Barispol';
-  const texto = nome + ' · ' + bspDataExacta(agora);
-  const id = 'bsp-marca-' + Math.floor(agora.getTime() / 60000);
-  return ReactDOM.createPortal(React.createElement("svg", {
+  /* Uma so linha, diagonal, ao centro (30-09-2026): o nome repetido por
+     todo o ecra ficava feio (Elmar). Continua a identificar quem tirou
+     a fotografia ao ecra. */
+  return ReactDOM.createPortal(React.createElement("div", {
     "aria-hidden": true,
-    style: { position: 'fixed', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 100001, opacity: forte ? 0.07 : 0.045, color: 'var(--text-1)' }
-  }, React.createElement("defs", null,
-    React.createElement("pattern", { id: id, width: 360, height: 180, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(-28)' },
-      React.createElement("text", { x: 0, y: 60, fill: 'currentColor', fontSize: 15, fontWeight: 700, fontFamily: 'inherit' }, texto),
-      React.createElement("text", { x: 180, y: 150, fill: 'currentColor', fontSize: 15, fontWeight: 700, fontFamily: 'inherit' }, texto))),
-  React.createElement("rect", { width: '100%', height: '100%', fill: 'url(#' + id + ')' })), document.body);
+    style: { position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 100001, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }
+  }, React.createElement("div", {
+    style: {
+      transform: 'rotate(-24deg)', whiteSpace: 'nowrap', textAlign: 'center',
+      color: 'var(--text-1)', opacity: forte ? 0.08 : 0.06,
+      fontSize: 'clamp(15px, 2.4vw, 26px)', fontWeight: 600, letterSpacing: '0.04em',
+      userSelect: 'none'
+    }
+  }, nome, React.createElement("div", { style: { fontSize: '0.62em', fontWeight: 500, marginTop: 4 } }, bspDataExacta(agora)))), document.body);
 }
 /* Proteccao contra capturas para todos (30-09-2026, pedido do Elmar). No
    navegador e no iPhone nao ha forma de impedir um print; o que se faz:

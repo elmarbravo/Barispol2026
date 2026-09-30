@@ -1931,3 +1931,24 @@ sabendo que há biométrico.
   normal, tapado só nos sensíveis, marca de água no Chat).
 - Ver as tentativas: `select * from capturas_ecra order by quando desc`
   (ainda sem ecrã no Admin).
+
+## 3-bd. Marca de água discreta e imagens mais rápidas no Chat (30-09-2026)
+
+- Pedido do Elmar: «está feio o nome a repetir» e «as imagens demoram a
+  abrir nos chats».
+- Marca de água (`MarcaDagua`): uma só linha, diagonal, ao centro, com o
+  nome e, por baixo, a data e hora. Sem repetição. 8 % nos ecrãs
+  sensíveis, 6 % nos outros.
+- Imagens no Chat:
+  - as fotografias reduzem-se antes de subir (`bspReduzirImagem`: lado
+    maior até 1600 px, JPEG a 82 %; só JPEG, PNG e WebP acima de 400 KB).
+    Uma foto de telemóvel com 3 a 5 MB passa a poucas centenas de KB. Só
+    no Chat: o Drive e os Documentos guardam o original;
+  - os endereços assinados de vários anexos pedem-se de uma vez
+    (`bspSignedUrlEmLote`, `createSignedUrls`). Antes, cada imagem fazia o
+    seu pedido. As imagens já enviadas continuam grandes, mas abrem com
+    um só pedido.
+- Correcção: uma mensagem de alguém que já não está na equipa impedia o
+  canal de abrir. Aparece agora como «Antigo colaborador».
+- Testado com servidor simulado: seis imagens num só pedido, foto de
+  4000×3000 reduzida a 1600×1200, GIF intacto, marca de água única.
