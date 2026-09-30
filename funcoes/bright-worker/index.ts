@@ -28,6 +28,8 @@
 // Este ficheiro e a copia da versao publicada (versao 3), conferida a
 // 28-09-2026. O lembrete da marcacao ao paciente usa o "cc" para
 // rececao@barispol.com.
+// RESPONDER PARA (versao 4, 30-09-2026): so o servidor pode mandar
+// "reply_to" (relatorio semanal da viatura -> Administracao).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -125,6 +127,10 @@ Deno.serve(async (req) => {
   const paraLista = doServidor ? listaDeEnderecos(to) : [to];
   const cc = doServidor ? listaDeEnderecos(pedido.cc || []) : [];
   const bcc = doServidor ? listaDeEnderecos(pedido.bcc || []) : [];
+  /* Responder para (30-09-2026): so o servidor. O relatorio semanal da
+     viatura pede ao motorista que responda a Administracao, e nao ao
+     geral@. */
+  const responderPara = doServidor ? listaDeEnderecos(pedido.reply_to || []) : [];
 
   /* Anexos: so do servidor, so do proprio site. */
   let anexos: { filename: string; path: string }[] | undefined;
@@ -189,6 +195,7 @@ Deno.serve(async (req) => {
         html: html,
         ...(cc.length ? { cc } : {}),
         ...(bcc.length ? { bcc } : {}),
+        ...(responderPara.length ? { reply_to: responderPara } : {}),
         ...(anexos ? { attachments: anexos } : {}),
       }),
     });

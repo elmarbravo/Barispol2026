@@ -301,7 +301,7 @@ Deno.serve(async (req) => {
 
   const corpo = await req.json().catch(() => ({} as any));
   const forcar = corpo && corpo.forcar === true;
-  const tipo = corpo && (corpo.tipo === "lembrete" || corpo.tipo === "coletivo" || corpo.tipo === "mensagens" || corpo.tipo === "novidades" || corpo.tipo === "marcacoes") ? corpo.tipo : "resumo";
+  const tipo = corpo && (corpo.tipo === "lembrete" || corpo.tipo === "coletivo" || corpo.tipo === "mensagens" || corpo.tipo === "novidades" || corpo.tipo === "marcacoes" || corpo.tipo === "transporte") ? corpo.tipo : "resumo";
   const lembrete = tipo !== "resumo";
 
   /* Uma vez por dia. O agendamento pode disparar mais do que uma vez —
@@ -310,7 +310,7 @@ Deno.serve(async (req) => {
      frente disto, que é para isso que serve. */
   const hoje = new Date().toISOString().slice(0, 10);
   const registo = ({ resumo: "resumos_enviados", lembrete: "lembretes_enviados", coletivo: "coletivos_enviados" } as Record<string, string>)[tipo];
-  if (!forcar && tipo !== "mensagens" && tipo !== "novidades" && tipo !== "marcacoes") {
+  if (!forcar && tipo !== "mensagens" && tipo !== "novidades" && tipo !== "marcacoes" && tipo !== "transporte") {
     const { error: jaFoi } = await admin
       .from(registo)
       .insert({ dia: hoje });
@@ -464,6 +464,113 @@ Deno.serve(async (req) => {
       ok ? enviadosM++ : falhasM.push(String(m.marcacao_id));
     }
     return responder({ ok: true, tipo, dia, enviados: enviadosM, falhas: falhasM.length ? falhasM : undefined });
+  }
+
+  /* Relatorio semanal da viatura (30-09-2026, transporte-manutencao.sql).
+     Segunda-feira: o consumo da semana anterior (segunda a domingo) vai
+     para o motorista, com a Administracao em copia e como «responder
+     para». Pede-lhe a informacao da viatura. Uma vez por semana
+     (transporte_semana_enviados); «previa» devolve o e-mail sem enviar. */
+  if (tipo === "transporte") {
+    const previa = corpo && corpo.previa === true;
+    const luanda = new Date(Date.now() + 3600 * 1000);
+    const hojeL = new Date(Date.UTC(luanda.getUTCFullYear(), luanda.getUTCMonth(), luanda.getUTCDate()));
+    const dSem = (hojeL.getUTCDay() + 6) % 7;
+    const segundaEsta = new Date(hojeL.getTime() - dSem * 86400000);
+    const de = corpo && /^\d{4}-\d{2}-\d{2}$/.test(String(corpo.semana || "")) ? String(corpo.semana)
+      : new Date(segundaEsta.getTime() - 7 * 86400000).toISOString().slice(0, 10);
+    const ate = new Date(new Date(de + "T00:00:00Z").getTime() + 6 * 86400000).toISOString().slice(0, 10);
+    const normal = (t: unknown) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const para = destinatarios.filter((u: any) => /motorista/i.test(String(u.role || ""))).map((u: any) => String(u.email).trim());
+    const adm = destinatarios.filter((u: any) => normal(u.dept) === "administracao").map((u: any) => String(u.email).trim()).filter((e: string) => para.indexOf(e) === -1);
+    if (!para.length) return responder({ ok: true, tipo, enviados: 0, nota: "Ninguém com o cargo de motorista e e-mail da clínica." });
+    if (!previa && !forcar) {
+      const { error: jaFoi } = await admin.from("transporte_semana_enviados").insert({ semana: de, para: para.join(", ") });
+      if (jaFoi) {
+        const m = String(jaFoi.message || "").toLowerCase();
+        if (jaFoi.code === "23505" || /duplicate key/.test(m)) return responder({ ok: true, tipo, enviados: 0, nota: "O relatório desta semana já tinha saído." });
+        return responder({ erro: "Não foi possível registar o envio: " + jaFoi.message }, 500);
+      }
+    }
+    const [rv, rAntes, ra, rm] = await Promise.all([
+      admin.from("transporte_viagens").select("tipo, km_inicio, km_fim, data").gte("data", de).lte("data", ate).not("km_fim", "is", null).order("km_inicio"),
+      admin.from("transporte_viagens").select("km_fim").lt("data", de).not("km_fim", "is", null).order("km_fim", { ascending: false }).limit(1),
+      admin.from("transporte_abastecimentos").select("km, litros, valor, quando").gte("quando", de + "T00:00:00+01:00").lte("quando", ate + "T23:59:59+01:00").order("quando"),
+      admin.from("transporte_manutencoes").select("*").order("data", { ascending: false }).limit(200),
+    ]);
+    const erroT = rv.error || rAntes.error || ra.error;
+    if (erroT) return responder({ erro: "Não foi possível ler o transporte: " + erroT.message }, 500);
+    const viagens: any[] = rv.data || [];
+    const abast: any[] = ra.data || [];
+    const manut: any[] = rm.error ? [] : (rm.data || []);
+    const porTipo: Record<string, number> = {};
+    viagens.forEach((v) => { porTipo[v.tipo] = (porTipo[v.tipo] || 0) + (v.km_fim - v.km_inicio); });
+    const registados = Object.values(porTipo).reduce((a, b) => a + b, 0);
+    const kmFim = viagens.reduce((m, v) => Math.max(m, v.km_fim), 0);
+    const kmAntes = rAntes.data && rAntes.data[0] ? Number(rAntes.data[0].km_fim) : (viagens[0] ? viagens[0].km_inicio : 0);
+    const total = kmFim && kmAntes ? Math.max(registados, kmFim - kmAntes) : registados;
+    const semRegisto = Math.max(0, total - registados);
+    const litros = abast.reduce((a, x) => a + Number(x.litros || 0), 0);
+    const valorComb = abast.reduce((a, x) => a + Number(x.valor || 0), 0);
+    const feitas = manut.filter((m) => m.estado === "feita" && m.data >= de && m.data <= ate);
+    const valorManut = feitas.reduce((a, m) => a + Number(m.valor || 0), 0);
+    const pendentes = manut.filter((m) => m.estado === "orcamento" || m.estado === "aprovada");
+    const prox = manut.filter((m) => m.estado === "feita" && (m.proxima_km || m.proxima_data))[0];
+    const n1 = (v: number, casas = 0) => v.toLocaleString("pt-PT", { minimumFractionDigits: casas, maximumFractionDigits: casas });
+    const kz = (v: number) => n1(Math.round(v)) + " Kz";
+    const MESES_C = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    const dc = (iso: string) => { const d = new Date(iso + "T12:00:00Z"); return d.getUTCDate() + " " + MESES_C[d.getUTCMonth()] + " " + d.getUTCFullYear(); };
+    const linhaDado = (rotulo: string, valor: string, perigo = false) =>
+      '<tr><td style="padding:6px 16px 6px 0;font-family:' + FONTE + ';font-size:15px;font-weight:700;color:' + MARINHO + ';vertical-align:top">' + rotulo + '</td><td style="padding:6px 0;font-family:' + FONTE + ';font-size:15px;color:' + (perigo ? "#B42318" : TEXTO) + '">' + valor + "</td></tr>";
+    const tabela = (linhas: string) => '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 18px;border-top:1px solid ' + LINHA + ';border-bottom:1px solid ' + LINHA + '">' + linhas + "</table>";
+    const subtitulo = (t: string) => '<p style="margin:18px 0 6px;font-family:' + FONTE + ';font-size:15px;font-weight:700;color:' + MARINHO + '">' + t + "</p>";
+    const servicoDia = (porTipo.amostras || 0) + (porTipo.compras || 0) + (porTipo.outro || 0) + (porTipo.ligacao || 0);
+    const consumo =
+      linhaDado("Km percorridos", total ? n1(total) + " km" + (kmFim ? " (de " + n1(kmAntes) + " a " + n1(kmFim) + ")" : "") : "Sem viagens registadas") +
+      (total ? linhaDado("Rota do pessoal", n1(porTipo.pessoal || 0) + " km") + linhaDado("Serviço de dia", n1(servicoDia) + " km") + linhaDado("Para casa", n1(porTipo.casa || 0) + " km") : "") +
+      (semRegisto ? linhaDado("Sem registo", n1(semRegisto) + " km", true) : "") +
+      linhaDado("Combustível", litros ? n1(litros, 1) + " L · " + kz(valorComb) + " (" + abast.length + (abast.length === 1 ? " abastecimento" : " abastecimentos") + ")" : "Sem abastecimentos registados") +
+      (litros && total ? linhaDado("Consumo", n1(total / litros, 1) + " km por litro · " + n1(valorComb / total, 1) + " Kz por km") : "") +
+      linhaDado("Manutenção feita", feitas.length ? kz(valorManut) + " · " + feitas.map((m) => escapar(m.descricao)).join("; ") : "Nenhuma registada") +
+      (total && (valorComb + valorManut) ? linhaDado("Custo total por km", n1((valorComb + valorManut) / total, 1) + " Kz") : "");
+    const pend = pendentes.length
+      ? subtitulo("Manutenção em aberto") + '<ul style="padding-left:18px;margin:0 0 16px">' + pendentes.map((m) =>
+          '<li style="margin-bottom:4px;font-family:' + FONTE + ';font-size:15px;color:' + TEXTO + '">' + (m.estado === "orcamento" ? "Orçamento por aprovar" : "Aprovada, por fazer") + " · " + kz(Number(m.valor || 0)) + " · " + escapar(m.descricao) + (m.oficina ? " (" + escapar(m.oficina) + ")" : "") + " · " + dc(m.data) + "</li>").join("") + "</ul>"
+      : "";
+    const proxTxt = prox ? paragrafo("<b>Próxima revisão:</b> " + [prox.proxima_km ? n1(prox.proxima_km) + " km" : "", prox.proxima_data ? dc(prox.proxima_data) : ""].filter(Boolean).join(" ou ") + (kmFim && prox.proxima_km ? " (faltam " + n1(prox.proxima_km - kmFim) + " km)" : "") + ".") : "";
+    const pedidos = [
+      "Os km de hoje no conta-quilómetros, com fotografia.",
+      "Óleo, água, travões, pneus e luzes: em ordem, ou o que falta.",
+      "Manutenção feita ou necessária, com o orçamento ou a factura.",
+      "Avarias, riscos, multas ou acidentes da semana.",
+      "Documentos da viatura: seguro, inspecção e taxa de circulação, com o prazo de cada um.",
+      "Abastecimentos ou viagens que ficaram por registar.",
+    ];
+    const listaPedidos = '<ol style="padding-left:20px;margin:0 0 14px">' + pedidos.map((t) => '<li style="margin-bottom:6px;font-family:' + FONTE + ';font-size:15px;line-height:1.5;color:' + TEXTO + '">' + t + "</li>").join("") + "</ol>";
+    const primeiro = (email: string) => { const u = destinatarios.find((x: any) => String(x.email).trim() === email); return u ? String(u.name).split(" ")[0] : ""; };
+    const nome = primeiro(para[0]);
+    const html = envelope(
+      nome ? "Bom dia, " + escapar(nome) + "." : "Bom dia.",
+      paragrafo("Este é o relatório da viatura da semana de " + dc(de) + " a " + dc(ate) + ", feito com o que ficou registado no ecrã Transporte do Workspace.") +
+        subtitulo("Consumo da semana") + tabela(consumo) + pend + proxTxt +
+        subtitulo("Envie-nos até quarta-feira") +
+        paragrafo("Responda a este e-mail (a resposta vai para a Administração) com:") + listaPedidos +
+        paragrafo("Manutenção e abastecimentos registam-se também no Workspace, em Transporte, com a fotografia do recibo.", true),
+      "transporte",
+      "Abrir o Transporte",
+      "Relatório semanal da viatura, todas as segundas-feiras.",
+      "Relatório da viatura"
+    );
+    const assunto = "Relatório da viatura: semana de " + dc(de) + " a " + dc(ate);
+    if (previa) return responder({ ok: true, tipo, previa: true, para, cc: adm, assunto, semana: de, total, litros, valorComb, valorManut, html });
+    const r = await fetch(URL_SB.replace(/\/$/, "") + "/functions/v1/bright-worker", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + CHAVE_SERVICO },
+      body: JSON.stringify({ to: para, subject: assunto, html, ...(adm.length ? { cc: adm, reply_to: adm } : {}) }),
+    }).catch(() => null);
+    const ok = !!(r && r.ok);
+    await admin.from("transporte_semana_enviados").update({ ok, para: para.concat(adm).join(", ") }).eq("semana", de);
+    return responder({ ok, tipo, semana: de, para, cc: adm, enviados: ok ? 1 : 0 });
   }
 
   /* Novidades do sistema: so quando ha, a quem dizem respeito. */

@@ -1752,3 +1752,35 @@ sabendo que há biométrico.
   - «Retirar acesso» antigo em canais de área (Rosa Simão: #farmácia;
     Emmanuel: #escalas e outros) não tem efeito nos canais de área e o
     servidor ignora-o; o #escalas do Emmanuel só some no ecrã.
+
+## 3-av. Manutenção da viatura e relatório semanal ao motorista (30-09-2026)
+
+- Pedido do Elmar a partir da mensagem do Emmanuel no #transporte (orçamento
+  da Suzuki para a manutenção do Suzuki Eeco, 66 652,8 Kz).
+- Servidor (`transporte-manutencao.sql`, aplicado):
+  - tabela `transporte_manutencoes` (data, estado `orcamento` / `aprovada`
+    / `feita`, km, descrição, valor, oficina, fotografia, próxima revisão
+    em km ou data, nota). Mesmo acesso do transporte; só a gestão apaga e
+    só a gestão aprova um orçamento (gatilho `bsp_transporte_carimbo`);
+  - o orçamento de 30-09-2026 ficou registado como primeiro registo
+    (por aprovar);
+  - `transporte_semana_enviados`: um relatório por semana;
+  - agendamento `bsp-transporte-semana`: segunda-feira, 07h45 de Luanda
+    (06h45 UTC), tipo `transporte` da `resumo-matinal`.
+- `resumo-matinal` versão 9: tipo `transporte`. Consumo da semana anterior
+  (segunda a domingo): km por tipo, km sem registo, combustível, consumo,
+  manutenção feita, custo por km, orçamentos em aberto e próxima revisão.
+  Pede ao motorista, até quarta-feira: km com fotografia, óleo/água/
+  travões/pneus/luzes, manutenção, avarias e multas, prazos dos
+  documentos, registos em falta. Para: quem tem o cargo «motorista»
+  (Emmanuel); cópia e «responder para»: o departamento Administração com
+  e-mail da clínica (Arlete e Elmar). `{"previa": true}` devolve o e-mail
+  sem o enviar (conferida a 30-09-2026: 237 km na semana de 21 a 27 Set).
+- `bright-worker` versão 4: aceita `reply_to`, só do servidor.
+- Workspace, ecrã Transporte: botão «Manutenção» (`TranspManutModal`, vai
+  também para o #transporte); em «Hoje», aviso da revisão perto (500 km
+  ou 14 dias, `bspManutProxima`) e orçamentos por aprovar (botão
+  «Aprovar» só para a gestão); em «Histórico», a manutenção do mês e o
+  custo por km com combustível e manutenção.
+- Testado com servidor simulado (Emmanuel regista; Elmar vê «Aprovar»).
+- Por decidir: o primeiro envio real sai segunda-feira, 5 Out 2026, 07h45.

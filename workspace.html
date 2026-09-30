@@ -21252,7 +21252,7 @@ function TranspJuntarModal({ open, onClose, onGravar }) {
       React.createElement("input", { value: nota, onChange: e => setNota(e.target.value), placeholder: 'Ex.: ficou até mais tarde, substitui colega', style: bspTranspCampo }))));
 }
 function useTransporte() {
-  const [st, setSt] = React.useState({ estado: 'a-carregar', viagens: [], abast: [], zonas: {}, erro: '' });
+  const [st, setSt] = React.useState({ estado: 'a-carregar', viagens: [], abast: [], zonas: {}, manut: [], erro: '' });
   const [tick, setTick] = React.useState(0);
   React.useEffect(() => {
     const cl = bspGetClient();
@@ -21262,18 +21262,21 @@ function useTransporte() {
     Promise.all([
       cl.from('transporte_viagens').select('*').gte('data', desde).order('km_inicio', { ascending: true }).limit(5000),
       cl.from('transporte_abastecimentos').select('*').gte('quando', desde + 'T00:00:00').order('quando', { ascending: true }).limit(2000),
-      cl.from('transporte_zonas').select('*').limit(2000)
-    ]).then(([v, a, z]) => {
+      cl.from('transporte_zonas').select('*').limit(2000),
+      cl.from('transporte_manutencoes').select('*').order('data', { ascending: false }).limit(1000)
+    ]).then(([v, a, z, mt]) => {
       if (!vivo) return;
       const e = v.error || a.error || z.error;
       if (e) {
         const m = String(e.message || '');
-        setSt({ estado: /relation|does not exist|schema cache/i.test(m) ? 'sem-tabela' : 'erro', viagens: [], abast: [], zonas: {}, erro: m });
+        setSt({ estado: /relation|does not exist|schema cache/i.test(m) ? 'sem-tabela' : 'erro', viagens: [], abast: [], zonas: {}, manut: [], erro: m });
         return;
       }
       const zonas = {};
       (z.data || []).forEach(r => { zonas[r.pessoa] = r.zona; });
-      setSt({ estado: 'pronto', viagens: v.data || [], abast: a.data || [], zonas, erro: '' });
+      /* Sem a tabela da manutencao (transporte-manutencao.sql por correr),
+         o resto do ecra funciona na mesma. */
+      setSt({ estado: 'pronto', viagens: v.data || [], abast: a.data || [], zonas, manut: mt.error ? [] : (mt.data || []), erro: '' });
     });
     return () => { vivo = false; };
   }, [tick]);
@@ -21422,6 +21425,75 @@ function TranspAbastModal({ open, ultimoKm, anteriores, onClose, onFeito, onAvis
     React.createElement(CampoFoto, { valor: foto, onMudar: setFoto, rotulo: 'Fotografia do recibo' }),
     erro && (f.litros || f.km) && React.createElement("div", { role: 'alert', style: { fontSize: 13, color: 'var(--perigo)' } }, erro)));
 }
+/* Manutencao da viatura (30-09-2026, transporte-manutencao.sql):
+   orcamentos e trabalhos feitos, com valor, oficina, km, fotografia e a
+   proxima revisao. Aprovar um orcamento e da gestao. */
+const BSP_MANUT_ESTADOS = { orcamento: 'Orçamento', aprovada: 'Aprovada', feita: 'Feita' };
+function bspManutTexto(m) {
+  return BSP_MANUT_ESTADOS[m.estado] + ' · ' + bspPainelKz(m.valor, true) + ' · ' + m.descricao +
+    (m.oficina ? ' (' + m.oficina + ')' : '') + (m.km ? ' · ' + bspKm(m.km) + ' km' : '');
+}
+/* A proxima revisao marcada na ultima manutencao feita que a tenha. Avisa
+   a 500 km ou a 14 dias. */
+function bspManutProxima(manut, ultimoKm) {
+  const m = (manut || []).filter(x => x.estado === 'feita' && (x.proxima_km || x.proxima_data))
+    .sort((a, b) => String(b.data).localeCompare(String(a.data)) || (b.km || 0) - (a.km || 0))[0];
+  if (!m) return null;
+  const faltaKm = m.proxima_km ? m.proxima_km - (ultimoKm || 0) : null;
+  const faltaDias = m.proxima_data ? Math.round((new Date(m.proxima_data + 'T12:00:00') - new Date(bspDataLocalISO(new Date()) + 'T12:00:00')) / 86400000) : null;
+  const perto = (faltaKm != null && faltaKm <= 500) || (faltaDias != null && faltaDias <= 14);
+  return { m, faltaKm, faltaDias, perto };
+}
+function TranspManutModal({ open, ultimoKm, onClose, onFeito, onAvisar }) {
+  const toast = useToast();
+  const vazio = () => ({ estado: 'orcamento', data: bspDataLocalISO(new Date()), km: ultimoKm ? String(ultimoKm) : '', descricao: '', valor: '', oficina: '', proxima_km: '', proxima_data: '', nota: '' });
+  const [f, setF] = React.useState(vazio);
+  const [foto, setFoto] = React.useState(null);
+  const [aGravar, setAGravar] = React.useState(false);
+  React.useEffect(() => { if (open) { setF(vazio()); setFoto(null); setAGravar(false); } }, [open]);
+  if (!open) return null;
+  const num = v => Number(String(v).replace(/\s/g, '').replace(',', '.'));
+  const inteiro = v => { const n = parseInt(String(v).replace(/\D/g, ''), 10); return isNaN(n) ? null : n; };
+  const erro = !f.descricao.trim() ? 'Diga o que é (peças e serviço).' : !(num(f.valor) >= 0) || String(f.valor).trim() === '' ? 'Escreva o valor em Kz.' : !f.data ? 'Escreva a data.' : '';
+  const campo = (k, rot, ph, modo, tipo) => React.createElement("label", null, bspTranspRot(rot), React.createElement("input", { type: tipo || 'text', value: f[k], onChange: e => setF(x => Object.assign({}, x, { [k]: e.target.value })), inputMode: modo || 'text', placeholder: ph, style: bspTranspCampo }));
+  const gravar = async () => {
+    if (erro || aGravar) return;
+    setAGravar(true);
+    try {
+      const caminho = foto ? await bspTranspFoto(foto) : null;
+      const linha = { estado: f.estado, data: f.data, km: inteiro(f.km), descricao: f.descricao.trim(), valor: num(f.valor) || 0, oficina: f.oficina.trim(), foto: caminho,
+        proxima_km: f.estado === 'feita' ? inteiro(f.proxima_km) : null, proxima_data: f.estado === 'feita' && f.proxima_data ? f.proxima_data : null, nota: f.nota.trim() };
+      const r = await bspGetClient().from('transporte_manutencoes').insert(linha);
+      if (r.error) throw r.error;
+      toast(f.estado === 'orcamento' ? 'Orçamento gravado. A gestão aprova no Histórico.' : 'Manutenção gravada.');
+      if (onAvisar) onAvisar('🔧 Manutenção' + (f.estado === 'orcamento' ? ' (orçamento, por aprovar)' : ' feita') + ': ' + bspPainelKz(linha.valor, true) +
+        '\n' + linha.descricao + (linha.oficina ? '\nOficina: ' + linha.oficina : '') + (linha.km ? '\nKm: ' + bspKm(linha.km) : '') +
+        (linha.proxima_km || linha.proxima_data ? '\nPróxima revisão: ' + [linha.proxima_km ? bspKm(linha.proxima_km) + ' km' : '', linha.proxima_data ? bspDataCurta(linha.proxima_data) : ''].filter(Boolean).join(' ou ') : '') +
+        (caminho ? '\nCom fotografia (ecrã Transporte).' : ''));
+      onFeito(); onClose();
+    } catch (e) { toast('Não foi possível gravar: ' + (e && e.message || e)); setAGravar(false); }
+  };
+  return React.createElement(Modal, {
+    open, onClose, width: 520, title: 'Manutenção da viatura',
+    footer: React.createElement(React.Fragment, null,
+      React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: onClose }, 'Cancelar'),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: gravar }, aGravar ? 'A gravar…' : 'Gravar'))
+  }, React.createElement("div", { style: { padding: 20, display: 'flex', flexDirection: 'column', gap: 14 } },
+    React.createElement("div", null, bspTranspRot('É um orçamento ou já foi feita?'),
+      React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+        [['orcamento', 'Orçamento (por aprovar)'], ['feita', 'Já foi feita']].map(o => React.createElement("button", { key: o[0], type: 'button', onClick: () => setF(x => Object.assign({}, x, { estado: o[0] })), style: bspEscChip(f.estado === o[0]) }, o[1])))),
+    React.createElement("label", null, bspTranspRot('O que é (peças e serviço)'),
+      React.createElement("textarea", { value: f.descricao, onChange: e => setF(x => Object.assign({}, x, { descricao: e.target.value })), rows: 3, placeholder: 'Ex.: filtro de óleo, 5 L de óleo, filtro de ar', style: Object.assign({}, bspTranspCampo, { height: 'auto', padding: '10px 12px' }) })),
+    campo('valor', 'Valor total (Kz)', 'Ex.: 66 652,8', 'decimal'),
+    campo('oficina', 'Oficina / fornecedor', 'Ex.: Suzuki'),
+    React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 } },
+      campo('data', 'Data', '', 'text', 'date'), campo('km', 'Km no conta-quilómetros', '', 'numeric')),
+    f.estado === 'feita' && React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 } },
+      campo('proxima_km', 'Próxima revisão aos km (opcional)', 'Ex.: 60 000', 'numeric'), campo('proxima_data', 'Ou na data (opcional)', '', 'text', 'date')),
+    campo('nota', 'Nota (opcional)', ''),
+    React.createElement(CampoFoto, { valor: foto, onMudar: setFoto, rotulo: f.estado === 'orcamento' ? 'Fotografia do orçamento' : 'Fotografia da factura' }),
+    erro && (f.descricao || f.valor) && React.createElement("div", { role: 'alert', style: { fontSize: 13, color: 'var(--perigo)' } }, erro)));
+}
 /* Contas de um periodo: km por tipo, km sem registo entre viagens,
    pessoas levadas e combustivel. */
 function bspTranspContas(viagens, abast, de, ate) {
@@ -21517,6 +21589,25 @@ function TransporteScreen({ currentUser }) {
     avisarChat('🏠 Em casa · ' + bspHoraCurta(new Date().toISOString()) + '\nKm: ' + bspKm(ultimoKm) + ' → ' + bspKm(n) + ' = ' + (n - ultimoKm) + ' km');
     return true;
   };
+  const gestao = bspGereMarcacoes(currentUser);
+  const mudarManut = async (m, campos, aviso) => {
+    const r = await bspGetClient().from('transporte_manutencoes').update(campos).eq('id', m.id).select('id');
+    if (r.error || !r.data || !r.data.length) { toast('Não foi possível gravar: ' + (r.error ? r.error.message : 'sem permissão')); return; }
+    t.recarregar();
+    if (aviso) avisarChat(aviso);
+  };
+  const proxima = bspManutProxima(t.manut, ultimoKm);
+  const porAprovar = (t.manut || []).filter(m => m.estado === 'orcamento');
+  const linhaManut = m => React.createElement("div", { key: m.id, style: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 10, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' } },
+    React.createElement("div", { style: { minWidth: 0, fontSize: 13, color: 'var(--text-1)' } },
+      React.createElement("div", { style: { fontWeight: 700 } }, bspDataCurta(m.data) + ' · ' + BSP_MANUT_ESTADOS[m.estado] + ' · ' + bspPainelKz(m.valor, true)),
+      React.createElement("div", { style: { color: 'var(--text-2)' } }, m.descricao + (m.oficina ? ' (' + m.oficina + ')' : '') + (m.km ? ' · ' + bspKm(m.km) + ' km' : '')),
+      (m.proxima_km || m.proxima_data) && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, 'Próxima revisão: ' + [m.proxima_km ? bspKm(m.proxima_km) + ' km' : '', m.proxima_data ? bspDataCurta(m.proxima_data) : ''].filter(Boolean).join(' ou ')),
+      m.nota && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', fontStyle: 'italic' } }, m.nota),
+      m.foto && React.createElement("button", { onClick: () => bspVerFotoTransp(m.foto), style: { border: 0, background: 'transparent', color: 'var(--accent-d)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, padding: 0 } }, m.estado === 'feita' ? 'Factura' : 'Orçamento')),
+    React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' } },
+      m.estado === 'orcamento' && gestao && React.createElement("button", { onClick: () => mudarManut(m, { estado: 'aprovada' }, '✅ Orçamento aprovado: ' + bspPainelKz(m.valor, true) + ' · ' + m.descricao), style: Object.assign(bspEscBotao(true), { height: 36 }) }, 'Aprovar'),
+      m.estado !== 'feita' && React.createElement("button", { onClick: () => mudarManut(m, { estado: 'feita', data: bspDataLocalISO(new Date()), km: ultimoKm || m.km }, '🔧 Manutenção feita: ' + bspPainelKz(m.valor, true) + ' · ' + m.descricao), style: Object.assign(bspEscBotao(false), { height: 36 }) }, 'Já foi feita')));
   const vazio = x => React.createElement("div", { style: { padding: '40px 20px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13.5 } }, x);
   if (t.estado === 'a-carregar') return vazio('A carregar…');
   if (t.estado === 'sem-servidor') return vazio('O servidor não está ligado neste aparelho.');
@@ -21565,10 +21656,21 @@ function TransporteScreen({ currentUser }) {
             botaoGrande('Compras', () => { setTipoNovo('compras'); setModal('iniciar'); }, false),
             botaoGrande('Outro serviço', () => { setTipoNovo('outro'); setModal('iniciar'); }, false),
             botaoGrande('Cheguei a casa', () => setModal('casa'), false),
-            botaoGrande('Abastecimento', () => setModal('abast'), false))));
+            botaoGrande('Abastecimento', () => setModal('abast'), false),
+            botaoGrande('Manutenção', () => setModal('manut'), false))),
+        proxima && proxima.perto && React.createElement(Card, { pad: 16, style: { borderLeft: '4px solid var(--perigo)' } },
+          React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--perigo)' } }, 'Revisão da viatura perto'),
+          React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 4 } },
+            [proxima.faltaKm != null ? (proxima.faltaKm > 0 ? 'Faltam ' + bspKm(proxima.faltaKm) + ' km' : 'Passou ' + bspKm(-proxima.faltaKm) + ' km') + ' (aos ' + bspKm(proxima.m.proxima_km) + ')' : '',
+             proxima.faltaDias != null ? (proxima.faltaDias >= 0 ? 'faltam ' + proxima.faltaDias + ' dias' : 'passou ' + (-proxima.faltaDias) + ' dias') + ' (' + bspDataCurta(proxima.m.proxima_data) + ')' : ''].filter(Boolean).join(' · ') + '.')),
+        porAprovar.length > 0 && React.createElement(Card, { pad: 16 },
+          React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 4 } }, porAprovar.length === 1 ? 'Orçamento por aprovar' : porAprovar.length + ' orçamentos por aprovar'),
+          porAprovar.map(linhaManut)));
   } else if (aba === 'historico') {
     const fimMes = bspSomarDias(bspSomarMeses(mes, 1), -1);
     const c = bspTranspContas(t.viagens, t.abast, mes, fimMes);
+    const manutMes = (t.manut || []).filter(m => m.data >= mes && m.data <= fimMes);
+    const gastoManut = manutMes.filter(m => m.estado === 'feita').reduce((s, m) => s + Number(m.valor || 0), 0);
     const doMes = t.viagens.filter(v => v.data >= mes && v.data <= fimMes).slice().sort((a, b) => b.km_inicio - a.km_inicio);
     const falhaDepois = {};
     c.falhas.forEach(f => { falhaDepois[f.antes.id] = f; });
@@ -21590,7 +21692,9 @@ function TransporteScreen({ currentUser }) {
         tile('Serviço de dia', bspKm((c.porTipo.amostras || 0) + (c.porTipo.compras || 0) + (c.porTipo.outro || 0) + (c.porTipo.ligacao || 0)) + ' km'),
         tile('Sem registo', bspKm(c.semRegisto) + ' km', c.semRegisto > 0),
         tile('Combustível', c.litros ? c.litros.toLocaleString('pt-PT') + ' L · ' + bspPainelKz(c.valor, true) : 'Sem abastecimentos'),
-        c.litros > 0 && tile('Consumo', (c.total / c.litros).toFixed(1).replace('.', ',') + ' km/L · ' + bspPainelKz(c.valor / Math.max(1, c.total), true) + '/km')),
+        c.litros > 0 && tile('Consumo', (c.total / c.litros).toFixed(1).replace('.', ',') + ' km/L · ' + bspPainelKz(c.valor / Math.max(1, c.total), true) + '/km'),
+        tile('Manutenção feita', gastoManut ? bspPainelKz(gastoManut, true) : 'Nada no mês'),
+        (c.valor + gastoManut) > 0 && c.total > 0 && tile('Custo por km (combustível + manutenção)', bspPainelKz((c.valor + gastoManut) / c.total, true) + '/km')),
       React.createElement(Card, { pad: 0 },
         !dias.length ? vazio('Sem viagens neste mês.') : dias.map(g => React.createElement("div", { key: g.dia },
           React.createElement("div", { style: { background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', padding: '8px 16px', fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.04em' } }, bspDiaExtenso(g.dia + 'T12:00:00')),
@@ -21609,6 +21713,9 @@ function TransporteScreen({ currentUser }) {
                 React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)' } }, bspKm(v.km_inicio) + ' → ' + (v.km_fim != null ? bspKm(v.km_fim) : '…')))),
             falhaDepois[v.id] && React.createElement("div", { style: { padding: '8px 16px', borderBottom: '1px solid var(--border)', fontSize: 12.5, fontWeight: 600, color: 'var(--perigo)' } },
               '⚠ ' + falhaDepois[v.id].km + ' km sem registo antes desta viagem (de ' + bspKm(falhaDepois[v.id].depois.km_fim) + ' a ' + bspKm(v.km_inicio) + ')')))))),
+      manutMes.length > 0 && React.createElement(Card, { pad: 14 },
+        React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 4 } }, 'Manutenção'),
+        manutMes.map(linhaManut)),
       c.abast.length > 0 && React.createElement(Card, { pad: 14 },
         React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 } }, 'Abastecimentos'),
         c.abast.map(a => React.createElement("div", { key: a.id, style: { fontSize: 13, color: 'var(--text-1)', padding: '4px 0' } },
@@ -21632,6 +21739,7 @@ function TransporteScreen({ currentUser }) {
     aberta && React.createElement(TranspKmModal, { open: modal === 'terminar', titulo: 'Terminar viagem', minimo: aberta.km_inicio, pedirFoto: true, pedirNota: true, onClose: () => setModal(''), onGravar: terminar }),
     React.createElement(TranspKmModal, { open: modal === 'casa', titulo: 'Cheguei a casa', minimo: ultimoKm, pedirFoto: true, onClose: () => setModal(''), onGravar: casa }),
     React.createElement(TranspAbastModal, { open: modal === 'abast', ultimoKm, anteriores: t.abast, onClose: () => setModal(''), onFeito: t.recarregar, onAvisar: avisarChat }),
+    React.createElement(TranspManutModal, { open: modal === 'manut', ultimoKm, onClose: () => setModal(''), onFeito: t.recarregar, onAvisar: avisarChat }),
     React.createElement(TranspJuntarModal, { open: modal === 'juntar', onClose: () => setModal(''), onGravar: juntar }),
     React.createElement(TranspNaoFoiModal, { open: naoFoi != null, nome: naoFoi != null && paragens[naoFoi] ? nomeDe(paragens[naoFoi].quem) : '', onClose: () => setNaoFoi(null), onGravar: gravarNaoFoi }),
     abas, corpo);

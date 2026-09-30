@@ -51,7 +51,8 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
     e conferido por `bsp_resumo_codigo_confere` (ver
     `agendar-resumo-sem-chave.sql`). Nunca mostrar esse código.
   - `bright-worker` (envia pela Resend, remetente geral@barispol.com, que
-    não se muda): versão 5 (24-09-2026), verificação de JWT desligada e
+    não se muda): versão 4 (30-09-2026, aceita `reply_to` só do servidor),
+    verificação de JWT desligada e
     autenticação própria em `funcoes/bright-worker/index.ts`. Chave do
     servidor ou sessão de gestor: qualquer destinatário. Sessão de outro
     colaborador: só endereços de `shared_state.team` ou
@@ -195,6 +196,11 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   `bspVeTransporte`/`bsp_ve_transporte` (gestão e cargo «motorista»).
   Quem sai à noite vem de `bsp_transporte_saidas(dia)`. Bairros são dados
   pessoais: nunca no repositório. O dia de serviço é `bspDiaServico()`.
+  Manutenção (30-09-2026, `transporte-manutencao.sql`):
+  `transporte_manutencoes` (orçamento → aprovada → feita; só a gestão
+  aprova). Relatório semanal ao motorista, segunda às 07h45, tipo
+  `transporte` da `resumo-matinal` (versão 9), com a Administração em cópia
+  e como `reply_to`; `{"previa": true}` mostra sem enviar.
 - «Ver como» (28-09-2026): `bspEmVerComo()` é só leitura. Qualquer escrita
   nova ao servidor tem de passar por `bspGetClient()` (que a bloqueia) ou
   verificar `bspEmVerComo()`; funções RPC novas que só lêem vão para
