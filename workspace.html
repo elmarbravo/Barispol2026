@@ -3025,7 +3025,7 @@ function Sidebar({
   }, React.createElement(StatusDot, {
     status: currentUser.status,
     size: 7
-  }), React.createElement("span", null, STATUS_META[currentUser.status].label), React.createElement("span", null, "·"), React.createElement("span", {
+  }), React.createElement("span", null, (STATUS_META[currentUser.status] || STATUS_META.offline).label), React.createElement("span", null, "·"), React.createElement("span", {
     style: {
       overflow: 'hidden',
       textOverflow: 'ellipsis',
@@ -6560,6 +6560,9 @@ function DashboardScreen({
     }
   }, bspVePainel(currentUser) && React.createElement(PainelAtalho, {
     onAbrir: () => onSwitch && onSwitch('painel')
+  }), bspVeActividade(currentUser) && React.createElement(ActividadeAtalho, {
+    currentUser: currentUser,
+    onAbrir: () => onSwitch && onSwitch('actividade')
   }), React.createElement(DocsPorLerCartao, {
     currentUser: currentUser,
     onAbrir: () => onSwitch && onSwitch('documentos')
@@ -7298,6 +7301,15 @@ function ChatScreen({
       if (vivo && !r.error && window.__bspIngerirAntigas) window.__bspIngerirAntigas(r.data || []);
     });
     return () => { vivo = false; };
+  }, [convKey]);
+  /* Responder em privado: a mensagem citada chega ao campo de escrita da
+     conversa directa. */
+  React.useEffect(() => {
+    const r = window.__bspRascunhoDm;
+    if (!r || r.conv !== convKey) return;
+    window.__bspRascunhoDm = null;
+    setDraft(r.texto);
+    setTimeout(() => { try { taRef.current && taRef.current.focus(); } catch (e) {} }, 60);
   }, [convKey]);
   /* Recibo de leitura: ao ter a conversa aberta, regista até onde leu. */
   const ultimoLidoRef = React.useRef({});
@@ -8147,10 +8159,15 @@ function ChatScreen({
         width: 36,
         flex: 'none'
       }
-    }, !grouped && React.createElement(Avatar, {
+    }, !grouped && React.createElement("span", {
+      /* Carregar na pessoa abre a conversa directa (30-09-2026). */
+      onClick: () => bspPodeConversar(u) && bspConversaCom(u.id),
+      title: bspPodeConversar(u) ? 'Conversar com ' + u.name : undefined,
+      style: { cursor: bspPodeConversar(u) ? 'pointer' : 'default', display: 'inline-flex' }
+    }, React.createElement(Avatar, {
       user: u,
       size: 36
-    }), grouped && React.createElement("span", {
+    })), grouped && React.createElement("span", {
       style: {
         fontSize: 10,
         color: 'var(--text-3)',
@@ -8173,10 +8190,13 @@ function ChatScreen({
         marginBottom: 3
       }
     }, React.createElement("strong", {
+      onClick: () => bspPodeConversar(u) && bspConversaCom(u.id),
+      title: bspPodeConversar(u) ? 'Conversar com ' + u.name : undefined,
       style: {
         fontSize: 13.5,
         color: 'var(--text-1)',
-        fontWeight: 700
+        fontWeight: 700,
+        cursor: bspPodeConversar(u) ? 'pointer' : 'default'
       }
     }, u.name), React.createElement(Badge, {
       tone: u.dept === 'Clínica' ? 'accent' : u.dept === 'Administração' ? 'navy' : u.dept === 'Marketing' ? 'pink' : u.dept === 'Financeiro' ? 'purple' : 'teal',
@@ -8299,6 +8319,34 @@ function ChatScreen({
         transition: 'opacity .15s'
       }
     }, React.createElement(I.Reply, {
+      size: 13
+    })), !isDM && bspPodeConversar(window.userById(m.userId)) && React.createElement("button", {
+      /* Responder em privado (30-09-2026): abre a conversa directa com
+         quem escreveu, com a mensagem do canal ja citada. */
+      className: "bsp-msg-del",
+      title: "Responder em privado",
+      "aria-label": "Responder em privado",
+      onClick: () => {
+        const autor = window.userById(m.userId);
+        const excerto = bspTextoVisivel(String(m.text || '')).replace(/\n/g, ' ').slice(0, 120);
+        window.__bspRascunhoDm = {
+          conv: 'dm-' + [currentUser.id, autor.id].sort().join('_'),
+          texto: '**\u21a9 Sobre a sua mensagem em #' + (activeChannel ? activeChannel.name : 'canal') + ':** _' + excerto + '_\n'
+        };
+        bspConversaCom(autor.id);
+      },
+      style: {
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        color: 'var(--text-3)',
+        padding: 2,
+        lineHeight: 0,
+        flex: 'none',
+        opacity: 0,
+        transition: 'opacity .15s'
+      }
+    }, React.createElement(I.Lock, {
       size: 13
     })), m.sid && React.createElement("button", {
       className: "bsp-msg-del",
@@ -8816,11 +8864,15 @@ function ChannelInfo({
     }
   }, team.map(u => React.createElement("div", {
     key: u.id,
+    onClick: () => bspPodeConversar(u) && bspConversaCom(u.id),
+    title: bspPodeConversar(u) ? 'Conversar com ' + u.name : undefined,
     style: {
       display: 'flex',
       alignItems: 'center',
       gap: 10,
-      padding: '6px 4px'
+      padding: '6px 4px',
+      borderRadius: 8,
+      cursor: bspPodeConversar(u) ? 'pointer' : 'default'
     }
   }, React.createElement(Avatar, {
     user: u,
@@ -8871,6 +8923,12 @@ function ChannelInfo({
 }
 /* Abrir a conversa directa com alguem, a partir de qualquer ecra. O App
    publica window.bspAbrirConversa; sem ele, fica o endereco. */
+/* Com quem se pode abrir uma conversa directa: uma pessoa da equipa com
+   conta, que nao seja o proprio (os remetentes «x:Nome» dos historicos do
+   WhatsApp nao tem conta). */
+function bspPodeConversar(u) {
+  return !!(u && u.id && u.id !== window.CURRENT_USER_ID && String(u.id).indexOf('x:') !== 0 && u.id !== 'self' && !bspEmVerComo());
+}
 function bspConversaCom(outroId) {
   const eu = window.CURRENT_USER_ID;
   if (!outroId || !eu || outroId === eu) return;
@@ -8958,7 +9016,7 @@ function DmInfo({
     value: user.phone
   }), React.createElement(InfoRow, {
     label: "Estado",
-    value: STATUS_META[user.status].label
+    value: (STATUS_META[user.status] || STATUS_META.offline).label
   })), user.bio && React.createElement(React.Fragment, null, React.createElement("div", {
     style: {
       height: 1,
@@ -14481,7 +14539,7 @@ function DirectoryScreen() {
     }
   }, React.createElement(StatusDot, {
     status: u.status
-  }), STATUS_META[u.status].label), React.createElement("div", {
+  }), (STATUS_META[u.status] || STATUS_META.offline).label), React.createElement("div", {
     style: {
       display: 'flex',
       justifyContent: 'flex-end',
@@ -22093,6 +22151,32 @@ function ActividadeScreen({ currentUser }) {
         'Dados do MetaGest' + (d.actualizado ? ', actualizados a ' + bspDataExacta(new Date(d.actualizado)) : '') + '. As facturas anuladas por nota de crédito não contam. Só vê a sua própria actividade.'));
   }
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'auto', paddingBottom: 12 } }, chips, corpo);
+}
+/* Atalho no Inicio para os medicos (30-09-2026): o mes em curso e o
+   botao para o painel completo. */
+function ActividadeAtalho({ currentUser, onAbrir }) {
+  const [d, setD] = React.useState(null);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl || !currentUser) return;
+    let vivo = true;
+    const hoje = bspDataLocalISO(new Date());
+    cl.rpc('bsp_minha_actividade', { p_de: hoje.slice(0, 8) + '01', p_ate: hoje, p_membro: currentUser.id }).then(r => { if (vivo && !r.error && r.data && r.data.ligado) setD(r.data.resumo || {}); });
+    return () => { vivo = false; };
+  }, [currentUser && currentUser.id]);
+  const num = (rot, val) => React.createElement("div", { style: { minWidth: 0 } },
+    React.createElement("div", { style: { fontSize: 11.5, fontWeight: 600, color: 'var(--text-3)' } }, rot),
+    React.createElement("div", { style: { fontSize: 20, fontWeight: 700, color: 'var(--text-1)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' } }, val));
+  return React.createElement(Card, { pad: 16, style: { marginBottom: 16, borderLeft: '4px solid var(--accent)' } },
+    React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' } },
+      React.createElement("div", { style: { flex: '1 1 160px' } },
+        React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)' } }, 'O meu mês'),
+        React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, bspMesExtenso(bspDataLocalISO(new Date()).slice(0, 8) + '01'))),
+      d ? React.createElement(React.Fragment, null,
+        num('Doentes', Number(d.doentes || 0).toLocaleString('pt-PT')),
+        num('Consultas', Number(d.consultas || 0).toLocaleString('pt-PT')),
+        num('Valor dos seus actos', bspPainelKz(d.valor, true))) : React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'A carregar…'),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: onAbrir }, 'Abrir o meu painel')));
 }
 /* Admin: ligar a conta de um medico ao(s) codigo(s) dele no MetaGest. */
 function MetagestEscolha({ valor, onMudar }) {

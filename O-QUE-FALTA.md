@@ -1870,3 +1870,26 @@ sabendo que há biométrico.
 - Conferido com os dados reais da Luidmila (Setembro): 29 doentes, 29
   consultas, 2 só exames, 49 facturas, 962 602 Kz; a soma dos grupos dá o
   mesmo total.
+
+## 3-ba. Chat: conversar ao carregar na pessoa e responder em privado; atalho dos médicos; escala da Farmácia (30-09-2026)
+
+- Chat: carregar no nome ou na fotografia de quem escreveu, ou numa pessoa
+  da lista de membros do canal, abre a conversa directa com ela
+  (`bspPodeConversar` + `bspConversaCom`; os remetentes «x:Nome» dos
+  históricos não têm conta e ficam de fora).
+- Chat: botão «Responder em privado» (cadeado) nas mensagens de um canal
+  escritas por outra pessoa: abre a conversa directa com o autor, com a
+  mensagem citada no campo de escrita (`window.__bspRascunhoDm`).
+- Correcção: a ficha da conversa directa (`DmInfo`) e outros dois sítios
+  liam `STATUS_META[status]` sem recurso e fechavam o ecrã a quem não
+  tivesse estado gravado. Hoje as 24 pessoas têm; ficou protegido na mesma.
+- Início dos médicos: cartão «O meu mês» (`ActividadeAtalho`) com doentes,
+  consultas e valor dos seus actos, e o botão «Abrir o meu painel».
+- Escala da Farmácia de Outubro de 2026 (PDF assinado pela Solange
+  Orlando e pelo Director Clínico a 24-09-2026) carregada e publicada:
+  turnos Manhã 07:00–15:45 e Tarde 15:00–22:30 (seg–sex) e Turno longo
+  07:00–22:30 (todos os dias); Solange (u17), Gizela (u18) e Rosa Simão
+  (u16). Duas horas mal escritas no papel («22H300», «2230») ficaram 22:30.
+- Testado com servidor simulado (Luidmila: «Responder em privado» abre a
+  conversa com o Elmar e a citação; o nome abre a conversa; o cartão
+  aparece no Início).
