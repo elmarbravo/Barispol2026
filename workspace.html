@@ -2729,6 +2729,13 @@ const NAV_ITEMS = [{
   icon: 'File',
   badge: null
 }, {
+  /* A minha actividade (30-09-2026): so os medicos ligados ao MetaGest. */
+  id: 'actividade',
+  label: 'A minha actividade',
+  icon: 'TrendUp',
+  badge: null,
+  actividadeOnly: true
+}, {
   /* Documentos da clinica (30-09-2026): toda a equipa, com o numero por ler. */
   id: 'documentos',
   label: 'Documentos',
@@ -2904,6 +2911,7 @@ function Sidebar({
     if (item.marcacoesOnly && !bspVeMarcacoes(currentUser)) return null;
     if (item.painelOnly && !bspVePainel(currentUser)) return null;
     if (item.transporteOnly && !bspVeTransporte(currentUser)) return null;
+    if (item.actividadeOnly && !bspVeActividade(currentUser)) return null;
     if (bspESocio(currentUser) && item.id !== 'painel') return null;
     const active = current === item.id;
     const IconComp = I[item.icon];
@@ -3131,6 +3139,7 @@ function Topbar({
     painel: 'Painel financeiro',
     relatorios: 'Relatórios do dia',
     documentos: 'Documentos da clínica',
+    actividade: 'A minha actividade',
     directory: 'Directório',
     admin: 'Painel de Administração',
     notifications: 'Notificações'
@@ -3803,7 +3812,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'bsp_e_gestor'];
+const BSP_RPC_LEITURA = ['bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'bsp_e_gestor'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -15601,8 +15610,10 @@ function AdminUserModal({
   const [bday, setBday] = React.useState('');
   const [extraCanais, setExtraCanais] = React.useState([]);
   const [semCanais, setSemCanais] = React.useState([]);
+  const [metagest, setMetagest] = React.useState([]);
   React.useEffect(() => {
     if (open) {
+      setMetagest(user && Array.isArray(user.metagest) ? user.metagest : []);
       setNome(user && user.name || '');
       setEmail(user && user.email || '');
       setPass('');
@@ -15648,6 +15659,7 @@ function AdminUserModal({
       birthday: bday.trim(),
       extraCanais: extraCanais,
       semCanais: semCanais,
+      metagest: metagest,
       phone: user && user.phone || '',
       status: user && user.status || 'offline',
       bio: user && user.bio || ''
@@ -15776,6 +15788,11 @@ function AdminUserModal({
     onChange: setBday,
     placeholder: "ex.: 14/03"
   }))), React.createElement(FormField, {
+    label: "Médico no MetaGest (para «A minha actividade»; só médicos)"
+  }, React.createElement(MetagestEscolha, {
+    valor: metagest,
+    onMudar: setMetagest
+  })), React.createElement(FormField, {
     label: "Acesso aos canais — ajuste só para esta pessoa"
   }, React.createElement("div", {
     style: {
@@ -17590,6 +17607,7 @@ function MobileTopbar({
     painel: 'Painel',
     relatorios: 'Relatórios',
     documentos: 'Documentos',
+    actividade: 'A minha actividade',
     admin: 'Admin',
     notifications: 'Notificações',
     directory: 'Directório'
@@ -17916,6 +17934,10 @@ function MobileMore({
     label: 'Relatórios',
     icon: 'File'
   }, {
+    id: 'actividade',
+    label: 'A minha actividade',
+    icon: 'TrendUp'
+  }, {
     id: 'documentos',
     label: 'Documentos',
     icon: 'Folder'
@@ -17939,6 +17961,10 @@ function MobileMore({
   }
   if (!vePainel) {
     const k = items.findIndex(x => x.id === 'painel');
+    if (k !== -1) items.splice(k, 1);
+  }
+  if (!bspVeActividade(window.userById(window.CURRENT_USER_ID))) {
+    const k = items.findIndex(x => x.id === 'actividade');
     if (k !== -1) items.splice(k, 1);
   }
   if (!bspVeTransporte(window.userById(window.CURRENT_USER_ID))) {
@@ -21994,6 +22020,101 @@ function DocumentosScreen({ currentUser }) {
       (porLer.length === 1 ? 'Tem um documento por ler.' : 'Tem ' + porLer.length + ' documentos por ler.') + ' Abra cada um e carregue em «Li e tomei conhecimento».'),
     !lista.length ? vazio(arquivo ? 'Sem documentos no arquivo.' : publica ? 'Ainda não há documentos. Carregue em «Publicar documento».' : 'Ainda não há documentos publicados.') : lista.map(cartao));
 }
+/* A minha actividade (30-09-2026, minha-actividade.sql): cada medico ve so
+   o que gerou — doentes, consultas, exames, actos por grupo e o valor
+   facturado dos seus actos, sem as facturas anuladas por nota de credito
+   (a mesma regra do Painel). Nunca a facturacao da clinica, outros
+   medicos, seguradoras nem nomes de doentes. A ligacao e o campo metagest
+   (codigos ref_practitioner) da pessoa, posto no Admin. */
+function bspVeActividade(u) {
+  return !!(u && !bspESocio(u) && Array.isArray(u.metagest) && u.metagest.length);
+}
+const bspGrupoActo = t => { const x = String(t || '').trim().toLowerCase(); return x ? x.charAt(0).toUpperCase() + x.slice(1) : 'Outros'; };
+const BSP_MESES_CURTOS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+function ActividadeScreen({ currentUser }) {
+  const hoje = bspDataLocalISO(new Date());
+  const [periodo, setPeriodo] = React.useState('mes');
+  const [d, setD] = React.useState(null);
+  const [erro, setErro] = React.useState('');
+  const intervalo = React.useMemo(() => {
+    const mes1 = hoje.slice(0, 8) + '01';
+    if (periodo === 'hoje') return [hoje, hoje, 'Hoje'];
+    if (periodo === 'semana') { const dw = (new Date(hoje + 'T12:00:00').getDay() + 6) % 7; return [bspSomarDias(hoje, -dw), hoje, 'Esta semana']; }
+    if (periodo === 'anterior') { const a = bspSomarMeses(mes1, -1); return [a, bspSomarDias(mes1, -1), bspMesExtenso(a)]; }
+    if (periodo === 'ano') return [hoje.slice(0, 4) + '-01-01', hoje, 'Este ano'];
+    return [mes1, hoje, bspMesExtenso(mes1)];
+  }, [periodo, hoje]);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl || !currentUser) return;
+    let vivo = true;
+    setD(null); setErro('');
+    cl.rpc('bsp_minha_actividade', { p_de: intervalo[0], p_ate: intervalo[1], p_membro: currentUser.id }).then(r => {
+      if (!vivo) return;
+      if (r.error) setErro(String(r.error.message || r.error)); else setD(r.data || {});
+    });
+    return () => { vivo = false; };
+  }, [intervalo[0], intervalo[1], currentUser && currentUser.id]);
+  const vazio = x => React.createElement("div", { style: { padding: '40px 20px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13.5 } }, x);
+  const tile = (rot, val, sub) => React.createElement(Card, { pad: 16, style: { flex: '1 1 160px' } },
+    React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-3)' } }, rot),
+    React.createElement("div", { style: { fontSize: 24, fontWeight: 700, color: 'var(--text-1)', marginTop: 2, fontVariantNumeric: 'tabular-nums' } }, val),
+    sub && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2 } }, sub));
+  const chips = React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+    [['hoje', 'Hoje'], ['semana', 'Esta semana'], ['mes', 'Este mês'], ['anterior', 'Mês anterior'], ['ano', 'Este ano']].map(p =>
+      React.createElement("button", { key: p[0], onClick: () => setPeriodo(p[0]), style: bspEscChip(periodo === p[0]) }, p[1])));
+  let corpo;
+  if (erro) corpo = vazio('Não foi possível carregar. ' + erro);
+  else if (!d) corpo = vazio('A carregar…');
+  else if (!d.ligado) corpo = vazio('A sua conta ainda não está ligada ao seu nome no MetaGest. Peça à Administração.');
+  else {
+    const r = d.resumo || {};
+    const meses = (d.meses || []).map(m => ({
+      rotulo: bspMesExtenso(m.mes + '-01'), curto: BSP_MESES_CURTOS[Number(m.mes.slice(5, 7)) - 1],
+      valor: Number(m.valor || 0), extra: m.consultas + ' consultas · ' + m.exames + ' só exames'
+    }));
+    corpo = React.createElement(React.Fragment, null,
+      React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } },
+        tile('Doentes', Number(r.doentes || 0).toLocaleString('pt-PT'), intervalo[2]),
+        tile('Consultas', Number(r.consultas || 0).toLocaleString('pt-PT'), 'Doente por dia com consulta'),
+        tile('Só exames', Number(r.exames || 0).toLocaleString('pt-PT'), 'Doente por dia sem consulta'),
+        tile('Valor facturado dos seus actos', bspPainelKz(r.valor), (r.facturas || 0) + ((r.facturas === 1) ? ' factura' : ' facturas'))),
+      React.createElement(Card, { pad: 16 },
+        React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } }, 'Actos por grupo · ' + intervalo[2]),
+        !(d.grupos || []).length ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Sem actos neste período.')
+          : (d.grupos || []).map(g => React.createElement("div", { key: g.grupo, style: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto auto', gap: 14, padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 13.5, color: 'var(--text-1)' } },
+            React.createElement("span", { style: { minWidth: 0 } }, bspGrupoActo(g.grupo)),
+            React.createElement("span", { style: { color: 'var(--text-2)', fontVariantNumeric: 'tabular-nums' } }, Number(g.qtd || 0).toLocaleString('pt-PT') + (Number(g.qtd) === 1 ? ' acto' : ' actos')),
+            React.createElement("b", { style: { fontVariantNumeric: 'tabular-nums' } }, bspPainelKz(g.valor))))),
+      React.createElement(Card, { pad: 16 },
+        React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } }, 'Valor facturado dos seus actos · últimos 12 meses'),
+        meses.length ? React.createElement(PainelColunas, { dados: meses, formatar: v => bspPainelKz(v), cor: '--serie-1', altura: 200 }) : React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Sem dados.')),
+      React.createElement("p", { style: { margin: 0, fontSize: 12, color: 'var(--text-3)' } },
+        'Dados do MetaGest' + (d.actualizado ? ', actualizados a ' + bspDataExacta(new Date(d.actualizado)) : '') + '. As facturas anuladas por nota de crédito não contam. Só vê a sua própria actividade.'));
+  }
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'auto', paddingBottom: 12 } }, chips, corpo);
+}
+/* Admin: ligar a conta de um medico ao(s) codigo(s) dele no MetaGest. */
+function MetagestEscolha({ valor, onMudar }) {
+  const [lista, setLista] = React.useState(null);
+  const [q, setQ] = React.useState('');
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) { setLista([]); return; }
+    cl.rpc('bsp_metagest_medicos').then(r => setLista(r.error ? [] : (r.data || [])));
+  }, []);
+  const sel = valor || [];
+  const nome = id => { const m = (lista || []).find(x => x.id === id); return m ? m.nome : id; };
+  const norm = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const achados = q.trim() ? (lista || []).filter(m => sel.indexOf(m.id) === -1 && norm(m.nome).indexOf(norm(q.trim())) !== -1).slice(0, 8) : [];
+  return React.createElement("div", null,
+    sel.length > 0 && React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 } },
+      sel.map(id => React.createElement("button", { key: id, type: 'button', onClick: () => onMudar(sel.filter(x => x !== id)), title: 'Tirar', style: bspEscChip(true) }, nome(id) + ' ✕'))),
+    React.createElement("input", { value: q, onChange: e => setQ(e.target.value), placeholder: lista === null ? 'A carregar os médicos do MetaGest…' : 'Escreva o nome como está no MetaGest', style: Object.assign({}, bspTranspCampo, { height: 38, fontSize: 14 }) }),
+    achados.map(m => React.createElement("button", { key: m.id, type: 'button', onClick: () => { onMudar(sel.concat([m.id])); setQ(''); },
+      style: { display: 'block', width: '100%', textAlign: 'left', border: 0, borderBottom: '1px solid var(--border)', background: 'transparent', padding: '8px 4px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--text-1)' } },
+      m.nome, React.createElement("span", { style: { color: 'var(--text-3)', fontSize: 12 } }, ' · ' + m.n + ' facturas desde o ano passado'))));
+}
 function PainelAtalho({ onAbrir }) {
   const [d, setD] = React.useState(null);
   React.useEffect(() => {
@@ -22805,7 +22926,7 @@ function App() {
     if (onde === 'chat' && partes[1]) {
       setAlvoChat({ conv: decodeURIComponent(partes.slice(1).join('/')), vez: Date.now() });
       setPage('chat');
-    } else if (['feed', 'tarefas', 'agenda', 'drive', 'seguimento', 'marcacoes', 'escalas', 'transporte', 'painel', 'chat', 'relatorios', 'documentos', 'notificacoes'].indexOf(onde) !== -1) {
+    } else if (['feed', 'tarefas', 'agenda', 'drive', 'seguimento', 'marcacoes', 'escalas', 'transporte', 'painel', 'chat', 'relatorios', 'documentos', 'actividade', 'notificacoes'].indexOf(onde) !== -1) {
       setPage({ tarefas: 'tasks', agenda: 'calendar', notificacoes: 'notifications' }[onde] || onde);
     } else {
       return;
@@ -22915,7 +23036,7 @@ function App() {
   }), pg === 'meetings' && React.createElement(MeetingsScreen, null), pg === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), pg === 'seguimento' && (bspVeCrm(currentUser) ? React.createElement(CrmScreen, null) : null), pg === 'marcacoes' && (bspVeMarcacoes(currentUser) ? React.createElement(MarcacoesScreen, null) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(DirectoryScreen, null), pg === 'admin' && React.createElement(AdminScreen, {
+  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), pg === 'seguimento' && (bspVeCrm(currentUser) ? React.createElement(CrmScreen, null) : null), pg === 'marcacoes' && (bspVeMarcacoes(currentUser) ? React.createElement(MarcacoesScreen, null) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(DirectoryScreen, null), pg === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
   }), pg === 'notifications' && React.createElement(NotificationsScreen, {
     onAbrir: abrirNotificacao

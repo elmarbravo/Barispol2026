@@ -247,6 +247,10 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   Administração (`bspPublicaDocumentos` / `bsp_publica_documentos`); leitura
   obrigatória (`documentos_leituras`). O aviso sai no instante: Edge
   Function `documento-aviso` (gatilho) e sino em tempo real.
+- «A minha actividade» (30-09-2026, `minha-actividade.sql`): médicos vêem
+  só a sua produção (`bsp_minha_actividade`, sem notas de crédito, igual ao
+  Painel). Ligação pelo campo `metagest` (códigos `ref_practitioner`) na
+  pessoa; menu só com `bspVeActividade`. Nunca abrir `erp.*` a quem entra.
 - Anexos no chat: `enviarFicheiros(lista, opc)` no `ChatScreen` serve o
   clipe (vários ficheiros), o arrastar com o rato e as notas de voz
   (27-09-2026: `comecarGravacao`, `bspMensagemNotaVoz`, `bspEAudio`,

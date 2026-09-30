@@ -1844,3 +1844,29 @@ sabendo que há biométrico.
   leituras.
 - Dra. Luidmila: e-mail de boas-vindas reenviado a 30-09-2026, 11h22, com
   o Elmar em cópia (o primeiro saiu às 11h15; ver «Spam» no Gmail).
+
+## 3-az. «A minha actividade» dos médicos (30-09-2026)
+
+- Pedido do Elmar: cada médico vê o que gerou. Decisão: volumes e valor
+  facturado dos seus actos (já vai no relatório mensal deles), sempre sem
+  as facturas anuladas por nota de crédito. Nunca a facturação da
+  clínica, outros médicos, seguradoras nem nomes de doentes.
+- Servidor (`minha-actividade.sql`, aplicado):
+  `bsp_minha_actividade(de, ate, membro)` devolve só os totais do médico
+  (doentes, consultas, só exames, facturas, valor, actos por grupo, 12
+  meses). O médico só pede os seus (recusa conferida); a gestão e quem vê
+  o Painel podem pedir os de outra pessoa (para o «Ver como»). As tabelas
+  `erp.*` continuam fechadas a quem entra (conferido: «permission denied
+  for schema erp»). `bsp_metagest_medicos()` lista os médicos do MetaGest
+  (só a gestão; nome, código e número de facturas, sem valores).
+- Ligação: campo `metagest` (códigos `ref_practitioner`) em
+  `shared_state.team`, posto no Admin → Utilizadores → «Médico no
+  MetaGest». Já ligadas: Maria Henriqueta (u4), Creusa (u5), Luidmila
+  (u6) e Siomara (u7). Atenção a nomes parecidos no MetaGest («Ludmila Da
+  Silva» não é a Luidmila) e a médicos com dois códigos (Pedro Feliciano).
+- Workspace: menu «A minha actividade» (`ActividadeScreen`) só para quem
+  tem `metagest`; períodos Hoje, Esta semana, Este mês, Mês anterior,
+  Este ano; gráfico dos últimos 12 meses (`PainelColunas`).
+- Conferido com os dados reais da Luidmila (Setembro): 29 doentes, 29
+  consultas, 2 só exames, 49 facturas, 962 602 Kz; a soma dos grupos dá o
+  mesmo total.
