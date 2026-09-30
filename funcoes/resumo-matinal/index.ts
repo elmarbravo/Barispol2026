@@ -27,8 +27,9 @@
 //     sexta (bsp-aviso-coletivo).
 // Os dois avisam que o WhatsApp deixa em breve de ser o canal interno.
 // Sai um e-mail por endereco, para ninguem ver os enderecos dos outros.
-// Todos os envios desta funcao vao so para enderecos @barispol.com, menos
-// o lembrete da marcacao ao paciente (ver abaixo).
+// Desde a versao 10 (30-09-2026) os envios vao para toda a equipa com
+// e-mail valido, tambem os enderecos pessoais dos medicos (decisao do
+// Elmar), menos quem tem a marca semEmails.
 //
 // ASPECTO (26-09-2026): igual ao site novo e a caixa de contacto.
 //
@@ -68,6 +69,10 @@
 // FIM DOS GRUPOS DE WHATSAPP (28-09-2026): o lembrete diario e o aviso
 // colectivo dizem que a 1 de Outubro de 2026 os grupos de WhatsApp deixam
 // de existir e que se usam so o Workspace e os e-mails.
+//
+// RELATORIO DA VIATURA (30-09-2026, versao 9), "tipo": "transporte":
+// segunda-feira as 07h45 (bsp-transporte-semana), ao motorista com a
+// Administracao em copia (transporte-manutencao.sql).
 //
 // COMO INSTALAR (uma vez):
 //   1. No Supabase: Edge Functions -> Deploy a new function
@@ -346,11 +351,16 @@ Deno.serve(async (req) => {
   if (error || !linha) return responder({ erro: "Não foi possível ler os dados." }, 500);
 
   const equipa: any[] = Array.isArray(linha.team) ? linha.team : [];
-  /* Os e-mails automaticos so vao para enderecos da clinica
-     (@barispol.com), por decisao do Elmar de 24-09-2026. Quem tem um
-     endereco pessoal continua na equipa e aparece nas listas dos colegas,
-     mas nao recebe estes e-mails. */
-  const daClinica = (email: unknown) => /@barispol\.com$/i.test(String(email || "").trim());
+  /* Quem recebe os e-mails automaticos (versao 10, 30-09-2026): toda a
+     equipa com um e-mail valido, e nao so @barispol.com (decisao do Elmar:
+     os medicos usam enderecos pessoais). Fica de fora quem tem a marca
+     semEmails (a conta de teste «Beb»). A mesma regra esta na base de
+     dados (bsp_recebe_emails, emails-toda-equipa.sql). */
+  const semEmails = new Set(equipa.filter((u: any) => u && u.semEmails).map((u: any) => String(u.email || "").trim().toLowerCase()));
+  const daClinica = (email: unknown) => {
+    const e = String(email || "").trim().toLowerCase();
+    return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e) && !semEmails.has(e);
+  };
   /* Socios (27-09-2026, socios.sql): vem so os numeros do Painel e nao
      recebem nada do dia-a-dia (lembretes, avisos, resumos, mensagens). As
      novidades chegam-lhes pelo grupo 'socios', filtrado na base de dados. */

@@ -1796,3 +1796,19 @@ sabendo que há biométrico.
   «responder para» a Arlete), com aprovação do Elmar (endereço fora da
   clínica). O e-mail não leva a palavra-passe e pede que ela a mude no
   primeiro acesso (menu da conta → «Alterar palavra-passe»).
+
+## 3-ax. E-mails automáticos também para os médicos (30-09-2026)
+
+- Decisão do Elmar: «Podes quebrar a regra de comunicar fora da
+  barispol.com, vou inserir agora os médicos todos».
+- `resumo-matinal` versão 10 e `bsp_novidades_reclamar`
+  (`emails-toda-equipa.sql`, aplicado): recebe quem está na equipa com um
+  e-mail válido, não é sócio e não tem `semEmails: true`. Função nova
+  `bsp_recebe_emails(e)`.
+- A conta de teste «Beb» (beb@beb.com, um domínio real de fora) ficou com
+  `semEmails: true`. Conferido: as quatro médicas com Gmail ou Hotmail
+  passam a receber; o «Beb» não.
+- Cargo da Dra. Luidmila: «Médica clínica geral, interna de ginecologia e
+  obstetrícia» (servidor, com `updated_at = now()`, e lista `USERS`).
+- Para marcar outra conta sem e-mails: pôr `semEmails: true` na pessoa, em
+  `shared_state.team` (ainda sem botão no Admin).

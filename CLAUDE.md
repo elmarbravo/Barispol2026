@@ -97,7 +97,10 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   (06h30, seg–sáb), `lembrete` (07h30, todos os dias, um por pessoa pelo
   nome) e `coletivo` (12h00, seg/qua/sex, «Olá, equipa»). Registos por
   dia: `resumos_enviados`, `lembretes_enviados`, `coletivos_enviados`.
-  Todos só para endereços @barispol.com (versão 7).
+  Desde 30-09-2026 (versão 10, decisão do Elmar) vão para toda a equipa
+  com e-mail válido, também os endereços pessoais dos médicos; fica de
+  fora quem tem `semEmails: true` na equipa (a conta de teste «Beb»).
+  Mesma regra na base de dados: `bsp_recebe_emails` (`emails-toda-equipa.sql`).
 - Tipo `mensagens` da `resumo-matinal` (versão 8, a cada minuto): e-mail
   de mensagem directa só após 5 min sem resposta/leitura e com a pessoa
   offline (tabela `presenca`, sinal a cada minuto). Registo em
@@ -267,6 +270,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 - Direcção e Coordenação vêem as tarefas privadas de todos e delegam
   (criam na lista de outra pessoa). Regras em `tarefas-delegar.sql`,
   função `bsp_ve_tarefas_pessoais()`, coluna `criada_por` (24-09-2026).
+
+- E-mails automáticos para toda a equipa, e não só @barispol.com: os
+  médicos usam endereços pessoais (Elmar, 30-09-2026).
 
 ## Por fazer
 
