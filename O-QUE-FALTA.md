@@ -2033,3 +2033,34 @@ sabendo que há biométrico.
     agora `bspLerCsvLinhas`.
   - O botão «Mais» do telemóvel não ficava marcado em CRM, Marcações,
     Painel, A minha actividade e Documentos.
+
+## 3-bj. Auditoria dos menus (30-09-2026) — propostas por decidir
+
+Corrigido já (3-bi): `bspLerCsv` repetida (importação do CRM parada) e o
+botão «Mais» do telemóvel.
+
+Por decidir pelo Elmar (nada mudado):
+1. Comunicados em quatro sítios: Feed (tipo «comunicado», sem leitura
+   confirmada), Documentos (categoria «comunicado», com leitura), canal
+   #avisos e a pasta Drive «Administração/Comunicados». Proposta: o
+   comunicado oficial vive em Documentos; o Feed e o #avisos só apontam
+   para ele; retirar as pastas Comunicados e Protocolos do Drive.
+2. CRM e Marcações usam a mesma ficha do paciente, com regras de acesso
+   quase iguais (`bspVeCrm` / `bspVeMarcacoes`). Proposta: um menu
+   «Utentes» com separadores Marcações, Pedidos e Recuperar.
+3. Directório (lista de contactos e organograma) não tem entrada em menu
+   nenhum; Reuniões (`MeetingsScreen`) também não. Proposta: pôr o
+   Directório como «Equipa» no menu «Mais»; decidir se Reuniões fica ou sai.
+4. Calendário não mostra os turnos: proposta de mostrar no Calendário os
+   turnos da própria pessoa (das escalas publicadas).
+5. «Relatórios» é o relatório diário das áreas: proposta de lhe chamar
+   «Relatório diário», para não se confundir com o Painel.
+6. Funções em falta: pedidos de férias e ausências; trocas de turno nas
+   escalas; registo de stock/material e de avarias com seguimento (hoje só
+   respostas no relatório); formações por pessoa.
+7. Código repetido (sem efeito para quem usa, a arrumar aos poucos): dois
+   formatos de Kz (`bspPainelKz`, `bspCrmKz`), vários formatos de data,
+   estilos de botões e campos copiados por ecrã.
+
+Guia do Workspace (30-09-2026): 16 imagens (mapa dos menus e uma ficha por
+menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
