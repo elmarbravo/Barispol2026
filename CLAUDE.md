@@ -120,6 +120,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   com `window.open`: na app, isso prende o Workspace.
   PDF abrem em `bspVerPdf(url, nome)` (`LeitorPdf`, PDF.js em
   `vendor/pdfjs`, 30-09-2026). `bspAbrirFicheiro` escolhe sozinho.
+- Sem zoom no telemóvel (30-09-2026): `viewport` com `maximum-scale=1,
+  user-scalable=no`, `gesturestart` bloqueado e caixas de escrita com 16 px
+  (abaixo disso o iPhone amplia). Nada pode passar da largura do ecrã.
 - No telemóvel, `main > div` tem altura automática. O Chat é a excepção
   (classe `bsp-chat-ecra`) e abre na lista de conversas.
 - Menções no chat: lista em `ChatScreen` (`detectarMencao`,

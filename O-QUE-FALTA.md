@@ -2108,3 +2108,17 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
 - A ficha das Escalas já fala do visto da Direcção Clínica.
 - Testado: aparece na 1.ª vez no Início e no Chat, não volta depois de
   «Percebi», o «?» reabre.
+
+## 3-bm. Sem zoom no telemóvel (30-09-2026)
+
+- Pedido do Elmar: o sistema fazia zoom no telefone (o iPhone ampliava ao
+  tocar numa caixa de escrita com letra abaixo de 16 px e não voltava).
+- `viewport`: `maximum-scale=1, user-scalable=no, viewport-fit=cover`;
+  bloqueio do gesto de dois dedos no Safari (`gesturestart`); `touch-action:
+  manipulation` (sem zoom por toque duplo); `html, body` sem largura a mais
+  (`overflow-x: hidden`); no telemóvel, `input`, `textarea` e `select` com
+  16 px.
+- Regra: nenhuma caixa de escrita nova abaixo de 16 px no telemóvel (a regra
+  CSS já o força).
+- Testado a 390 px: Início, Chat (lista e conversa), Tarefas e Mais sem nada
+  fora da largura; a caixa do Chat fica com 16 px.

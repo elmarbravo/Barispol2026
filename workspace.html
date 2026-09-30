@@ -16,7 +16,9 @@
 (function(){ try { var t = localStorage.getItem('bsp-tema') || 'claro'; var e = t === 'escuro' || (t === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches); document.documentElement.setAttribute('data-tema', e ? 'escuro' : 'claro'); } catch (x) {} })();
 </script>
 <title>Barispol Workspace · A sua equipa, conectada</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Sem zoom no telemovel (30-09-2026, pedido do Elmar): o iPhone ampliava
+     a pagina ao tocar numa caixa de escrita e nao voltava atras. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <!-- iPhone: «Adicionar ao ecrã principal» fica com o ícone da Barispol e abre em ecrã inteiro (24-09-2026). -->
 <link rel="apple-touch-icon" href="assets/icone-app.png">
 <link rel="icon" type="image/png" href="assets/icone-app.png">
@@ -25,7 +27,15 @@
 <meta name="apple-mobile-web-app-title" content="Barispol">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#292F58">
+<script>
+  /* O Safari do iPhone ignora user-scalable=no no gesto de dois dedos. */
+  document.addEventListener('gesturestart', function (e) { e.preventDefault(); }, { passive: false });
+</script>
 <style id="bsp-responsive">
+  /* Largura travada ao ecra e sem zoom (30-09-2026). As caixas de escrita
+     tem 16 px no telemovel: abaixo disso o iPhone amplia ao tocar-lhes. */
+  html, body { max-width: 100%; overflow-x: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; touch-action: manipulation; }
+  body[data-mobile="true"] input, body[data-mobile="true"] textarea, body[data-mobile="true"] select { font-size: 16px !important; }
   body[data-mobile="true"] main { overflow-y: auto !important; overflow-x: hidden !important; -webkit-overflow-scrolling: touch; padding: 12px 12px 84px !important; }
   body[data-mobile="true"] main > div { height: auto !important; min-height: 0 !important; overflow: visible !important; }
   /* O Chat e a excepcao: ocupa o ecra, as mensagens deslizam dentro e a
