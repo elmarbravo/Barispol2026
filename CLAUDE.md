@@ -251,6 +251,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   só a sua produção (`bsp_minha_actividade`, sem notas de crédito, igual ao
   Painel). Ligação pelo campo `metagest` (códigos `ref_practitioner`) na
   pessoa; menu só com `bspVeActividade`. Nunca abrir `erp.*` a quem entra.
+- Prints de ecrã (30-09-2026): a app Android tem `FLAG_SECURE` na
+  `MainActivity`; no navegador há marca de água (`MarcaDagua`) nos ecrãs de
+  `BSP_ECRAS_SENSIVEIS`. Um ecrã novo com dados sensíveis entra nessa lista.
 - Anexos no chat: `enviarFicheiros(lista, opc)` no `ChatScreen` serve o
   clipe (vários ficheiros), o arrastar com o rato e as notas de voz
   (27-09-2026: `comecarGravacao`, `bspMensagemNotaVoz`, `bspEAudio`,

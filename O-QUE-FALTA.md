@@ -1893,3 +1893,20 @@ sabendo que há biométrico.
 - Testado com servidor simulado (Luidmila: «Responder em privado» abre a
   conversa com o Elmar e a citação; o nome abre a conversa; o cartão
   aparece no Início).
+
+## 3-bb. Prints de ecrã (30-09-2026)
+
+- Decisão do Elmar: bloqueio na app Android e marca de água nos ecrãs
+  sensíveis.
+- App Android: `FLAG_SECURE` na `MainActivity`
+  (`app/android/app/src/main/java/com/barispol/workspace/MainActivity.java`).
+  Bloqueia prints e gravações de ecrã e esconde o conteúdo na lista de
+  apps abertas. Só vale com o APK novo (Actions → «App Android» →
+  Artifacts): cada telemóvel Android tem de o instalar por cima.
+- Navegador e iPhone: não há forma de bloquear. Marca de água
+  (`MarcaDagua`) no Painel, A minha actividade, CRM e Marcações
+  (`BSP_ECRAS_SENSIVEIS`): nome de quem tem a sessão aberta (no «Ver
+  como», quem está a ver: `window.__bspQuemEsta`) e data e hora, em
+  diagonal, a 7 % de opacidade, por cima também das janelas e sem apanhar
+  os cliques. Testado (Luidmila: aparece e os botões respondem; não
+  aparece nos Documentos).
