@@ -1784,3 +1784,15 @@ sabendo que há biométrico.
   custo por km com combustível e manutenção.
 - Testado com servidor simulado (Emmanuel regista; Elmar vê «Aprovar»).
 - Por decidir: o primeiro envio real sai segunda-feira, 5 Out 2026, 07h45.
+
+## 3-aw. Conta da Dra. Luidmila (30-09-2026)
+
+- A conta já existia (criada a 29-08-2026, confirmada, nunca usada). A
+  palavra-passe foi trocada pela que o Elmar definiu: só o hash bcrypt foi
+  para o servidor; a palavra-passe não está em lado nenhum do repositório.
+- Acesso clínico: camada «Clínica», departamento Clínica, cargo Médica
+  (já estava assim em `shared_state.team`, u6).
+- E-mail de boas-vindas enviado pela `bright-worker` (aspecto do site,
+  «responder para» a Arlete), com aprovação do Elmar (endereço fora da
+  clínica). O e-mail não leva a palavra-passe e pede que ela a mude no
+  primeiro acesso (menu da conta → «Alterar palavra-passe»).
