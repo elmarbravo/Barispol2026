@@ -1965,3 +1965,15 @@ sabendo que há biométrico.
 - Novidade registada para a Recepção.
 - Testado com servidor simulado: aparece à Recepção (computador e
   telemóvel), não aparece à Farmácia, a ligação abre as Marcações.
+
+## 3-bf. Afonso Felisberto e Joana Tati na lista embutida (30-09-2026)
+
+- As duas contas foram criadas a 29-09-2026 no Admin: Afonso Felisberto
+  (Enfermeiro, Enfermagem) e Joana Carlos Fonseca Tati (Radiologista,
+  Radiologia). No servidor estavam certas; faltavam na lista embutida
+  `USERS`, o recurso quando o `shared_state` não chega ao aparelho.
+  Acrescentadas com os ids, a área e a camada do servidor.
+- Conferido no servidor, como o Afonso: vê o canal #enfermagem e lê as 648
+  mensagens (históricos do WhatsApp incluídos).
+- A exportação do grupo «DC - Enfermagem Barispol» de 30-09-2026 (16 a 28
+  de Setembro) já estava toda importada. Nada a acrescentar.

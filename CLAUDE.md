@@ -307,7 +307,8 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 3. Passo 0.6: só com autorização expressa do Elmar. Antes, testar a
    `criar-utilizador` (0.5-e).
 4. Departamentos de toda a equipa já estão em `shared_state.team`
-   (29-09-2026) e copiados para a lista embutida `USERS`. Falta o cargo da
+   (29-09-2026) e copiados para a lista embutida `USERS` (Afonso Felisberto
+   e Joana Tati acrescentados a 30-09-2026). Falta o cargo da
    Gizela Joaquim. Confirmar a conta «Beb» (beb@beb.com) na camada
    Direcção. (Catarina Ndundu Baptista: eliminada a 24-09-2026.)
 5. Decidir se se cria o canal `#radiologia`.
