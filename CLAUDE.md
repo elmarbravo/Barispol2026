@@ -130,6 +130,10 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   (abaixo disso o iPhone amplia). Nada pode passar da largura do ecrã.
 - No telemóvel, `main > div` tem altura automática. O Chat é a excepção
   (classe `bsp-chat-ecra`) e abre na lista de conversas.
+- Respostas no Chat (30-09-2026): sem tópicos. «Responder» cita na própria
+  conversa com a primeira linha «> Nome: excerto» (`bspCitacao`); avisos e
+  pré-visualizações usam `bspTextoResumo`. Nunca voltar a pôr comentários
+  numa conversa à parte (`th~…`).
 - Menções no chat: lista em `ChatScreen` (`detectarMencao`,
   `candidatosMencao`, `escolherMencao`); escreve «@Nome Apelido». O
   `notifMsg` marca como `mention` quem aparece assim no texto.

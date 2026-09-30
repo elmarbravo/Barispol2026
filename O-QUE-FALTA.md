@@ -2186,3 +2186,18 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   não apanhou («Removeu … do grupo», «Alterou as definições deste grupo»);
   a ferramenta já as tira (`SIS` em `ferramentas/whatsapp-importar.py`).
 - Próximo `--base` livre: 7000000.
+
+## 3-bq. Chat: sem tópicos; respostas com citação na conversa (30-09-2026)
+
+- Pedido do Elmar: eliminar a opção de comentar uma mensagem ou imagem, ou
+  pôr o comentário na conversa, visível a todos.
+- O botão «Tópico» saiu (o `TopicoPanel` fica no código, sem entrada). O
+  «Responder» (seta) põe a barra «A responder a Nome: excerto» por cima da
+  caixa; a mensagem sai na própria conversa, com a primeira linha
+  «> Nome: excerto» (`bspCitacao`, `bspExcertoParaCitar`), que o Chat mostra
+  como bloco de citação. Imagens e ficheiros citam-se como «📷/📎 nome».
+  Avisos e pré-visualizações mostram só a resposta (`bspTextoResumo`).
+- Os 6 comentários que havia em tópicos (`th~…`, 28 a 30-09-2026) passaram
+  para as conversas de origem, com a citação e a data original.
+- Testado: a resposta sai na conversa com a citação; a citação aparece como
+  bloco; o botão «Tópico» já não existe.

@@ -4098,6 +4098,31 @@ function bspTextoVisivel(texto){
   const i = t.indexOf(BSP_MARCA_ANEXO);
   return i === -1 ? t : t.slice(0, i);
 }
+/* Respostas com citacao (30-09-2026, pedido do Elmar): o comentario a uma
+   mensagem ou imagem sai na propria conversa, visivel a todos, e nao num
+   topico a parte. A primeira linha e «> Nome: excerto»; le-se bem tambem
+   nos avisos e nos e-mails. */
+const BSP_RX_CITACAO = /^> ([^:\n]{1,60}): ([^\n]*)\n?/;
+function bspCitacao(texto) {
+  const t = String(texto || '');
+  const m = BSP_RX_CITACAO.exec(t);
+  return m ? { quem: m[1], excerto: m[2], resto: t.slice(m[0].length) } : null;
+}
+/* Para avisos e pre-visualizacoes: a resposta, sem a linha da citacao. */
+function bspTextoResumo(texto) {
+  const v = bspTextoVisivel(texto);
+  const c = bspCitacao(v);
+  return c ? c.resto : v;
+}
+function bspExcertoParaCitar(texto) {
+  const a = bspAnexoDaMensagem(texto);
+  let t = bspTextoVisivel(texto);
+  const c = bspCitacao(t);
+  if (c) t = c.resto;
+  t = t.replace(/\s+/g, ' ').trim();
+  if (a && a.name && (!t || /^Partilhou o ficheiro/.test(t))) t = (/\.(png|jpe?g|gif|webp)$/i.test(a.name) ? '📷 ' : '📎 ') + a.name;
+  return t.length > 90 ? t.slice(0, 89) + '…' : (t || 'mensagem');
+}
 function bspMensagemComAnexo(nome, caminho, bytes){
   return 'Partilhou o ficheiro \u201c' + nome + '\u201d.' + BSP_MARCA_ANEXO +
     caminho + '\u200b' + nome + '\u200b' + (bytes || 0);
@@ -4564,7 +4589,7 @@ function StoreProvider({
          existe (os parabens a Funcionaria do Mes, 24-09-2026). Agora abre
          a publicacao, com os comentarios a vista. */
       if (chave.indexOf('post-') === 0) {
-        const texto = bspTextoVisivel(m.text).slice(0, 90);
+        const texto = bspTextoResumo(m.text).slice(0, 90);
         setState(s => pushNotif(s, {
           type: 'comunicado',
           userId: m.user_id,
@@ -4598,16 +4623,16 @@ function StoreProvider({
         userId: m.user_id,
         conv: chave,
         text: 'mencionou-o ' + (isDm ? 'numa mensagem direta' : where),
-        preview: bspTextoVisivel(m.text).slice(0, 90)
+        preview: bspTextoResumo(m.text).slice(0, 90)
       } : {
         type: 'message',
         userId: m.user_id,
         /* Sem isto, carregar na notificacao nao tinha para onde ir. */
         conv: chave,
         text: isDm ? 'enviou-lhe uma mensagem direta' : 'enviou uma mensagem ' + where,
-        preview: bspTextoVisivel(m.text).slice(0, 90)
+        preview: bspTextoResumo(m.text).slice(0, 90)
       }));
-      bspIncoming(name + (isDm ? ' (direta)' : ' · ' + where), bspTextoVisivel(m.text).slice(0, 90));
+      bspIncoming(name + (isDm ? ' (direta)' : ' · ' + where), bspTextoResumo(m.text).slice(0, 90));
     };
     const notifPost = p => {
       if (!p || p.user_id === window.CURRENT_USER_ID) return;
@@ -7529,14 +7554,18 @@ function ChatScreen({
       if (ta) { ta.focus(); try { ta.setSelectionRange(cursor, cursor); } catch (e) {} }
     }, 0);
   }
+  const [resposta, setResposta] = React.useState(null);
+  React.useEffect(() => { setResposta(null); }, [convKey]);
   function send() {
-    const text = draft.trim();
-    if (!text) return;
+    const escrito = draft.trim();
+    if (!escrito) return;
+    const text = resposta ? '> ' + resposta.quem.replace(/[:\n]/g, ' ') + ': ' + resposta.excerto.replace(/\n/g, ' ') + '\n' + escrito : escrito;
     actions.sendMessage(convKey, {
       userId: currentUser.id,
       text
     });
     setDraft('');
+    setResposta(null);
   }
   function fmtInsert(kind) {
     const ta = taRef.current;
@@ -8440,7 +8469,15 @@ function ChatScreen({
         flex: 1,
         minWidth: 0
       }
-    }, renderText(bspTextoVisivel(m.text)), React.createElement(AnexoMensagem, {
+    }, (() => {
+      const vis = bspTextoVisivel(m.text);
+      const cit = bspCitacao(vis);
+      if (!cit) return renderText(vis);
+      return [React.createElement("div", {
+        key: 'cit',
+        style: { borderLeft: '3px solid var(--accent)', background: 'var(--surface-2)', padding: '4px 10px', margin: '2px 0 4px', fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.45, maxWidth: 520 }
+      }, React.createElement("b", { style: { color: 'var(--text-1)' } }, cit.quem), ' · ', cit.excerto), React.createElement("span", { key: 'r' }, renderText(cit.resto))];
+    })(), React.createElement(AnexoMensagem, {
       a: bspAnexoDaMensagem(m.text)
     }), grouped && m.editada && React.createElement("em", {
       style: { fontSize: 11, color: 'var(--text-3)', marginLeft: 6 }
@@ -8472,11 +8509,13 @@ function ChatScreen({
       }
     }, "\ud83d\udc4d"), React.createElement("button", {
       className: "bsp-msg-del",
-      title: "Responder",
+      title: "Responder (fica na conversa, visível a todos)",
+      "aria-label": "Responder",
       onClick: () => {
-        const autor = (window.userById(m.userId) || {}).name || 'Colega';
-        const excerto = String(m.text || '').replace(/\n/g, ' ').slice(0, 80);
-        setDraft(d => '**\u21a9 ' + autor.split(' ')[0] + ':** _' + excerto + '_\n' + d);
+        /* Resposta com citacao na propria conversa (30-09-2026): substitui
+           os topicos, que ficavam escondidos num painel a parte. */
+        const u = window.userById(m.userId);
+        setResposta({ quem: u ? String(u.name).split(/\s+/).slice(0, 2).join(' ') : 'Colega', excerto: bspExcertoParaCitar(m.text) });
         try {
           taRef.current && taRef.current.focus();
         } catch (e) {}
@@ -8522,33 +8561,7 @@ function ChatScreen({
       }
     }, React.createElement(I.Lock, {
       size: 13
-    })), m.sid && React.createElement("button", {
-      className: "bsp-msg-del",
-      title: "T\u00f3pico",
-      onClick: () => setThread({
-        sid: m.sid,
-        convKey: convKey,
-        autor: (window.userById(m.userId) || {}).name || 'Colega',
-        texto: m.text
-      }),
-      style: {
-        border: 'none',
-        background: 'transparent',
-        cursor: 'pointer',
-        color: 'var(--text-3)',
-        padding: 2,
-        lineHeight: 0,
-        flex: 'none',
-        opacity: 0,
-        transition: 'opacity .15s',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 3,
-        fontSize: 11
-      }
-    }, React.createElement(I.Chat, {
-      size: 13
-    }), (messagesByChan['th~' + convKey + '~' + m.sid] || []).filter(x => !bspLinhaDeControlo(x.text)).length || ''), isOwn && m.sid && React.createElement("button", {
+    })), isOwn && m.sid && React.createElement("button", {
       className: "bsp-msg-del",
       title: "Editar mensagem",
       onClick: () => {
@@ -8757,7 +8770,11 @@ function ChatScreen({
       fontSize: 13,
       color: 'var(--text-1)'
     }
-  }, renderText(draft))), React.createElement("textarea", {
+  }, renderText(draft))), resposta && React.createElement("div", {
+    style: { margin: '8px 12px 0', display: 'flex', alignItems: 'center', gap: 8, borderLeft: '3px solid var(--accent)', background: 'var(--surface-2)', padding: '6px 10px', fontSize: 12.5, color: 'var(--text-2)' }
+  }, React.createElement("span", { style: { flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
+    'A responder a ', React.createElement("b", { style: { color: 'var(--text-1)' } }, resposta.quem), ': ', resposta.excerto),
+    React.createElement("button", { onClick: () => setResposta(null), 'aria-label': 'Cancelar a resposta', style: { border: 0, background: 'transparent', cursor: 'pointer', color: 'var(--text-3)', fontSize: 16, lineHeight: 1, padding: 2 } }, '×')), React.createElement("textarea", {
     ref: taRef,
     value: draft,
     onChange: e => {
