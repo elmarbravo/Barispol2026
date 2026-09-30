@@ -2008,3 +2008,28 @@ sabendo que há biométrico.
 - Testado com servidor simulado: no computador, Enter envia e Shift+Enter
   muda de linha; no telemóvel, Enter muda de linha e o botão envia as
   duas linhas juntas.
+
+## 3-bi. Alerta das escalas aos chefes de área e correcções da auditoria (30-09-2026)
+
+- Pedido do Elmar: alertas de 20 a 29 de cada mês para os chefes fazerem
+  as escalas no sistema. `escalas-alerta.sql` (aplicado):
+  - `bsp_escalas_responsaveis()`: por área (sem a Administração), quem tem
+    cargo de chefia nessa área ou é superior de alguém dela. Área sem chefe
+    (hoje a Radiologia) vai para a Arlete (u2), que faz escalas de todas.
+    Hoje: Clínica u14, Enfermagem u9, Farmácia u17, Laboratório u13,
+    Radiologia u2, Recepção u12, Serviços Gerais u2.
+  - `bsp_escalas_alertar()`: dias 20 a 29, uma novidade por área cuja escala
+    do mês seguinte não está publicada, só para os responsáveis; diz se já
+    há rascunho e quantos dias faltam. Uma por área e por dia.
+  - Cron `bsp-escalas-alerta` às 04h55 de Luanda (`55 3 20-29 * *`); as
+    novidades saem por e-mail às 05h00 e ficam no sino.
+  - Início: `EscalasPorPublicarCartao` a partir do dia 20 (chefe: a sua
+    área; gestão: todas), com «Fazer escalas».
+  - Testado: 7 alertas no dia 20 simulado, 0 na repetição e fora de 20–29
+    (sem gravar); cartão certo para a Recepção, a Farmácia e a Direcção.
+- Correcções encontradas na auditoria:
+  - `bspLerCsv` estava declarada duas vezes; a das Marcações apagava a do
+    CRM e a importação «Recuperar utentes» parava. A das Marcações chama-se
+    agora `bspLerCsvLinhas`.
+  - O botão «Mais» do telemóvel não ficava marcado em CRM, Marcações,
+    Painel, A minha actividade e Documentos.

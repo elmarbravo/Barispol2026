@@ -3835,7 +3835,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'bsp_e_gestor'];
+const BSP_RPC_LEITURA = ['bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'bsp_e_gestor'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -6654,6 +6654,9 @@ function DashboardScreen({
     onAbrir: () => onSwitch && onSwitch('actividade')
   }), bspAreaChave(currentUser && currentUser.dept) === 'recepcao' && React.createElement(MarcLembretesInicio, {
     onAbrir: () => onSwitch && onSwitch('marcacoes')
+  }), React.createElement(EscalasPorPublicarCartao, {
+    currentUser: currentUser,
+    onAbrir: () => onSwitch && onSwitch('escalas')
   }), React.createElement(DocsPorLerCartao, {
     currentUser: currentUser,
     onAbrir: () => onSwitch && onSwitch('documentos')
@@ -17893,7 +17896,7 @@ function MobileNav({
       }
     }, n > 99 ? '99+' : n)), it.label);
   }), React.createElement("button", {
-    "data-on": ['feed', 'meetings', 'drive', 'admin', 'notifications', 'directory', 'relatorios', 'escalas', 'transporte'].includes(current),
+    "data-on": ['feed', 'meetings', 'drive', 'admin', 'notifications', 'directory', 'relatorios', 'escalas', 'transporte', 'seguimento', 'marcacoes', 'painel', 'actividade', 'documentos'].includes(current),
     onClick: onMore
   }, React.createElement(I.MoreH, {
     size: 20
@@ -20076,8 +20079,11 @@ function bspMarcHora(v) {
   return m ? m[1].padStart(2, '0') + ':00' : (t || null);
 }
 const bspMarcDataPt = iso => iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : '';
-/* Le um CSV (separado por ; , ou tabulacao), com aspas. */
-function bspLerCsv(texto) {
+/* Le um CSV (separado por ; , ou tabulacao), com aspas, e devolve as
+   linhas. Nome proprio desde 30-09-2026: com o mesmo nome do leitor do
+   CRM (bspLerCsv, que devolve {cabecalho, linhas}), apagava-o e a
+   importacao de utentes do CRM parava. */
+function bspLerCsvLinhas(texto) {
   const t = String(texto || '').replace(/^﻿/, '');
   const primeira = t.split(/\r?\n/).find(l => l.trim()) || '';
   const sep = [';', '\t', ','].map(c => [c, primeira.split(c).length]).sort((a, b) => b[1] - a[1])[0][0];
@@ -20473,11 +20479,11 @@ function MarcacoesScreen() {
       /* O Excel em Windows grava CSV em Windows-1252: sem acentos certos, tenta-se de novo. */
       if (texto.indexOf('�') !== -1) {
         const l2 = new FileReader();
-        l2.onload = () => setImportacao({ nome: f.name, ...bspMarcDoCsv(bspLerCsv(String(l2.result || ''))) });
+        l2.onload = () => setImportacao({ nome: f.name, ...bspMarcDoCsv(bspLerCsvLinhas(String(l2.result || ''))) });
         l2.readAsText(f, 'windows-1252');
         return;
       }
-      setImportacao({ nome: f.name, ...bspMarcDoCsv(bspLerCsv(texto)) });
+      setImportacao({ nome: f.name, ...bspMarcDoCsv(bspLerCsvLinhas(texto)) });
     };
     leitor.readAsText(f, 'utf-8');
   };
@@ -21398,6 +21404,44 @@ function VerComoModal({ open, real, onClose }) {
 }
 /* No Inicio: quem esta de servico hoje, nas escalas publicadas que a
    pessoa pode ver. */
+/* Escalas do mes seguinte por publicar (30-09-2026, pedido do Elmar). A
+   partir do dia 20, o chefe de cada area ve aqui a sua escala em falta; a
+   gestao ve todas. Os responsaveis vem do servidor
+   (bsp_escalas_responsaveis, escalas-alerta.sql), a mesma lista que recebe
+   o alerta por e-mail de 20 a 29. */
+function EscalasPorPublicarCartao({ currentUser, onAbrir }) {
+  const [falta, setFalta] = React.useState(null);
+  const hoje = bspDataLocalISO(new Date());
+  const mes = bspSomarMeses(hoje.slice(0, 8) + '01', 1);
+  const dia = Number(hoje.slice(8, 10));
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl || dia < 20 || !currentUser) return;
+    let vivo = true;
+    const gestao = bspGereMarcacoes(currentUser);
+    Promise.all([cl.rpc('bsp_escalas_responsaveis'), cl.from('escalas').select('area, estado').eq('mes', mes)]).then(([r, e]) => {
+      if (!vivo || r.error || e.error) return;
+      const estado = {};
+      (e.data || []).forEach(x => { estado[x.area] = x.estado; });
+      setFalta((r.data || []).filter(a => (gestao || (a.ids || []).indexOf(currentUser.id) !== -1) && estado[a.area] !== 'publicada')
+        .map(a => ({ area: a.area, nome: a.nome_area, estado: estado[a.area] || '' })));
+    });
+    return () => { vivo = false; };
+  }, [currentUser && currentUser.id, mes, dia]);
+  if (dia < 20 || !falta || !falta.length) return null;
+  const fim = bspSomarDias(mes, -1);
+  const faltam = Math.round((new Date(fim + 'T12:00:00') - new Date(hoje + 'T12:00:00')) / 86400000);
+  return React.createElement(Card, { pad: 16, style: { marginBottom: 16, borderLeft: '4px solid var(--perigo)' } },
+    React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' } },
+      React.createElement("div", { style: { flex: '1 1 220px', minWidth: 0 } },
+        React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)' } },
+          (falta.length === 1 ? 'Escala de ' : 'Escalas de ') + bspMesExtenso(mes) + ' por publicar'),
+        React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 2 } },
+          falta.map(a => a.nome + (a.estado === 'rascunho' ? ' (rascunho)' : '')).join(' · ')),
+        React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2 } },
+          'Prazo: ' + bspDataCurta(fim) + (faltam > 0 ? ' (faltam ' + faltam + (faltam === 1 ? ' dia)' : ' dias)') : ' (hoje)'))),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: onAbrir }, 'Fazer escalas')));
+}
 function EscalaHojeCartao({ onAbrir }) {
   const [lista, setLista] = React.useState(null);
   React.useEffect(() => {

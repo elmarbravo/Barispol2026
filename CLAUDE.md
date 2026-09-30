@@ -185,7 +185,8 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   cada marcação de hoje em aberto (`bspMarcLembretes`, `MarcLembretes`,
   sino com `lembrete: true`; no Início, `MarcLembretesInicio`, 30-09-2026).
   Cores de aviso nas variáveis `--perigo` e `--sucesso`. A planilha entra e sai por CSV
-  (`bspLerCsv`, `bspMarcDoCsv`, `bspMarcCsv`). Nomes de doentes nunca no
+  (`bspLerCsvLinhas`, `bspMarcDoCsv`, `bspMarcCsv`; o `bspLerCsv` é do CRM e
+  devolve `{cabecalho, linhas}`: nunca repetir o nome). Nomes de doentes nunca no
   repositório. Lembrete ao paciente (28-09-2026, `marcacoes-lembrete.sql`):
   na véspera às 10h00 (`bsp-marcacoes-lembrete`, tipo `marcacoes` da
   `resumo-matinal`), com rececao@barispol.com em cópia e link do GPS;
@@ -196,6 +197,10 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   e `bspVeEscala`/`bsp_ve_escala`. Ecrã `EscalasScreen`; papel
   `bspEscalaHtml`; e-mail `bspEscalaEmailCorpo` com `bspEmailWrap(..., true)`;
   Início `EscalaHojeCartao`. Imprimir só por `bspImprimirHtml`.
+  Alerta aos chefes (30-09-2026, `escalas-alerta.sql`): dias 20 a 29,
+  novidade por área sem a escala do mês seguinte publicada
+  (`bsp_escalas_responsaveis`, `bsp_escalas_alertar`, cron
+  `bsp-escalas-alerta`); no Início, `EscalasPorPublicarCartao`.
 - Transporte (29-09-2026, `transporte.sql`): `transporte_viagens`,
   `transporte_abastecimentos`, `transporte_zonas`; acesso
   `bspVeTransporte`/`bsp_ve_transporte` (gestão e cargo «motorista»).
