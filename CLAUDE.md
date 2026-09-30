@@ -272,6 +272,8 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   impressão em branco; nos ecrãs de `BSP_ECRAS_SENSIVEIS` o conteúdo tapa-se
   quando a janela perde o foco. Um ecrã novo com dados sensíveis entra nessa
   lista. Imprimir documentos só por `bspImprimirHtml` (iframe próprio).
+- Acesso guiado (30-09-2026): `GuiaEcra` + `BSP_GUIA_FICHAS` (texto de cada
+  menu) + `BotaoGuia` («?» no topo). Um menu novo ou mudado leva a sua ficha.
 - Anexos no chat: `enviarFicheiros(lista, opc)` no `ChatScreen` serve o
   clipe (vários ficheiros), o arrastar com o rato e as notas de voz
   (27-09-2026: `comecarGravacao`, `bspMensagemNotaVoz`, `bspEAudio`,

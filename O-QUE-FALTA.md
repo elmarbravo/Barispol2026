@@ -2094,3 +2094,17 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   visto; uma alteração apaga-o; o Osvaldo edita todas as áreas e dá o visto.
   No ecrã: a Rosa publica e só o Osvaldo recebe o pedido; o Osvaldo dá o
   visto no Início e a escala segue para a equipa com o carimbo.
+
+## 3-bl. Acesso guiado (30-09-2026)
+
+- Pedido do Elmar: guia na próxima vez que cada pessoa abrir cada área.
+- `GuiaEcra` (no router, ao lado de `ProteccaoEcra`): na primeira vez em
+  cada menu abre uma janela com o guia desse menu (`BSP_GUIA`, o mesmo texto
+  das imagens do «Guia do Workspace»). «Percebi» marca como visto neste
+  aparelho (`bsp-guia-vistos-<id>`); o botão «?» ao lado do título (no
+  computador e no telemóvel) volta a abri-lo. Não abre no «Ver como».
+- Quando se muda o que um menu faz, actualizar a ficha em `BSP_GUIA_FICHAS`
+  (e a imagem do guia, se for distribuída).
+- A ficha das Escalas já fala do visto da Direcção Clínica.
+- Testado: aparece na 1.ª vez no Início e no Chat, não volta depois de
+  «Percebi», o «?» reabre.

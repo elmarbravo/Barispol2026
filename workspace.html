@@ -3192,7 +3192,7 @@ function Topbar({
       margin: 0,
       color: 'var(--text-1)'
     }
-  }, titles[current] || 'Workspace'), React.createElement("span", {
+  }, titles[current] || 'Workspace'), React.createElement(BotaoGuia, { pg: current, tamanho: 26 }), React.createElement("span", {
     style: {
       fontSize: 12.5,
       color: 'var(--text-3)'
@@ -17808,7 +17808,7 @@ function MobileTopbar({
     }
   }, titles[current] || 'Workspace')), React.createElement("div", {
     style: { display: 'flex', alignItems: 'center', gap: 6 }
-  }, React.createElement(BotaoTema, { tamanho: 18 }), onVerComo && React.createElement("button", {
+  }, React.createElement(BotaoGuia, { pg: current, tamanho: 34 }), React.createElement(BotaoTema, { tamanho: 18 }), onVerComo && React.createElement("button", {
     onClick: onVerComo,
     className: "bsp-iconbtn",
     style: { width: 38, height: 38 },
@@ -22568,6 +22568,215 @@ function MarcaDagua({ forte }) {
     }
   }, nome, React.createElement("div", { style: { fontSize: '0.62em', fontWeight: 500, marginTop: 4 } }, bspDataExacta(agora)))), document.body);
 }
+/* Acesso guiado (30-09-2026, pedido do Elmar): na primeira vez que cada
+   pessoa abre um menu, aparece o guia desse menu (o mesmo texto das fichas
+   do «Guia do Workspace»). Fica visto neste aparelho; o botao «?» no topo
+   volta a abri-lo. */
+const BSP_GUIA_FICHAS = [
+  { icone: 'Home', nome: 'Início',
+    serve: 'O resumo do seu dia: o que precisa de atenção agora e os atalhos para o trabalho de todos os dias.',
+    faz: [
+      ['Veja o que falta:', 'documentos por ler, lembretes das marcações e escalas por publicar aparecem no topo.'],
+      ['Saiba quem está de serviço hoje,', 'pelas escalas publicadas de cada área.'],
+      ['Use os atalhos:', 'publicar aviso, abrir o Chat, novo evento e nova tarefa.'],
+      ['Acompanhe', 'a rotina da semana e as tarefas da equipa.'],
+      ['Médicos:', 'o atalho «O meu mês» abre a sua actividade.']
+    ],
+    quem: 'Toda a equipa. Cada pessoa vê os cartões que lhe dizem respeito.',
+    dica: 'Comece o dia aqui. Um cartão com borda vermelha pede uma acção sua.' },
+  { icone: 'Chat', nome: 'Chat',
+    serve: 'As conversas da clínica num só sítio: canais por área, mensagens directas e grupos.',
+    faz: [
+      ['Escreva nos canais', 'da sua área, em #geral e em #avisos.'],
+      ['Carregue numa pessoa', 'para lhe mandar uma mensagem directa, ou use «Responder em privado».'],
+      ['Envie fotografias, PDF e notas de voz;', 'as fotografias são reduzidas e abrem depressa.'],
+      ['Faça chamadas de voz e de vídeo', 'e chame alguém com @Nome.'],
+      ['Corrija uma mensagem sua', 'depois de enviada.']
+    ],
+    quem: 'Toda a equipa. Os canais de área só aparecem a quem é dessa área.',
+    dica: 'No telemóvel, o Enter muda de linha; envie com o botão. Sem resposta em 5 min, a pessoa recebe e-mail.' },
+  { icone: 'Feed', nome: 'Feed',
+    serve: 'O mural da clínica: novidades, reconhecimentos e momentos da equipa.',
+    faz: [
+      ['Publique texto, fotografias, vídeos e ficheiros.', ''],
+      ['Faça um comunicado', 'e fixe-o no topo do mural.'],
+      ['Reconheça um colega', 'pelo bom trabalho.'],
+      ['Crie enquetes e eventos', 'e veja os aniversários da semana.'],
+      ['Comente as publicações;', 'o aviso abre a publicação certa.']
+    ],
+    quem: 'Toda a equipa.',
+    dica: 'Normas e regras oficiais vão para Documentos, onde a leitura fica confirmada.' },
+  { icone: 'Drive', nome: 'Drive',
+    serve: 'Os ficheiros de trabalho da equipa e os seus ficheiros pessoais.',
+    faz: [
+      ['Carregue ficheiros até 25 MB', 'para a pasta da equipa ou para a sua pasta pessoal.'],
+      ['Procure e ordene', 'por nome, data ou tamanho.'],
+      ['Abra PDF e imagens', 'dentro do Workspace, sem descarregar.'],
+      ['Apague o que carregou;', 'a Direcção e a Coordenação apagam qualquer ficheiro.']
+    ],
+    quem: 'Toda a equipa. A pasta pessoal só a vê o dono.',
+    dica: 'Ficheiros mandados numa conversa ficam nessa conversa, e não no Drive de todos.' },
+  { icone: 'Cal', nome: 'Calendário',
+    serve: 'A rotina semanal da clínica e os eventos com data marcada.',
+    faz: [
+      ['Crie um evento semanal:', 'repete-se todas as semanas nesse dia.'],
+      ['Ou marque-o numa data', 'concreta, só para esse dia.'],
+      ['Veja por Dia, Semana, Mês ou Ano.', ''],
+      ['Use as categorias:', 'Consulta, Formação, Pessoal, Revisão e Urgente.']
+    ],
+    quem: 'Toda a equipa.',
+    dica: 'Os eventos do dia seguem no e-mail do resumo matinal, às 06h30.' },
+  { icone: 'Tasks', nome: 'Tarefas',
+    serve: 'O quadro do trabalho da equipa e a sua lista privada.',
+    faz: [
+      ['Crie tarefas com início e fim;', 'as duas datas são obrigatórias.'],
+      ['Mova-as no quadro:', 'A fazer, Em progresso, Em revisão e Concluído.'],
+      ['Partilhe uma tarefa privada', 'com um colega.'],
+      ['Direcção e Coordenação delegam:', 'criam tarefas na lista de outra pessoa.']
+    ],
+    quem: 'Toda a equipa. As tarefas privadas só as vê o dono e quem as partilha.',
+    dica: 'Às 07h30 cada pessoa recebe no e-mail as suas tarefas do dia.' },
+  { icone: 'Clock', nome: 'Escalas',
+    serve: 'As escalas de serviço de cada área, mês a mês.',
+    faz: [
+      ['Monte o mês:', 'turnos, horas e quem trabalha em cada dia.'],
+      ['Veja os avisos:', 'turno sem ninguém, a mesma pessoa em dois turnos, horas por pessoa.'],
+      ['Publique e peça o visto', 'da Direcção Clínica: só com o visto a escala entra em vigor e segue por e-mail.'],
+      ['Imprima a escala', 'para afixar.']
+    ],
+    quem: 'Cada área vê a sua. Fazem-na o chefe da área, a Direcção Clínica e a Direcção e Coordenação.',
+    dica: 'De 20 a 29 de cada mês, o chefe recebe um aviso diário até publicar a escala do mês seguinte.' },
+  { icone: 'Car', nome: 'Transporte',
+    serve: 'O registo da viatura: rotas, viagens, combustível e manutenção.',
+    faz: [
+      ['Faça a rota das 22:30:', 'quem sai vem das escalas; marque «Deixado» ou «Não foi».'],
+      ['Registe viagens de dia', '(amostras, compras) e a chegada a casa.'],
+      ['Lance abastecimentos e manutenção,', 'com fotografia do recibo ou do orçamento.'],
+      ['Registe viagens de outros dias', 'com a data certa.'],
+      ['Veja o histórico e as contas:', 'km, consumo e custo por km.']
+    ],
+    quem: 'O motorista e a Direcção e Coordenação.',
+    dica: 'Cada registo aparece no canal #transporte. À segunda às 07h45 sai o relatório da semana.' },
+  { icone: 'Heart', nome: 'CRM',
+    serve: 'O seguimento dos pedidos e dos utentes da clínica.',
+    faz: [
+      ['Acompanhe os pedidos do WhatsApp:', 'o que pediram e se foram facturados.'],
+      ['Recupere utentes', 'a partir de um ficheiro CSV do MetaGest.'],
+      ['Abra a ficha do paciente', 'com marcações e histórico.'],
+      ['Veja os resultados', 'do seguimento.']
+    ],
+    quem: 'Direcção, Coordenação, Recepção e Comercial.',
+    dica: 'Os dados dos utentes ficam no servidor da clínica e nunca saem dele.' },
+  { icone: 'Cal', nome: 'Marcações',
+    serve: 'A agenda de consultas e exames da clínica.',
+    faz: [
+      ['Crie marcações', 'ligadas à ficha do paciente.'],
+      ['Mude o estado:', 'Agendada, Confirmada, Compareceu, Faltou, Cancelou, Remarcado.'],
+      ['Siga os lembretes:', '1 hora antes, confirme; 30 minutos depois, ligue a quem faltou.'],
+      ['Importe e exporte', 'a planilha em CSV.']
+    ],
+    quem: 'Recepção, Direcção Clínica e Direcção e Coordenação. Só a gestão apaga.',
+    dica: 'O paciente recebe lembrete na véspera às 10h00. «Compareceu» entra sozinho pelo MetaGest.' },
+  { icone: 'TrendUp', nome: 'Painel',
+    serve: 'Os números da facturação da clínica, por período.',
+    faz: [
+      ['Veja a facturação', 'de hoje, da semana, do mês ou do ano.'],
+      ['Compare períodos', 'e acompanhe a evolução.'],
+      ['Veja por médico e por seguradora.', ''],
+      ['Os valores de hoje', 'actualizam-se a cada 5 minutos.']
+    ],
+    quem: 'Director Geral, Financeiro e sócios.',
+    dica: 'As notas de crédito já estão descontadas em todos os valores.' },
+  { icone: 'File', nome: 'Relatórios',
+    serve: 'O relatório diário de cada área, em poucos minutos.',
+    faz: [
+      ['Escolha a área e o turno', 'e responda às perguntas.'],
+      ['Registe ocorrências, faltas de material', 'e equipamentos avariados.'],
+      ['Veja os relatórios recebidos', 'de cada dia.']
+    ],
+    quem: 'Todos preenchem. Lêem: Direcção e Coordenação (tudo) e Direcção Clínica (áreas médicas).',
+    dica: 'Nunca escreva nomes de utentes no relatório. Cada relatório segue por e-mail para a Arlete.' },
+  { icone: 'TrendUp', nome: 'A minha actividade',
+    serve: 'Para cada médico, a sua própria produção na clínica.',
+    faz: [
+      ['Veja doentes, consultas, exames e facturas', 'do período.'],
+      ['Veja os actos por grupo', '(consultas, laboratório, enfermagem...).'],
+      ['Acompanhe os últimos 12 meses', 'num gráfico.']
+    ],
+    quem: 'Cada médico vê só os seus números.',
+    dica: 'Os valores já descontam as notas de crédito, como no relatório mensal.' },
+  { icone: 'Folder', nome: 'Documentos',
+    serve: 'Os documentos oficiais da clínica, com leitura confirmada.',
+    faz: [
+      ['Leia o regulamento interno, notas internas, comunicados,', 'procedimentos, protocolos e formulários.'],
+      ['Confirme a leitura', 'com «Li e tomei conhecimento».'],
+      ['Procure', 'pelo título ou pelo número.'],
+      ['Quem publica vê quem leu', 'e pode pôr uma nova versão.']
+    ],
+    quem: 'Toda a equipa lê. Publicam Direcção, Coordenação, Direcção Clínica e Administração.',
+    dica: 'Um documento novo chega no mesmo instante, por e-mail e no sino.' },
+  { icone: 'Shield', nome: 'Admin',
+    serve: 'A gestão das pessoas e dos acessos ao Workspace.',
+    faz: [
+      ['Crie contas e defina', 'área, cargo, camada e superior de cada pessoa.'],
+      ['Ajuste as permissões', 'de cada camada.'],
+      ['Consulte o registo', 'e o estado do sistema.'],
+      ['Use «Ver como»', 'para ver o ecrã de outra pessoa, só em leitura.']
+    ],
+    quem: 'Direcção e Coordenação.',
+    dica: 'A área de cada pessoa decide os canais e as escalas que ela vê.' }
+];
+const BSP_GUIA_IDS = ['dashboard', 'chat', 'feed', 'drive', 'calendar', 'tasks', 'escalas', 'transporte', 'seguimento', 'marcacoes', 'painel', 'relatorios', 'actividade', 'documentos', 'admin'];
+const BSP_GUIA = {};
+BSP_GUIA_IDS.forEach((id, i) => { BSP_GUIA[id] = BSP_GUIA_FICHAS[i]; });
+function bspGuiaVistos(uid) {
+  try { return JSON.parse(localStorage.getItem('bsp-guia-vistos-' + uid) || '[]'); } catch (e) { return []; }
+}
+function bspGuiaMarcar(uid, pg) {
+  try { const l = bspGuiaVistos(uid); if (l.indexOf(pg) === -1) { l.push(pg); localStorage.setItem('bsp-guia-vistos-' + uid, JSON.stringify(l)); } } catch (e) {}
+}
+function bspAbrirGuia(pg) {
+  try { window.dispatchEvent(new CustomEvent('bsp-guia', { detail: pg })); } catch (e) {}
+}
+function BotaoGuia({ pg, tamanho }) {
+  if (!BSP_GUIA[pg]) return null;
+  return React.createElement("button", { onClick: () => bspAbrirGuia(pg), className: 'bsp-iconbtn', title: 'Guia deste ecrã', 'aria-label': 'Guia deste ecrã',
+    style: { width: tamanho || 30, height: tamanho || 30, fontWeight: 700, fontSize: 14, color: 'var(--accent-d)', fontFamily: 'inherit' } }, '?');
+}
+function GuiaEcra({ pg, currentUser }) {
+  const [aberto, setAberto] = React.useState(null);
+  const uid = currentUser && currentUser.id;
+  React.useEffect(() => {
+    if (!uid || !BSP_GUIA[pg] || bspEmVerComo()) return;
+    if (bspGuiaVistos(uid).indexOf(pg) === -1) { const t = setTimeout(() => setAberto(pg), 700); return () => clearTimeout(t); }
+  }, [pg, uid]);
+  React.useEffect(() => {
+    const f = ev => { if (BSP_GUIA[ev.detail]) setAberto(ev.detail); };
+    window.addEventListener('bsp-guia', f);
+    return () => window.removeEventListener('bsp-guia', f);
+  }, []);
+  const g = aberto && BSP_GUIA[aberto];
+  if (!g) return null;
+  const fechar = () => { if (uid && !bspEmVerComo()) bspGuiaMarcar(uid, aberto); setAberto(null); };
+  const Ic = I[g.icone] || I.File;
+  const rot = t => React.createElement("div", { style: { fontSize: 11.5, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--accent-d)', margin: '0 0 8px' } }, t);
+  return React.createElement(Modal, {
+    open: true, onClose: fechar, width: 560, title: 'Guia: ' + g.nome,
+    footer: React.createElement(Button, { variant: 'primary', size: 'sm', onClick: fechar }, 'Percebi')
+  }, React.createElement("div", { style: { padding: 20, display: 'flex', flexDirection: 'column', gap: 16, color: 'var(--text-1)' } },
+    React.createElement("div", { style: { display: 'flex', gap: 14, alignItems: 'center' } },
+      React.createElement("div", { style: { width: 48, height: 48, border: '2px solid var(--navy-texto)', color: 'var(--navy-texto)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' } }, React.createElement(Ic, { size: 26 })),
+      React.createElement("p", { style: { margin: 0, fontSize: 15, lineHeight: 1.45, color: 'var(--text-2)' } }, g.serve)),
+    React.createElement("div", null, rot('O que pode fazer'),
+      React.createElement("ol", { style: { margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10 } },
+        g.faz.map((x, i) => React.createElement("li", { key: i, style: { display: 'grid', gridTemplateColumns: '26px 1fr', gap: 10, fontSize: 14, lineHeight: 1.45 } },
+          React.createElement("span", { style: { width: 26, height: 26, background: 'var(--accent-soft)', color: 'var(--accent-d)', fontWeight: 700, fontSize: 12.5, display: 'flex', alignItems: 'center', justifyContent: 'center' } }, i + 1),
+          React.createElement("span", null, React.createElement("b", null, x[0]), x[1] ? ' ' + x[1] : ''))))),
+    React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 } },
+      React.createElement("div", { style: { border: '1px solid var(--border)', padding: '12px 14px' } }, rot('Quem vê'), React.createElement("div", { style: { fontSize: 13.5, lineHeight: 1.45 } }, g.quem)),
+      React.createElement("div", { style: { border: '1px solid var(--border)', borderLeft: '4px solid var(--accent)', padding: '12px 14px' } }, rot('Dica'), React.createElement("div", { style: { fontSize: 13.5, lineHeight: 1.45 } }, g.dica))),
+    React.createElement("p", { style: { margin: 0, fontSize: 12, color: 'var(--text-3)' } }, 'Para voltar a ver este guia, carregue em «?» no topo do ecrã.')));
+}
 /* Proteccao contra capturas para todos (30-09-2026, pedido do Elmar). No
    navegador e no iPhone nao ha forma de impedir um print; o que se faz:
    - PrintScreen no computador: o ecra fica preto por instantes, a area de
@@ -23582,7 +23791,7 @@ function App() {
   }), pg === 'meetings' && React.createElement(MeetingsScreen, null), pg === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), pg === 'seguimento' && (bspVeCrm(currentUser) ? React.createElement(CrmScreen, null) : null), pg === 'marcacoes' && (bspVeMarcacoes(currentUser) ? React.createElement(MarcacoesScreen, null) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(DirectoryScreen, null), pg === 'admin' && React.createElement(AdminScreen, {
+  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), pg === 'seguimento' && (bspVeCrm(currentUser) ? React.createElement(CrmScreen, null) : null), pg === 'marcacoes' && (bspVeMarcacoes(currentUser) ? React.createElement(MarcacoesScreen, null) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(DirectoryScreen, null), pg === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
   }), pg === 'notifications' && React.createElement(NotificationsScreen, {
     onAbrir: abrirNotificacao
