@@ -11,8 +11,9 @@ Uso:
   _chat.txt   o ficheiro de dentro do .zip «Exportar conversa» (sem ficheiros).
   --canal     conv_key do canal no Workspace (c-farmacia, c-laboratorio, …).
   --base      início dos ids negativos. Usados: Farmácia 1000000,
-              Laboratório 2000000, Enfermagem 3000000, RP 4000000.
-              O seguinte livre é 5000000.
+              Laboratório 2000000, Enfermagem 3000000, RP 4000000,
+              Radiologia 5000000, Direcção 6000000.
+              O seguinte livre é 7000000.
   --prefixo   início do cid (evita repetir se se correr outra vez).
   --grupo     nome do grupo no WhatsApp: as linhas «escritas» por ele são
               avisos automáticos e ficam de fora.
@@ -48,7 +49,7 @@ Q = json.load(open(a.mapa, encoding='utf-8'))
 os.makedirs(a.saida, exist_ok=True)
 
 RX = re.compile(r'^[‎‏]?\[(\d{2})/(\d{2})/(\d{2,4}),? (\d{2}):(\d{2}):(\d{2})\] ([^:\n]+?):(?: |$)', re.M)
-SIS = re.compile(r'^(As mensagens e chamadas são encriptadas|Criou o grupo|[^\n]* (definiu|adicionou|removeu|mudou|saiu|usou uma ligação do grupo)|Chamada de voz|Videochamada)')
+SIS = re.compile(r'^(As mensagens e chamadas são encriptadas|Criou o grupo|Removeu [^\n]* do grupo|Alterou as definições deste grupo|[^\n]* (definiu|adicionou|removeu|mudou|saiu|usou uma ligação do grupo)|Chamada de voz|Videochamada)')
 ELIM = re.compile(r'^(Esta mensagem foi eliminada\.?|Eliminou esta mensagem( enquanto administrador/a)?\.?|[^\n]{0,80} (alterou|eliminou) a descrição do grupo|[^\n]{0,80} pediu para se juntar ao grupo|Adicionou [^\n]{0,60} ao grupo)$')
 NV = ' (não veio na exportação do WhatsApp)'
 

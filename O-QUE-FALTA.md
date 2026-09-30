@@ -2164,3 +2164,25 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   código; os grupos criados no Workspace mudam-se pelo lápis.
 - Testado: o Elmar abre o grupo, muda para «DAF» e grava; os membros e o
   grupo do Transporte ficam iguais.
+
+## 3-bp. Grupo «direcção» e históricos da Direcção e da Radiologia (30-09-2026)
+
+- Pedido do Elmar: criar o grupo «direcção» com o Osvaldo e a Arlete, e
+  importar os históricos do WhatsApp «Direcção» e «DC IMG - RAIO X».
+- Grupo novo `g-1790807774479` «direcção» (privado; membros u1, u14, u2),
+  criado no servidor com `updated_at = now()`. O antigo «direcção» é o
+  «DAF» (3-bo).
+- «Direcção» → grupo «direcção»: 2061 mensagens, de 12-04-2025 a
+  28-09-2026, ids de -6000000 a -6002060 (`--base 6000000`, `cid`
+  «wa-direccao-n»). Com conta: Elmar (u1), Arlete (u2), Osvaldo (u14); sem
+  conta: Dra Alda Mendes, Cris Sassuco, Dra Alice Paulo, Dr Pedro Feliciano,
+  Cristóvão (Africell), Samuela Saitumbo. Uma palavra-passe do Wi-Fi
+  (20-10-2025) ficou «[removida na importação]».
+- «DC IMG - RAIO X» → canal #radiologia (`c-radiologia`): 363 mensagens, de
+  17-04-2025 a 30-08-2026, ids de -5000000 a -5000362 (`--base 5000000`).
+  Com conta: Neusa (u1790255566296), Elmar, Arlete, Osvaldo; sem conta: Dra
+  Alda Mendes, Dr Pedro Feliciano, Celésia (Raio X) e três números de
+  telefone («x:+244 …»). Ficaram de fora 7 linhas automáticas que o filtro
+  não apanhou («Removeu … do grupo», «Alterou as definições deste grupo»);
+  a ferramenta já as tira (`SIS` em `ferramentas/whatsapp-importar.py`).
+- Próximo `--base` livre: 7000000.
