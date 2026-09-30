@@ -1910,3 +1910,24 @@ sabendo que há biométrico.
   diagonal, a 7 % de opacidade, por cima também das janelas e sem apanhar
   os cliques. Testado (Luidmila: aparece e os botões respondem; não
   aparece nos Documentos).
+
+## 3-bc. Protecção contra prints para todos (30-09-2026)
+
+- Pedido do Elmar: «o bloqueio para todos os utilizadores». Bloquear é só
+  possível na app Android (FLAG_SECURE, 3-bb). No navegador e no iPhone o
+  sistema tira a fotografia antes de o Workspace saber; o que ficou
+  (`ProteccaoEcra`, em todos os ecrãs depois de entrar):
+  - marca de água em todos os ecrãs (7 % nos sensíveis, 4,5 % nos outros);
+  - PrintScreen no computador: ecrã escuro 1,5 s, área de transferência
+    limpa e registo em `capturas_ecra` (`capturas.sql`; cada pessoa grava
+    as suas, só a gestão lê). Atenção: no Windows a imagem pode sair antes
+    de o ecrã escurecer; o registo e a marca de água ficam na mesma;
+  - nos ecrãs sensíveis (`BSP_ECRAS_SENSIVEIS`), conteúdo tapado quando a
+    janela perde o foco (Ferramenta de Recorte, mudar de app no
+    telemóvel). Nos outros não, por causa do MetaGest ao lado;
+  - Ctrl+P sai em branco e fica registado; as escalas imprimem-se num
+    iframe próprio e continuam a imprimir.
+- Testado com servidor simulado (registo gravado, ecrã escuro e depois
+  normal, tapado só nos sensíveis, marca de água no Chat).
+- Ver as tentativas: `select * from capturas_ecra order by quando desc`
+  (ainda sem ecrã no Admin).

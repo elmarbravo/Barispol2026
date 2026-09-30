@@ -252,8 +252,11 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   Painel). Ligação pelo campo `metagest` (códigos `ref_practitioner`) na
   pessoa; menu só com `bspVeActividade`. Nunca abrir `erp.*` a quem entra.
 - Prints de ecrã (30-09-2026): a app Android tem `FLAG_SECURE` na
-  `MainActivity`; no navegador há marca de água (`MarcaDagua`) nos ecrãs de
-  `BSP_ECRAS_SENSIVEIS`. Um ecrã novo com dados sensíveis entra nessa lista.
+  `MainActivity`. No navegador, `ProteccaoEcra` em todos os ecrãs: marca de
+  água (`MarcaDagua`), PrintScreen escurece e regista em `capturas_ecra`,
+  impressão em branco; nos ecrãs de `BSP_ECRAS_SENSIVEIS` o conteúdo tapa-se
+  quando a janela perde o foco. Um ecrã novo com dados sensíveis entra nessa
+  lista. Imprimir documentos só por `bspImprimirHtml` (iframe próprio).
 - Anexos no chat: `enviarFicheiros(lista, opc)` no `ChatScreen` serve o
   clipe (vários ficheiros), o arrastar com o rato e as notas de voz
   (27-09-2026: `comecarGravacao`, `bspMensagemNotaVoz`, `bspEAudio`,

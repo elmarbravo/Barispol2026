@@ -22185,7 +22185,7 @@ function ActividadeAtalho({ currentUser, onAbrir }) {
    tirou fica escrito nele. Na app Android os prints estao bloqueados
    (FLAG_SECURE na MainActivity). */
 const BSP_ECRAS_SENSIVEIS = ['painel', 'actividade', 'seguimento', 'marcacoes'];
-function MarcaDagua() {
+function MarcaDagua({ forte }) {
   const [agora, setAgora] = React.useState(() => new Date());
   React.useEffect(() => {
     const iv = setInterval(() => setAgora(new Date()), 60000);
@@ -22197,12 +22197,82 @@ function MarcaDagua() {
   const id = 'bsp-marca-' + Math.floor(agora.getTime() / 60000);
   return ReactDOM.createPortal(React.createElement("svg", {
     "aria-hidden": true,
-    style: { position: 'fixed', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 100001, opacity: 0.07, color: 'var(--text-1)' }
+    style: { position: 'fixed', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 100001, opacity: forte ? 0.07 : 0.045, color: 'var(--text-1)' }
   }, React.createElement("defs", null,
     React.createElement("pattern", { id: id, width: 360, height: 180, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(-28)' },
       React.createElement("text", { x: 0, y: 60, fill: 'currentColor', fontSize: 15, fontWeight: 700, fontFamily: 'inherit' }, texto),
       React.createElement("text", { x: 180, y: 150, fill: 'currentColor', fontSize: 15, fontWeight: 700, fontFamily: 'inherit' }, texto))),
   React.createElement("rect", { width: '100%', height: '100%', fill: 'url(#' + id + ')' })), document.body);
+}
+/* Proteccao contra capturas para todos (30-09-2026, pedido do Elmar). No
+   navegador e no iPhone nao ha forma de impedir um print; o que se faz:
+   - PrintScreen no computador: o ecra fica preto por instantes, a area de
+     transferencia e limpa e a tentativa fica registada (capturas_ecra,
+     so a gestao le);
+   - nos ecras sensiveis, o conteudo fica tapado quando a janela perde o
+     foco (a Ferramenta de Recorte do Windows tira-lhe o foco). Nos outros
+     ecras nao, porque a Recepcao trabalha com o MetaGest ao lado;
+   - imprimir a pagina (Ctrl+P) sai em branco e fica registado. As escalas
+     imprimem-se num iframe proprio (bspImprimirHtml) e nao sao afectadas.
+   Na app Android os prints estao bloqueados (FLAG_SECURE). */
+function bspRegistarCaptura(tipo, ecra) {
+  try {
+    if (bspEmVerComo()) return;
+    const cl = bspGetClient();
+    if (!cl) return;
+    cl.from('capturas_ecra').insert({ tipo: tipo, ecra: String(ecra || ''), aparelho: String(navigator.userAgent || '').slice(0, 200) }).then(() => {}, () => {});
+  } catch (e) {}
+}
+function ProteccaoEcra({ pg }) {
+  const [escuro, setEscuro] = React.useState(false);
+  const [tapado, setTapado] = React.useState(false);
+  const sensivel = BSP_ECRAS_SENSIVEIS.indexOf(pg) !== -1;
+  const pgRef = React.useRef(pg);
+  pgRef.current = pg;
+  React.useEffect(() => {
+    let t = null;
+    const tecla = e => {
+      if (e.key !== 'PrintScreen' && e.code !== 'PrintScreen') return;
+      setEscuro(true);
+      clearTimeout(t);
+      t = setTimeout(() => setEscuro(false), 1500);
+      try { navigator.clipboard && navigator.clipboard.writeText('Captura de ecrã desactivada no Workspace da Barispol.'); } catch (x) {}
+      if (e.type === 'keyup') bspRegistarCaptura('printscreen', pgRef.current);
+    };
+    const imprimir = () => bspRegistarCaptura('impressao', pgRef.current);
+    window.addEventListener('keydown', tecla, true);
+    window.addEventListener('keyup', tecla, true);
+    window.addEventListener('beforeprint', imprimir);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('keydown', tecla, true);
+      window.removeEventListener('keyup', tecla, true);
+      window.removeEventListener('beforeprint', imprimir);
+    };
+  }, []);
+  React.useEffect(() => {
+    if (!sensivel) { setTapado(false); return; }
+    const sai = () => setTapado(true);
+    const volta = () => setTapado(false);
+    const vis = () => setTapado(document.hidden);
+    window.addEventListener('blur', sai);
+    window.addEventListener('focus', volta);
+    document.addEventListener('visibilitychange', vis);
+    return () => {
+      window.removeEventListener('blur', sai);
+      window.removeEventListener('focus', volta);
+      document.removeEventListener('visibilitychange', vis);
+    };
+  }, [sensivel]);
+  const capa = (fundo, texto, cor) => ReactDOM.createPortal(React.createElement("div", {
+    onClick: () => setTapado(false),
+    style: { position: 'fixed', inset: 0, zIndex: 100002, background: fundo, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center', color: cor, fontSize: 15, fontWeight: 600 }
+  }, texto), document.body);
+  return React.createElement(React.Fragment, null,
+    React.createElement("style", null, '@media print { body > * { display: none !important; } body::after { content: "Impressão desactivada no Workspace da Barispol."; display: block; padding: 40px; font: 16px sans-serif; } }'),
+    React.createElement(MarcaDagua, { forte: sensivel }),
+    escuro ? capa('var(--text-1)', 'Captura de ecrã desactivada no Workspace.', 'var(--bg)')
+      : tapado ? capa('var(--bg)', 'Conteúdo escondido fora da janela do Workspace. Carregue aqui ou volte à janela para continuar.', 'var(--text-2)') : null);
 }
 /* Admin: ligar a conta de um medico ao(s) codigo(s) dele no MetaGest. */
 function MetagestEscolha({ valor, onMudar }) {
@@ -23148,7 +23218,7 @@ function App() {
   }), pg === 'meetings' && React.createElement(MeetingsScreen, null), pg === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), pg === 'seguimento' && (bspVeCrm(currentUser) ? React.createElement(CrmScreen, null) : null), pg === 'marcacoes' && (bspVeMarcacoes(currentUser) ? React.createElement(MarcacoesScreen, null) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), BSP_ECRAS_SENSIVEIS.indexOf(pg) !== -1 && React.createElement(MarcaDagua, null), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(DirectoryScreen, null), pg === 'admin' && React.createElement(AdminScreen, {
+  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), pg === 'seguimento' && (bspVeCrm(currentUser) ? React.createElement(CrmScreen, null) : null), pg === 'marcacoes' && (bspVeMarcacoes(currentUser) ? React.createElement(MarcacoesScreen, null) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(DirectoryScreen, null), pg === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
   }), pg === 'notifications' && React.createElement(NotificationsScreen, {
     onAbrir: abrirNotificacao
