@@ -6664,6 +6664,10 @@ function DashboardScreen({
     onAbrir: () => onSwitch && onSwitch('actividade')
   }), bspAreaChave(currentUser && currentUser.dept) === 'recepcao' && React.createElement(MarcLembretesInicio, {
     onAbrir: () => onSwitch && onSwitch('marcacoes')
+  }), React.createElement(GuiaRecepcaoCartao, {
+    currentUser: currentUser
+  }), React.createElement(GuiaRecepcoesRhCartao, {
+    currentUser: currentUser
   }), React.createElement(EscalasPorPublicarCartao, {
     currentUser: currentUser,
     onAbrir: () => onSwitch && onSwitch('escalas')
@@ -21539,6 +21543,76 @@ function EscalasPorAprovarCartao({ currentUser, onAbrir }) {
         React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2 } }, 'Sem o seu visto, a escala não entra em vigor.')),
       React.createElement(Button, { variant: 'primary', size: 'sm', onClick: () => { window.__bspEscalaAbrir = { area: lista[0].area, mes: lista[0].mes }; onAbrir(); } }, 'Ver e dar visto')));
 }
+/* Guia do Workspace por e-mail (30-09-2026, guia-envio.sql): a confirmacao
+   de recepcao e obrigatoria. Quem recebeu e ainda nao confirmou ve este
+   cartao; o botao do e-mail (#confirmar-guia) confirma sozinho. */
+function GuiaRecepcaoCartao({ currentUser }) {
+  const toast = useToast();
+  const [estado, setEstado] = React.useState(null);
+  const uid = currentUser && currentUser.id;
+  const confirmar = async () => {
+    const cl = bspGetClient();
+    if (!cl || bspEmVerComo()) return;
+    const r = await cl.from('guia_recepcoes').insert({ user_id: uid }).select('confirmado_em');
+    if (r.error && !/duplicate|unique/i.test(r.error.message || '')) { toast('Não foi possível confirmar: ' + r.error.message); return; }
+    setEstado('confirmado');
+    toast('Recepção do guia confirmada a ' + bspDataExacta(new Date()) + '. Obrigado.');
+  };
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl || !uid) return;
+    let vivo = true;
+    Promise.all([cl.from('guia_envios').select('estado').eq('user_id', uid).maybeSingle(), cl.from('guia_recepcoes').select('confirmado_em').eq('user_id', uid).maybeSingle()]).then(([env, rec]) => {
+      if (!vivo || env.error || rec.error) return;
+      if (rec.data) { setEstado('confirmado'); return; }
+      if (!env.data || env.data.estado !== 'enviado') { setEstado('nada'); return; }
+      setEstado('por-confirmar');
+      if (window.__bspConfirmarGuia && !bspEmVerComo()) { window.__bspConfirmarGuia = false; confirmar(); }
+    });
+    return () => { vivo = false; };
+  }, [uid]);
+  if (estado !== 'por-confirmar') return null;
+  return React.createElement(Card, { pad: 16, style: { marginBottom: 16, borderLeft: '4px solid var(--perigo)' } },
+    React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' } },
+      React.createElement("div", { style: { flex: '1 1 220px', minWidth: 0 } },
+        React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)' } }, 'Confirme a recepção do Guia do Workspace'),
+        React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 2 } }, 'Recebeu por e-mail o guia dos seus menus. A confirmação é obrigatória e fica registada com a data e a hora.')),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: confirmar }, 'Confirmo a recepção')));
+}
+/* Para o RH e a gestao: quem ja confirmou a recepcao do guia. Some quando
+   todos tiverem confirmado. */
+function GuiaRecepcoesRhCartao({ currentUser }) {
+  const [dados, setDados] = React.useState(null);
+  const [aberto, setAberto] = React.useState(false);
+  const gestao = currentUser && bspCamada(currentUser).podeGerirUtilizadores;
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl || !gestao) return;
+    let vivo = true;
+    Promise.all([cl.from('guia_envios').select('user_id, estado, enviado_em'), cl.from('guia_recepcoes').select('user_id, confirmado_em')]).then(([e, r]) => {
+      if (!vivo || e.error || r.error) return;
+      const conf = {};
+      (r.data || []).forEach(x => { conf[x.user_id] = x.confirmado_em; });
+      const enviados = (e.data || []).filter(x => x.estado === 'enviado');
+      setDados({ enviados, conf });
+    });
+    return () => { vivo = false; };
+  }, [gestao]);
+  if (!gestao || !dados || !dados.enviados.length) return null;
+  const falta = dados.enviados.filter(x => !dados.conf[x.user_id]);
+  if (!falta.length) return null;
+  const feitos = dados.enviados.length - falta.length;
+  return React.createElement(Card, { pad: 16, style: { marginBottom: 16 } },
+    React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' } },
+      React.createElement("div", { style: { flex: '1 1 220px', minWidth: 0 } },
+        React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)' } }, 'Guia do Workspace: ' + feitos + ' de ' + dados.enviados.length + ' confirmaram a recepção'),
+        React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 2 } }, 'Faltam ' + falta.length + (falta.length === 1 ? ' pessoa.' : ' pessoas.'))),
+      React.createElement("button", { onClick: () => setAberto(a => !a), style: bspEscChip(aberto) }, aberto ? 'Esconder' : 'Ver quem')),
+    aberto && React.createElement("div", { style: { marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13 } },
+      dados.enviados.slice().sort((a, b) => bspCompararTexto((window.userById(a.user_id) || {}).name, (window.userById(b.user_id) || {}).name)).map(x => React.createElement("div", { key: x.user_id, style: { display: 'flex', justifyContent: 'space-between', gap: 10, color: 'var(--text-1)' } },
+        React.createElement("span", null, (window.userById(x.user_id) || {}).name || x.user_id),
+        React.createElement("span", { style: { color: dados.conf[x.user_id] ? 'var(--sucesso)' : 'var(--perigo)', fontWeight: 600, whiteSpace: 'nowrap' } }, dados.conf[x.user_id] ? '✓ ' + bspDataExacta(new Date(dados.conf[x.user_id])) : 'por confirmar')))));
+}
 function EscalaHojeCartao({ onAbrir }) {
   const [lista, setLista] = React.useState(null);
   React.useEffect(() => {
@@ -23689,6 +23763,11 @@ function App() {
     if (onde === 'chat' && partes[1]) {
       setAlvoChat({ conv: decodeURIComponent(partes.slice(1).join('/')), vez: Date.now() });
       setPage('chat');
+    } else if (onde === 'confirmar-guia') {
+      /* Botao do e-mail do Guia do Workspace (30-09-2026): o Inicio grava a
+         confirmacao de recepcao (GuiaRecepcaoCartao). */
+      window.__bspConfirmarGuia = true;
+      setPage('dashboard');
     } else if (['feed', 'tarefas', 'agenda', 'drive', 'seguimento', 'marcacoes', 'escalas', 'transporte', 'painel', 'chat', 'relatorios', 'documentos', 'actividade', 'notificacoes'].indexOf(onde) !== -1) {
       setPage({ tarefas: 'tasks', agenda: 'calendar', notificacoes: 'notifications' }[onde] || onde);
     } else {

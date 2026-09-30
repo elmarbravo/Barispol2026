@@ -2122,3 +2122,25 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   CSS já o força).
 - Testado a 390 px: Início, Chat (lista e conversa), Tarefas e Mais sem nada
   fora da largura; a caixa do Chat fica com 16 px.
+
+## 3-bn. Guia do Workspace por e-mail, com confirmação de recepção (30-09-2026)
+
+- Pedido do Elmar: enviar as imagens do guia a cada colaborador, cada um só
+  com os menus a que tem acesso, com o RH em cópia e confirmação de recepção
+  obrigatória.
+- Imagens em `guia/` (site público, sem dados de doentes nem de facturação).
+- Menus de cada pessoa: as regras do Workspace (`NAV_ITEMS` + `bspVe*`)
+  aplicadas à equipa do dia. 23 pessoas (a conta «Beb» fica de fora).
+- `guia-envio.sql` (aplicado): `guia_envios` (fila com os menus de cada um),
+  `guia_recepcoes` (confirmações), `bsp_guia_html`, `bsp_guia_enviar_proximo`
+  e o agendamento `bsp-guia-envio` (um e-mail a cada 10 s; apaga-se sozinho).
+  Cada e-mail vai com o RH (u2) em cópia e como resposta, e pede a
+  confirmação de leitura ao programa de e-mail (cabeçalhos
+  Disposition-Notification-To e Return-Receipt-To para o RH).
+- `bright-worker` versão 5: aceita `headers` só do servidor, e só esses dois,
+  com um endereço.
+- Workspace: o botão do e-mail abre `#confirmar-guia` e grava a confirmação;
+  `GuiaRecepcaoCartao` pede-a no Início a quem ainda não confirmou;
+  `GuiaRecepcoesRhCartao` mostra ao RH e à gestão quem confirmou e quem falta.
+- Testado com servidor simulado: confirmação pelo botão do e-mail, cartão
+  no Início, contagem do RH.

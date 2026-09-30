@@ -25,11 +25,13 @@
 // mandar "to" como lista e usar "cc"/"bcc" (relatorios de area e avisos
 // do atendimento do WhatsApp).
 //
-// Este ficheiro e a copia da versao publicada (versao 3), conferida a
-// 28-09-2026. O lembrete da marcacao ao paciente usa o "cc" para
-// rececao@barispol.com.
+// Este ficheiro e a copia da versao publicada (versao 5, 30-09-2026). O
+// lembrete da marcacao ao paciente usa o "cc" para rececao@barispol.com.
 // RESPONDER PARA (versao 4, 30-09-2026): so o servidor pode mandar
 // "reply_to" (relatorio semanal da viatura -> Administracao).
+// CONFIRMACAO DE LEITURA (versao 5, 30-09-2026): so o servidor pode mandar
+// "headers", e so Disposition-Notification-To e Return-Receipt-To, cada um
+// com um endereco (guia do Workspace, confirmacao para o RH).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -131,6 +133,13 @@ Deno.serve(async (req) => {
      viatura pede ao motorista que responda a Administracao, e nao ao
      geral@. */
   const responderPara = doServidor ? listaDeEnderecos(pedido.reply_to || []) : [];
+  const cabecalhos: Record<string, string> = {};
+  if (doServidor && pedido.headers && typeof pedido.headers === "object") {
+    for (const nome of ["Disposition-Notification-To", "Return-Receipt-To"]) {
+      const v = listaDeEnderecos(pedido.headers[nome] || [])[0];
+      if (v) cabecalhos[nome] = v;
+    }
+  }
 
   /* Anexos: so do servidor, so do proprio site. */
   let anexos: { filename: string; path: string }[] | undefined;
@@ -196,6 +205,7 @@ Deno.serve(async (req) => {
         ...(cc.length ? { cc } : {}),
         ...(bcc.length ? { bcc } : {}),
         ...(responderPara.length ? { reply_to: responderPara } : {}),
+        ...(Object.keys(cabecalhos).length ? { headers: cabecalhos } : {}),
         ...(anexos ? { attachments: anexos } : {}),
       }),
     });

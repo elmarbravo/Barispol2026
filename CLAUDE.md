@@ -51,7 +51,8 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
     e conferido por `bsp_resumo_codigo_confere` (ver
     `agendar-resumo-sem-chave.sql`). Nunca mostrar esse código.
   - `bright-worker` (envia pela Resend, remetente geral@barispol.com, que
-    não se muda): versão 4 (30-09-2026, aceita `reply_to` só do servidor),
+    não se muda): versão 5 (30-09-2026, aceita `reply_to` e os cabeçalhos
+    de confirmação de leitura só do servidor),
     verificação de JWT desligada e
     autenticação própria em `funcoes/bright-worker/index.ts`. Chave do
     servidor ou sessão de gestor: qualquer destinatário. Sessão de outro
@@ -275,6 +276,8 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   impressão em branco; nos ecrãs de `BSP_ECRAS_SENSIVEIS` o conteúdo tapa-se
   quando a janela perde o foco. Um ecrã novo com dados sensíveis entra nessa
   lista. Imprimir documentos só por `bspImprimirHtml` (iframe próprio).
+- Guia por e-mail (30-09-2026, `guia-envio.sql`): imagens em `guia/`,
+  fila `guia_envios`, confirmações `guia_recepcoes` (#confirmar-guia).
 - Acesso guiado (30-09-2026): `GuiaEcra` + `BSP_GUIA_FICHAS` (texto de cada
   menu) + `BotaoGuia` («?» no topo). Um menu novo ou mudado leva a sua ficha.
 - Anexos no chat: `enviarFicheiros(lista, opc)` no `ChatScreen` serve o
