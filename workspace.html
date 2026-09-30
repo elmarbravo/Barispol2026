@@ -5658,6 +5658,10 @@ function StoreProvider({
       ...s,
       extraChannels: [...(s.extraChannels || []), canal]
     }, CURRENT_USER_ID, 'criou o canal', '#' + canal.name)),
+    editarCanal: canal => setState(s => pushActivity({
+      ...s,
+      extraChannels: (s.extraChannels || []).map(c => c.id === canal.id ? canal : c)
+    }, CURRENT_USER_ID, 'editou o grupo', '#' + canal.name)),
     apagarCanal: canalId => setState(s => pushActivity({
       ...s,
       extraChannels: (s.extraChannels || []).filter(c => c.id !== canalId)
@@ -7160,11 +7164,15 @@ function TopicoPanel({
    exigir login de moderador para iniciar uma sala, e o nome da sala
    revelava a conversa de origem. As chamadas directas são agora
    nativas — ver ChamadasProvider, mais abaixo. */
+/* Tambem edita (30-09-2026, pedido do Elmar): com «inicial», mostra o
+   grupo e grava nome, descricao e membros no mesmo id. A conversa, as
+   mensagens e o acesso no servidor seguem o id e os membros, nunca o nome. */
 function NovoGrupoModal({
   open,
   onClose,
   currentUser,
-  onCreate
+  onCreate,
+  inicial
 }) {
   const gestor = bspCamada(currentUser).podeGerirUtilizadores;
   const [nome, setNome] = React.useState('');
@@ -7173,7 +7181,13 @@ function NovoGrupoModal({
   const [dept, setDept] = React.useState('clinica');
   const [membros, setMembros] = React.useState([]);
   React.useEffect(() => {
-    if (open) {
+    if (open && inicial) {
+      setNome(inicial.name || '');
+      setDesc(inicial.desc || '');
+      setTipo(inicial.public ? (inicial.dept ? 'dept' : 'aberto') : 'privado');
+      setDept(inicial.dept || 'clinica');
+      setMembros((inicial.membros || []).filter(id => id !== currentUser.id));
+    } else if (open) {
       setNome('');
       setDesc('');
       setTipo('privado');
@@ -7185,8 +7199,23 @@ function NovoGrupoModal({
     setMembros(l => l.indexOf(id) !== -1 ? l.filter(x => x !== id) : [...l, id]);
   }
   function criar() {
-    const nm = nome.trim().toLowerCase().replace(/\s+/g, '-');
+    /* Ao editar, o nome fica como foi escrito (ex.: «DAF»). */
+    const nm = inicial ? nome.trim().replace(/^#/, '').replace(/\s+/g, '-') : nome.trim().toLowerCase().replace(/\s+/g, '-');
     if (!nm) return;
+    if (inicial) {
+      const era = (inicial.membros || []);
+      const ficam = tipo === 'privado' ? Array.from(new Set([...membros, ...(era.indexOf(currentUser.id) !== -1 ? [currentUser.id] : [])])) : null;
+      onCreate(Object.assign({}, inicial, {
+        name: nm,
+        desc: desc.trim() || (tipo === 'privado' ? 'Grupo privado' : 'Canal da equipa'),
+        public: tipo !== 'privado',
+        dept: tipo === 'dept' ? dept : null,
+        membros: ficam,
+        members: tipo === 'privado' ? ficam.length : USERS.length
+      }));
+      onClose();
+      return;
+    }
     const canal = {
       id: 'g-' + Date.now(),
       name: nm,
@@ -7215,7 +7244,7 @@ function NovoGrupoModal({
   return React.createElement(Modal, {
     open: open,
     onClose: onClose,
-    title: "Criar grupo",
+    title: inicial ? "Editar grupo" : "Criar grupo",
     width: 480,
     footer: React.createElement(React.Fragment, null, React.createElement(Button, {
       variant: "ghost",
@@ -7225,7 +7254,7 @@ function NovoGrupoModal({
       variant: "primary",
       size: "sm",
       onClick: criar
-    }, "Criar grupo"))
+    }, inicial ? "Guardar" : "Criar grupo"))
   }, React.createElement("div", {
     style: {
       padding: 20,
@@ -7683,6 +7712,7 @@ function ChatScreen({
        site externo que lhes vai pedir uma conta. */
     toast('As chamadas de grupo ainda não estão disponíveis. Por agora, ligue directamente à pessoa pela conversa dela.');
   }
+  const [editarGrupo, setEditarGrupo] = React.useState(null);
   function apagarCanalActual() {
     if (!activeChannel || !activeChannel.criadoPor) return;
     if (!window.confirm('Apagar o grupo #' + activeChannel.name + ' para toda a equipa?')) return;
@@ -7814,6 +7844,16 @@ function ChatScreen({
       }
     }, bspTextoVisivel(r.mm.text).slice(0, 120)));
   })))), React.createElement(NovoGrupoModal, {
+    open: !!editarGrupo,
+    inicial: editarGrupo,
+    onClose: () => setEditarGrupo(null),
+    currentUser: currentUser,
+    onCreate: canal => {
+      if (bspEmVerComo()) return;
+      actions.editarCanal(canal);
+      toast('Grupo guardado: #' + canal.name + '.');
+    }
+  }), React.createElement(NovoGrupoModal, {
     open: grupoModal,
     onClose: () => setGrupoModal(false),
     currentUser: currentUser,
@@ -8175,6 +8215,24 @@ function ChatScreen({
     }
   }, React.createElement(I.Cam, {
     size: 16
+  })), !isDM && activeChannel && activeChannel.criadoPor && (currentUser.id === activeChannel.criadoPor || bspCamada(currentUser).podeGerirUtilizadores) && React.createElement("button", {
+    onClick: () => setEditarGrupo(activeChannel),
+    title: "Editar este grupo (nome, descrição e membros)",
+    "aria-label": "Editar este grupo",
+    style: {
+      width: 34,
+      height: 34,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 9,
+      border: '1px solid var(--border)',
+      background: 'var(--surface-2)',
+      color: 'var(--accent-d)',
+      cursor: 'pointer'
+    }
+  }, React.createElement(I.Edit, {
+    size: 15
   })), !isDM && activeChannel && activeChannel.criadoPor && (currentUser.id === activeChannel.criadoPor || bspCamada(currentUser).podeGerirUtilizadores) && React.createElement("button", {
     onClick: apagarCanalActual,
     title: "Apagar este grupo",
@@ -22132,7 +22190,9 @@ function TransporteScreen({ currentUser }) {
      (30-09-2026, pedido do Elmar: «assim não precisamos de lá ir ver»):
      saída, abastecimento, fim da viagem e ida para casa. */
   const avisarChat = texto => {
-    const canal = (state.extraChannels || []).find(c => String(c.name || '').toLowerCase() === 'transporte');
+    /* Pelo papel do grupo (funcao: 'transporte'), para nao se perder se
+       o nome mudar; o nome fica como recurso. */
+    const canal = (state.extraChannels || []).find(c => c.funcao === 'transporte') || (state.extraChannels || []).find(c => String(c.name || '').toLowerCase() === 'transporte');
     if (canal && !bspEmVerComo()) actions.sendMessage(canal.id, { userId: currentUser.id, text: texto });
   };
   const publicarResumo = v => {

@@ -109,6 +109,10 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 - Som das notificações: um só `AudioContext` (`bspAudio`), desbloqueado
   no primeiro toque (`bspDesbloquearSom`). Nunca criar um por aviso.
 - Abrir uma conversa directa de qualquer ecrã: `bspConversaCom(id)`.
+- Grupos do Chat (30-09-2026): editam-se com `NovoGrupoModal` (`inicial`) e
+  `actions.editarCanal`; o servidor segue o id e os membros, não o nome. Um
+  grupo com papel no sistema leva `funcao` (o do Transporte:
+  `funcao: 'transporte'`); nunca procurar um grupo só pelo nome.
 - Enter no Chat (30-09-2026): usar `bspEnterEnvia(e)`. Em ecrãs tácteis o
   Enter muda de linha e envia-se com o botão; no computador, Enter envia.
 - Chamadas: `bspToqueChamada('recebida' | 'a-chamar')`, sempre com som,

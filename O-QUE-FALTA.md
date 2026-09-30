@@ -2144,3 +2144,23 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   `GuiaRecepcoesRhCartao` mostra ao RH e à gestão quem confirmou e quem falta.
 - Testado com servidor simulado: confirmação pelo botão do e-mail, cartão
   no Início, contagem do RH.
+
+## 3-bo. Editar grupos do Chat; «direcção» passa a «DAF» (30-09-2026)
+
+- Pedido do Elmar: poder mudar o nome dos canais; o grupo «direcção» passa a
+  «DAF» (vai criar um grupo «direcção» novo com a Direcção Clínica e a
+  Arlete).
+- `NovoGrupoModal` também edita (prop `inicial`): nome (fica como foi
+  escrito, ex.: «DAF»), descrição e membros. Botão de lápis no topo da
+  conversa, para quem criou o grupo e para a Direcção e Coordenação (as
+  mesmas que o podem apagar). Acção `editarCanal` (mesmo id).
+- O acesso no servidor (`bsp_ve_conversa`) segue o id e os membros, nunca o
+  nome: mudar o nome não mexe no histórico nem em quem vê.
+- Grupo do Transporte marcado com `funcao: 'transporte'`: os avisos das
+  viagens já não dependem do nome.
+- No servidor (30-09-2026): `g-1788271279015` «direcção» → «DAF» (membros
+  u1 e u2, sem mudança), com `updated_at = now()`.
+- Os canais fixos (#geral, #avisos e os das áreas) continuam com o nome do
+  código; os grupos criados no Workspace mudam-se pelo lápis.
+- Testado: o Elmar abre o grupo, muda para «DAF» e grava; os membros e o
+  grupo do Transporte ficam iguais.
