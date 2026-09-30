@@ -242,6 +242,11 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   regra `bsp_msg_ler` usa `bsp_conversas_que_vejo()` (lista calculada uma
   vez por consulta). Nunca voltar a chamar `bsp_ve_conversa` por linha:
   com os históricos, a carga passava os 8 s e o Chat parava.
+- Documentos da clínica (30-09-2026, `documentos.sql`): menu «Documentos»
+  (`DocumentosScreen`). Publicam Direcção, Coordenação, Direcção Clínica e
+  Administração (`bspPublicaDocumentos` / `bsp_publica_documentos`); leitura
+  obrigatória (`documentos_leituras`). O aviso sai no instante: Edge
+  Function `documento-aviso` (gatilho) e sino em tempo real.
 - Anexos no chat: `enviarFicheiros(lista, opc)` no `ChatScreen` serve o
   clipe (vários ficheiros), o arrastar com o rato e as notas de voz
   (27-09-2026: `comecarGravacao`, `bspMensagemNotaVoz`, `bspEAudio`,

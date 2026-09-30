@@ -1812,3 +1812,35 @@ sabendo que há biométrico.
   obstetrícia» (servidor, com `updated_at = now()`, e lista `USERS`).
 - Para marcar outra conta sem e-mails: pôr `semEmails: true` na pessoa, em
   `shared_state.team` (ainda sem botão no Admin).
+
+## 3-ay. Documentos da clínica (30-09-2026)
+
+- Pedido do Elmar: um sítio para o regulamento interno, notas internas,
+  comunicados e o resto, acessível a todos. Não vai para uma secção RH
+  (dados pessoais), mas para o menu «Documentos».
+- Servidor (`documentos.sql`, aplicado): tabelas `documentos` e
+  `documentos_leituras`; `bsp_publica_documentos()` = Direcção e
+  Coordenação (`bsp_e_gestor`), Direcção Clínica (u14) e departamento
+  Administração; toda a equipa lê (sócios não). Ficheiros no bucket
+  `drive`, pasta `documentos/`: só quem publica grava e apaga (regras
+  `bsp_drive_criar` e `bsp_drive_apagar` refeitas). Tabela no tempo real.
+  Conferido pessoa a pessoa: publicam Arlete, Elmar, Osvaldo e «Beb»;
+  as outras 20 pessoas só lêem.
+- Aviso no instante: o gatilho `bsp_documentos_publicado` chama a Edge
+  Function nova `documento-aviso` (versão 1, verificação de JWT desligada,
+  só aceita o código do agendamento ou a chave do servidor). Envia um
+  e-mail a cada pessoa (menos sócios, `semEmails` e quem publicou), um de
+  cada vez (limite da Resend), uma vez por documento (`aviso_enviado_em`).
+  No Workspace, o sino toca logo (tempo real, canal `bsp-documentos`).
+- Leitura obrigatória: «Li e tomei conhecimento» só depois de abrir o
+  documento; quem publica vê «Leituras: x de y», com quem confirmou (data
+  e hora) e quem falta. «Nova versão» arquiva a anterior e volta a pedir
+  a leitura; «Arquivar» tira-a da lista.
+- Workspace: `DocumentosScreen`, `DocPublicarModal`, `DocsPorLerCartao`
+  (Início), número por ler no menu (`bspDocsPorLer`), endereço
+  `#/documentos`.
+- Testado com servidor simulado: a Gizela confirma só depois de abrir; o
+  Elmar publica (ficheiro em `documentos/`, registo na tabela) e vê as
+  leituras.
+- Dra. Luidmila: e-mail de boas-vindas reenviado a 30-09-2026, 11h22, com
+  o Elmar em cópia (o primeiro saiu às 11h15; ver «Spam» no Gmail).
