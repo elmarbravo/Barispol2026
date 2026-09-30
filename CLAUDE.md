@@ -181,7 +181,7 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   MetaGest (`bsp_marcacoes_comparecer`, cron `bsp-marcacoes-metagest`).
   Lembretes para a Recepção (29-09-2026): 1 h antes e 30 min depois de
   cada marcação de hoje em aberto (`bspMarcLembretes`, `MarcLembretes`,
-  sino com `lembrete: true`).
+  sino com `lembrete: true`; no Início, `MarcLembretesInicio`, 30-09-2026).
   Cores de aviso nas variáveis `--perigo` e `--sucesso`. A planilha entra e sai por CSV
   (`bspLerCsv`, `bspMarcDoCsv`, `bspMarcCsv`). Nomes de doentes nunca no
   repositório. Lembrete ao paciente (28-09-2026, `marcacoes-lembrete.sql`):

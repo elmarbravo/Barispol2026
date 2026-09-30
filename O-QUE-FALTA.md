@@ -1952,3 +1952,16 @@ sabendo que há biométrico.
   canal de abrir. Aparece agora como «Antigo colaborador».
 - Testado com servidor simulado: seis imagens num só pedido, foto de
   4000×3000 reduzida a 1600×1200, GIF intacto, marca de água única.
+
+## 3-be. Lembretes das marcações no Início (30-09-2026)
+
+- Pedido do Elmar: os lembretes de ligar aos pacientes também no Início,
+  «para despertar as colegas».
+- `MarcLembretesInicio`: o mesmo cartão do ecrã Marcações
+  (`MarcLembretes`), no topo do Início, só para quem é da Recepção (como
+  o sino). Botões Ligar, WhatsApp e estado; ligação «Marcações →».
+  Sem lembretes em curso, o cartão não aparece. Actualiza-se a cada
+  minuto.
+- Novidade registada para a Recepção.
+- Testado com servidor simulado: aparece à Recepção (computador e
+  telemóvel), não aparece à Farmácia, a ligação abre as Marcações.

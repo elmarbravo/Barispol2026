@@ -6629,6 +6629,8 @@ function DashboardScreen({
   }), bspVeActividade(currentUser) && React.createElement(ActividadeAtalho, {
     currentUser: currentUser,
     onAbrir: () => onSwitch && onSwitch('actividade')
+  }), bspAreaChave(currentUser && currentUser.dept) === 'recepcao' && React.createElement(MarcLembretesInicio, {
+    onAbrir: () => onSwitch && onSwitch('marcacoes')
   }), React.createElement(DocsPorLerCartao, {
     currentUser: currentUser,
     onAbrir: () => onSwitch && onSwitch('documentos')
@@ -20328,7 +20330,7 @@ function bspMarcLembretes(lista, agora) {
   const ord = (a, b) => bspMarcMinutos(a.hora) - bspMarcMinutos(b.hora);
   return { antes: antes.sort(ord), depois: depois.sort(ord) };
 }
-function MarcLembretes({ lista, mudarEstado }) {
+function MarcLembretes({ lista, mudarEstado, onAbrir, estilo }) {
   const toast = useToast();
   const [agora, setAgora] = React.useState(() => new Date());
   React.useEffect(() => { const iv = setInterval(() => setAgora(new Date()), 30000); return () => clearInterval(iv); }, []);
@@ -20354,10 +20356,21 @@ function MarcLembretes({ lista, mudarEstado }) {
     React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: cor } }, titulo + ' (' + itens.length + ')'),
     React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', margin: '2px 0 4px' } }, nota),
     itens.map(m => linha(m, tipo)));
-  return React.createElement(Card, { pad: 14, style: { flex: 'none', borderLeft: '4px solid ' + (depois.length ? 'var(--perigo)' : 'var(--accent)'), maxHeight: '42vh', overflow: 'auto' } },
-    React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)' } }, 'Lembretes de hoje'),
+  return React.createElement(Card, { pad: 14, style: { flex: 'none', borderLeft: '4px solid ' + (depois.length ? 'var(--perigo)' : 'var(--accent)'), maxHeight: '42vh', overflow: 'auto', ...(estilo || {}) } },
+    React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+      React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', flex: 1 } }, 'Lembretes de hoje: ligar aos pacientes'),
+      onAbrir && React.createElement("button", { onClick: onAbrir, style: { border: 'none', background: 'transparent', color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', padding: 0 } }, 'Marcações →')),
     bloco('Daqui a menos de 1 hora', 'Ligue ao paciente para confirmar a vinda e avise o médico.', antes, 'antes', 'var(--accent-d)'),
     bloco('Passaram 30 minutos', 'Ligue a quem não apareceu e actualize o estado da marcação.', depois, 'depois', 'var(--perigo)'));
+}
+/* Os mesmos lembretes no Inicio (30-09-2026, pedido do Elmar: «para
+   despertar as colegas»). So a quem e da Recepcao, como o sino. Sem
+   lembretes em curso, o cartao nao aparece. */
+function MarcLembretesInicio({ onAbrir }) {
+  const hoje = bspDataLocalISO(new Date());
+  const marc = useMarcacoes(hoje, hoje);
+  if (marc.estado !== 'pronto') return null;
+  return React.createElement(MarcLembretes, { lista: marc.lista, mudarEstado: marc.mudarEstado, onAbrir: onAbrir, estilo: { marginBottom: 16, maxHeight: 'none' } });
 }
 function MarcacoesScreen() {
   const toast = useToast();
