@@ -108,6 +108,8 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 - Som das notificações: um só `AudioContext` (`bspAudio`), desbloqueado
   no primeiro toque (`bspDesbloquearSom`). Nunca criar um por aviso.
 - Abrir uma conversa directa de qualquer ecrã: `bspConversaCom(id)`.
+- Enter no Chat (30-09-2026): usar `bspEnterEnvia(e)`. Em ecrãs tácteis o
+  Enter muda de linha e envia-se com o botão; no computador, Enter envia.
 - Chamadas: `bspToqueChamada('recebida' | 'a-chamar')`, sempre com som,
   mesmo com o som das notificações desligado.
 - Notificações de mensagens lidas saem com `bspSemNotifsLidas(s)`. Esta

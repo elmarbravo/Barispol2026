@@ -1996,3 +1996,15 @@ sabendo que há biométrico.
   da viagem anterior do mesmo dia que acabou nesses km. No Histórico, na
   viagem em curso e nos avisos do #transporte.
 - Testado com servidor simulado, como o motorista.
+
+## 3-bh. Chat: várias linhas no telemóvel (30-09-2026)
+
+- Pedido do Elmar: no telemóvel o Enter enviava logo e não havia forma de
+  escrever várias linhas (não há Shift).
+- `bspEnterEnvia(e)` / `bspEcraTactil()`: em ecrãs tácteis (telemóvel,
+  tablet) o Enter muda de linha e a mensagem sai com o botão Enviar. No
+  computador continua: Enter envia, Shift+Enter muda de linha. Vale para a
+  caixa do Chat e para a edição de uma mensagem.
+- Testado com servidor simulado: no computador, Enter envia e Shift+Enter
+  muda de linha; no telemóvel, Enter muda de linha e o botão envia as
+  duas linhas juntas.

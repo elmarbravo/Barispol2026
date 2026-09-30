@@ -8326,7 +8326,7 @@ function ChatScreen({
       onChange: e => setEditando(v => Object.assign({}, v, { texto: e.target.value })),
       onKeyDown: e => {
         if (e.key === 'Escape') setEditando(null);
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if (bspEnterEnvia(e)) {
           e.preventDefault();
           const err = actions.editarMensagem(convKey, m.id, editando.texto);
           if (err) toast(err); else setEditando(null);
@@ -8694,7 +8694,7 @@ function ChatScreen({
         if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); escolherMencao(candidatosMencao[Math.min(mencaoSel, candidatosMencao.length - 1)]); return; }
         if (e.key === 'Escape') { e.preventDefault(); setMencao(null); return; }
       }
-      if (e.key === 'Enter' && !e.shiftKey) {
+      if (bspEnterEnvia(e)) {
         e.preventDefault();
         send();
       }
@@ -8836,7 +8836,7 @@ function ChatScreen({
       fontSize: 11,
       color: 'var(--text-3)'
     }
-  }, "Enter para enviar · Shift+Enter quebra linha"), React.createElement("button", {
+  }, bspEcraTactil() ? "Enter muda de linha · envie com o botão" : "Enter para enviar · Shift+Enter quebra linha"), React.createElement("button", {
     onClick: send,
     disabled: !draft.trim(),
     style: {
@@ -9022,6 +9022,16 @@ function ChannelInfo({
 /* Com quem se pode abrir uma conversa directa: uma pessoa da equipa com
    conta, que nao seja o proprio (os remetentes «x:Nome» dos historicos do
    WhatsApp nao tem conta). */
+/* Enter no Chat (30-09-2026, pedido do Elmar): no telemovel e no tablet
+   nao ha Shift, e o Enter enviava logo. Em ecras tacteis o Enter muda de
+   linha e envia-se com o botao; no computador, Enter envia e Shift+Enter
+   muda de linha. */
+function bspEcraTactil() {
+  try { return window.matchMedia('(hover: none) and (pointer: coarse)').matches; } catch (e) { return false; }
+}
+function bspEnterEnvia(e) {
+  return e.key === 'Enter' && !e.shiftKey && !e.isComposing && !bspEcraTactil();
+}
 function bspPodeConversar(u) {
   return !!(u && u.id && u.id !== window.CURRENT_USER_ID && String(u.id).indexOf('x:') !== 0 && u.id !== 'self' && !bspEmVerComo());
 }
