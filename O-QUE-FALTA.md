@@ -1977,3 +1977,22 @@ sabendo que há biométrico.
   mensagens (históricos do WhatsApp incluídos).
 - A exportação do grupo «DC - Enfermagem Barispol» de 30-09-2026 (16 a 28
   de Setembro) já estava toda importada. Nada a acrescentar.
+
+## 3-bg. Transporte: viagens de outros dias e percurso com origem (30-09-2026)
+
+- Pedido do Elmar: o motorista lança os dados antigos, com a data certa.
+  - `TranspIniciarModal` tem «Data da viagem» (até hoje). Num dia anterior
+    pede a viagem inteira: tipo, km à saída e à chegada, horas de saída e de
+    chegada (a rota que passa a meia-noite acaba no dia seguinte), destino,
+    quem foi (escalas desse dia) e nota. Não cria «km entre viagens» nem
+    exige km acima do último registo; recusa km que já estão noutra viagem.
+  - Botão «Viagem de outro dia» (abre em ontem).
+  - Abastecimento com data e hora (por omissão, agora).
+  - O aviso no #transporte começa por «📝 Registo de <data>».
+- Rota NCR → Ygeia (30-09-2026): os km estavam certos (Clínica → NCR 13 km,
+  NCR → Ygeia 15 km, Ygeia → Clínica 7 km, sem falhas). O ecrã só mostrava
+  o destino, e «Compras · Ygeia» parecia uma ida da clínica. Agora mostra o
+  percurso (`bspTranspOrigem` / `bspTranspPercurso`): a origem é o destino
+  da viagem anterior do mesmo dia que acabou nesses km. No Histórico, na
+  viagem em curso e nos avisos do #transporte.
+- Testado com servidor simulado, como o motorista.

@@ -204,6 +204,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   aprova). Relatório semanal ao motorista, segunda às 07h45, tipo
   `transporte` da `resumo-matinal` (versão 9), com a Administração em cópia
   e como `reply_to`; `{"previa": true}` mostra sem enviar.
+  Viagens de outros dias (30-09-2026): «Data da viagem» no
+  `TranspIniciarModal` (viagem inteira de uma vez); abastecimento com data e
+  hora. Percurso «origem → destino» por `bspTranspPercurso`.
 - «Ver como» (28-09-2026): `bspEmVerComo()` é só leitura. Qualquer escrita
   nova ao servidor tem de passar por `bspGetClient()` (que a bloqueia) ou
   verificar `bspEmVerComo()`; funções RPC novas que só lêem vão para
