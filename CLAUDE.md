@@ -201,6 +201,11 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   novidade por área sem a escala do mês seguinte publicada
   (`bsp_escalas_responsaveis`, `bsp_escalas_alertar`, cron
   `bsp-escalas-alerta`); no Início, `EscalasPorPublicarCartao`.
+  Visto da Direcção Clínica (30-09-2026, `escalas-visto.sql`): u14 edita
+  todas as áreas e dá o visto (`bsp_escala_dar_visto`); sem visto a escala
+  não está em vigor (`bsp_escala_em_vigor` / `bspEscalaEmVigor`). Qualquer
+  consumidor novo das escalas usa só as que estão em vigor. Mudar turnos ou
+  dias apaga o visto.
 - Transporte (29-09-2026, `transporte.sql`): `transporte_viagens`,
   `transporte_abastecimentos`, `transporte_zonas`; acesso
   `bspVeTransporte`/`bsp_ve_transporte` (gestão e cargo «motorista»).

@@ -1075,7 +1075,7 @@ const USERS = [{
   id: 'u9',
   name: "Filomena Silva",
   short: 'FS',
-  role: "",
+  role: "Chefe de Enfermagem",
   dept: "Enfermagem",
   email: "filomena.silva@barispol.com",
   phone: '',
@@ -1142,7 +1142,7 @@ const USERS = [{
   id: 'u13',
   name: "Rosa Queirós",
   short: 'RQ',
-  role: "",
+  role: "Chefe do Laboratório",
   dept: "Laboratório",
   email: "r.queiros@barispol.com",
   phone: '',
@@ -1186,7 +1186,7 @@ const USERS = [{
   id: 'u17',
   name: "Solange Orlando",
   short: 'SO',
-  role: "",
+  role: "Chefe da Farmácia",
   dept: "Farmácia",
   email: "solange.orlando@barispol.com",
   phone: '',
@@ -6655,6 +6655,9 @@ function DashboardScreen({
   }), bspAreaChave(currentUser && currentUser.dept) === 'recepcao' && React.createElement(MarcLembretesInicio, {
     onAbrir: () => onSwitch && onSwitch('marcacoes')
   }), React.createElement(EscalasPorPublicarCartao, {
+    currentUser: currentUser,
+    onAbrir: () => onSwitch && onSwitch('escalas')
+  }),React.createElement(EscalasPorAprovarCartao, {
     currentUser: currentUser,
     onAbrir: () => onSwitch && onSwitch('escalas')
   }), React.createElement(DocsPorLerCartao, {
@@ -20686,8 +20689,25 @@ const BSP_ESCALA_CORES_PAPEL = ['#2291CE', '#EB6834', '#1BAF7A', '#EDA100'];
 function bspEditaEscala(u, area) {
   if (!u || !area || bspESocio(u)) return false;
   if (bspGereMarcacoes(u)) return true;
+  /* A Direccao Clinica altera as escalas de todas as areas (30-09-2026). */
+  if (BSP_RELATORIOS_DIRECCAO_CLINICA.indexOf(u.id) !== -1) return true;
   if (bspAreaChave(u.dept) === area && BSP_ESCALA_CHEFIA.test(String(u.role || ''))) return true;
   return (window.USERS || []).some(x => x && x.superior === u.id && bspAreaChave(x.dept) === area);
+}
+/* Visto da Direccao Clinica (30-09-2026, escalas-visto.sql): uma escala
+   publicada so entra em vigor com o visto; as publicadas antes da regra
+   (exige_visto = false) ficam em vigor ate serem alteradas. */
+function bspDaVistoEscala(u) {
+  return !!u && BSP_RELATORIOS_DIRECCAO_CLINICA.indexOf(u.id) !== -1 && !bspEmVerComo();
+}
+function bspEscalaEmVigor(e) {
+  return !!e && e.estado === 'publicada' && (!!e.visto_em || e.exige_visto === false);
+}
+function bspEscalaVistoTxt(e) {
+  if (!e || e.estado !== 'publicada') return '';
+  if (e.visto_em) return 'Visto da Direcção Clínica: ' + ((window.userById(e.visto_por) || {}).name || bspNomeCurto(e.visto_por || '')) + ', ' + bspDataExacta(new Date(e.visto_em));
+  if (e.exige_visto === false) return 'Em vigor (publicada antes do visto obrigatório)';
+  return 'Aguarda o visto da Direcção Clínica: ainda não está em vigor';
 }
 function bspVeEscala(u, area) {
   if (!u || bspESocio(u)) return false;
@@ -20916,8 +20936,9 @@ function bspEscalaHtml(e) {
     '<div>' + legenda + '</div>' +
     '<div class="baixo"><table class="r"><thead><tr><th>Pessoa</th><th>Dias</th><th>Horas</th><th>Fins-de-semana</th></tr></thead><tbody>' + resumo + '</tbody></table>' +
     '<div class="notas">' + (e.notas ? '<b>Notas</b><br>' + bspEscHtml(e.notas) : '') + '</div>' +
-    '<div class="ass"><div>' + bspEscHtml(quem || 'O(A) responsável') + '</div></div></div>' +
-    '<div class="rod"><span>' + bspEscHtml(estado) + '</span><span>Workspace Barispol</span></div>' +
+    '<div class="ass"><div>' + bspEscHtml(quem || 'O(A) responsável') + '</div></div>' +
+    '<div class="ass"><div>' + (e.visto_em ? 'Visto: ' + bspEscHtml((window.userById(e.visto_por) || {}).name || '') + '<br>Direcção Clínica · ' + bspEscHtml(bspDataExacta(new Date(e.visto_em))) : 'Visto da Direcção Clínica') + '</div></div></div>' +
+    '<div class="rod"><span>' + bspEscHtml(estado) + (e.estado === 'publicada' ? ' · ' + bspEscHtml(bspEscalaVistoTxt(e)) : '') + '</span><span>Workspace Barispol</span></div>' +
     '</body></html>';
 }
 /* O corpo do e-mail: os turnos da pessoa (quando ha pessoa) e a escala
@@ -21009,6 +21030,7 @@ async function bspGuardarEscala(e) {
   const cl = bspGetClient();
   if (!cl) return { erro: 'O servidor não está ligado.' };
   const campos = { area: e.area, mes: e.mes, turnos: e.turnos || [], dias: e.dias || {}, notas: e.notas || '', estado: e.estado || 'rascunho' };
+  if (Array.isArray(e.enviar_para)) campos.enviar_para = e.enviar_para;
   const r = e.id ? await cl.from('escalas').update(campos).eq('id', e.id).select('*') : await cl.from('escalas').insert(campos).select('*');
   if (r.error) return { erro: r.error.message || 'Não foi possível gravar.' };
   if (!r.data || !r.data.length) return { erro: 'não tem permissão para mudar esta escala.' };
@@ -21156,14 +21178,15 @@ function EscalaPublicarModal({ open, escala, analise, onClose, onPublicar }) {
     open, onClose, width: 520, title: jaPublicada ? 'Enviar a escala de novo' : 'Publicar a escala',
     footer: React.createElement(React.Fragment, null,
       React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: onClose }, 'Cancelar'),
-      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: () => { onPublicar(enviar ? dest : []); onClose(); } }, jaPublicada ? (enviar ? 'Enviar' : 'Fechar') : (enviar ? 'Publicar e enviar' : 'Publicar')))
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: () => { onPublicar(enviar ? dest : []); onClose(); } }, jaPublicada ? (enviar ? 'Enviar' : 'Fechar') : bspDaVistoEscala(window.userById(window.CURRENT_USER_ID)) ? 'Publicar com o meu visto' : 'Publicar e pedir visto'))
   }, React.createElement("div", { style: { padding: 20, display: 'flex', flexDirection: 'column', gap: 14, fontSize: 13.5, color: 'var(--text-1)', lineHeight: 1.5 } },
     analise.avisos.length > 0 && React.createElement("div", { style: { borderLeft: '4px solid var(--perigo)', background: 'var(--surface-2)', padding: '10px 12px', borderRadius: 6 } },
       React.createElement("b", { style: { color: 'var(--perigo)' } }, 'Antes de publicar, veja:'),
       React.createElement("ul", { style: { margin: '6px 0 0', paddingLeft: 18 } }, analise.avisos.slice(0, 6).map((a, i) => React.createElement("li", { key: i }, a.texto)))),
     React.createElement("label", { style: { display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer' } },
       React.createElement("input", { type: 'checkbox', checked: enviar, onChange: e => setEnviar(e.target.checked), style: { marginTop: 3 } }),
-      React.createElement("span", null, 'Enviar por e-mail a cada pessoa, com os seus turnos e a escala completa (' + dest.length + (dest.length === 1 ? ' pessoa' : ' pessoas') + ').')),
+      React.createElement("span", null, 'Enviar por e-mail a cada pessoa, com os seus turnos e a escala completa (' + dest.length + (dest.length === 1 ? ' pessoa' : ' pessoas') + ')' + (bspEscalaEmVigor(escala) || bspDaVistoEscala(window.userById(window.CURRENT_USER_ID)) ? '.' : ', quando a Direcção Clínica der o visto.'))),
+    !jaPublicada && !bspDaVistoEscala(window.userById(window.CURRENT_USER_ID)) && React.createElement("p", { style: { margin: 0, fontSize: 12.5, color: 'var(--text-2)' } }, 'Depois de publicada, a escala só entra em vigor com o visto da Direcção Clínica, que recebe o pedido por e-mail.'),
     enviar && React.createElement("label", { style: { display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', marginLeft: 24 } },
       React.createElement("input", { type: 'checkbox', checked: aArea, onChange: e => setAArea(e.target.checked) }),
       'Também a quem é da área e não tem turnos')));
@@ -21174,7 +21197,10 @@ function EscalasScreen({ currentUser }) {
   const eu = currentUser || window.userById(window.CURRENT_USER_ID);
   const areas = bspEscalaAreas().filter(a => bspVeEscala(eu, a.chave));
   const minha = bspAreaChave(eu && eu.dept);
+  const abrir = window.__bspEscalaAbrir || null;
+  React.useEffect(() => { window.__bspEscalaAbrir = null; }, []);
   const [area, setArea] = React.useState(() => {
+    if (abrir && areas.some(a => a.chave === abrir.area)) return abrir.area;
     let g = '';
     try { g = localStorage.getItem('bsp-escala-area') || ''; } catch (e) {}
     if (g && areas.some(a => a.chave === g)) return g;
@@ -21183,7 +21209,7 @@ function EscalasScreen({ currentUser }) {
   });
   React.useEffect(() => { try { localStorage.setItem('bsp-escala-area', area); } catch (e) {} }, [area]);
   const hoje = bspDataLocalISO(new Date());
-  const [mes, setMes] = React.useState(hoje.slice(0, 8) + '01');
+  const [mes, setMes] = React.useState(abrir && abrir.mes ? abrir.mes : hoje.slice(0, 8) + '01');
   const esc = useEscala(area, mes);
   const edita = bspEditaEscala(eu, area);
   const [rasc, setRasc] = React.useState(null);
@@ -21216,7 +21242,7 @@ function EscalasScreen({ currentUser }) {
       const r = await bspGuardarEscala(rasc);
       ocupado.current = false;
       if (r.erro) { setGravacao({ estado: 'erro', quando: null }); toast('Não foi possível gravar a escala: ' + r.erro); return; }
-      setRasc(e => Object.assign({}, e, { id: r.escala.id, publicada_em: r.escala.publicada_em, publicada_por: r.escala.publicada_por, alterado_em: r.escala.alterado_em, alterado_por: r.escala.alterado_por }));
+      setRasc(e => Object.assign({}, e, { id: r.escala.id, publicada_em: r.escala.publicada_em, publicada_por: r.escala.publicada_por, alterado_em: r.escala.alterado_em, alterado_por: r.escala.alterado_por, visto_em: r.escala.visto_em, visto_por: r.escala.visto_por, exige_visto: r.escala.exige_visto }));
       setGravacao({ estado: versao.current === v ? 'gravado' : 'por-gravar', quando: new Date() });
     }, 800);
     return () => clearTimeout(t);
@@ -21228,22 +21254,53 @@ function EscalasScreen({ currentUser }) {
     alvo.forEach(x => { dias[x] = JSON.parse(JSON.stringify(x === iso ? d : Object.assign({}, d, { _n: (dias[x] || {})._n || '' }))); });
     return Object.assign({}, e, { dias });
   });
+  /* Envia a escala a quem foi escolhido ao publicar, com o visto. So
+     depois do visto: antes disso a escala nao esta em vigor. */
+  const enviarEscala = (final, dest) => {
+    const titulo = 'Escala de serviço: ' + bspEscalaAreaNome(final.area) + ', ' + bspMesExtenso(final.mes);
+    const visto = '<p style="margin:0 0 14px;font-family:' + BSP_EMAIL_FONTE + ';font-size:13px;color:#4E5366">' + bspEscHtml(bspEscalaVistoTxt(final)) + '.</p>';
+    dest.forEach(id => {
+      const u = window.userById(id);
+      if (u && u.email) bspSendEmail(u.email, '[Workspace] ' + titulo, bspEmailWrap(titulo, visto + bspEscalaEmailCorpo(final, id), 'escalas', 'Ver a escala no Workspace', 'Escala de serviço', true));
+    });
+    const quem = final.publicada_por && window.userById(final.publicada_por);
+    if (quem && quem.email && dest.indexOf(quem.id) === -1) bspSendEmail(quem.email, '[Workspace] ' + titulo + ' (cópia)', bspEmailWrap(titulo, visto + bspEscalaEmailCorpo(final, null), 'escalas', 'Ver a escala no Workspace', 'Escala de serviço', true));
+  };
+  const darVisto = async (alvo, dest) => {
+    const cl = bspGetClient();
+    if (!cl) return null;
+    const r = await cl.rpc('bsp_escala_dar_visto', { p_id: alvo.id });
+    if (r.error || !r.data || !r.data.length) { toast('Não foi possível dar o visto: ' + (r.error ? r.error.message : 'sem resposta')); return null; }
+    const final = Object.assign({}, alvo, r.data[0]);
+    setRasc(final);
+    const lista = dest || (Array.isArray(final.enviar_para) ? final.enviar_para : []);
+    enviarEscala(final, lista);
+    toast('Visto dado. A escala está em vigor' + (lista.length ? ' e seguiu para ' + lista.length + (lista.length === 1 ? ' pessoa.' : ' pessoas.') : '.'));
+    return final;
+  };
   const publicar = async dest => {
-    const nova = Object.assign({}, rasc, { estado: 'publicada' });
+    const nova = Object.assign({}, rasc, { estado: 'publicada', enviar_para: dest });
     setRasc(nova);
     const r = await bspGuardarEscala(nova);
     if (r.erro) { toast('Não foi possível publicar: ' + r.erro); return; }
     const final = Object.assign({}, nova, r.escala);
     setRasc(final);
     setGravacao({ estado: 'gravado', quando: new Date() });
-    const titulo = 'Escala de serviço: ' + bspEscalaAreaNome(final.area) + ', ' + bspMesExtenso(final.mes);
-    dest.forEach(id => {
+    if (bspEscalaEmVigor(final)) {
+      enviarEscala(final, dest);
+      toast(dest.length ? 'Escala enviada a ' + dest.length + (dest.length === 1 ? ' pessoa.' : ' pessoas.') : 'Escala em vigor.');
+      return;
+    }
+    /* Quem da o visto a publica com o visto. */
+    if (bspDaVistoEscala(eu)) { await darVisto(final, dest); return; }
+    const titulo = 'Escala de ' + bspEscalaAreaNome(final.area) + ', ' + bspMesExtenso(final.mes) + ': pedido de visto';
+    BSP_RELATORIOS_DIRECCAO_CLINICA.forEach(id => {
       const u = window.userById(id);
-      if (u && u.email) bspSendEmail(u.email, '[Workspace] ' + titulo, bspEmailWrap(titulo, bspEscalaEmailCorpo(final, id), 'escalas', 'Ver a escala no Workspace', 'Escala de serviço', true));
+      if (u && u.email) bspSendEmail(u.email, '[Workspace] ' + titulo, bspEmailWrap(titulo,
+        bspEmailTexto('A escala de ' + bspEscalaAreaNome(final.area) + ' de ' + bspMesExtenso(final.mes) + ' foi publicada por ' + ((eu && eu.name) || 'um chefe de área') + '.\n\nSó entra em vigor com o seu visto. Abra o menu Escalas, reveja-a e carregue em «Dar visto».'),
+        'escalas', 'Ver e dar visto', 'Escalas'));
     });
-    const meu = window.userById(window.CURRENT_USER_ID);
-    if (meu && meu.email && dest.indexOf(meu.id) === -1 && dest.length) bspSendEmail(meu.email, '[Workspace] ' + titulo + ' (cópia)', bspEmailWrap(titulo, bspEscalaEmailCorpo(final, null), 'escalas', 'Ver a escala no Workspace', 'Escala de serviço', true));
-    toast(dest.length ? 'Escala publicada e enviada a ' + dest.length + (dest.length === 1 ? ' pessoa.' : ' pessoas.') : 'Escala publicada.');
+    toast('Escala publicada. Entra em vigor com o visto da Direcção Clínica' + (dest.length ? '; nessa altura segue para ' + dest.length + (dest.length === 1 ? ' pessoa.' : ' pessoas.') : '.'));
   };
   const e = rasc;
   const analise = React.useMemo(() => e ? bspEscalaAnalise(e) : { pessoas: [], avisos: [], vazios: {} }, [e]);
@@ -21254,6 +21311,7 @@ function EscalasScreen({ currentUser }) {
   const estadoTxt = !e ? '' : e.estado === 'publicada'
     ? 'Publicada' + (e.publicada_por ? ' por ' + bspNomeCurto(e.publicada_por) : '') + (e.publicada_em ? ' a ' + bspDataExacta(new Date(e.publicada_em)) : '') + (alteradaDepois ? ' · alterada depois' : '')
     : 'Rascunho: a equipa ainda não a vê';
+  const emVigor = bspEscalaEmVigor(e);
   const gravTxt = gravacao.estado === 'a-gravar' ? 'A gravar…' : gravacao.estado === 'por-gravar' ? 'Por gravar…' : gravacao.estado === 'erro' ? 'Não gravou' : gravacao.quando ? 'Gravado a ' + bspDataExacta(gravacao.quando) : '';
   /* Uma celula do dia: os turnos com as pessoas; a vermelho o turno sem
      ninguem. */
@@ -21326,6 +21384,11 @@ function EscalasScreen({ currentUser }) {
   const lateral = e && podeVerRascunho && React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, flex: 'none', width: isMobile ? 'auto' : 300, overflow: isMobile ? 'visible' : 'auto', minHeight: 0 } },
     React.createElement(Card, { pad: 14 },
       React.createElement("div", { style: { fontSize: 12, color: e.estado === 'publicada' ? 'var(--sucesso)' : 'var(--text-3)', fontWeight: 600 } }, estadoTxt),
+      e.estado === 'publicada' && React.createElement("div", { style: { marginTop: 8, padding: '8px 10px', border: '1px solid ' + (emVigor ? 'var(--sucesso)' : 'var(--perigo)'), borderRadius: 6, fontSize: 12.5, fontWeight: 700, color: emVigor ? 'var(--sucesso)' : 'var(--perigo)', lineHeight: 1.4 } },
+        (e.visto_em ? '✓ ' : emVigor ? '' : '⏳ ') + bspEscalaVistoTxt(e)),
+      e.estado === 'publicada' && !e.visto_em && bspDaVistoEscala(eu) && React.createElement("button", {
+        onClick: () => { if (window.confirm('Dar o visto à escala de ' + nomeArea + ', ' + bspMesExtenso(e.mes) + '?\n\nFica registado com o seu nome, o dia e a hora, e a escala entra em vigor.')) darVisto(e); },
+        style: Object.assign(bspEscBotao(true), { marginTop: 8, width: '100%', justifyContent: 'center' }) }, React.createElement(I.Check, { size: 14 }), 'Dar visto'),
       React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 4, marginTop: 10 } },
         (e.turnos || []).map((t, i) => React.createElement("div", { key: t.id, style: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'var(--text-1)' } },
           React.createElement("span", { style: { width: 10, height: 10, background: 'var(' + BSP_ESCALA_CORES[i % 4] + ')', flex: 'none' } }),
@@ -21442,6 +21505,30 @@ function EscalasPorPublicarCartao({ currentUser, onAbrir }) {
           'Prazo: ' + bspDataCurta(fim) + (faltam > 0 ? ' (faltam ' + faltam + (faltam === 1 ? ' dia)' : ' dias)') : ' (hoje)'))),
       React.createElement(Button, { variant: 'primary', size: 'sm', onClick: onAbrir }, 'Fazer escalas')));
 }
+/* Escalas publicadas a espera do visto (30-09-2026): no Inicio da
+   Direccao Clinica, do mes corrente e do seguinte. */
+function EscalasPorAprovarCartao({ currentUser, onAbrir }) {
+  const [lista, setLista] = React.useState(null);
+  const pode = bspDaVistoEscala(currentUser);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl || !pode) return;
+    let vivo = true;
+    const este = bspDataLocalISO(new Date()).slice(0, 8) + '01';
+    cl.from('escalas').select('id, area, mes, estado, visto_em, exige_visto, publicada_por, publicada_em').eq('estado', 'publicada').in('mes', [este, bspSomarMeses(este, 1)])
+      .then(r => { if (vivo && !r.error) setLista((r.data || []).filter(e => !bspEscalaEmVigor(e))); });
+    return () => { vivo = false; };
+  }, [pode]);
+  if (!pode || !lista || !lista.length) return null;
+  return React.createElement(Card, { pad: 16, style: { marginBottom: 16, borderLeft: '4px solid var(--perigo)' } },
+    React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' } },
+      React.createElement("div", { style: { flex: '1 1 220px', minWidth: 0 } },
+        React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)' } }, lista.length === 1 ? 'Uma escala à espera do seu visto' : lista.length + ' escalas à espera do seu visto'),
+        React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 2 } },
+          lista.map(e => bspEscalaAreaNome(e.area) + ' · ' + bspMesExtenso(e.mes)).join('; ')),
+        React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2 } }, 'Sem o seu visto, a escala não entra em vigor.')),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: () => { window.__bspEscalaAbrir = { area: lista[0].area, mes: lista[0].mes }; onAbrir(); } }, 'Ver e dar visto')));
+}
 function EscalaHojeCartao({ onAbrir }) {
   const [lista, setLista] = React.useState(null);
   React.useEffect(() => {
@@ -21449,7 +21536,7 @@ function EscalaHojeCartao({ onAbrir }) {
     if (!cl) return;
     let vivo = true;
     const mes = bspDataLocalISO(new Date()).slice(0, 8) + '01';
-    cl.from('escalas').select('area, mes, turnos, dias').eq('mes', mes).eq('estado', 'publicada').then(r => { if (vivo && !r.error) setLista(r.data || []); });
+    cl.from('escalas').select('area, mes, turnos, dias, estado, visto_em, exige_visto').eq('mes', mes).eq('estado', 'publicada').then(r => { if (vivo && !r.error) setLista((r.data || []).filter(bspEscalaEmVigor)); });
     return () => { vivo = false; };
   }, []);
   const hoje = bspDataLocalISO(new Date());

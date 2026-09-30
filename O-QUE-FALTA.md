@@ -2064,3 +2064,33 @@ Por decidir pelo Elmar (nada mudado):
 
 Guia do Workspace (30-09-2026): 16 imagens (mapa dos menus e uma ficha por
 menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
+
+## 3-bk. Escalas: visto da Direcção Clínica (30-09-2026)
+
+- Pedido do Elmar: a Direcção Clínica altera as escalas de todas as áreas e
+  dá o visto a cada escala publicada (assinatura digital com dia e hora).
+  Sem visto, a escala não entra em vigor. `escalas-visto.sql` (aplicado):
+  - colunas `visto_em`, `visto_por`, `exige_visto`, `enviar_para`;
+  - `bsp_edita_escala`: + `bsp_le_areas_medicas()` (u14 edita todas);
+  - `bsp_escala_dar_visto(id)`: só u14, só escala publicada; o gatilho
+    `bsp_escalas_alterado` impede gravar o visto por outra via e apaga-o
+    quando mudam turnos, dias, estado, mês ou área (as notas não);
+  - `bsp_escala_em_vigor(estado, visto_em, exige_visto)`; o transporte das
+    22:30 (`bsp_transporte_saidas`) só usa escalas em vigor;
+  - as escalas publicadas antes da regra (Farmácia de Outubro; Laboratório
+    e Recepção de Setembro) ficaram com `exige_visto = false`: em vigor até
+    serem alteradas;
+  - alertas de 20 a 29: aos chefes diz que a escala precisa de visto; à
+    Direcção Clínica, «Escalas de <mês> à espera do seu visto».
+- Ecrã: estado «Aguarda o visto…» / «Visto da Direcção Clínica: nome, data
+  e hora»; botão «Dar visto» (só u14); ao publicar, o chefe «Publica e pede
+  visto» (e-mail ao Osvaldo) e a equipa só recebe a escala depois do visto;
+  o Osvaldo «Publica com o meu visto». Impressão com o visto no rodapé e na
+  assinatura. Início do Osvaldo: `EscalasPorAprovarCartao` (abre a escala).
+  «De serviço hoje» só mostra escalas em vigor.
+- Lista embutida `USERS`: cargos de chefia da Solange (u17), Filomena (u9)
+  e Rosa Queirós (u13), iguais aos do servidor.
+- Testado: no servidor (transacção desfeita), a Solange não consegue pôr o
+  visto; uma alteração apaga-o; o Osvaldo edita todas as áreas e dá o visto.
+  No ecrã: a Rosa publica e só o Osvaldo recebe o pedido; o Osvaldo dá o
+  visto no Início e a escala segue para a equipa com o carimbo.
