@@ -3859,7 +3859,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_e_gestor'];
+const BSP_RPC_LEITURA = ['bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -24383,6 +24383,16 @@ function CrmFunil() {
   const [servico, setServico] = React.useState('');
   const [d, setD] = React.useState(null);
   const [erro, setErro] = React.useState('');
+  /* Marcacoes de todas as vias (01-10-2026, bsp_marc_funil). */
+  const [mf, setMf] = React.useState(null);
+  const veMarc = bspVeMarcacoes(window.userById(window.CURRENT_USER_ID));
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl || !veMarc) return;
+    let vivo = true;
+    cl.rpc('bsp_marc_funil', { p_dias: dias }).then(r => { if (vivo && !r.error) setMf(r.data); });
+    return () => { vivo = false; };
+  }, [dias]);
   React.useEffect(() => {
     const cl = bspGetClient();
     if (!cl) { setErro('O servidor não está ligado neste aparelho.'); return; }
@@ -24458,6 +24468,21 @@ function CrmFunil() {
             React.createElement("td", { style: Object.assign({}, td, { fontWeight: 600 }) }, r.responsavel),
             React.createElement("td", { style: td }, r.pedidos), React.createElement("td", { style: td }, r.marcados), React.createElement("td", { style: td }, r.vieram),
             React.createElement("td", { style: td }, pct(r.vieram, r.pedidos)), React.createElement("td", { style: td }, min(r.resposta_mediana_min))))))),
+      mf && React.createElement(Card, { pad: 16 },
+        React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: 'var(--text-1)' } }, 'Marcações de todas as vias'),
+        React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', margin: '2px 0 10px' } }, 'Telefone, presencial, WhatsApp e planilha, com data no período.'),
+        React.createElement("div", { style: { display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 13, color: 'var(--text-2)' } },
+          React.createElement("span", null, 'Marcadas: ', React.createElement("b", { style: { color: 'var(--text-1)' } }, mf.total || 0)),
+          React.createElement("span", null, 'Compareceram: ', React.createElement("b", { style: { color: 'var(--text-1)' } }, (mf.compareceu || 0) + ' (' + pct(mf.compareceu, mf.total) + ')')),
+          React.createElement("span", null, 'Faltaram: ', React.createElement("b", { style: { color: 'var(--perigo)' } }, mf.faltou || 0)),
+          React.createElement("span", null, 'Cancelaram: ', React.createElement("b", { style: { color: 'var(--perigo)' } }, mf.cancelou || 0)),
+          React.createElement("span", null, 'Por actualizar (data passada, ainda agendadas): ', React.createElement("b", { style: { color: mf.por_actualizar ? 'var(--perigo)' : 'var(--text-1)' } }, mf.por_actualizar || 0))),
+        (mf.por_origem || []).length > 0 && React.createElement("table", { style: { width: '100%', borderCollapse: 'collapse', marginTop: 10 } },
+          React.createElement("thead", null, React.createElement("tr", null, ['Via', 'Marcadas', 'Compareceram', 'Faltaram ou cancelaram', 'Comparência'].map(h => React.createElement("th", { key: h, style: th }, h)))),
+          React.createElement("tbody", null, mf.por_origem.map(o => React.createElement("tr", { key: o.origem },
+            React.createElement("td", { style: Object.assign({}, td, { fontWeight: 600 }) }, o.origem),
+            React.createElement("td", { style: td }, o.total), React.createElement("td", { style: td }, o.compareceu), React.createElement("td", { style: td }, o.faltou),
+            React.createElement("td", { style: td }, pct(o.compareceu, o.total))))))),
       semanas.length > 1 && React.createElement(Card, { pad: 16 },
         React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } }, 'Semana a semana'),
         React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 6 } }, semanas.map(s => React.createElement("div", { key: s.semana, style: { display: 'grid', gridTemplateColumns: '92px minmax(0,1fr) 120px', gap: 8, alignItems: 'center', fontSize: 12 } },

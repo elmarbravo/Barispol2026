@@ -71,3 +71,43 @@ revoke all on function public.crm_funil(integer, text, text) from public, anon;
 grant execute on function public.crm_funil(integer, text, text) to authenticated;
 
 notify pgrst, 'reload schema';
+
+-- Funil das marcações, todas as vias (01-10-2026): marcações com data no
+-- período, por estado e por origem (WhatsApp, telefone, presencial,
+-- planilha). «Por actualizar» = data já passada e ainda «Agendada» ou
+-- «Confirmada». Só quem vê as marcações (bsp_ve_marcacoes).
+create or replace function public.bsp_marc_funil(p_dias integer default 30)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path to 'public'
+as $function$
+declare
+  hoje date := (now() at time zone 'Africa/Luanda')::date;
+  desde date := hoje - greatest(1, least(coalesce(p_dias, 30), 400));
+begin
+  if not public.bsp_ve_marcacoes() then raise exception 'Sem acesso às marcações.'; end if;
+  return (
+    with m as (
+      select coalesce(nullif(origem, ''), 'Sem origem') origem, estado, data_marcada
+        from public.marcacoes where data_marcada between desde and hoje
+    )
+    select jsonb_build_object(
+      'total', (select count(*) from m),
+      'compareceu', (select count(*) from m where estado = 'Compareceu'),
+      'faltou', (select count(*) from m where estado = 'Faltou'),
+      'cancelou', (select count(*) from m where estado = 'Cancelou'),
+      'remarcado', (select count(*) from m where estado = 'Remarcado'),
+      'por_actualizar', (select count(*) from m where estado in ('Agendada', 'Confirmada') and data_marcada < hoje),
+      'hoje_em_aberto', (select count(*) from m where estado in ('Agendada', 'Confirmada') and data_marcada = hoje),
+      'por_origem', (select coalesce(jsonb_agg(x order by (x->>'total')::int desc), '[]'::jsonb) from (
+        select jsonb_build_object('origem', origem, 'total', count(*),
+          'compareceu', count(*) filter (where estado = 'Compareceu'),
+          'faltou', count(*) filter (where estado in ('Faltou', 'Cancelou'))) x
+        from m group by origem) o)));
+end $function$;
+revoke all on function public.bsp_marc_funil(integer) from public, anon;
+grant execute on function public.bsp_marc_funil(integer) to authenticated;
+
+notify pgrst, 'reload schema';

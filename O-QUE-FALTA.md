@@ -2335,3 +2335,9 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
 - Aviso de 15 minutos: para a Recepção, no horário 07h30–22h00, um aviso no
   sino e no aparelho por cada pedido «Novo» sem resposta de uma pessoa há
   mais de 15 min (até 6 h). Verifica de 3 em 3 min (`crm_pedidos(1)`).
+- Funil das marcações, todas as vias (CRM → Funil de vendas, só para quem
+  vê as marcações): `bsp_marc_funil(dias)` em `crm-funil.sql` (aplicado,
+  testado: Recepção vê, Laboratório recusado). Marcadas, compareceram,
+  faltaram, cancelaram, «por actualizar» (data passada e ainda agendadas) e
+  por via. Em 01-10-2026, nos últimos 60 dias: 144 marcadas, 81
+  compareceram, 43 por actualizar.
