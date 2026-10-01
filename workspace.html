@@ -4254,6 +4254,76 @@ function bspCarregarPdfJs() {
   });
   return bspPdfJs;
 }
+/* Word dentro do Workspace (01-10-2026, pedido do Elmar): .docx abre no
+   mesmo visor dos PDF, com o docx-preview (Apache 2.0) e o JSZip (MIT),
+   em vendor/docx, carregados so quando se abre o primeiro Word. O .doc
+   antigo (Word 97-2003) nao se consegue mostrar: as conversas recusam-no
+   (enviarFicheiros) e o Drive guarda-o para descarregar. */
+const BSP_WORD = /\.docx([?#]|$)/i;
+const BSP_WORD_ANTIGO = /\.doc([?#]|$)/i;
+function bspVerWord(url, nome) {
+  try {
+    window.dispatchEvent(new CustomEvent('bsp-ver-imagem', { detail: { url: url, nome: nome || '', word: true } }));
+  } catch (e) {
+    window.open(url, '_blank', 'noopener');
+  }
+}
+let bspDocxJs = null;
+function bspCarregarScript(src) {
+  return new Promise((ok, falha) => {
+    const sc = document.createElement('script');
+    sc.src = src;
+    sc.onload = ok;
+    sc.onerror = () => falha(new Error('Não foi possível carregar ' + src));
+    document.head.appendChild(sc);
+  });
+}
+function bspCarregarDocx() {
+  if (window.docx && window.docx.renderAsync) return Promise.resolve(window.docx);
+  if (bspDocxJs) return bspDocxJs;
+  bspDocxJs = (window.JSZip ? Promise.resolve() : bspCarregarScript('vendor/docx/jszip.min.js'))
+    .then(() => bspCarregarScript('vendor/docx/docx-preview.min.js'))
+    .then(() => { if (!window.docx || !window.docx.renderAsync) throw new Error('Leitor de Word indisponível.'); return window.docx; })
+    .catch(e => { bspDocxJs = null; throw e; });
+  return bspDocxJs;
+}
+function LeitorWord({ url }) {
+  const caixa = React.useRef(null);
+  const [estado, setEstado] = React.useState('A abrir o documento…');
+  const [zoom, setZoom] = React.useState(1);
+  const ajustar = React.useCallback(() => {
+    const el = caixa.current;
+    const w = el && el.querySelector('.docx-wrapper');
+    if (!w) return;
+    w.style.zoom = '';
+    const natural = w.scrollWidth || 1;
+    const cabe = Math.min(1, (el.clientWidth - 8) / natural);
+    w.style.zoom = String(Math.max(0.2, cabe * zoom));
+  }, [zoom]);
+  React.useEffect(() => {
+    let vivo = true;
+    setEstado('A abrir o documento…');
+    Promise.all([bspCarregarDocx(), fetch(url).then(r => { if (!r.ok) throw new Error('O servidor respondeu ' + r.status + '.'); return r.blob(); })])
+      .then(([docx, blob]) => {
+        if (!vivo || !caixa.current) return;
+        caixa.current.innerHTML = '';
+        return docx.renderAsync(blob, caixa.current, null, { inWrapper: true, breakPages: true, ignoreLastRenderedPageBreak: true, useBase64URL: true, renderHeaders: true, renderFooters: true });
+      })
+      .then(() => { if (vivo) { setEstado(''); setTimeout(ajustar, 0); } })
+      .catch(e => { if (vivo) setEstado('Não foi possível abrir o documento. ' + (e && e.message || '')); });
+    return () => { vivo = false; };
+  }, [url]);
+  React.useEffect(() => { if (!estado) ajustar(); }, [zoom, estado]);
+  React.useEffect(() => { const f = () => ajustar(); window.addEventListener('resize', f); return () => window.removeEventListener('resize', f); }, [ajustar]);
+  const bz = { height: 34, minWidth: 40, padding: '0 12px', borderRadius: 17, border: 'none', background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' };
+  return React.createElement("div", { onClick: e => e.stopPropagation(), style: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' } },
+    estado ? React.createElement("div", { style: { color: '#fff', textAlign: 'center', padding: 30, fontSize: 14 } }, estado)
+      : React.createElement("div", { style: { display: 'flex', gap: 8, justifyContent: 'center', padding: '0 0 8px' } },
+        React.createElement("button", { onClick: () => setZoom(z => Math.max(0.5, +(z - 0.25).toFixed(2))), style: bz, 'aria-label': 'Reduzir' }, '−'),
+        React.createElement("span", { style: { color: '#fff', fontSize: 13, alignSelf: 'center', minWidth: 48, textAlign: 'center' } }, Math.round(zoom * 100) + '%'),
+        React.createElement("button", { onClick: () => setZoom(z => Math.min(3, +(z + 0.25).toFixed(2))), style: bz, 'aria-label': 'Ampliar' }, '+')),
+    React.createElement("div", { ref: caixa, style: { flex: 1, minHeight: 0, overflow: 'auto', padding: '0 4px calc(env(safe-area-inset-bottom, 0px) + 14px)', WebkitOverflowScrolling: 'touch', display: estado && estado.indexOf('Não') === 0 ? 'none' : 'block' } }));
+}
 function LeitorPdf({ url }) {
   const caixa = React.useRef(null);
   const [estado, setEstado] = React.useState('A abrir o PDF…');
@@ -4345,7 +4415,7 @@ function VisorImagem() {
   return ReactDOM.createPortal(React.createElement("div", {
     onClick: fechar,
     style: {
-      position: 'fixed', inset: 0, zIndex: 100001, background: img.pdf ? 'rgb(6,10,20)' : 'rgba(6,10,20,.92)',
+      position: 'fixed', inset: 0, zIndex: 100001, background: img.pdf || img.word ? 'rgb(6,10,20)' : 'rgba(6,10,20,.92)',
       display: 'flex', flexDirection: 'column'
     }
   }, React.createElement("div", {
@@ -4360,7 +4430,7 @@ function VisorImagem() {
     href: img.url, download: img.nome || 'imagem', target: '_blank', rel: 'noopener noreferrer', style: botao
   }, "Guardar"), React.createElement("button", {
     onClick: fechar, style: botao, "aria-label": "Fechar"
-  }, "✕ Fechar")), img.pdf ? React.createElement(LeitorPdf, { url: img.url }) : React.createElement("div", {
+  }, "✕ Fechar")), img.word ? React.createElement(LeitorWord, { url: img.url }) : img.pdf ? React.createElement(LeitorPdf, { url: img.url }) : React.createElement("div", {
     style: {
       flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: '0 10px calc(env(safe-area-inset-bottom, 0px) + 14px)'
@@ -4384,6 +4454,10 @@ async function bspAbrirFicheiro(f, aoFalhar) {
       bspVerPdf(url, f.name);
       return true;
     }
+    if (url && BSP_WORD.test(f.name || f.path || '')) {
+      bspVerWord(url, f.name);
+      return true;
+    }
     if (url) {
       window.open(url, '_blank', 'noopener');
       return true;
@@ -4395,6 +4469,10 @@ async function bspAbrirFicheiro(f, aoFalhar) {
   }
   if (f && f.dataUrl && (BSP_PDF.test(f.name || '') || /^data:application\/pdf/.test(f.dataUrl))) {
     bspVerPdf(f.dataUrl, f.name);
+    return true;
+  }
+  if (f && f.dataUrl && BSP_WORD.test(f.name || '')) {
+    bspVerWord(f.dataUrl, f.name);
     return true;
   }
   if (f && f.dataUrl) {
@@ -7590,7 +7668,12 @@ function ChatScreen({
   const [aCarregar, setACarregar] = React.useState(0);
   const [arrastar, setArrastar] = React.useState(false);
   async function enviarFicheiros(lista, opc) {
-    const fs = Array.from(lista || []).filter(Boolean);
+    const todos = Array.from(lista || []).filter(Boolean);
+    /* Word antigo (.doc) nao abre no Workspace (01-10-2026): nas conversas
+       recusa-se; no Drive pode guardar-se. */
+    const antigos = todos.filter(f => BSP_WORD_ANTIGO.test(f.name || ''));
+    if (antigos.length) window.alert((antigos.length === 1 ? 'O ficheiro ' + antigos[0].name + ' é' : antigos.length + ' ficheiros são') + ' do Word antigo (.doc) e não se abre' + (antigos.length === 1 ? '' : 'm') + ' no Workspace.\n\nNo Word, use «Guardar como» → .docx ou PDF e envie de novo. Para guardar o ficheiro como está, carregue-o no Drive.');
+    const fs = todos.filter(f => !BSP_WORD_ANTIGO.test(f.name || ''));
     if (!fs.length) return;
     if (!bspGetClient()) {
       window.alert('O servidor não está ligado neste dispositivo.');
@@ -22772,7 +22855,7 @@ const BSP_GUIA_FICHAS = [
     faz: [
       ['Carregue ficheiros até 25 MB', 'para a pasta da equipa ou para a sua pasta pessoal.'],
       ['Procure e ordene', 'por nome, data ou tamanho.'],
-      ['Abra PDF e imagens', 'dentro do Workspace, sem descarregar.'],
+      ['Abra PDF, Word (.docx) e imagens', 'dentro do Workspace, sem descarregar.'],
       ['Apague o que carregou;', 'a Direcção e a Coordenação apagam qualquer ficheiro.']
     ],
     quem: 'Toda a equipa. A pasta pessoal só a vê o dono.',

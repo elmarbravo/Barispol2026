@@ -124,7 +124,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 - Imagens abrem em `bspVerImagem(url, nome)` (o `VisorImagem`), nunca
   com `window.open`: na app, isso prende o Workspace.
   PDF abrem em `bspVerPdf(url, nome)` (`LeitorPdf`, PDF.js em
-  `vendor/pdfjs`, 30-09-2026). `bspAbrirFicheiro` escolhe sozinho.
+  `vendor/pdfjs`, 30-09-2026). Word .docx em `bspVerWord(url, nome)`
+  (`LeitorWord`, `vendor/docx`, 01-10-2026); o .doc antigo é recusado nas
+  conversas. `bspAbrirFicheiro` escolhe sozinho.
 - Sem zoom no telemóvel (30-09-2026): `viewport` com `maximum-scale=1,
   user-scalable=no`, `gesturestart` bloqueado e caixas de escrita com 16 px
   (abaixo disso o iPhone amplia). Nada pode passar da largura do ecrã.

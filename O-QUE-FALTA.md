@@ -2201,3 +2201,19 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   para as conversas de origem, com a citação e a data original.
 - Testado: a resposta sai na conversa com a citação; a citação aparece como
   bloco; o botão «Tópico» já não existe.
+
+## 3-br. Word dentro do Workspace; .doc recusado nas conversas (01-10-2026)
+
+- Pedido do Elmar: abrir ficheiros do Word dentro do sistema, como os PDF;
+  se não der, não os aceitar nas conversas, só no Drive.
+- `.docx` abre no visor (`bspVerWord`, `LeitorWord`), com `docx-preview`
+  0.4.1 (Apache 2.0) e JSZip 3.10.2 (MIT), em `vendor/docx`, carregados só
+  no primeiro Word. A página ajusta-se à largura do ecrã; botões − e +.
+  `bspAbrirFicheiro` escolhe sozinho (Chat, Drive, Documentos).
+- `.doc` (Word 97-2003) não se mostra no navegador: `enviarFicheiros`
+  recusa-o nas conversas, com o conselho de guardar como .docx ou PDF; o
+  Drive continua a aceitá-lo (para descarregar).
+- Guia: a ficha do Drive diz «PDF, Word (.docx) e imagens».
+- Testado: .docx com título, texto e tabela abre no computador e no
+  telemóvel (cabe na largura); .doc recusado no Chat com a explicação.
+- Excel e PowerPoint continuam a descarregar-se (decisão por tomar).
