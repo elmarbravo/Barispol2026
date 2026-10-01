@@ -5411,6 +5411,42 @@ function StoreProvider({
     const iv = setInterval(ver, 60000);
     return () => { vivo = false; clearTimeout(t0); clearInterval(iv); };
   }, []);
+  /* Pedidos do WhatsApp sem resposta ha mais de 15 minutos (01-10-2026,
+     auditoria: resposta mediana de 68 min). So para a Recepcao, no horario
+     (07h30-22h00), um aviso por pedido. Os pedidos chegam ao servidor de
+     3 em 3 minutos; o aviso pode chegar ate uns minutos depois dos 15. */
+  React.useEffect(() => {
+    let vivo = true;
+    const ver = async () => {
+      const eu = window.userById && window.userById(window.CURRENT_USER_ID);
+      if (!eu || bspEmVerComo() || !bspVeCrm(eu) || bspAreaChave(eu.dept) !== 'recepcao') return;
+      const agora = new Date();
+      const hm = agora.toLocaleTimeString('pt-PT', { timeZone: 'Africa/Luanda', hour: '2-digit', minute: '2-digit', hour12: false });
+      if (hm < '07:30' || hm > '22:00') return;
+      const cl = bspGetClient();
+      if (!cl) return;
+      const r = await cl.rpc('crm_pedidos', { p_dias: 1 });
+      if (!vivo || r.error || !Array.isArray(r.data)) return;
+      const chave = 'bsp-crm-sem-resposta-' + eu.id;
+      let vistos = [];
+      try { vistos = JSON.parse(localStorage.getItem(chave) || '[]'); } catch (e) {}
+      const novos = r.data.filter(l => l.estado === 'Novo' && l.resposta_humana_min == null && l.inicio
+        && agora - new Date(l.inicio) > 15 * 60000 && agora - new Date(l.inicio) < 6 * 3600000 && vistos.indexOf(l.id) === -1);
+      if (!novos.length) return;
+      novos.forEach(l => setState(s => pushNotif(s, {
+        type: 'sistema',
+        destino: 'seguimento',
+        text: 'Pedido do WhatsApp sem resposta há mais de 15 min: ' + (l.paciente_nome || l.nome_whatsapp || 'contacto novo'),
+        preview: (l.servico && l.servico !== 'Não identificado' ? l.servico + ' · ' : '') + String(l.primeira_mensagem || '').slice(0, 80)
+      })));
+      bspPlayChime();
+      bspBrowserNotify('WhatsApp por responder', novos.length === 1 ? 'Um pedido espera há mais de 15 minutos.' : novos.length + ' pedidos esperam há mais de 15 minutos.');
+      try { localStorage.setItem(chave, JSON.stringify(vistos.concat(novos.map(l => l.id)).slice(-300))); } catch (e) {}
+    };
+    const t0 = setTimeout(ver, 12000);
+    const iv = setInterval(ver, 3 * 60000);
+    return () => { vivo = false; clearTimeout(t0); clearInterval(iv); };
+  }, []);
   /* Alertas de stock (01-10-2026, stock.sql): a quem gere o stock (Arlete,
      Solange, gestao), no sino, quando ha artigos esgotados, a acabar ou
      lotes a caducar. Volta a avisar no mesmo dia so se o numero subir. */
@@ -23962,6 +23998,17 @@ function CrmScreen() {
     aba === 'resultados' && React.createElement(CrmResultados, null)));
 }
 
+/* Guião de marcação (01-10-2026, auditoria: 353 pedidos respondidos sem
+   marcação em 30 dias). A mensagem termina sempre com uma pergunta de dia e
+   hora. Sem preços nem vagas escritos à mão: a recepção acrescenta-os. */
+function bspCrmGuiao(l, nome) {
+  const primeiro = String(nome || '').trim().split(/\s+/)[0] || '';
+  const serv = l && l.servico && l.servico !== 'Não identificado' ? String(l.servico) : '';
+  const o = primeiro && !/^\+?\d/.test(primeiro) ? 'Olá, ' + primeiro + '!' : 'Olá!';
+  return o + ' Obrigado por contactar o Centro Médico Barispol.\n'
+    + 'Podemos marcar já a sua ' + ({ 'Ecografia': 'ecografia', 'Análises': 'colheita de análises', 'Raio-X': 'radiografia' }[serv] || (serv ? 'consulta de ' + serv : 'consulta')) + '.'
+    + '\nQue dia e hora lhe dão mais jeito: amanhã de manhã ou à tarde?';
+}
 function CrmPedidos() {
   const toast = useToast();
   const [dias, setDias] = React.useState(30);
@@ -24105,6 +24152,12 @@ function CrmPedidos() {
         }, 'Nota: ' + l.ultima_nota)),
       React.createElement("div", { className: "bsp-crm-accoes", style: { display: 'flex', alignItems: 'center', gap: 8, flex: 'none', flexWrap: 'wrap', justifyContent: 'flex-end' } },
         React.createElement(Badge, { tone: "outline", size: "xs", style: { color: est.cor, background: est.fundo, borderColor: est.cor } }, est.id),
+        tel && abertos.indexOf(l.estado) !== -1 && React.createElement("a", {
+          href: 'https://wa.me/' + tel + '?text=' + encodeURIComponent(bspCrmGuiao(l, nome)), target: '_blank', rel: 'noopener',
+          title: 'Abre o WhatsApp com a mensagem pronta (e copia-a)',
+          onClick: () => { try { navigator.clipboard && navigator.clipboard.writeText(bspCrmGuiao(l, nome)); } catch (e) {} },
+          style: { height: 34, padding: '0 12px', borderRadius: 9, border: '1px solid var(--navy)', background: 'var(--navy)', color: '#fff', display: 'inline-flex', alignItems: 'center', fontSize: 12.5, fontWeight: 700, textDecoration: 'none' }
+        }, 'Propor marcação'),
         tel && React.createElement("a", {
           href: 'https://wa.me/' + tel, target: '_blank', rel: 'noopener', title: 'Abrir a conversa no WhatsApp',
           style: { height: 34, padding: '0 10px', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--surface-2)', color: '#128C7E', display: 'inline-flex', alignItems: 'center', fontSize: 12.5, fontWeight: 700, textDecoration: 'none' }

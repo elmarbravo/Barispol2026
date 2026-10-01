@@ -2325,3 +2325,13 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
 - Números reais dos últimos 30 dias (01-10-2026): 539 escreveram, 449
   respondidos, 63 marcados, 51 vieram; 353 respondidos sem marcação;
   resposta mediana de 68 minutos.
+
+## 3-bx. Seguimento da auditoria (01-10-2026, «faz todos eles»)
+
+- Guião de marcação (CRM → Pedidos): nos pedidos «Novo» e «Em contacto», o
+  botão «Propor marcação» abre o WhatsApp da pessoa com a mensagem pronta
+  (`bspCrmGuiao`: nome, serviço e a pergunta «amanhã de manhã ou à
+  tarde?») e copia-a. Sem preços nem vagas escritos à mão.
+- Aviso de 15 minutos: para a Recepção, no horário 07h30–22h00, um aviso no
+  sino e no aparelho por cada pedido «Novo» sem resposta de uma pessoa há
+  mais de 15 min (até 6 h). Verifica de 3 em 3 min (`crm_pedidos(1)`).
