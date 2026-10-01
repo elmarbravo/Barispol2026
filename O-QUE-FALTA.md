@@ -2241,7 +2241,7 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   chave, o painel responde «O assistente ainda não está ligado».
 - Depois da chave: testar uma pergunta e lançar a novidade a `todos`.
 
-## 3-bt. Histórico do WhatsApp «DAF» (01-10-2026) — em curso
+## 3-bt. Histórico do WhatsApp «DAF» (01-10-2026)
 
 - Pedido do Elmar: importar o histórico «BRSP - DAF 1.º» para o grupo
   «DAF» (`g-1788271279015`). 4017 mensagens, de 03-09-2025 a 28-09-2026,
@@ -2254,5 +2254,8 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
 - O importador passa a tirar os caracteres de uso privado (U+E000 a
   U+F8FF, emojis antigos de telemóvel): não aparecem em nenhum ecrã e
   perdiam-se no envio do SQL, o que estragava a conferência por md5.
-- Blocos 0 a 2 aplicados e conferidos (1350 mensagens); 3 a 8 em curso.
+- Os 9 blocos (`wa_daf_b0` a `wa_daf_b8`) aplicados por ordem, cada um
+  conferido pelo número e pelo md5: 4017 mensagens no servidor.
+- Por decidir com o Elmar: tapar a ligação do Teams com a senha embutida
+  na mensagem 751 da Direcção (`wa-direccao-751`).
 - Próximo `--base` livre: 8000000.
