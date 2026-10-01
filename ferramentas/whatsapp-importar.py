@@ -62,6 +62,7 @@ def limpa(b):
         b = re.sub('‎?' + de, para + NV, b)
     b = b.replace('‎', '').replace('<Esta mensagem foi editada>', '').strip()
     b = unicodedata.normalize('NFC', b)  # acentos compostos (ex.: «ú» e não «u» + acento)
+    b = re.sub('[\ue000-\uf8ff]', '', b)  # emojis antigos de telemóvel (uso privado): não aparecem e perdem-se no SQL
     b = re.sub(r'eyJ[\w.-]{10,}|sb_secret_\w+', '[chave removida na importação]', b)  # regra 1 do CLAUDE.md
     return re.sub(r'(?im)^(\s*(?:pass(?:word)?|senha|palavra-passe)\s*[:=]\s*)\S.*$', r'\1[removida na importação]', b)
 

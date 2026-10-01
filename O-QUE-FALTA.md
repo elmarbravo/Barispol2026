@@ -2240,3 +2240,19 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   Supabase → Edge Functions → Secrets com o nome `ANTHROPIC_API_KEY`. Sem a
   chave, o painel responde «O assistente ainda não está ligado».
 - Depois da chave: testar uma pergunta e lançar a novidade a `todos`.
+
+## 3-bt. Histórico do WhatsApp «DAF» (01-10-2026) — em curso
+
+- Pedido do Elmar: importar o histórico «BRSP - DAF 1.º» para o grupo
+  «DAF» (`g-1788271279015`). 4017 mensagens, de 03-09-2025 a 28-09-2026,
+  ids de -7000000 a -7004016 (`--base 7000000`, `cid` «wa-daf-n»).
+- Revisão de credenciais (com o texto tapado): a senha de um PC, outras
+  senhas e o código do cartão do banco (duas respostas) ficaram
+  «[removida na importação]». Ficaram montantes, referências de
+  pagamento, quatro IBAN (por decidir com o Elmar) e o nome de utilizador
+  «administrator».
+- O importador passa a tirar os caracteres de uso privado (U+E000 a
+  U+F8FF, emojis antigos de telemóvel): não aparecem em nenhum ecrã e
+  perdiam-se no envio do SQL, o que estragava a conferência por md5.
+- Blocos 0 a 2 aplicados e conferidos (1350 mensagens); 3 a 8 em curso.
+- Próximo `--base` livre: 8000000.
