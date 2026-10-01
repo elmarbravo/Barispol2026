@@ -173,10 +173,16 @@ stable
 security definer
 set search_path to 'public', 'erp'
 as $function$
-  with saldo as (
+  -- Armazéns que a pessoa vê, calculados uma vez (01-10-2026): com o filtro
+  -- por linha, o planeador chamava bsp_ve_stock para cada movimento (10 mil
+  -- chamadas, 10 s) e o ecrã Stock caía no limite de 8 s. O «offset 0»
+  -- impede que o filtro desça para a leitura dos movimentos.
+  with arm as materialized (
+    select w from (select distinct m.warehouse w from erp.stock_mov m offset 0) x where public.bsp_ve_stock(w)
+  ), saldo as (
     select distinct on (m.item_code, m.warehouse) m.item_code, m.warehouse, m.qty_after, m.valuation_rate, m.posting_date
       from erp.stock_mov m
-     where not m.is_cancelled
+     where not m.is_cancelled and m.warehouse in (select w from arm)
      order by m.item_code, m.warehouse, m.posting_date desc, m.posting_time desc nulls last, m.creation desc nulls last
   ), saidas as (
     select m.item_code, m.warehouse, sum(-m.actual_qty) s
@@ -202,8 +208,7 @@ as $function$
     left join erp.stock_artigo a on a.item_code = s.item_code
     left join saidas x on x.item_code = s.item_code and x.warehouse = s.warehouse
     left join lote lo on lo.item = s.item_code
-   where public.bsp_ve_stock(s.warehouse)
-     and not coalesce(a.disabled, false)
+   where not coalesce(a.disabled, false)
      and (coalesce(s.qty_after, 0) <> 0 or coalesce(x.s, 0) > 0)
 $function$;
 grant execute on function public.bsp_stock() to authenticated;

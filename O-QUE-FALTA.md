@@ -2413,3 +2413,14 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   - Tirar o acesso de visitante às restantes funções `security definer`
     que só servem quem tem sessão (testadas: recusam ou devolvem vazio).
   - Fixar o `search_path` de 16 funções.
+
+## 3-ca. Stock: ecrã caía no limite de tempo (01-10-2026)
+
+- O Elmar viu «canceling statement due to statement timeout» no Stock.
+  `bsp_stock()` levava 10 s (limite das sessões: 8 s): o planeador chamava
+  `bsp_ve_stock` para cada um dos 10 mil movimentos.
+- Correcção em `stock.sql`: os armazéns permitidos calculam-se uma vez (CTE
+  `arm` com `offset 0`). Agora 0,08 s. Acessos iguais: Elmar 946 linhas,
+  Solange 766 (só Farmácia), Cassia 0.
+- Regra para funções novas: nunca filtrar por uma função de acesso linha a
+  linha numa tabela grande; calcular primeiro o que a pessoa vê.
