@@ -268,6 +268,15 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   quem vê: `stock_responsaveis` + gestão (`bsp_ve_stock`) e, no ecrã,
   `bspVeStock` / `BSP_STOCK_RESPONSAVEIS`. Ecrã `StockScreen`, Início
   `StockAlertaCartao`.
+- Facturas por receber (01-10-2026, `cobrancas.sql`): acerto diário
+  `erp.reconciliar_cobrancas` (a cópia `erp.sales_invoice` só relê 7 dias);
+  `bsp_cobrancas()` no Painel (`PainelCobrancas`), e-mail
+  `bsp_cobrancas_email` às 06h40 seg–sex só para quem vê o Painel. Utentes
+  nunca com nome. Nas funções SQL do servidor, nunca a palavra `truncate`
+  (a ferramenta fica à espera de confirmação).
+- Funções com filtro de acesso (01-10-2026): calcular primeiro o que a
+  pessoa vê (CTE com `offset 0`), nunca uma função de acesso por linha numa
+  tabela grande (o Stock levava 10 s).
 - Funil de vendas (01-10-2026, `crm-funil.sql`): `crm_funil(dias, origem,
   servico)` sobre `crm.caixa`; separador `CrmFunil` no CRM. Cada pedido
   conta na etapa mais avançada.

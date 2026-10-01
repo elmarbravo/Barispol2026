@@ -2424,3 +2424,26 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   Solange 766 (só Farmácia), Cassia 0.
 - Regra para funções novas: nunca filtrar por uma função de acesso linha a
   linha numa tabela grande; calcular primeiro o que a pessoa vê.
+
+## 3-cb. Facturas por receber: Painel e e-mail da manhã (01-10-2026)
+
+- Pedido do Elmar («Faz»). Ficheiro `cobrancas.sql`, aplicado.
+- Acerto com o MetaGest (`erp.reconciliar_cobrancas`, cron
+  `bsp-cobrancas-acerto` às 05h50 e 13h50): a cópia só relia 7 dias, por
+  isso uma factura antiga paga depois ficava em aberto. Primeiro acerto:
+  9 994 em aberto no MetaGest, 5 passaram a pagas, 9 645 ganharam a data de
+  vencimento. Se o MetaGest falhar a meio, pára e não muda nada.
+- Números: `erp.cobrancas_dados()`; no ecrã `bsp_cobrancas()` (só
+  `bsp_ve_painel`), cartão `PainelCobrancas` no Painel.
+- E-mail: `bsp_cobrancas_email(true)`, cron `bsp-cobrancas`, segunda a sexta
+  às 06h40, só para quem vê o Painel (hoje só o Elmar; quem entrar no
+  Financeiro passa a receber). `bsp_cobrancas_email(false)` mostra sem enviar.
+- Utentes nunca com nome: só seguradoras e empresas com nome de empresa
+  aparecem; um cliente com nome de pessoa no grupo Seguradora conta como
+  particular. Nomes da mesma seguradora juntam-se como em `bspNomeSeguradora`.
+- Valores de 01-10-2026: 110,0 M Kz por receber, 98,5 M vencidos, 67 M com
+  mais de um ano.
+- Por fazer (MetaGest, Financeiro): limpar a dívida antiga incobrável;
+  juntar clientes duplicados da mesma seguradora (ENSA, NOSSA); tirar do
+  grupo Seguradora os clientes que são pessoas; corrigir a factura com
+  vencimento em 2006.

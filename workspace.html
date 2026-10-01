@@ -3868,7 +3868,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor'];
+const BSP_RPC_LEITURA = ['bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -23491,7 +23491,9 @@ const BSP_GUIA_FICHAS = [
       ['Veja a facturação', 'de hoje, da semana, do mês ou do ano.'],
       ['Compare períodos', 'e acompanhe a evolução.'],
       ['Veja por médico e por seguradora.', ''],
-      ['Os valores de hoje', 'actualizam-se a cada 5 minutos.']
+      ['Os valores de hoje', 'actualizam-se a cada 5 minutos.'],
+      ['Em «Por receber»,', 'veja o que falta cobrar, o vencido, a antiguidade e quem deve mais. Os utentes contam em conjunto, sem nomes.'],
+      ['De segunda a sexta, às 06h40,', 'recebe o mesmo resumo por e-mail.']
     ],
     quem: 'Director Geral, Financeiro e sócios.',
     dica: 'As notas de crédito já estão descontadas em todos os valores.' },
@@ -24360,6 +24362,58 @@ function PainelAtalho({ onAbrir }) {
       React.createElement("button", { onClick: onAbrir, style: { height: 36, padding: '0 16px', borderRadius: 6, border: '1px solid var(--navy)', background: 'var(--navy)', color: '#fff', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 } },
         React.createElement(I.TrendUp, { size: 14 }), 'Abrir o Painel')));
 }
+/* Facturas por receber (01-10-2026, cobrancas.sql): acerto diário com o
+   MetaGest; utentes só em conjunto, sem nomes. Mesmo acesso do Painel. */
+function PainelCobrancas() {
+  const [d, setD] = React.useState(null);
+  const [erro, setErro] = React.useState('');
+  const [todos, setTodos] = React.useState(false);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    cl.rpc('bsp_cobrancas').then(r => {
+      if (!vivo) return;
+      if (r.error) setErro(r.error.message || 'Não foi possível carregar.'); else setD(r.data);
+    });
+    return () => { vivo = false; };
+  }, []);
+  const tit = t => React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 4 } }, t);
+  const sub = t => React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginBottom: 12 } }, t);
+  if (erro) return React.createElement(Card, { pad: 16 }, tit('Por receber'), React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, erro));
+  if (!d) return React.createElement(Card, { pad: 16 }, tit('Por receber'), sub('A carregar…'));
+  const acerto = d.acerto && d.acerto.acertado_em;
+  const velho = !acerto || (Date.now() - new Date(acerto).getTime()) > 26 * 3600 * 1000;
+  const ontem = d.ontem;
+  const dif = (a, b) => { const x = Number(a) - Number(b); return (x >= 0 ? 'subiu ' : 'desceu ') + bspPainelKz(Math.abs(x), true); };
+  const devs = d.devedores || [];
+  const cel = { padding: '7px 8px', borderBottom: '1px solid var(--border)', fontVariantNumeric: 'tabular-nums' };
+  return React.createElement(Card, { pad: 16 },
+    tit('Por receber'),
+    sub('Facturas do MetaGest com valor em falta' + (acerto ? ', acertadas a ' + bspDataExacta(new Date(acerto)) : '') + '. Os utentes contam em conjunto, sem nomes.'),
+    velho && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--perigo)', marginBottom: 12 } }, 'O acerto com o MetaGest não correu nas últimas 24 horas: facturas pagas há pouco podem ainda aparecer.'),
+    React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12, marginBottom: 14 } },
+      React.createElement(PainelTile, { grande: true, rotulo: 'Por receber', valor: bspPainelKz(d.total, true), nota: Number(d.facturas || 0).toLocaleString('pt-PT') + ' facturas' + (ontem ? ' · desde ' + bspMarcDataPt(ontem.dia) + ' ' + dif(d.total, ontem.total) : '') }),
+      React.createElement(PainelTile, { perigo: Number(d.vencido) > 0, rotulo: 'Vencido', valor: bspPainelKz(d.vencido, true), nota: ontem ? 'desde ' + bspMarcDataPt(ontem.dia) + ' ' + dif(d.vencido, ontem.vencido) : 'passou a data de vencimento' }),
+      React.createElement(PainelTile, { rotulo: 'Ainda no prazo', valor: bspPainelKz(d.a_vencer, true) })),
+    React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18 } },
+      React.createElement("div", null,
+        React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 } }, 'Antiguidade'),
+        React.createElement(PainelBarras, { dados: (d.idades || []).map(x => ({ rotulo: x.faixa, valor: Number(x.valor), extra: x.facturas + (x.facturas === 1 ? ' factura' : ' facturas') })), formatar: v => bspPainelKz(v, true), cor: '--serie-2' }),
+        React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: 'var(--text-1)', margin: '14px 0 8px' } }, 'Por tipo de cliente'),
+        React.createElement(PainelBarras, { dados: (d.por_tipo || []).map(x => ({ rotulo: x.tipo, valor: Number(x.valor), extra: 'vencido ' + bspPainelKz(x.vencido, true) })), formatar: v => bspPainelKz(v, true), cor: '--serie-3' })),
+      React.createElement("div", { style: { minWidth: 0 } },
+        React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 } }, 'Quem deve mais'),
+        React.createElement("div", { style: { overflowX: 'auto' } }, React.createElement("table", { style: { width: '100%', borderCollapse: 'collapse', fontSize: 12.5 } },
+          React.createElement("thead", null, React.createElement("tr", null, ['', 'Vencido', 'Total'].map((h, i) => React.createElement("th", { key: i, style: { ...cel, textAlign: i ? 'right' : 'left', color: 'var(--text-3)', fontWeight: 600 } }, h)))),
+          React.createElement("tbody", null, (todos ? devs : devs.slice(0, 8)).map(x => React.createElement("tr", { key: x.tipo + x.devedor },
+            React.createElement("td", { style: { ...cel, color: 'var(--text-1)' } }, x.devedor,
+              React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)' } }, x.tipo + ' · ' + x.facturas + ' facturas · desde ' + bspMarcDataPt(x.mais_antiga))),
+            React.createElement("td", { style: { ...cel, textAlign: 'right', color: Number(x.vencido) > 0 ? 'var(--perigo)' : 'var(--text-3)', whiteSpace: 'nowrap' } }, bspPainelKz(x.vencido, true)),
+            React.createElement("td", { style: { ...cel, textAlign: 'right', color: 'var(--text-1)', fontWeight: 700, whiteSpace: 'nowrap' } }, bspPainelKz(x.valor, true))))))),
+        devs.length > 8 && React.createElement("button", { onClick: () => setTodos(v => !v), style: { marginTop: 8, border: 0, background: 'transparent', color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', padding: 0 } }, todos ? 'Mostrar menos' : 'Ver os ' + devs.length))));
+}
+
 function PainelScreen() {
   const hoje = bspDataLocalISO(new Date());
   const inicioMes = hoje.slice(0, 8) + '01';
@@ -24433,6 +24487,7 @@ function PainelScreen() {
         React.createElement(PainelTile, { rotulo: 'Facturas emitidas', valor: Number(res.facturas || 0).toLocaleString('pt-PT'), delta: pct(res.facturas, ant.facturas) }),
         React.createElement(PainelTile, { rotulo: 'Em dívida', valor: bspPainelKz(d.divida && d.divida.valor, true), nota: ((d.divida && d.divida.n) || 0) + ' facturas por pagar' + (d.horas_desde && d.de < d.horas_desde ? ' (desde ' + bspMarcDataPt(d.horas_desde) + ')' : '') }),
         React.createElement(PainelTile, { perigo: Number(res.devolvido) > 0, rotulo: 'Notas de crédito', valor: (Number(res.devolvido) > 0 ? '− ' : '') + bspPainelKz(res.devolvido, true), nota: (res.devolucoes || 0) + (res.devolucoes === 1 ? ' nota (anulação ou devolução)' : ' notas (anulações e devoluções)') })),
+      React.createElement(PainelCobrancas, null),
       !umDia && React.createElement(Card, { pad: 16 },
         React.createElement("div", { style: { display: 'flex', alignItems: 'baseline', gap: 10 } },
           React.createElement("div", { style: { flex: 1 } }, tit('Facturação por dia')),
