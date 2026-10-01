@@ -2482,8 +2482,9 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
 - A2 «junta»: no MetaGest a ENSA e a NOSSA já são um só cliente cada; os
   «duplicados» eram o nome escrito na factura. As cobranças agrupam agora
   pelo código do cliente (nunca pelo nome da factura, que pode ser o do
-  utente). Único par a ver: «UNISAÚDE SEGUROS» e «UNISAUDE - GESTÃO DE SAÚDE,
-  LDA» (podem ser entidades diferentes).
+  utente). Unisaúde: NIF diferentes no MetaGest, por isso são entidades
+  diferentes e ficam separadas (Elmar: «se for [o mesmo NIF] é a mesma
+  coisa»; não é).
 - A3: o cliente «PACOTE FP» é um plano de saúde familiar: tabela
   `erp.cobrancas_planos` (só no servidor), mostrado como «Pacote FP (plano de
   saúde familiar)».
