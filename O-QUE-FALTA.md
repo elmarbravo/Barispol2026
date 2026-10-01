@@ -2387,3 +2387,14 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   `exige_visto = false`, com a nota na escala; nenhum visto foi registado em
   nome da Direcção Clínica. O ecrã diz «Em vigor sem visto da Direcção
   Clínica». Para voltar a exigir: `exige_visto = true` (com `bsp.visto = '1'`).
+
+## 3-by. Organograma escondido (01-10-2026)
+
+- Pedido do Elmar: «por agora oculte o organograma de todos». O Directório
+  (menu «Equipa» → Contactos) deixa de mostrar o botão «Organigrama».
+- Interruptor: `BSP_ORGANOGRAMA_VISIVEL = false` (junto de `OrgChart`).
+- Porquê: o `OrgChart` veio do ficheiro de origem (23-09-2026), com nomes
+  e contagens escritos à mão e o Nicolau no topo.
+- Falta: refazer o `OrgChart` pelo desenho do Elmar, com os dados da equipa
+  (campo `superior`). A Arlete fica ao nível dos chefes de área. Os sócios
+  não aparecem. Depois, pôr `BSP_ORGANOGRAMA_VISIVEL = true`.

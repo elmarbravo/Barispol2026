@@ -14969,7 +14969,8 @@ function DirectoryScreen() {
   const chamadas = useChamadas();
   const [filter, setFilter] = React.useState('todos');
   const [view, setView] = React.useState('grid');
-  const [showOrg, setShowOrg] = React.useState(false);
+  const [showOrgEscolha, setShowOrg] = React.useState(false);
+  const showOrg = BSP_ORGANOGRAMA_VISIVEL && showOrgEscolha;
   const depts = ['todos', ...DEPARTMENTS.map(d => d.name)];
   const [busca, setBusca] = React.useState('');
   const [ordem, setOrdem] = useOrdem('directorio', 'nome-asc', bspChaves(BSP_ORDEM_DIRECTORIO));
@@ -14993,7 +14994,7 @@ function DirectoryScreen() {
       gap: 12,
       flexWrap: 'wrap'
     }
-  }, React.createElement("div", {
+  }, BSP_ORGANOGRAMA_VISIVEL && React.createElement("div", {
     style: {
       display: 'inline-flex',
       background: 'var(--surface-2)',
@@ -15373,6 +15374,9 @@ function DirectoryScreen() {
     size: 13
   })))))))));
 }
+// Organograma escondido de todos (Elmar, 01-10-2026): o actual vinha do ficheiro
+// de origem e estava errado. Volta a aparecer refeito pelo desenho do Elmar.
+const BSP_ORGANOGRAMA_VISIVEL = false;
 function OrgChart() {
   const node = (id, opts = {}) => {
     const u = window.userById(id);
