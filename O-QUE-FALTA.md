@@ -2450,3 +2450,17 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
 - Correcção (01-10-2026, Elmar: «Não faz email de cobrança»): o cron
   `bsp-cobrancas` foi apagado antes do primeiro envio. Ficam o acerto e o
   cartão no Painel. A novidade deixou de falar do e-mail.
+
+## 3-cc. Stock: validades por lote e por armazém (01-10-2026)
+
+- Pergunta do Elmar: «O prazo de validade dos produtos convém que apareçam».
+  Já aparecia, mas só o primeiro lote, numa coluna escondida no telemóvel e
+  com a quantidade do lote em todos os armazéns.
+- `stock-validades.sql` (aplicado): `erp.stock_mov.batch_no` (a sincronização
+  traz o lote; histórico preenchido: 5 374 movimentos); lotes por armazém pela
+  soma dos movimentos (os 905 lotes batem com o MetaGest); `bsp_stock_lotes()`;
+  estado `caducado` em `bsp_stock` e `bsp_stock_resumo`.
+- Ecrã: validade por baixo do nome do artigo; caixa «Com lote caducado»;
+  caixa «Validades (lote a lote)» com prazo (60 dias, 6 meses, 1 ano, todos)
+  e impressão; o sino e o Início contam os caducados.
+- Hoje: 586 lotes com quantidade, 57 caducam em 60 dias, nenhum caducado.

@@ -28,8 +28,10 @@ create table if not exists erp.stock_mov (
   valuation_rate numeric,
   voucher_type text,
   is_cancelled boolean not null default false,
-  modified timestamptz
+  modified timestamptz,
+  batch_no text  -- lote do movimento (01-10-2026, stock-validades.sql)
 );
+alter table erp.stock_mov add column if not exists batch_no text;
 create index if not exists stock_mov_saldo on erp.stock_mov (item_code, warehouse, posting_date desc, posting_time desc, creation desc);
 create table if not exists erp.stock_artigo (
   item_code text primary key,
@@ -96,16 +98,18 @@ begin
   -- Movimentos: os mudados desde o ultimo (com um dia de folga).
   select coalesce(to_char(max(modified) - interval '1 day', 'YYYY-MM-DD HH24:MI:SS'), '2000-01-01') into desde from erp.stock_mov;
   d := erp.api_lista('Stock Ledger Entry',
-    '["name","item_code","warehouse","posting_date","posting_time","creation","actual_qty","qty_after_transaction","valuation_rate","voucher_type","is_cancelled","modified"]',
+    '["name","item_code","warehouse","posting_date","posting_time","creation","actual_qty","qty_after_transaction","valuation_rate","voucher_type","is_cancelled","modified","batch_no"]',
     format('[["modified",">=","%s"]]', desde));
-  insert into erp.stock_mov as m (name, item_code, warehouse, posting_date, posting_time, creation, actual_qty, qty_after, valuation_rate, voucher_type, is_cancelled, modified)
+  insert into erp.stock_mov as m (name, item_code, warehouse, posting_date, posting_time, creation, actual_qty, qty_after, valuation_rate, voucher_type, is_cancelled, modified, batch_no)
   select x->>'name', x->>'item_code', x->>'warehouse', (x->>'posting_date')::date, nullif(x->>'posting_time', '')::time,
          nullif(x->>'creation', '')::timestamptz, coalesce((x->>'actual_qty')::numeric, 0), (x->>'qty_after_transaction')::numeric,
-         (x->>'valuation_rate')::numeric, x->>'voucher_type', coalesce((x->>'is_cancelled')::int, 0) = 1, nullif(x->>'modified', '')::timestamptz
+         (x->>'valuation_rate')::numeric, x->>'voucher_type', coalesce((x->>'is_cancelled')::int, 0) = 1, nullif(x->>'modified', '')::timestamptz,
+         nullif(x->>'batch_no', '')
     from jsonb_array_elements(d) x
   on conflict (name) do update set item_code = excluded.item_code, warehouse = excluded.warehouse, posting_date = excluded.posting_date,
     posting_time = excluded.posting_time, creation = excluded.creation, actual_qty = excluded.actual_qty, qty_after = excluded.qty_after,
-    valuation_rate = excluded.valuation_rate, voucher_type = excluded.voucher_type, is_cancelled = excluded.is_cancelled, modified = excluded.modified;
+    valuation_rate = excluded.valuation_rate, voucher_type = excluded.voucher_type, is_cancelled = excluded.is_cancelled, modified = excluded.modified,
+    batch_no = excluded.batch_no;
   n1 := jsonb_array_length(d);
 
   select coalesce(to_char(max(modified) - interval '1 day', 'YYYY-MM-DD HH24:MI:SS'), '2000-01-01') into desde from erp.stock_artigo;
@@ -165,6 +169,9 @@ $function$;
 grant execute on function public.bsp_ve_stock(text) to authenticated;
 
 -- O relatorio: um artigo por armazem, com saldo, consumo e lotes.
+-- ATENÇÃO (01-10-2026): bsp_stock e bsp_stock_resumo foram substituídas em
+-- stock-validades.sql (lote por armazém, estado «caducado»). Depois de
+-- correr este ficheiro, correr também stock-validades.sql.
 create or replace function public.bsp_stock()
 returns table (armazem text, artigo text, nome text, grupo text, unidade text, qtd numeric, valor_unit numeric,
                saidas_30d numeric, dias numeric, ultimo date, lote_validade date, lote_qtd numeric, estado text)

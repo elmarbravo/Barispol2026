@@ -3868,7 +3868,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas'];
+const BSP_RPC_LEITURA = ['bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -5497,7 +5497,7 @@ function StoreProvider({
       const depois = {};
       const novos = [];
       (r.data.armazens || []).forEach(a => {
-        const falta = (a.esgotado || 0) + (a.a_acabar || 0);
+        const falta = (a.caducado || 0) + (a.esgotado || 0) + (a.a_acabar || 0);
         depois[a.armazem] = { f: falta, c: a.a_caducar || 0 };
         const v = antes[a.armazem] || { f: 0, c: 0 };
         if (falta > v.f || (a.a_caducar || 0) > v.c) novos.push(a);
@@ -5506,7 +5506,7 @@ function StoreProvider({
       novos.forEach(a => setState(s => pushNotif(s, {
         type: 'sistema',
         destino: 'stock',
-        text: 'Stock ' + bspStockArmazemNome(a.armazem) + ': ' + [a.esgotado ? a.esgotado + ' esgotado' + (a.esgotado === 1 ? '' : 's') : '', a.a_acabar ? a.a_acabar + ' a acabar' : '', a.a_caducar ? a.a_caducar + ' com lote a caducar' : ''].filter(Boolean).join(', '),
+        text: 'Stock ' + bspStockArmazemNome(a.armazem) + ': ' + [a.caducado ? a.caducado + ' com lote caducado' : '', a.esgotado ? a.esgotado + ' esgotado' + (a.esgotado === 1 ? '' : 's') : '', a.a_acabar ? a.a_acabar + ' a acabar' : '', a.a_caducar ? a.a_caducar + ' com lote a caducar' : ''].filter(Boolean).join(', '),
         preview: 'Abra o Stock para ver os artigos.'
       })));
       bspPlayChime();
@@ -23537,8 +23537,9 @@ const BSP_GUIA_FICHAS = [
   { icone: 'Box', nome: 'Stock',
     serve: 'O stock de cada armazém, lido do MetaGest de 15 em 15 minutos.',
     faz: [
-      ['Veja os alertas:', 'esgotados, a acabar (menos de 7 dias) e lotes a caducar (até 60 dias).'],
-      ['Procure um artigo', 'e veja a quantidade, as saídas dos últimos 30 dias e quanto tempo dura.'],
+      ['Veja os alertas:', 'lotes caducados, esgotados, a acabar (menos de 7 dias) e lotes a caducar (até 60 dias).'],
+      ['Procure um artigo', 'e veja a quantidade, as saídas dos últimos 30 dias, quanto tempo dura e a validade do lote mais próximo.'],
+      ['Em «Validades»,', 'veja cada lote com a sua data e quantidade, do que caduca primeiro ao último, e imprima a lista.'],
       ['Imprima a lista', 'para a encomenda ou a contagem.'],
       ['Os alertas chegam ao sino', 'e ao Início.']
     ],
@@ -23805,6 +23806,7 @@ function bspStockArmazemNome(a) {
   return ({ 'Stores': 'Armazém central', 'STOCK GERALL': 'Stock geral' })[n] || n.charAt(0) + n.slice(1).toLowerCase();
 }
 const BSP_STOCK_ESTADOS = {
+  caducado: { nome: 'Lote caducado', cor: 'var(--perigo)' },
   esgotado: { nome: 'Esgotado', cor: 'var(--perigo)' },
   'a-acabar': { nome: 'A acabar', cor: 'var(--perigo)' },
   'a-caducar': { nome: 'Lote a caducar', cor: 'var(--accent-d)' },
@@ -23825,7 +23827,7 @@ function StockAlertaCartao({ onAbrir }) {
   }, []);
   const arm = d && d.armazens || [];
   const tot = k => arm.reduce((n, a) => n + Number(a[k] || 0), 0);
-  if (!d || (tot('esgotado') + tot('a_acabar') + tot('a_caducar')) === 0) return null;
+  if (!d || (tot('caducado') + tot('esgotado') + tot('a_acabar') + tot('a_caducar')) === 0) return null;
   const num = (rotulo, valor, cor) => React.createElement("div", { style: { minWidth: 0 } },
     React.createElement("div", { style: { fontSize: 11.5, fontWeight: 600, color: 'var(--text-3)' } }, rotulo),
     React.createElement("div", { style: { fontSize: 20, fontWeight: 700, color: valor ? cor : 'var(--text-1)' } }, valor));
@@ -23833,7 +23835,8 @@ function StockAlertaCartao({ onAbrir }) {
     React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' } },
       React.createElement("div", { style: { flex: '1 1 160px' } },
         React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)' } }, 'Alertas de stock'),
-        React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2 } }, arm.filter(a => a.esgotado || a.a_acabar || a.a_caducar).map(a => bspStockArmazemNome(a.armazem)).join(', ') + ' · MetaGest de 15 em 15 minutos')),
+        React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2 } }, arm.filter(a => a.caducado || a.esgotado || a.a_acabar || a.a_caducar).map(a => bspStockArmazemNome(a.armazem)).join(', ') + ' · MetaGest de 15 em 15 minutos')),
+      tot('caducado') > 0 && num('Caducados', tot('caducado'), 'var(--perigo)'),
       num('Esgotados', tot('esgotado'), 'var(--perigo)'),
       num('A acabar', tot('a_acabar'), 'var(--perigo)'),
       num('Lotes a caducar', tot('a_caducar'), 'var(--accent-d)'),
@@ -23841,6 +23844,8 @@ function StockAlertaCartao({ onAbrir }) {
 }
 function StockScreen() {
   const [linhas, setLinhas] = React.useState(null);
+  const [lotes, setLotes] = React.useState(null);
+  const [prazo, setPrazo] = React.useState('60');
   const [resumo, setResumo] = React.useState(null);
   const [erro, setErro] = React.useState('');
   const [armazem, setArmazem] = React.useState('');
@@ -23858,6 +23863,8 @@ function StockScreen() {
       setLinhas(r.data || []);
     });
     cl.rpc('bsp_stock_resumo').then(r => { if (!r.error) setResumo(r.data); });
+    /* Validades por lote e por armazém (01-10-2026, stock-validades.sql). */
+    cl.rpc('bsp_stock_lotes').then(r => { if (!r.error) setLotes(r.data || []); });
   }, []);
   React.useEffect(() => { carregar(); }, [carregar]);
   const armazens = React.useMemo(() => Array.from(new Set((linhas || []).map(l => l.armazem))).sort((a, b) => {
@@ -23870,7 +23877,7 @@ function StockScreen() {
   const q = String(busca || '').trim().toLowerCase();
   let lista = doArmazem.filter(l => filtro === 'todos' ? true : filtro === 'alertas' ? l.estado !== 'ok' : l.estado === filtro)
     .filter(l => !q || String(l.nome || '').toLowerCase().indexOf(q) !== -1 || String(l.artigo || '').toLowerCase().indexOf(q) !== -1 || String(l.grupo || '').toLowerCase().indexOf(q) !== -1);
-  const pesoEstado = { esgotado: 0, 'a-acabar': 1, 'a-caducar': 2, ok: 3 };
+  const pesoEstado = { caducado: 0, esgotado: 1, 'a-acabar': 2, 'a-caducar': 3, ok: 4 };
   lista = bspOrdenar(lista, ordem, {
     estado: l => String(pesoEstado[l.estado]) + String(l.dias == null ? 9999 : Math.round(l.dias)).padStart(5, '0'),
     nome: l => l.nome || '',
@@ -23880,6 +23887,17 @@ function StockScreen() {
     validade: l => l.lote_validade || '9999'
   });
   const hoje = bspDataLocalISO(new Date());
+  const doArmLotes = (lotes || []).filter(x => x.armazem === armazem);
+  const listaLotes = doArmLotes
+    .filter(x => prazo === 'todos' || (x.validade && x.validade <= bspSomarDias(hoje, Number(prazo))))
+    .filter(x => !q || String(x.nome || '').toLowerCase().indexOf(q) !== -1 || String(x.artigo || '').toLowerCase().indexOf(q) !== -1 || String(x.lote || '').toLowerCase().indexOf(q) !== -1)
+    .sort((a, b) => String(a.validade || '9999').localeCompare(String(b.validade || '9999')) || bspCompararTexto(a.nome, b.nome));
+  const quandoCaduca = x => !x.validade ? 'sem validade' : x.dias < 0 ? 'caducou há ' + (-x.dias) + (x.dias === -1 ? ' dia' : ' dias') : x.dias === 0 ? 'caduca hoje' : 'faltam ' + x.dias + (x.dias === 1 ? ' dia' : ' dias');
+  function imprimirLotes() {
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    const corpo = listaLotes.map(x => '<tr><td>' + esc(x.nome) + '</td><td>' + esc(x.lote) + '</td><td style="text-align:right">' + esc(bspStockQtd(x.qtd)) + ' ' + esc(x.unidade || '') + '</td><td>' + (x.validade ? esc(bspDataCurta(x.validade)) : '—') + '</td><td>' + esc(quandoCaduca(x)) + '</td></tr>').join('');
+    bspImprimirHtml('<h1 style="font-family:\'Titillium Web\',Arial,sans-serif;color:#292F58;font-size:20px">Validades · ' + esc(bspStockArmazemNome(armazem)) + '</h1><p style="font-family:Arial;font-size:12px;color:#555">Clínica Barispol, Lda. · ' + esc(bspDataCurta(hoje)) + ' · ' + (prazo === 'todos' ? 'todos os lotes' : 'lotes que caducam até ' + prazo + ' dias') + ' · dados do MetaGest</p><table style="width:100%;border-collapse:collapse;font-family:Arial;font-size:11px"><thead><tr style="background:#292F58;color:#fff"><th style="text-align:left;padding:5px">Artigo</th><th style="text-align:left">Lote</th><th style="text-align:right">Quantidade</th><th style="text-align:left">Validade</th><th style="text-align:left">Prazo</th></tr></thead><tbody>' + corpo + '</tbody></table>');
+  }
   function imprimir() {
     const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
     const corpo = lista.map(l => '<tr><td>' + esc(l.nome) + '</td><td>' + esc(l.grupo || '') + '</td><td style="text-align:right">' + esc(bspStockQtd(l.qtd)) + ' ' + esc(l.unidade || '') + '</td><td style="text-align:right">' + esc(bspStockQtd(l.saidas_30d)) + '</td><td style="text-align:right">' + (l.dias == null ? '—' : esc(bspStockQtd(l.dias))) + '</td><td>' + (l.lote_validade ? esc(bspDataCurta(l.lote_validade)) : '—') + '</td><td>' + esc((BSP_STOCK_ESTADOS[l.estado] || {}).nome || '') + '</td></tr>').join('');
@@ -23897,7 +23915,7 @@ function StockScreen() {
         React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 3 } }, 'MetaGest de 15 em 15 minutos' + (resumo && resumo.sincronizado_em ? ' · última leitura: ' + bspQuando(resumo.sincronizado_em) : ''))),
       React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
         React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: carregar }, 'Actualizar'),
-        React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: imprimir, icon: React.createElement(I.File, { size: 13 }) }, 'Imprimir a lista'))),
+        React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: filtro === 'validades' ? imprimirLotes : imprimir, icon: React.createElement(I.File, { size: 13 }) }, 'Imprimir a lista'))),
     erro ? React.createElement(Card, { pad: 16 }, React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, erro)) : null,
     linhas === null && !erro ? React.createElement(Card, { pad: 16 }, 'A ler o stock…') : null,
     linhas && !linhas.length ? React.createElement(Card, { pad: 16 }, 'Sem armazéns a seu cargo.') : null,
@@ -23914,11 +23932,34 @@ function StockScreen() {
     armazem && abaS === 'compras' && React.createElement(PedidosCompraPainel, { key: armazem, armazem: armazem, alertas: doArmazem }),
     armazem && abaS === 'artigos' && React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } },
       caixa('alertas', 'Todos os alertas', doArmazem.filter(l => l.estado !== 'ok').length, 'var(--perigo)'),
+      conta('caducado') > 0 && caixa('caducado', 'Com lote caducado', conta('caducado'), 'var(--perigo)'),
       caixa('esgotado', 'Esgotados (com saídas em 30 dias)', conta('esgotado'), 'var(--perigo)'),
       caixa('a-acabar', 'A acabar (menos de 7 dias)', conta('a-acabar'), 'var(--perigo)'),
       caixa('a-caducar', 'Lote a caducar (até 60 dias)', conta('a-caducar'), 'var(--accent-d)'),
-      caixa('todos', 'Todos os artigos', doArmazem.length, 'var(--text-1)')),
-    armazem && abaS === 'artigos' && React.createElement(Card, { pad: 0 },
+      caixa('todos', 'Todos os artigos', doArmazem.length, 'var(--text-1)'),
+      doArmLotes.length > 0 && caixa('validades', 'Validades (lote a lote)', doArmLotes.length, 'var(--text-1)')),
+    armazem && abaS === 'artigos' && filtro === 'validades' && React.createElement(Card, { pad: 0 },
+      React.createElement("div", { style: { display: 'flex', gap: 10, alignItems: 'center', padding: 12, borderBottom: '1px solid var(--border)', flexWrap: 'wrap' } },
+        React.createElement("div", { style: { flex: '1 1 220px' } }, React.createElement(TextInput, { value: busca, onChange: setBusca, placeholder: 'Procurar artigo, código ou lote' })),
+        React.createElement("select", { value: prazo, onChange: e => setPrazo(e.target.value), style: { height: 36, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 16 } },
+          React.createElement("option", { value: '60' }, 'Caducam até 60 dias'),
+          React.createElement("option", { value: '180' }, 'Caducam até 6 meses'),
+          React.createElement("option", { value: '365' }, 'Caducam até 1 ano'),
+          React.createElement("option", { value: 'todos' }, 'Todos os lotes')),
+        React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, listaLotes.length + (listaLotes.length === 1 ? ' lote' : ' lotes'))),
+      !listaLotes.length ? React.createElement("div", { style: { padding: 16, fontSize: 13, color: 'var(--text-3)' } }, 'Nenhum lote caduca neste prazo.')
+        : listaLotes.slice(0, 400).map(x => {
+          const cor = x.estado === 'caducado' ? 'var(--perigo)' : x.estado === 'a-caducar' ? 'var(--accent-d)' : 'var(--text-2)';
+          return React.createElement("div", { key: x.artigo + '|' + x.lote, style: { display: 'flex', gap: 12, alignItems: 'center', padding: '10px 12px', borderTop: '1px solid var(--border)' } },
+            React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+              React.createElement("div", { style: { fontWeight: 600, color: 'var(--text-1)', fontSize: 13 } }, x.nome),
+              React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)' } }, 'Lote ' + x.lote + ' · ' + bspStockQtd(x.qtd) + (x.unidade ? ' ' + String(x.unidade).toLowerCase() : ''))),
+            React.createElement("div", { style: { textAlign: 'right', flex: 'none' } },
+              React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: cor } }, x.validade ? bspDataCurta(x.validade) : '—'),
+              React.createElement("div", { style: { fontSize: 11.5, color: cor } }, quandoCaduca(x))));
+        }),
+      listaLotes.length > 400 && React.createElement("div", { style: { padding: 12, fontSize: 12, color: 'var(--text-3)' } }, 'Mostram-se os primeiros 400. Use a procura ou um prazo mais curto.')),
+    armazem && abaS === 'artigos' && filtro !== 'validades' && React.createElement(Card, { pad: 0 },
       React.createElement("div", { style: { display: 'flex', gap: 10, alignItems: 'center', padding: 12, borderBottom: '1px solid var(--border)', flexWrap: 'wrap' } },
         React.createElement("div", { style: { flex: '1 1 220px' } }, React.createElement(TextInput, { value: busca, onChange: setBusca, placeholder: 'Procurar artigo, código ou grupo' })),
         React.createElement(OrdemSelect, { valor: ordem, onMudar: setOrdem, opcoes: BSP_ORDEM_STOCK }),
@@ -23932,7 +23973,9 @@ function StockScreen() {
           return React.createElement("tr", { key: l.artigo, style: { borderTop: '1px solid var(--border)' } },
             React.createElement("td", { style: { padding: '9px 12px', minWidth: 200 } },
               React.createElement("div", { style: { fontWeight: 600, color: 'var(--text-1)' } }, l.nome),
-              React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)' } }, [l.artigo, l.grupo].filter(Boolean).join(' · '))),
+              React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)' } }, [l.artigo, l.grupo].filter(Boolean).join(' · ')),
+              l.lote_validade && React.createElement("div", { style: { fontSize: 11.5, marginTop: 2, fontWeight: caduca ? 600 : 400, color: l.lote_validade < hoje ? 'var(--perigo)' : caduca ? 'var(--accent-d)' : 'var(--text-2)' } },
+                (l.lote_validade < hoje ? 'Lote caducado a ' : 'Validade ') + bspDataCurta(l.lote_validade) + (l.lote_qtd != null ? ' · ' + bspStockQtd(l.lote_qtd) + ' no lote' : ''))),
             React.createElement("td", { style: { padding: '9px 12px', textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 600, color: Number(l.qtd) <= 0 ? 'var(--perigo)' : 'var(--text-1)' } }, bspStockQtd(l.qtd) + (l.unidade ? ' ' + String(l.unidade).toLowerCase() : '')),
             React.createElement("td", { style: { padding: '9px 12px', textAlign: 'right', color: 'var(--text-2)' } }, bspStockQtd(l.saidas_30d)),
             React.createElement("td", { style: { padding: '9px 12px', textAlign: 'right', whiteSpace: 'nowrap', color: l.dias != null && l.dias < 7 ? 'var(--perigo)' : 'var(--text-2)' } }, l.dias == null ? '—' : bspStockQtd(l.dias) + ' dias'),
@@ -23940,7 +23983,7 @@ function StockScreen() {
             React.createElement("td", { style: { padding: '9px 12px', whiteSpace: 'nowrap', fontWeight: 600, color: est.cor } }, est.nome));
         })))),
       lista.length > 400 && React.createElement("div", { style: { padding: 12, fontSize: 12, color: 'var(--text-3)' } }, 'Mostram-se os primeiros 400. Use a procura ou os filtros.')),
-    React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)', lineHeight: 1.5 } }, 'Esgotado: quantidade 0 e saídas nos últimos 30 dias. A acabar: ao ritmo dos últimos 30 dias, dura menos de 7 dias. Lote a caducar: lote com quantidade e validade até 60 dias. Os números vêm dos movimentos do MetaGest; para corrigir, corrija no MetaGest.'));
+    React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)', lineHeight: 1.5 } }, 'Lote caducado: lote com quantidade neste armazém e validade passada. Esgotado: quantidade 0 e saídas nos últimos 30 dias. A acabar: ao ritmo dos últimos 30 dias, dura menos de 7 dias. Lote a caducar: lote com quantidade neste armazém e validade até 60 dias. «Validades» mostra cada lote com a sua data. Os números vêm dos movimentos do MetaGest; para corrigir, corrija no MetaGest.'));
 }
 /* Registos da equipa (01-10-2026, auditoria, equipa-registos.sql): ferias e
    ausencias, formacoes, avarias e pedidos de compra. Quem le e quem decide e

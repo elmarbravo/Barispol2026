@@ -268,6 +268,10 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   quem vê: `stock_responsaveis` + gestão (`bsp_ve_stock`) e, no ecrã,
   `bspVeStock` / `BSP_STOCK_RESPONSAVEIS`. Ecrã `StockScreen`, Início
   `StockAlertaCartao`.
+  Validades (01-10-2026, `stock-validades.sql`): lote em `erp.stock_mov.batch_no`,
+  quantidade do lote por armazém pela soma dos movimentos, `bsp_stock_lotes()`,
+  estado `caducado` antes de todos. `stock.sql` corre-se antes de
+  `stock-validades.sql`.
 - Facturas por receber (01-10-2026, `cobrancas.sql`): acerto diário
   `erp.reconciliar_cobrancas` (a cópia `erp.sales_invoice` só relê 7 dias);
   `bsp_cobrancas()` no Painel (`PainelCobrancas`). Sem e-mail de
