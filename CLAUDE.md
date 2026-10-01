@@ -342,7 +342,7 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   impressão em branco; nos ecrãs de `BSP_ECRAS_SENSIVEIS` o conteúdo tapa-se
   quando a janela perde o foco. Um ecrã novo com dados sensíveis entra nessa
   lista. Imprimir documentos só por `bspImprimirHtml` (iframe próprio; no iPhone/iPad,
-  camada `bspImprimirIos`, porque o Safari imprime a página principal).
+  camada `bspImprimirIos`, porque o Safari imprime a página principal). Listas em tabela para imprimir: `bspTabelaImpressao`.
 - Guia por e-mail (30-09-2026, `guia-envio.sql`): imagens em `guia/`,
   fila `guia_envios`, confirmações `guia_recepcoes` (#confirmar-guia).
 - Acesso guiado (30-09-2026): `GuiaEcra` + `BSP_GUIA_FICHAS` (texto de cada

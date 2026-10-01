@@ -2567,3 +2567,12 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   `bspEventoNaData`/`bspEventoNoDia` tratam `e.diaMes`/`e.desde`; botão
   «Todos os meses» no formulário. `resumo-matinal` versão 12 (igual ao
   repositório) conta-os.
+
+## 3-cj. Impressão do Stock em A4 alinhada (01-10-2026)
+
+- A impressão no iPhone já sai (camada `bspImprimirIos`), mas a tabela vinha
+  desalinhada: sem larguras, células a meia altura, datas e estados partidos.
+- `bspTabelaImpressao(titulo, sub, colunas, linhas, opc)`: A4 ao alto (ou
+  deitado), larguras fixas, alinhado ao topo, números à direita e sem partir,
+  linhas alternadas, cabeçalho repetido por página, total de linhas. Usada em
+  «Imprimir a lista» do Stock e das Validades. Usar nas listas novas.

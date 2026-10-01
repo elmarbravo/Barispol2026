@@ -22058,6 +22058,34 @@ function bspImprimirIos(html) {
   document.body.classList.add('bsp-a-imprimir');
   document.body.appendChild(raiz);
 }
+/* Tabela para imprimir em A4 (01-10-2026: no iPhone as colunas saíam
+   desalinhadas). Larguras fixas por coluna, tudo alinhado ao topo, números e
+   datas sem partir, cabeçalho repetido em cada página. As cores são as do
+   papel (sempre branco), como nas escalas. colunas: [{ t, w (%), dir, nowrap }];
+   linhas: [[{ v, cor, forte } ou texto]]. */
+function bspTabelaImpressao(titulo, sub, colunas, linhas, opc) {
+  const esc = x => String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const o = opc || {};
+  const cel = (c, x) => {
+    const v = x && typeof x === 'object' ? x : { v: x };
+    return '<td class="' + (c.dir ? 'dir ' : '') + (c.nowrap ? 'nw' : '') + '"' + (v.cor ? ' style="color:' + v.cor + (v.forte ? ';font-weight:700' : '') + '"' : v.forte ? ' style="font-weight:700"' : '') + '>' + esc(v.v == null || v.v === '' ? '—' : v.v) + '</td>';
+  };
+  return '<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><title>' + esc(titulo) + '</title><style>' +
+    '@page{size:A4 ' + (o.deitado ? 'landscape' : 'portrait') + ';margin:12mm}*{box-sizing:border-box}' +
+    'body{margin:0;font-family:"Titillium Web","Segoe UI",Arial,sans-serif;color:#1C2033;background:#fff}' +
+    'h1{margin:0 0 4px;font-size:19px;color:#292F58}p.sub{margin:0 0 12px;font-size:11px;color:#4E5366}' +
+    'table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10.5px;line-height:1.3}' +
+    'thead{display:table-header-group}th{background:#292F58;color:#fff;font-weight:700;text-align:left;vertical-align:bottom;padding:6px 5px;font-size:10px}' +
+    'td{vertical-align:top;padding:5px;border-bottom:1px solid #DDDBD6;overflow-wrap:anywhere}' +
+    'tr{page-break-inside:avoid;break-inside:avoid}tbody tr:nth-child(even) td{background:#F5F4F2}' +
+    '.dir{text-align:right}.nw{white-space:nowrap;overflow-wrap:normal}' +
+    'p.rod{margin:10px 0 0;font-size:9.5px;color:#4E5366}' +
+    '</style></head><body><h1>' + esc(titulo) + '</h1><p class="sub">' + esc(sub) + '</p><table><colgroup>' +
+    colunas.map(c => '<col style="width:' + c.w + '%">').join('') + '</colgroup><thead><tr>' +
+    colunas.map(c => '<th class="' + (c.dir ? 'dir' : '') + '">' + esc(c.t) + '</th>').join('') + '</tr></thead><tbody>' +
+    linhas.map(l => '<tr>' + colunas.map((c, i) => cel(c, l[i])).join('') + '</tr>').join('') +
+    '</tbody></table><p class="rod">' + esc(linhas.length + (linhas.length === 1 ? ' linha' : ' linhas')) + (o.rodape ? ' · ' + esc(o.rodape) : '') + '</p></body></html>';
+}
 function bspImprimirHtml(html) {
   if (bspEIos()) { bspImprimirIos(html); return; }
   const f = document.createElement('iframe');
@@ -24292,15 +24320,22 @@ function StockScreen() {
     .filter(x => !q || String(x.nome || '').toLowerCase().indexOf(q) !== -1 || String(x.artigo || '').toLowerCase().indexOf(q) !== -1 || String(x.lote || '').toLowerCase().indexOf(q) !== -1)
     .sort((a, b) => String(a.validade || '9999').localeCompare(String(b.validade || '9999')) || bspCompararTexto(a.nome, b.nome));
   const quandoCaduca = x => !x.validade ? 'sem validade' : x.dias < 0 ? 'caducou há ' + (-x.dias) + (x.dias === -1 ? ' dia' : ' dias') : x.dias === 0 ? 'caduca hoje' : 'faltam ' + x.dias + (x.dias === 1 ? ' dia' : ' dias');
+  /* Cores do estado no papel (o papel é sempre branco). */
+  const corPapel = e => e === 'caducado' || e === 'esgotado' || e === 'a-acabar' ? '#B42318' : e === 'a-caducar' ? '#14448F' : '#4E5366';
+  const unid = u => u ? ' ' + String(u).toLowerCase() : '';
   function imprimirLotes() {
-    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-    const corpo = listaLotes.map(x => '<tr><td>' + esc(x.nome) + '</td><td>' + esc(x.lote) + '</td><td style="text-align:right">' + esc(bspStockQtd(x.qtd)) + ' ' + esc(x.unidade || '') + '</td><td>' + (x.validade ? esc(bspDataCurta(x.validade)) : '—') + '</td><td>' + esc(quandoCaduca(x)) + '</td></tr>').join('');
-    bspImprimirHtml('<h1 style="font-family:\'Titillium Web\',Arial,sans-serif;color:#292F58;font-size:20px">Validades · ' + esc(bspStockArmazemNome(armazem)) + '</h1><p style="font-family:Arial;font-size:12px;color:#555">Clínica Barispol, Lda. · ' + esc(bspDataCurta(hoje)) + ' · ' + (prazo === 'todos' ? 'todos os lotes' : 'lotes que caducam até ' + prazo + ' dias') + ' · dados do MetaGest</p><table style="width:100%;border-collapse:collapse;font-family:Arial;font-size:11px"><thead><tr style="background:#292F58;color:#fff"><th style="text-align:left;padding:5px">Artigo</th><th style="text-align:left">Lote</th><th style="text-align:right">Quantidade</th><th style="text-align:left">Validade</th><th style="text-align:left">Prazo</th></tr></thead><tbody>' + corpo + '</tbody></table>');
+    bspImprimirHtml(bspTabelaImpressao('Validades · ' + bspStockArmazemNome(armazem),
+      'Clínica Barispol, Lda. · ' + bspDataCurta(hoje) + ' · ' + (prazo === 'todos' ? 'todos os lotes' : 'lotes que caducam até ' + prazo + ' dias') + ' · dados do MetaGest',
+      [{ t: 'Artigo', w: 40 }, { t: 'Lote', w: 15 }, { t: 'Quantidade', w: 14, dir: true, nowrap: true }, { t: 'Validade', w: 13, nowrap: true }, { t: 'Prazo', w: 18 }],
+      listaLotes.map(x => [x.nome, x.lote, bspStockQtd(x.qtd) + unid(x.unidade), x.validade ? bspDataCurta(x.validade) : '',
+        { v: quandoCaduca(x), cor: x.estado === 'caducado' ? '#B42318' : x.estado === 'a-caducar' ? '#14448F' : '', forte: x.estado === 'caducado' }])));
   }
   function imprimir() {
-    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-    const corpo = lista.map(l => '<tr><td>' + esc(l.nome) + '</td><td>' + esc(l.grupo || '') + '</td><td style="text-align:right">' + esc(bspStockQtd(l.qtd)) + ' ' + esc(l.unidade || '') + '</td><td style="text-align:right">' + esc(bspStockQtd(l.saidas_30d)) + '</td><td style="text-align:right">' + (l.dias == null ? '—' : esc(bspStockQtd(l.dias))) + '</td><td>' + (l.lote_validade ? esc(bspDataCurta(l.lote_validade)) : '—') + '</td><td>' + esc((BSP_STOCK_ESTADOS[l.estado] || {}).nome || '') + '</td></tr>').join('');
-    bspImprimirHtml('<h1 style="font-family:\'Titillium Web\',Arial,sans-serif;color:#292F58;font-size:20px">Stock · ' + esc(bspStockArmazemNome(armazem)) + '</h1><p style="font-family:Arial;font-size:12px;color:#555">Clínica Barispol, Lda. · ' + esc(bspDataCurta(hoje)) + ' · dados do MetaGest' + (resumo && resumo.sincronizado_em ? ' de ' + esc(bspQuando(resumo.sincronizado_em)) : '') + '</p><table style="width:100%;border-collapse:collapse;font-family:Arial;font-size:11px"><thead><tr style="background:#292F58;color:#fff"><th style="text-align:left;padding:5px">Artigo</th><th style="text-align:left">Grupo</th><th style="text-align:right">Quantidade</th><th style="text-align:right">Saídas 30 d</th><th style="text-align:right">Dura (dias)</th><th style="text-align:left">Lote mais próximo</th><th style="text-align:left">Estado</th></tr></thead><tbody>' + corpo + '</tbody></table>');
+    bspImprimirHtml(bspTabelaImpressao('Stock · ' + bspStockArmazemNome(armazem),
+      'Clínica Barispol, Lda. · ' + bspDataCurta(hoje) + ' · dados do MetaGest' + (resumo && resumo.sincronizado_em ? ' de ' + bspQuando(resumo.sincronizado_em) : ''),
+      [{ t: 'Artigo', w: 33 }, { t: 'Grupo', w: 13 }, { t: 'Quantidade', w: 11, dir: true, nowrap: true }, { t: 'Saídas 30 dias', w: 8, dir: true }, { t: 'Dura (dias)', w: 7, dir: true }, { t: 'Lote mais próximo', w: 13, nowrap: true }, { t: 'Estado', w: 15 }],
+      lista.map(l => [l.nome, l.grupo || '', bspStockQtd(l.qtd) + unid(l.unidade), bspStockQtd(l.saidas_30d), l.dias == null ? '' : bspStockQtd(l.dias),
+        l.lote_validade ? bspDataCurta(l.lote_validade) : '', { v: (BSP_STOCK_ESTADOS[l.estado] || {}).nome || '', cor: corPapel(l.estado), forte: l.estado !== 'ok' }])));
   }
   const caixa = (id, rotulo, n, cor) => React.createElement("button", {
     key: id,
