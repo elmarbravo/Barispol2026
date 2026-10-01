@@ -24068,6 +24068,44 @@ function bspRegistarCaptura(tipo, ecra) {
     cl.from('capturas_ecra').insert({ tipo: tipo, ecra: String(ecra || ''), aparelho: String(navigator.userAgent || '').slice(0, 200) }).then(() => {}, () => {});
   } catch (e) {}
 }
+/* Versão nova do Workspace (01-10-2026): um aparelho com o Workspace aberto
+   ficava dias na versão antiga (o iPhone do Elmar sem a Agenda nova). De 5
+   em 5 minutos, e ao voltar ao ecrã, compara a marca do ficheiro publicado
+   (ETag ou Last-Modified) com a da abertura; se mudou, mostra uma faixa com
+   «Actualizar». Nunca recarrega sozinho: a pessoa pode estar a escrever. */
+function AvisoVersaoNova() {
+  const [nova, setNova] = React.useState(false);
+  React.useEffect(() => {
+    if (!/^https?:/.test(location.protocol)) return;
+    let inicial = null, vivo = true;
+    const marca = async () => {
+      try {
+        const r = await fetch(location.pathname + '?v=' + Date.now(), { method: 'HEAD', cache: 'no-store' });
+        if (!r.ok) return null;
+        return r.headers.get('etag') || r.headers.get('last-modified') || null;
+      } catch (e) { return null; }
+    };
+    const ver = async () => {
+      if (document.hidden) return;
+      const m = await marca();
+      if (!vivo || !m) return;
+      if (inicial === null) { inicial = m; return; }
+      if (m !== inicial) setNova(true);
+    };
+    ver();
+    const iv = setInterval(ver, 5 * 60000);
+    const vis = () => { if (!document.hidden) ver(); };
+    document.addEventListener('visibilitychange', vis);
+    return () => { vivo = false; clearInterval(iv); document.removeEventListener('visibilitychange', vis); };
+  }, []);
+  if (!nova) return null;
+  return ReactDOM.createPortal(React.createElement("div", {
+    role: 'status',
+    style: { position: 'fixed', left: 12, right: 12, top: 'max(12px, env(safe-area-inset-top))', zIndex: 100001, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, background: 'var(--navy)', color: 'var(--surface)', boxShadow: '0 6px 24px rgba(0,0,0,.18)', maxWidth: 520, margin: '0 auto', fontSize: 14 }
+  }, React.createElement("span", { style: { flex: 1 } }, 'Há uma versão nova do Workspace.'),
+    React.createElement("button", { onClick: () => location.reload(), style: { height: 34, padding: '0 14px', borderRadius: 8, border: 0, background: 'var(--surface)', color: 'var(--navy-texto)', fontFamily: 'inherit', fontWeight: 700, fontSize: 14, cursor: 'pointer' } }, 'Actualizar'),
+    React.createElement("button", { onClick: () => setNova(false), title: 'Fechar', style: { border: 0, background: 'transparent', color: 'var(--surface)', fontSize: 18, cursor: 'pointer', padding: '0 4px' } }, '×')), document.body);
+}
 function ProteccaoEcra({ pg }) {
   const [escuro, setEscuro] = React.useState(false);
   const [tapado, setTapado] = React.useState(false);
@@ -25856,7 +25894,7 @@ function App() {
   }), pg === 'meetings' && React.createElement(MeetingsScreen, null), pg === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), (pg === 'seguimento' || pg === 'marcacoes') && (bspVeCrm(currentUser) || bspVeMarcacoes(currentUser) ? React.createElement(CrmScreen, { key: pg, inicial: pg === 'marcacoes' ? 'marcacoes' : null }) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'stock' && (bspVeStock(currentUser) ? React.createElement(StockScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(EquipaScreen, null), pg === 'avarias' && (!bspESocio(currentUser) ? React.createElement(AvariasScreen, null) : null), pg === 'admin' && React.createElement(AdminScreen, {
+  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), (pg === 'seguimento' || pg === 'marcacoes') && (bspVeCrm(currentUser) || bspVeMarcacoes(currentUser) ? React.createElement(CrmScreen, { key: pg, inicial: pg === 'marcacoes' ? 'marcacoes' : null }) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'stock' && (bspVeStock(currentUser) ? React.createElement(StockScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(AvisoVersaoNova, null), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(EquipaScreen, null), pg === 'avarias' && (!bspESocio(currentUser) ? React.createElement(AvariasScreen, null) : null), pg === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
   }), pg === 'notifications' && React.createElement(NotificationsScreen, {
     onAbrir: abrirNotificacao

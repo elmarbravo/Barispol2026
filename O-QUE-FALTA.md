@@ -2538,3 +2538,13 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   que ela pode ver; quem não tem tarefas mas tem evento seu ou convite hoje
   também recebe. A versão publicada é igual ao repositório.
 - Novidade a toda a equipa (id 79).
+
+## 3-ch. Aviso de versão nova (01-10-2026)
+
+- O Elmar: «Nem permite editar o evento». No teste, «Mudar» e «Guardar»
+  funcionam; o iPhone dele estava na versão antiga (como a barra com
+  «Agenda»). Não havia forma de um aparelho aberto saber que saiu versão nova.
+- `AvisoVersaoNova` (ao lado de `ProteccaoEcra`): de 5 em 5 minutos e ao
+  voltar ao ecrã, `HEAD` ao `workspace.html` sem cache; se a ETag (ou
+  Last-Modified) mudou, faixa «Há uma versão nova do Workspace» com
+  «Actualizar». Nunca recarrega sozinho.
