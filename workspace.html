@@ -2059,6 +2059,11 @@ const I = {
   }), React.createElement("path", {
     d: "M3 9h18M8 3v4M16 3v4M8 13h2M14 13h2M8 17h2M14 17h2"
   })),
+  Box: p => React.createElement(Icon, p, React.createElement("path", {
+    d: "M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"
+  }), React.createElement("path", {
+    d: "M3 7.5 12 12l9-4.5M12 12v9"
+  })),
   Car: p => React.createElement(Icon, p, React.createElement("path", {
     d: "M5 16V11l2-5h10l2 5v5"
   }), React.createElement("path", {
@@ -2739,6 +2744,13 @@ const NAV_ITEMS = [{
   badge: null,
   transporteOnly: true
 }, {
+  /* Stock (01-10-2026): quem gere o stock (stock.sql). */
+  id: 'stock',
+  label: 'Stock',
+  icon: 'Box',
+  badge: null,
+  stockOnly: true
+}, {
   id: 'seguimento',
   label: 'CRM',
   icon: 'Heart',
@@ -2944,6 +2956,7 @@ function Sidebar({
     if (item.marcacoesOnly && !bspVeMarcacoes(currentUser)) return null;
     if (item.painelOnly && !bspVePainel(currentUser)) return null;
     if (item.transporteOnly && !bspVeTransporte(currentUser)) return null;
+    if (item.stockOnly && !bspVeStock(currentUser)) return null;
     if (item.actividadeOnly && !bspVeActividade(currentUser)) return null;
     if (bspESocio(currentUser) && item.id !== 'painel') return null;
     const active = current === item.id;
@@ -3169,6 +3182,7 @@ function Topbar({
     marcacoes: 'Marcações',
     escalas: 'Escalas de serviço',
     transporte: 'Transporte',
+    stock: 'Stock',
     painel: 'Painel financeiro',
     relatorios: 'Relatórios do dia',
     documentos: 'Documentos da clínica',
@@ -3845,7 +3859,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'bsp_e_gestor'];
+const BSP_RPC_LEITURA = ['bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'bsp_e_gestor'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -5397,6 +5411,47 @@ function StoreProvider({
     const iv = setInterval(ver, 60000);
     return () => { vivo = false; clearTimeout(t0); clearInterval(iv); };
   }, []);
+  /* Alertas de stock (01-10-2026, stock.sql): a quem gere o stock (Arlete,
+     Solange, gestao), no sino, quando ha artigos esgotados, a acabar ou
+     lotes a caducar. Volta a avisar no mesmo dia so se o numero subir. */
+  React.useEffect(() => {
+    let vivo = true;
+    const ver = async () => {
+      const eu = window.userById && window.userById(window.CURRENT_USER_ID);
+      if (!eu || bspEmVerComo() || !bspVeStock(eu)) return;
+      const cl = bspGetClient();
+      if (!cl) return;
+      const r = await cl.rpc('bsp_stock_resumo');
+      if (!vivo || r.error || !r.data) return;
+      const hoje = bspDataLocalISO(new Date());
+      const chave = 'bsp-stock-aviso-' + eu.id + '-' + hoje;
+      let antes = {};
+      try { antes = JSON.parse(localStorage.getItem(chave) || '{}'); } catch (e) {}
+      const depois = {};
+      const novos = [];
+      (r.data.armazens || []).forEach(a => {
+        const falta = (a.esgotado || 0) + (a.a_acabar || 0);
+        depois[a.armazem] = { f: falta, c: a.a_caducar || 0 };
+        const v = antes[a.armazem] || { f: 0, c: 0 };
+        if (falta > v.f || (a.a_caducar || 0) > v.c) novos.push(a);
+      });
+      if (!novos.length) return;
+      novos.forEach(a => setState(s => pushNotif(s, {
+        type: 'sistema',
+        destino: 'stock',
+        text: 'Stock ' + bspStockArmazemNome(a.armazem) + ': ' + [a.esgotado ? a.esgotado + ' esgotado' + (a.esgotado === 1 ? '' : 's') : '', a.a_acabar ? a.a_acabar + ' a acabar' : '', a.a_caducar ? a.a_caducar + ' com lote a caducar' : ''].filter(Boolean).join(', '),
+        preview: 'Abra o Stock para ver os artigos.'
+      })));
+      bspPlayChime();
+      try {
+        localStorage.setItem(chave, JSON.stringify(depois));
+        Object.keys(localStorage).filter(k => k.indexOf('bsp-stock-aviso-') === 0 && k !== chave).forEach(k => localStorage.removeItem(k));
+      } catch (e) {}
+    };
+    const t0 = setTimeout(ver, 9000);
+    const iv = setInterval(ver, 30 * 60000);
+    return () => { vivo = false; clearTimeout(t0); clearInterval(iv); };
+  }, []);
   const actions = React.useMemo(() => ({
     markNotifsRead: () => setState(s => ({
       ...s,
@@ -6830,6 +6885,8 @@ function DashboardScreen({
     }
   }, bspVePainel(currentUser) && React.createElement(PainelAtalho, {
     onAbrir: () => onSwitch && onSwitch('painel')
+  }), bspVeStock(currentUser) && React.createElement(StockAlertaCartao, {
+    onAbrir: () => onSwitch && onSwitch('stock')
   }), bspVeActividade(currentUser) && React.createElement(ActividadeAtalho, {
     currentUser: currentUser,
     onAbrir: () => onSwitch && onSwitch('actividade')
@@ -23290,9 +23347,19 @@ const BSP_GUIA_FICHAS = [
       ['Use «Ver como»', 'para ver o ecrã de outra pessoa, só em leitura.']
     ],
     quem: 'Direcção e Coordenação.',
-    dica: 'A área de cada pessoa decide os canais e as escalas que ela vê.' }
+    dica: 'A área de cada pessoa decide os canais e as escalas que ela vê.' },
+  { icone: 'Box', nome: 'Stock',
+    serve: 'O stock de cada armazém, lido do MetaGest de 15 em 15 minutos.',
+    faz: [
+      ['Veja os alertas:', 'esgotados, a acabar (menos de 7 dias) e lotes a caducar (até 60 dias).'],
+      ['Procure um artigo', 'e veja a quantidade, as saídas dos últimos 30 dias e quanto tempo dura.'],
+      ['Imprima a lista', 'para a encomenda ou a contagem.'],
+      ['Os alertas chegam ao sino', 'e ao Início.']
+    ],
+    quem: 'A Arlete (todos os armazéns), a Solange (Farmácia) e a Direcção.',
+    dica: 'Os números vêm do MetaGest: para corrigir uma quantidade, corrija no MetaGest.' }
 ];
-const BSP_GUIA_IDS = ['dashboard', 'chat', 'feed', 'drive', 'calendar', 'tasks', 'escalas', 'transporte', 'seguimento', 'marcacoes', 'painel', 'relatorios', 'actividade', 'documentos', 'admin'];
+const BSP_GUIA_IDS = ['dashboard', 'chat', 'feed', 'drive', 'calendar', 'tasks', 'escalas', 'transporte', 'seguimento', 'marcacoes', 'painel', 'relatorios', 'actividade', 'documentos', 'admin', 'stock'];
 const BSP_GUIA = {};
 BSP_GUIA_IDS.forEach((id, i) => { BSP_GUIA[id] = BSP_GUIA_FICHAS[i]; });
 function bspGuiaVistos(uid) {
@@ -23517,6 +23584,150 @@ function MetagestEscolha({ valor, onMudar }) {
     achados.map(m => React.createElement("button", { key: m.id, type: 'button', onClick: () => { onMudar(sel.concat([m.id])); setQ(''); },
       style: { display: 'block', width: '100%', textAlign: 'left', border: 0, borderBottom: '1px solid var(--border)', background: 'transparent', padding: '8px 4px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, color: 'var(--text-1)' } },
       m.nome, React.createElement("span", { style: { color: 'var(--text-3)', fontSize: 12 } }, ' · ' + m.n + ' facturas desde o ano passado'))));
+}
+/* Stock (01-10-2026, pedido do Elmar, stock.sql): relatorio e alertas do
+   stock do MetaGest para quem o gere. Quem ve e o servidor que decide
+   (stock_responsaveis, bsp_ve_stock); isto so serve para mostrar o menu.
+   A Arlete (Administracao) ve todos os armazens; a Solange, a Farmacia; a
+   gestao, todos. */
+const BSP_STOCK_RESPONSAVEIS = { u2: ['*'], u17: ['FARMÁCIA - CBL'] };
+function bspVeStock(u) {
+  if (!u || bspESocio(u)) return false;
+  return bspGereMarcacoes(u) || !!BSP_STOCK_RESPONSAVEIS[u.id];
+}
+function bspStockArmazemNome(a) {
+  const n = String(a || '').replace(/\s*-\s*CBL$/i, '').trim();
+  return ({ 'Stores': 'Armazém central', 'STOCK GERALL': 'Stock geral' })[n] || n.charAt(0) + n.slice(1).toLowerCase();
+}
+const BSP_STOCK_ESTADOS = {
+  esgotado: { nome: 'Esgotado', cor: 'var(--perigo)' },
+  'a-acabar': { nome: 'A acabar', cor: 'var(--perigo)' },
+  'a-caducar': { nome: 'Lote a caducar', cor: 'var(--accent-d)' },
+  ok: { nome: 'Normal', cor: 'var(--text-3)' }
+};
+const BSP_ORDEM_STOCK = [['estado-asc', 'Alertas primeiro'], ['nome-asc', 'Nome (A–Z)'], ['dias-asc', 'Dura menos'], ['qtd-asc', 'Menor quantidade'], ['saidas-desc', 'Mais saídas'], ['validade-asc', 'Validade mais próxima']];
+function bspStockQtd(v) {
+  const n = Number(v || 0);
+  return n.toLocaleString('pt-PT', { maximumFractionDigits: 2 });
+}
+function StockAlertaCartao({ onAbrir }) {
+  const [d, setD] = React.useState(null);
+  React.useEffect(() => {
+    let vivo = true;
+    const cl = bspGetClient();
+    if (cl) cl.rpc('bsp_stock_resumo').then(r => { if (vivo && !r.error && r.data) setD(r.data); });
+    return () => { vivo = false; };
+  }, []);
+  const arm = d && d.armazens || [];
+  const tot = k => arm.reduce((n, a) => n + Number(a[k] || 0), 0);
+  if (!d || (tot('esgotado') + tot('a_acabar') + tot('a_caducar')) === 0) return null;
+  const num = (rotulo, valor, cor) => React.createElement("div", { style: { minWidth: 0 } },
+    React.createElement("div", { style: { fontSize: 11.5, fontWeight: 600, color: 'var(--text-3)' } }, rotulo),
+    React.createElement("div", { style: { fontSize: 20, fontWeight: 700, color: valor ? cor : 'var(--text-1)' } }, valor));
+  return React.createElement(Card, { pad: 16, style: { marginBottom: 16, borderLeft: '4px solid var(--perigo)' } },
+    React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' } },
+      React.createElement("div", { style: { flex: '1 1 160px' } },
+        React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)' } }, 'Alertas de stock'),
+        React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2 } }, arm.filter(a => a.esgotado || a.a_acabar || a.a_caducar).map(a => bspStockArmazemNome(a.armazem)).join(', ') + ' · MetaGest de 15 em 15 minutos')),
+      num('Esgotados', tot('esgotado'), 'var(--perigo)'),
+      num('A acabar', tot('a_acabar'), 'var(--perigo)'),
+      num('Lotes a caducar', tot('a_caducar'), 'var(--accent-d)'),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: onAbrir }, 'Ver o stock')));
+}
+function StockScreen() {
+  const [linhas, setLinhas] = React.useState(null);
+  const [resumo, setResumo] = React.useState(null);
+  const [erro, setErro] = React.useState('');
+  const [armazem, setArmazem] = React.useState('');
+  const [filtro, setFiltro] = React.useState('alertas');
+  const [busca, setBusca] = React.useState('');
+  const [ordem, setOrdem] = useOrdem('stock', 'estado-asc', BSP_ORDEM_STOCK.map(o => o[0]));
+  const carregar = React.useCallback(() => {
+    const cl = bspGetClient();
+    if (!cl) { setErro('O servidor não está ligado.'); return; }
+    setErro('');
+    cl.rpc('bsp_stock').then(r => {
+      if (r.error) { setErro(r.error.message || 'Não foi possível ler o stock.'); return; }
+      setLinhas(r.data || []);
+    });
+    cl.rpc('bsp_stock_resumo').then(r => { if (!r.error) setResumo(r.data); });
+  }, []);
+  React.useEffect(() => { carregar(); }, [carregar]);
+  const armazens = React.useMemo(() => Array.from(new Set((linhas || []).map(l => l.armazem))).sort((a, b) => {
+    const pa = /FARM/i.test(a) ? 0 : 1, pb = /FARM/i.test(b) ? 0 : 1;
+    return pa - pb || bspCompararTexto(bspStockArmazemNome(a), bspStockArmazemNome(b));
+  }), [linhas]);
+  React.useEffect(() => { if (!armazem && armazens.length) setArmazem(armazens[0]); }, [armazens, armazem]);
+  const doArmazem = (linhas || []).filter(l => l.armazem === armazem);
+  const conta = e => doArmazem.filter(l => l.estado === e).length;
+  const q = String(busca || '').trim().toLowerCase();
+  let lista = doArmazem.filter(l => filtro === 'todos' ? true : filtro === 'alertas' ? l.estado !== 'ok' : l.estado === filtro)
+    .filter(l => !q || String(l.nome || '').toLowerCase().indexOf(q) !== -1 || String(l.artigo || '').toLowerCase().indexOf(q) !== -1 || String(l.grupo || '').toLowerCase().indexOf(q) !== -1);
+  const pesoEstado = { esgotado: 0, 'a-acabar': 1, 'a-caducar': 2, ok: 3 };
+  lista = bspOrdenar(lista, ordem, {
+    estado: l => String(pesoEstado[l.estado]) + String(l.dias == null ? 9999 : Math.round(l.dias)).padStart(5, '0'),
+    nome: l => l.nome || '',
+    dias: l => l.dias == null ? 99999 : Number(l.dias),
+    qtd: l => Number(l.qtd || 0),
+    saidas: l => Number(l.saidas_30d || 0),
+    validade: l => l.lote_validade || '9999'
+  });
+  const hoje = bspDataLocalISO(new Date());
+  function imprimir() {
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    const corpo = lista.map(l => '<tr><td>' + esc(l.nome) + '</td><td>' + esc(l.grupo || '') + '</td><td style="text-align:right">' + esc(bspStockQtd(l.qtd)) + ' ' + esc(l.unidade || '') + '</td><td style="text-align:right">' + esc(bspStockQtd(l.saidas_30d)) + '</td><td style="text-align:right">' + (l.dias == null ? '—' : esc(bspStockQtd(l.dias))) + '</td><td>' + (l.lote_validade ? esc(bspDataCurta(l.lote_validade)) : '—') + '</td><td>' + esc((BSP_STOCK_ESTADOS[l.estado] || {}).nome || '') + '</td></tr>').join('');
+    bspImprimirHtml('<h1 style="font-family:\'Titillium Web\',Arial,sans-serif;color:#292F58;font-size:20px">Stock · ' + esc(bspStockArmazemNome(armazem)) + '</h1><p style="font-family:Arial;font-size:12px;color:#555">Clínica Barispol, Lda. · ' + esc(bspDataCurta(hoje)) + ' · dados do MetaGest' + (resumo && resumo.sincronizado_em ? ' de ' + esc(bspQuando(resumo.sincronizado_em)) : '') + '</p><table style="width:100%;border-collapse:collapse;font-family:Arial;font-size:11px"><thead><tr style="background:#292F58;color:#fff"><th style="text-align:left;padding:5px">Artigo</th><th style="text-align:left">Grupo</th><th style="text-align:right">Quantidade</th><th style="text-align:right">Saídas 30 d</th><th style="text-align:right">Dura (dias)</th><th style="text-align:left">Lote mais próximo</th><th style="text-align:left">Estado</th></tr></thead><tbody>' + corpo + '</tbody></table>');
+  }
+  const caixa = (id, rotulo, n, cor) => React.createElement("button", {
+    key: id,
+    onClick: () => setFiltro(id),
+    style: { flex: '1 1 140px', textAlign: 'left', padding: '12px 14px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit', border: '1px solid ' + (filtro === id ? 'var(--accent-d)' : 'var(--border)'), background: filtro === id ? 'var(--accent-soft)' : 'var(--surface)' }
+  }, React.createElement("div", { style: { fontSize: 11.5, fontWeight: 600, color: 'var(--text-3)' } }, rotulo), React.createElement("div", { style: { fontSize: 22, fontWeight: 700, color: n ? cor : 'var(--text-1)' } }, n));
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 14 } },
+    React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'space-between' } },
+      React.createElement("div", null,
+        React.createElement("h2", { style: { fontSize: 18, fontWeight: 700, color: 'var(--text-1)', margin: 0 } }, 'Stock'),
+        React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 3 } }, 'MetaGest de 15 em 15 minutos' + (resumo && resumo.sincronizado_em ? ' · última leitura: ' + bspQuando(resumo.sincronizado_em) : ''))),
+      React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+        React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: carregar }, 'Actualizar'),
+        React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: imprimir, icon: React.createElement(I.File, { size: 13 }) }, 'Imprimir a lista'))),
+    erro ? React.createElement(Card, { pad: 16 }, React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, erro)) : null,
+    linhas === null && !erro ? React.createElement(Card, { pad: 16 }, 'A ler o stock…') : null,
+    linhas && !linhas.length ? React.createElement(Card, { pad: 16 }, 'Sem armazéns a seu cargo.') : null,
+    armazens.length > 1 && React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } }, armazens.map(a => React.createElement("button", {
+      key: a,
+      onClick: () => setArmazem(a),
+      style: chip(armazem === a)
+    }, bspStockArmazemNome(a)))),
+    armazem && React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } },
+      caixa('alertas', 'Todos os alertas', doArmazem.filter(l => l.estado !== 'ok').length, 'var(--perigo)'),
+      caixa('esgotado', 'Esgotados (com saídas em 30 dias)', conta('esgotado'), 'var(--perigo)'),
+      caixa('a-acabar', 'A acabar (menos de 7 dias)', conta('a-acabar'), 'var(--perigo)'),
+      caixa('a-caducar', 'Lote a caducar (até 60 dias)', conta('a-caducar'), 'var(--accent-d)'),
+      caixa('todos', 'Todos os artigos', doArmazem.length, 'var(--text-1)')),
+    armazem && React.createElement(Card, { pad: 0 },
+      React.createElement("div", { style: { display: 'flex', gap: 10, alignItems: 'center', padding: 12, borderBottom: '1px solid var(--border)', flexWrap: 'wrap' } },
+        React.createElement("div", { style: { flex: '1 1 220px' } }, React.createElement(TextInput, { value: busca, onChange: setBusca, placeholder: 'Procurar artigo, código ou grupo' })),
+        React.createElement(OrdemSelect, { valor: ordem, onMudar: setOrdem, opcoes: BSP_ORDEM_STOCK }),
+        React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, lista.length + (lista.length === 1 ? ' artigo' : ' artigos'))),
+      React.createElement("div", { style: { overflowX: 'auto' } }, React.createElement("table", { style: { width: '100%', borderCollapse: 'collapse', fontSize: 13 } },
+        React.createElement("thead", null, React.createElement("tr", { style: { textAlign: 'left', color: 'var(--text-3)', fontSize: 11.5 } },
+          ['Artigo', 'Quantidade', 'Saídas 30 dias', 'Dura', 'Lote mais próximo', 'Estado'].map((h, i) => React.createElement("th", { key: h, style: { padding: '9px 12px', fontWeight: 600, textAlign: i > 0 && i < 4 ? 'right' : 'left', whiteSpace: 'nowrap' } }, h)))),
+        React.createElement("tbody", null, lista.slice(0, 400).map(l => {
+          const est = BSP_STOCK_ESTADOS[l.estado] || BSP_STOCK_ESTADOS.ok;
+          const caduca = l.lote_validade && l.lote_validade <= bspSomarDias(hoje, 60);
+          return React.createElement("tr", { key: l.artigo, style: { borderTop: '1px solid var(--border)' } },
+            React.createElement("td", { style: { padding: '9px 12px', minWidth: 200 } },
+              React.createElement("div", { style: { fontWeight: 600, color: 'var(--text-1)' } }, l.nome),
+              React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)' } }, [l.artigo, l.grupo].filter(Boolean).join(' · '))),
+            React.createElement("td", { style: { padding: '9px 12px', textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 600, color: Number(l.qtd) <= 0 ? 'var(--perigo)' : 'var(--text-1)' } }, bspStockQtd(l.qtd) + (l.unidade ? ' ' + String(l.unidade).toLowerCase() : '')),
+            React.createElement("td", { style: { padding: '9px 12px', textAlign: 'right', color: 'var(--text-2)' } }, bspStockQtd(l.saidas_30d)),
+            React.createElement("td", { style: { padding: '9px 12px', textAlign: 'right', whiteSpace: 'nowrap', color: l.dias != null && l.dias < 7 ? 'var(--perigo)' : 'var(--text-2)' } }, l.dias == null ? '—' : bspStockQtd(l.dias) + ' dias'),
+            React.createElement("td", { style: { padding: '9px 12px', whiteSpace: 'nowrap', color: caduca ? 'var(--accent-d)' : 'var(--text-2)', fontWeight: caduca ? 600 : 400 } }, l.lote_validade ? bspDataCurta(l.lote_validade) + (l.lote_qtd != null ? ' (' + bspStockQtd(l.lote_qtd) + ')' : '') : '—'),
+            React.createElement("td", { style: { padding: '9px 12px', whiteSpace: 'nowrap', fontWeight: 600, color: est.cor } }, est.nome));
+        })))),
+      lista.length > 400 && React.createElement("div", { style: { padding: 12, fontSize: 12, color: 'var(--text-3)' } }, 'Mostram-se os primeiros 400. Use a procura ou os filtros.')),
+    React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)', lineHeight: 1.5 } }, 'Esgotado: quantidade 0 e saídas nos últimos 30 dias. A acabar: ao ritmo dos últimos 30 dias, dura menos de 7 dias. Lote a caducar: lote com quantidade e validade até 60 dias. Os números vêm dos movimentos do MetaGest; para corrigir, corrija no MetaGest.'));
 }
 function PainelAtalho({ onAbrir }) {
   const [d, setD] = React.useState(null);
@@ -24454,7 +24665,7 @@ function App() {
   }), pg === 'meetings' && React.createElement(MeetingsScreen, null), pg === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), pg === 'seguimento' && (bspVeCrm(currentUser) ? React.createElement(CrmScreen, null) : null), pg === 'marcacoes' && (bspVeMarcacoes(currentUser) ? React.createElement(MarcacoesScreen, null) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(DirectoryScreen, null), pg === 'admin' && React.createElement(AdminScreen, {
+  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), pg === 'seguimento' && (bspVeCrm(currentUser) ? React.createElement(CrmScreen, null) : null), pg === 'marcacoes' && (bspVeMarcacoes(currentUser) ? React.createElement(MarcacoesScreen, null) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'stock' && (bspVeStock(currentUser) ? React.createElement(StockScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(DirectoryScreen, null), pg === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
   }), pg === 'notifications' && React.createElement(NotificationsScreen, {
     onAbrir: abrirNotificacao

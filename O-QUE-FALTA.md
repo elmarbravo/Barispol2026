@@ -2282,3 +2282,27 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
 - Chat: as mensagens passam a mostrar as mudanças de linha (`pre-wrap`).
 - Testado no navegador (servidor simulado): criar, abrir, comentar, citar,
   levar para #geral e voltar à tarefa pelo botão; telemóvel em ecrã inteiro.
+
+## 3-bv. Stock do MetaGest no Workspace (01-10-2026)
+
+- Pedido do Elmar: a Arlete e a Solange recebem no Workspace o relatório e
+  os alertas de stock.
+- O utilizador da API não lê o «Bin» (403). O saldo sai do último movimento
+  de cada artigo em cada armazém (Stock Ledger Entry). `stock.sql`, aplicado:
+  `erp.stock_mov`, `erp.stock_artigo`, `erp.stock_lote`,
+  `erp.sincronizar_stock()` (agendamento `bsp-stock`, 15 em 15 min; a
+  primeira cópia levou 18 s: 10 419 movimentos, 3066 artigos, 905 lotes).
+- Quem vê: `public.stock_responsaveis` (Arlete u2 = todos; Solange u17 =
+  FARMÁCIA - CBL) e a gestão, em `bsp_ve_stock`. Testado: a Arlete vê os 6
+  armazéns, a Solange só a Farmácia, outra colega nada. No ecrã:
+  `bspVeStock` / `BSP_STOCK_RESPONSAVEIS` (mudar os dois lados juntos).
+- Relatório: `bsp_stock()` (saldo, saídas de 30 dias, dias que dura, lote
+  mais próximo, estado). Esgotado = 0 com saídas em 30 dias; a acabar = dura
+  menos de 7 dias; lote a caducar = validade até 60 dias.
+- Ecrã «Stock» (`StockScreen`): armazéns, alertas, procura, ordenar,
+  imprimir. Início: `StockAlertaCartao`. Sino: aviso quando os alertas sobem
+  (uma vez por dia por armazém). Ficha no guia.
+- Em 01-10-2026: Farmácia com 12 esgotados, 3 a acabar e 56 com lote a
+  caducar; nos outros armazéns, nada.
+- Os papéis do utilizador da API no MetaGest (Gestor de Contas, Gestor de
+  Stock, Gestor do Item, Médico…) deixam gravar. O Workspace só lê.

@@ -260,6 +260,11 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   `erp.sales_invoice` (histórico desde 2022, `metagest-historico.sql`),
   nunca de `crm.mg_consultas`, que está incompleto. Ecrã `painel` (`PainelScreen`,
   `PainelColunas`, `PainelBarras`), cores `--serie-1..4`.
+- Stock (01-10-2026, `stock.sql`): saldo pelo último movimento do MetaGest
+  (`erp.stock_mov`, cron `bsp-stock`); `bsp_stock()` / `bsp_stock_resumo()`;
+  quem vê: `stock_responsaveis` + gestão (`bsp_ve_stock`) e, no ecrã,
+  `bspVeStock` / `BSP_STOCK_RESPONSAVEIS`. Ecrã `StockScreen`, Início
+  `StockAlertaCartao`.
 - Sócios (27-09-2026, `socios.sql`): camada «Sócio» (`soNumeros`), só o
   Painel. Servidor: `bsp_e_socio`, `bsp_membro_e_socio`; ecrã: `bspESocio`,
   `bspVePainel`. Nunca usar a camada de sócio como camada de recurso.
