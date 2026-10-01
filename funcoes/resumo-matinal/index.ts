@@ -27,6 +27,8 @@
 //     sexta (bsp-aviso-coletivo).
 // Os dois avisam que o WhatsApp deixa em breve de ser o canal interno.
 // Sai um e-mail por endereco, para ninguem ver os enderecos dos outros.
+// Versao 11 (01-10-2026): o resumo leva a agenda de cada pessoa, com os
+// eventos de agenda_eventos que ela pode ver (agenda-privada.sql).
 // Desde a versao 10 (30-09-2026) os envios vao para toda a equipa com
 // e-mail valido, tambem os enderecos pessoais dos medicos (decisao do
 // Elmar), menos quem tem a marca semEmails.
@@ -382,19 +384,38 @@ Deno.serve(async (req) => {
   const diaSemana = (new Date().getUTCDay() + 6) % 7;
   const doDia = eventos.filter((e: any) =>
     e && e.data ? String(e.data) === hoje : (e.day == null ? diaSemana : Number(e.day)) === diaSemana);
-  const blocoDia = doDia.length
-    ? '<p style="margin:0 0 6px;font-size:15px;color:#1C2033"><b>Hoje na agenda</b></p><ul style="padding-left:18px;margin:0 0 16px">' +
-      doDia
-        .map(
-          (e: any) =>
-            '<li style="margin-bottom:4px;font-size:15px;color:#1C2033">' +
-            (e.time ? "<b>" + escapar(e.time) + "</b> · " : "") +
-            escapar(e.title) +
-            "</li>"
-        )
-        .join("") +
-      "</ul>"
-    : "";
+  /* AGENDA DE CADA PESSOA (versao 11, 01-10-2026, agenda-privada.sql):
+     alem dos eventos da equipa (shared_state.events), os da tabela
+     agenda_eventos que a pessoa pode ver: publicos, seus e aqueles para
+     que foi convidada (menos os que recusou). Os privados dos outros nunca
+     entram. Quem nao tem tarefas mas tem um evento seu ou um convite hoje
+     tambem recebe o resumo. */
+  let agendaHoje: any[] = [];
+  const agendaDe = (u: any) => {
+    const meus = agendaHoje.filter((e: any) =>
+      (!e.privado || e.dono === u.id || (e.convidados || []).includes(u.id)) && !(e.respostas && e.respostas[u.id] === "nao"));
+    const pessoais = meus.filter((e: any) => e.dono === u.id || (e.convidados || []).includes(u.id)).length;
+    const lista = doDia
+      .map((e: any) => ({ hora: e.time || "", titulo: e.title, local: "", privado: false }))
+      .concat(meus.map((e: any) => ({ hora: e.hora || "", titulo: e.titulo, local: e.local || "", privado: !!e.privado })))
+      .sort((a: any, b: any) => String(a.hora).localeCompare(String(b.hora)));
+    const html = lista.length
+      ? '<p style="margin:0 0 6px;font-size:15px;color:#1C2033"><b>Hoje na agenda</b></p><ul style="padding-left:18px;margin:0 0 16px">' +
+        lista
+          .map(
+            (e: any) =>
+              '<li style="margin-bottom:4px;font-size:15px;color:#1C2033">' +
+              (e.hora ? "<b>" + escapar(e.hora) + "</b> · " : "") +
+              escapar(e.titulo) +
+              (e.local ? " · " + escapar(e.local) : "") +
+              (e.privado ? ' <span style="color:#4E5366;font-size:13px">(privado)</span>' : "") +
+              "</li>"
+          )
+          .join("") +
+        "</ul>"
+      : "";
+    return { html, pessoais };
+  };
 
   const enviar = async (para: string, assunto: string, html: string, cc?: string[]) => {
     try {
@@ -787,23 +808,31 @@ Deno.serve(async (req) => {
   let deEquipa = 0;
   const falhas: string[] = [];
 
-  // 1. A cada pessoa, o que é dela.
+  // 1. A cada pessoa, o que é dela (tarefas e agenda).
+  const { data: agendaLinhas } = await admin
+    .from("agenda_eventos")
+    .select("dono, titulo, hora, dia, data, privado, convidados, respostas, local");
+  agendaHoje = ((agendaLinhas || []) as any[]).filter((e: any) =>
+    e && (e.data ? String(e.data) === hoje : Number(e.dia) === diaSemana));
   for (const u of destinatarios) {
     const minhas = pendentes.filter((t) => (t.assignees || []).includes(u.id));
-    if (!minhas.length) continue;
+    const ag = agendaDe(u);
+    if (!minhas.length && !ag.pessoais) continue;
     const nome = String(u.name || "").split(" ")[0];
     const ok = await enviar(
       u.email,
-      "As suas tarefas de hoje (" + minhas.length + ")",
+      minhas.length ? "As suas tarefas de hoje (" + minhas.length + ")" : "A sua agenda de hoje",
       envelope(
         "Bom dia, " + escapar(nome) + ".",
-        blocoDia +
-          '<p style="margin:0;font-size:15px;color:#1C2033">Tem <b>' +
-          minhas.length +
-          "</b> tarefa(s) por fechar:</p>" +
-          listaDeTarefas(minhas, false, equipa),
-        "tarefas",
-        "Ver as minhas tarefas"
+        ag.html +
+          (minhas.length
+            ? '<p style="margin:0;font-size:15px;color:#1C2033">Tem <b>' +
+              minhas.length +
+              "</b> tarefa(s) por fechar:</p>" +
+              listaDeTarefas(minhas, false, equipa)
+            : '<p style="margin:0;font-size:15px;color:#1C2033">Não tem tarefas por fechar.</p>'),
+        minhas.length ? "tarefas" : "agenda",
+        minhas.length ? "Ver as minhas tarefas" : "Abrir a Agenda"
       )
     );
     ok ? pessoais++ : falhas.push(u.email);

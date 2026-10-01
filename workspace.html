@@ -6938,7 +6938,7 @@ function DashboardScreen({
   const {
     state
   } = useStore();
-  const upcoming = (state.todayEvents || []).slice(0, 5);
+  const upcoming = useProximosEventos(5);
   const myTasks = [...(state.tasks.todo || []), ...(state.tasks.doing || []), ...(state.tasks.review || [])].filter(tk => (tk.assignees || []).includes(currentUser.id));
   /* Actividade recente com data exacta. As publicacoes vem do servidor,
      com a data em que foram feitas, e sao iguais em todos os aparelhos.
@@ -6970,7 +6970,7 @@ function DashboardScreen({
     mm = String(now.getMinutes()).padStart(2, '0');
   const greeting = now.getHours() < 12 ? 'Bom dia' : now.getHours() < 19 ? 'Boa tarde' : 'Boa noite';
   const dateLine = dias[now.getDay()] + ' · ' + now.getDate() + ' de ' + meses[now.getMonth()] + ' · ' + hh + ':' + mm + ' WAT';
-  const summary = upcoming.length || unread || pendingTasks ? 'Tem ' + upcoming.length + ' ' + (upcoming.length === 1 ? 'evento' : 'eventos') + ' na rotina da semana, ' + unread + ' ' + (unread === 1 ? 'mensagem não lida' : 'mensagens não lidas') + ' e ' + pendingTasks + ' ' + (pendingTasks === 1 ? 'tarefa pendente' : 'tarefas pendentes') + '.' : 'Está tudo em dia. Comece por publicar um aviso ou agendar uma reunião.';
+  const summary = upcoming.length || unread || pendingTasks ? 'Tem ' + upcoming.length + ' ' + (upcoming.length === 1 ? 'evento' : 'eventos') + ' nos próximos 7 dias, ' + unread + ' ' + (unread === 1 ? 'mensagem não lida' : 'mensagens não lidas') + ' e ' + pendingTasks + ' ' + (pendingTasks === 1 ? 'tarefa pendente' : 'tarefas pendentes') + '.' : 'Está tudo em dia. Comece por publicar um aviso ou agendar uma reunião.';
   const quick = [{
     icon: 'Megaphone',
     label: 'Publicar aviso',
@@ -7148,7 +7148,7 @@ function DashboardScreen({
       margin: 0,
       color: 'var(--text-1)'
     }
-  }, "Rotina da semana"), React.createElement("button", {
+  }, "Próximos 7 dias"), React.createElement("button", {
     onClick: () => onSwitch('calendar'),
     style: {
       fontSize: 12.5,
@@ -7163,9 +7163,9 @@ function DashboardScreen({
     icon: React.createElement(I.Cal, {
       size: 20
     }),
-    text: "Nada marcado na rotina da semana. Crie no Calendário."
+    text: "Nada marcado nos próximos 7 dias. Crie na Agenda."
   }) : upcoming.map(e => React.createElement("div", {
-    key: e.id,
+    key: e.id + e.quandoIso,
     style: {
       display: 'flex',
       gap: 12,
@@ -7180,12 +7180,12 @@ function DashboardScreen({
       width: 76,
       flex: 'none'
     }
-  }, ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'][e.day == null ? (new Date().getDay() + 6) % 7 : e.day] + ' · ' + e.time), React.createElement("div", {
+  }, bspDiaCurtoEvento(e.quandoIso) + ' · ' + e.time), React.createElement("div", {
     style: {
       fontSize: 13,
       color: 'var(--text-1)'
     }
-  }, e.title)))), React.createElement(Card, null, React.createElement("div", {
+  }, (e.origem === 'agenda' && e.privado ? '🔒 ' : '') + e.title)))), React.createElement(Card, null, React.createElement("div", {
     style: {
       display: 'flex',
       justifyContent: 'space-between',
@@ -9841,6 +9841,7 @@ function FeedScreen({
   currentUser,
   onSwitch
 }) {
+  const proximos = useProximosEventos(4);
   const [filter, setFilter] = React.useState('todos');
   const [composeType, setComposeType] = React.useState(null);
   const {
@@ -10077,15 +10078,15 @@ function FeedScreen({
       flexDirection: 'column',
       gap: 12
     }
-  }, (state.todayEvents || []).length === 0 && React.createElement("div", {
+  }, proximos.length === 0 && React.createElement("div", {
     style: {
       fontSize: 12,
       color: 'var(--text-3)'
     }
-  }, "Sem eventos agendados. Crie no Calendário."), (state.todayEvents || []).slice(0, 4).map(ev => ({
+  }, "Nada marcado nos próximos 7 dias. Crie na Agenda."), proximos.map(ev => ({
     d: String(ev.time || '').slice(0, 5),
-    m: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'][ev.day == null ? 0 : ev.day],
-    t: ev.title,
+    m: bspDiaCurtoEvento(ev.quandoIso),
+    t: (ev.origem === 'agenda' && ev.privado ? '🔒 ' : '') + ev.title,
     sub: (CAT_COLORS[ev.cat] || {}).label || ''
   })).map((e, i) => React.createElement("div", {
     key: i,
@@ -11186,10 +11187,170 @@ const CAT_COLORS = {
     label: 'Pessoal'
   }
 };
+/* Agenda privada e pública, com convidados (01-10-2026, agenda-privada.sql;
+   pedido do Elmar: «a mesma privacidade das tarefas»). Os eventos novos
+   ficam na tabela agenda_eventos (o servidor decide quem vê: dono, quem
+   criou, convidados, Direcção e Coordenação; os públicos, todos). Os
+   eventos antigos da equipa (shared_state) continuam como estavam. */
+function bspAgendaParaEvento(a) {
+  const ev = {
+    id: 'a' + a.id, idReal: a.id, origem: 'agenda', title: a.titulo, descricao: a.descricao || '', local: a.local || '',
+    cat: CAT_COLORS[a.categoria] ? a.categoria : 'reuniao', time: a.hora || '09:00', dur: Number(a.duracao) || 60,
+    day: a.data ? (bspDataDe(a.data).getDay() + 6) % 7 : Number(a.dia), privado: !!a.privado, dono: a.dono,
+    criadoPor: a.criado_por || a.dono, convidados: Array.isArray(a.convidados) ? a.convidados : [], respostas: a.respostas || {},
+    criadoEm: a.criado_em
+  };
+  if (a.data) ev.data = a.data;
+  return ev;
+}
+function bspVeTodasAgendas() {
+  return !!bspCamada(window.userById(window.CURRENT_USER_ID)).podeVerTarefasPessoais;
+}
+/* Quem pode mudar e apagar: dono, quem criou, Direcção e Coordenação. Os
+   eventos antigos da equipa mudam como antes (qualquer pessoa). */
+function bspPodeMudarEvento(e) {
+  if (!e || e.origem !== 'agenda') return true;
+  const eu = window.CURRENT_USER_ID;
+  return e.dono === eu || e.criadoPor === eu || bspVeTodasAgendas();
+}
+/* O que entra na agenda de quem está a ver: eventos da equipa, públicos,
+   seus, que criou ou para que foi convidado. agendaDe: '' (a minha),
+   'todas' (só quem vê as agendas de todos) ou o id de uma pessoa. */
+function bspEventoNaAgenda(e, agendaDe) {
+  if (!e || e.origem !== 'agenda') return agendaDe === '' || agendaDe === 'todas';
+  const eu = window.CURRENT_USER_ID;
+  if (agendaDe === 'todas') return true;
+  if (agendaDe) return e.dono === agendaDe || e.convidados.indexOf(agendaDe) !== -1;
+  return !e.privado || e.dono === eu || e.criadoPor === eu || e.convidados.indexOf(eu) !== -1;
+}
+const BSP_RESPOSTAS_EVENTO = { sim: 'Vou', talvez: 'Talvez', nao: 'Não vou' };
+/* Próximos 7 dias da agenda de quem está a ver (Início e Feed): cada
+   ocorrência com a sua data, por ordem; o que já passou hoje não conta. */
+function useProximosEventos(n) {
+  const { state } = useStore();
+  const agenda = useAgendaEventos();
+  const hoje = bspDataLocalISO(new Date());
+  const agora = new Date();
+  const horaAgora = String(agora.getHours()).padStart(2, '0') + ':' + String(agora.getMinutes()).padStart(2, '0');
+  const todayIdx = (agora.getDay() + 6) % 7;
+  const lista = (state.todayEvents || []).map(e => Object.assign({ origem: 'equipa' }, e)).concat(agenda.eventos)
+    .filter(e => bspEventoNaAgenda(e, '') && !(e.origem === 'agenda' && e.respostas && e.respostas[window.CURRENT_USER_ID] === 'nao'));
+  const res = [];
+  for (let i = 0; i < 7; i++) {
+    const iso = bspSomarDias(hoje, i);
+    lista.forEach(e => { if (bspEventoNaData(e, iso, todayIdx) && !(i === 0 && String(e.time || '') < horaAgora)) res.push(Object.assign({}, e, { quandoIso: iso })); });
+  }
+  res.sort((a, b) => (a.quandoIso + (a.time || '')).localeCompare(b.quandoIso + (b.time || '')));
+  return res.slice(0, n || 5);
+}
+function bspDiaCurtoEvento(iso) {
+  if (iso === bspDataLocalISO(new Date())) return 'Hoje';
+  if (iso === bspSomarDias(bspDataLocalISO(new Date()), 1)) return 'Amanhã';
+  return ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'][(bspDataDe(iso).getDay() + 6) % 7] + ' ' + Number(iso.slice(8));
+}
+function useAgendaEventos() {
+  const [linhas, setLinhas] = React.useState([]);
+  const [tick, setTick] = React.useState(0);
+  const recarregar = React.useCallback(() => setTick(t => t + 1), []);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    cl.from('agenda_eventos').select('*').order('hora', { ascending: true }).then(r => { if (vivo && !r.error) setLinhas(r.data || []); });
+    return () => { vivo = false; };
+  }, [tick]);
+  /* Tempo real: um convite novo aparece sem recarregar a página. */
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl || !cl.channel) return;
+    let t = null;
+    const ch = cl.channel('bsp-agenda-' + Math.random().toString(36).slice(2))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'agenda_eventos' }, () => { clearTimeout(t); t = setTimeout(recarregar, 300); })
+      .subscribe();
+    return () => { clearTimeout(t); try { cl.removeChannel(ch); } catch (x) {} };
+  }, [recarregar]);
+  const gravar = React.useCallback(async (id, campos) => {
+    const cl = bspGetClient();
+    if (!cl) return 'O servidor não está ligado.';
+    const r = id ? await cl.from('agenda_eventos').update(campos).eq('id', id).select('id') : await cl.from('agenda_eventos').insert(campos).select('id');
+    recarregar();
+    if (r.error) return r.error.message || 'Não foi possível gravar.';
+    if (Array.isArray(r.data) && !r.data.length) return 'Não tem permissão para mudar este evento.';
+    return null;
+  }, [recarregar]);
+  const apagar = React.useCallback(async id => {
+    const cl = bspGetClient();
+    if (!cl) return 'O servidor não está ligado.';
+    const r = await cl.from('agenda_eventos').delete().eq('id', id).select('id');
+    recarregar();
+    if (r.error) return r.error.message || 'Não foi possível apagar.';
+    if (Array.isArray(r.data) && !r.data.length) return 'Não tem permissão para apagar este evento.';
+    return null;
+  }, [recarregar]);
+  const responder = React.useCallback(async (id, resposta) => {
+    const cl = bspGetClient();
+    if (!cl) return 'O servidor não está ligado.';
+    const r = await cl.rpc('bsp_evento_responder', { p_id: id, p_resposta: resposta });
+    recarregar();
+    return r.error ? (r.error.message || 'Não foi possível responder.') : null;
+  }, [recarregar]);
+  const eventos = React.useMemo(() => linhas.map(bspAgendaParaEvento), [linhas]);
+  return { eventos, gravar, apagar, responder, recarregar };
+}
+function bspQuandoEvento(e) {
+  const SEM = ['segundas', 'terças', 'quartas', 'quintas', 'sextas', 'sábados', 'domingos'];
+  const [hh, mm] = String(e.time || '09:00').split(':').map(Number);
+  const fim = hh * 60 + (mm || 0) + (Number(e.dur) || 60);
+  const ate = String(Math.floor(fim / 60) % 24).padStart(2, '0') + ':' + String(fim % 60).padStart(2, '0');
+  return (e.data ? bspDiaExtenso(e.data + 'T12:00:00') : 'Todas as ' + SEM[e.day == null ? 0 : e.day]) + ', ' + (e.time || '') + '–' + ate;
+}
+function EventoDetalhe({ evento, onClose, onEditar, onApagar, onResponder }) {
+  const e = evento;
+  if (!e) return null;
+  const eu = window.CURRENT_USER_ID;
+  const c = CAT_COLORS[e.cat] || CAT_COLORS.reuniao;
+  const nome = id => id === eu ? 'Eu' : ((window.userById(id) || {}).name || 'Antigo colaborador');
+  const convidado = e.origem === 'agenda' && e.convidados.indexOf(eu) !== -1;
+  const minha = e.respostas && e.respostas[eu];
+  const pode = bspPodeMudarEvento(e);
+  const linha = (rot, val) => val ? React.createElement("div", { style: { display: 'grid', gridTemplateColumns: '96px 1fr', gap: 10, fontSize: 13.5, padding: '6px 0', borderBottom: '1px solid var(--border)' } },
+    React.createElement("span", { style: { color: 'var(--text-3)' } }, rot), React.createElement("span", { style: { color: 'var(--text-1)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } }, val)) : null;
+  const corResp = r => r === 'sim' ? 'var(--sucesso)' : r === 'nao' ? 'var(--perigo)' : 'var(--text-3)';
+  return React.createElement(Modal, {
+    open: true, onClose: onClose, title: e.title, width: 480,
+    footer: React.createElement(React.Fragment, null,
+      pode && React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: () => { if (window.confirm('Apagar «' + e.title + '»' + (e.origem === 'agenda' && e.convidados.length ? ' para todos os convidados' : '') + '?')) onApagar(e); } }, 'Apagar'),
+      React.createElement("span", { style: { flex: 1 } }),
+      pode && React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: () => onEditar(e) }, 'Mudar'),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: onClose }, 'Fechar'))
+  }, React.createElement("div", { style: { padding: 20 } },
+    React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' } },
+      React.createElement("span", { style: { width: 10, height: 10, borderRadius: 3, background: c.c } }),
+      React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-2)', fontWeight: 600 } }, c.label),
+      React.createElement("span", { style: { fontSize: 12, padding: '2px 8px', borderRadius: 999, border: '1px solid var(--border)', color: 'var(--text-2)', display: 'inline-flex', alignItems: 'center', gap: 4 } },
+        e.origem === 'agenda' && e.privado ? React.createElement(I.Lock, { size: 11 }) : null,
+        e.origem !== 'agenda' ? 'Agenda da equipa' : e.privado ? 'Privado' : 'Toda a equipa vê')),
+    linha('Quando', bspQuandoEvento(e)),
+    linha('Local', e.local),
+    linha('Descrição', e.descricao),
+    e.origem === 'agenda' && linha('Agenda de', nome(e.dono)),
+    e.origem === 'agenda' && e.criadoPor && e.criadoPor !== e.dono && linha('Posto por', nome(e.criadoPor)),
+    e.origem === 'agenda' && e.convidados.length > 0 && React.createElement("div", { style: { marginTop: 12 } },
+      React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: 'var(--text-2)', marginBottom: 6 } }, 'Convidados (' + e.convidados.length + ')'),
+      e.convidados.map(id => React.createElement("div", { key: id, style: { display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 13.5 } },
+        React.createElement(Avatar, { user: window.userById(id) || { id: id, name: '?' }, size: 22 }),
+        React.createElement("span", { style: { flex: 1, color: 'var(--text-1)' } }, nome(id)),
+        React.createElement("span", { style: { fontSize: 12.5, fontWeight: 600, color: corResp(e.respostas[id]) } }, BSP_RESPOSTAS_EVENTO[e.respostas[id]] || 'Por responder')))),
+    convidado && React.createElement("div", { style: { marginTop: 16, padding: 12, border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface-2)' } },
+      React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 8 } }, minha ? 'A sua resposta: ' + BSP_RESPOSTAS_EVENTO[minha] + '. Pode mudar:' : 'Foi convidado. Vai?'),
+      React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+        ['sim', 'talvez', 'nao'].map(r => React.createElement(Button, { key: r, variant: minha === r ? 'primary' : 'secondary', size: 'sm', onClick: () => onResponder(e, r) }, BSP_RESPOSTAS_EVENTO[r]))))));
+}
 function CalEventModal({
   open,
   onClose,
-  onCreate
+  onSave,
+  inicial
 }) {
   const days = [['0', 'Seg'], ['1', 'Ter'], ['2', 'Qua'], ['3', 'Qui'], ['4', 'Sex'], ['5', 'Sáb'], ['6', 'Dom']];
   const cats = Object.entries(CAT_COLORS).sort((a, b) => bspCompararTexto(a[1].label, b[1].label));
@@ -11201,34 +11362,55 @@ function CalEventModal({
   /* «Todas as semanas» (opcao C, a regra) ou «Numa data» (25-09-2026). */
   const [repete, setRepete] = React.useState(true);
   const [data, setData] = React.useState(bspDataLocalISO(new Date()));
+  /* Privacidade e convidados (01-10-2026, agenda-privada.sql). */
+  const eu = window.CURRENT_USER_ID;
+  const podeDelegar = bspVeTodasAgendas();
+  const [privado, setPrivado] = React.useState(true);
+  const [convidados, setConvidados] = React.useState([]);
+  const [dono, setDono] = React.useState(eu);
+  const [local, setLocal] = React.useState('');
+  const [descricao, setDescricao] = React.useState('');
+  const [aGravar, setAGravar] = React.useState(false);
+  const [erro, setErro] = React.useState('');
   React.useEffect(() => {
-    if (open) {
-      setTitle('');
-      setDay(String((new Date().getDay() + 6) % 7));
-      setTime('09:00');
-      setDur('60');
-      setCat('reuniao');
-      setRepete(true);
-      setData(bspDataLocalISO(new Date()));
-    }
+    if (!open) return;
+    const e = inicial || null;
+    setTitle(e ? e.title || '' : '');
+    setDay(String(e && e.day != null ? e.day : (new Date().getDay() + 6) % 7));
+    setTime(e && e.time ? e.time : '09:00');
+    setDur(String(e && e.dur ? e.dur : 60));
+    setCat(e && e.cat ? e.cat : 'reuniao');
+    setRepete(!(e && e.data));
+    setData(e && e.data ? e.data : bspDataLocalISO(new Date()));
+    setPrivado(e ? (e.origem === 'agenda' ? !!e.privado : false) : true);
+    setConvidados(e && e.convidados ? e.convidados.slice() : []);
+    setDono(e && e.dono ? e.dono : eu);
+    setLocal(e && e.local || '');
+    setDescricao(e && e.descricao || '');
+    setErro(''); setAGravar(false);
   }, [open]);
-  const submit = () => {
-    if (!title.trim()) return;
-    if (!repete && !/^\d{4}-\d{2}-\d{2}$/.test(data)) return;
-    const diaDaData = !repete ? (new Date(data + 'T12:00:00').getDay() + 6) % 7 : null;
-    onCreate(Object.assign({
-      title: title.trim(),
-      day: repete ? Number(day) : diaDaData,
-      time,
-      dur: Number(dur),
-      cat
-    }, repete ? {} : { data: data }));
+  const submit = async () => {
+    if (!title.trim()) { setErro('Escreva o título.'); return; }
+    if (!repete && !/^\d{4}-\d{2}-\d{2}$/.test(data)) { setErro('Escolha a data.'); return; }
+    if (!/^\d{2}:\d{2}$/.test(time)) { setErro('Escolha a hora.'); return; }
+    setAGravar(true);
+    const err = await onSave({
+      titulo: title.trim(), hora: time, duracao: Math.max(5, Number(dur) || 60), categoria: cat,
+      dia: repete ? Number(day) : null, data: repete ? null : data,
+      privado: privado, convidados: convidados.filter(x => x !== dono), dono: dono,
+      local: local.trim(), descricao: descricao.trim()
+    });
+    setAGravar(false);
+    if (err) { setErro(err); return; }
     onClose();
   };
+  const rot = (t, nota) => React.createElement("label", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 6 } }, t,
+    nota ? React.createElement("span", { style: { fontWeight: 400, color: 'var(--text-3)' } }, ' ' + nota) : null);
+  const pessoasOrd = USERS.slice().sort((a, b) => bspCompararTexto(a.name, b.name));
   return React.createElement(Modal, {
     open: open,
     onClose: onClose,
-    title: "Novo evento",
+    title: inicial ? "Mudar evento" : "Novo evento",
     width: 480,
     footer: React.createElement(React.Fragment, null, React.createElement(Button, {
       variant: "ghost",
@@ -11238,10 +11420,11 @@ function CalEventModal({
       variant: "primary",
       size: "sm",
       onClick: submit,
-      icon: React.createElement(I.Plus, {
+      disabled: aGravar,
+      icon: inicial ? null : React.createElement(I.Plus, {
         size: 13
       })
-    }, "Criar evento"))
+    }, aGravar ? "A gravar…" : inicial ? "Guardar" : "Criar evento"))
   }, React.createElement("div", {
     style: {
       padding: 20,
@@ -11395,7 +11578,27 @@ function CalEventModal({
       borderRadius: 3,
       background: v.c
     }
-  }), v.label))))));
+  }), v.label)))), React.createElement("div", null, rot('Quem vê'),
+    React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+      React.createElement("button", { onClick: () => setPrivado(true), style: { ...chip(privado), display: 'inline-flex', alignItems: 'center', gap: 6 } }, React.createElement(I.Lock, { size: 12 }), 'Só eu e os convidados'),
+      React.createElement("button", { onClick: () => setPrivado(false), style: chip(!privado) }, 'Toda a equipa')),
+    React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)', marginTop: 6, lineHeight: 1.45 } },
+      privado ? 'Fica na sua agenda. Vêem-no só os convidados e, como nas tarefas privadas, a Direcção e a Coordenação.' : 'Aparece na agenda de toda a equipa.')),
+  podeDelegar && React.createElement("div", null, rot('Na agenda de', '(pode pôr na agenda de outra pessoa)'),
+    React.createElement("select", { value: dono, onChange: e => setDono(e.target.value), style: { width: '100%', height: 40, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 16, fontFamily: 'inherit', color: 'var(--text-1)', background: 'var(--surface)' } },
+      pessoasOrd.map(u => React.createElement("option", { key: u.id, value: u.id }, u.id === eu ? 'A minha agenda' : u.name)))),
+  React.createElement("div", null, rot('Convidar', '(recebem o convite no sino e respondem «Vou», «Talvez» ou «Não vou»)'),
+    React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap', maxHeight: 132, overflow: 'auto' } },
+      pessoasOrd.filter(u => u.id !== dono).map(u => {
+        const on = convidados.indexOf(u.id) !== -1;
+        return React.createElement("button", {
+          key: u.id, onClick: () => setConvidados(p => on ? p.filter(x => x !== u.id) : p.concat(u.id)),
+          style: { ...chip(on), display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 11px 6px 6px' }
+        }, React.createElement(Avatar, { user: u, size: 22 }), u.id === eu ? 'Eu' : u.name.split(' ').slice(0, 2).join(' '));
+      }))),
+  React.createElement("div", null, rot('Local', '(opcional)'), React.createElement(TextInput, { value: local, onChange: setLocal, placeholder: 'Ex.: Sala de reuniões, Teams' })),
+  React.createElement("div", null, rot('Descrição', '(opcional)'), React.createElement(TextArea, { value: descricao, onChange: setDescricao, rows: 3, placeholder: 'Ex.: Ordem de trabalhos, o que levar.' })),
+  erro && React.createElement("div", { style: { fontSize: 13, color: 'var(--perigo)' } }, erro)));
 }
 /* Os meus turnos no Calendario (01-10-2026, auditoria): das escalas em
    vigor (com o visto da Direccao Clinica) deste mes e do seguinte. Mostra
@@ -11440,8 +11643,33 @@ function CalendarScreen() {
     state,
     actions
   } = useStore();
-  const events = state.todayEvents || [];
+  const toast = useToast();
+  const agenda = useAgendaEventos();
+  const podeTodas = bspVeTodasAgendas();
+  /* De quem é a agenda que se vê: '' a minha; 'todas' ou uma pessoa (só a
+     Direcção e a Coordenação, como nas tarefas privadas). */
+  const [agendaDe, setAgendaDe] = React.useState('');
+  const legado = (state.todayEvents || []).map(e => Object.assign({ origem: 'equipa' }, e));
+  const todos = legado.concat(agenda.eventos);
+  const events = todos.filter(e => bspEventoNaAgenda(e, agendaDe));
   const [open, setOpen] = React.useState(false);
+  const [editar, setEditar] = React.useState(null);
+  const [detalheId, setDetalheId] = React.useState(null);
+  const detalhe = detalheId ? todos.find(e => e.id === detalheId) || null : null;
+  const abrirEvento = e => setDetalheId(e.id);
+  const guardar = async dados => {
+    if (editar && editar.origem === 'agenda') return agenda.gravar(editar.idReal, dados);
+    const err = await agenda.gravar(null, dados);
+    /* Um evento antigo da equipa que se muda passa para a agenda nova. */
+    if (!err && editar && editar.origem !== 'agenda') actions.deleteEvent(editar.id);
+    if (!err && dados.convidados.length) toast('Convite enviado a ' + dados.convidados.length + (dados.convidados.length === 1 ? ' pessoa.' : ' pessoas.'));
+    return err;
+  };
+  const apagarEvento = e => {
+    if (e.origem !== 'agenda') { actions.deleteEvent(e.id); setDetalheId(null); return; }
+    agenda.apagar(e.idReal).then(err => { if (err) toast(err); else setDetalheId(null); });
+  };
+  const responder = (e, r) => agenda.responder(e.idReal, r).then(err => toast(err || 'Resposta enviada: ' + BSP_RESPOSTAS_EVENTO[r] + '.'));
   const dayNames = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
   const todayIdx = (new Date().getDay() + 6) % 7;
   const hojeISO = bspDataLocalISO(new Date());
@@ -11479,9 +11707,16 @@ function CalendarScreen() {
       overflow: 'hidden'
     }
   }, React.createElement(MeusTurnosCartao, null), React.createElement(CalEventModal, {
-    open: open,
-    onClose: () => setOpen(false),
-    onCreate: actions.createEvent
+    open: open || !!editar,
+    onClose: () => { setOpen(false); setEditar(null); },
+    onSave: guardar,
+    inicial: editar
+  }), detalhe && React.createElement(EventoDetalhe, {
+    evento: detalhe,
+    onClose: () => setDetalheId(null),
+    onEditar: e => { setDetalheId(null); setEditar(e); },
+    onApagar: apagarEvento,
+    onResponder: responder
   }), React.createElement("div", {
     style: {
       display: 'flex',
@@ -11511,7 +11746,11 @@ function CalendarScreen() {
       color: 'var(--text-1)',
       margin: 0
     }
-  }, tituloVista)), React.createElement("div", {
+  }, tituloVista), podeTodas && React.createElement("select", {
+    value: agendaDe, onChange: e => setAgendaDe(e.target.value), title: 'De quem é a agenda',
+    style: { height: 34, padding: '0 8px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 16, fontFamily: 'inherit', color: 'var(--text-1)', background: 'var(--surface)', maxWidth: 220 }
+  }, React.createElement("option", { value: '' }, 'A minha agenda'), React.createElement("option", { value: 'todas' }, 'Todas as agendas'),
+    USERS.filter(u => u.id !== window.CURRENT_USER_ID).slice().sort((a, b) => bspCompararTexto(a.name, b.name)).map(u => React.createElement("option", { key: u.id, value: u.id }, 'Agenda de ' + u.name)))), React.createElement("div", {
     style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }
   }, React.createElement("div", {
     style: { display: 'flex', gap: 4 }
@@ -11632,7 +11871,7 @@ function CalendarScreen() {
       flexDirection: 'column'
     }
   }, vista === 'dia' ? React.createElement(AgendaDia, {
-    events: events, iso: ref, todayIdx: todayIdx, onDelete: actions.deleteEvent, onAdd: () => setOpen(true)
+    events: events, iso: ref, todayIdx: todayIdx, onOpen: abrirEvento, onAdd: () => setOpen(true)
   }) : vista === 'mes' ? React.createElement(AgendaMes, {
     events: events, iso: ref, hojeISO: hojeISO, todayIdx: todayIdx,
     onDia: iso => { setRef(iso); setVista('dia'); }
@@ -11644,12 +11883,12 @@ function CalendarScreen() {
     todayIdx: todayIdx,
     datas: [0, 1, 2, 3, 4, 5, 6].map(i => bspSomarDias(seg, i)),
     hojeISO: hojeISO,
-    onDelete: actions.deleteEvent,
+    onOpen: abrirEvento,
     onAdd: () => setOpen(true)
   }))));
 }
 /* Vista Dia: os eventos desse dia, por hora. */
-function AgendaDia({ events, iso, todayIdx, onDelete, onAdd }) {
+function AgendaDia({ events, iso, todayIdx, onOpen, onAdd }) {
   const lista = events.filter(e => bspEventoNaData(e, iso, todayIdx)).slice().sort(bspPorHora);
   if (!lista.length) return React.createElement("div", {
     style: { padding: '48px 20px', textAlign: 'center', color: 'var(--text-3)' }
@@ -11661,19 +11900,24 @@ function AgendaDia({ events, iso, todayIdx, onDelete, onAdd }) {
     const [hh, mm] = (e.time || '09:00').split(':').map(Number);
     const fim = hh * 60 + (mm || 0) + (Number(e.dur) || 60);
     const ate = String(Math.floor(fim / 60) % 24).padStart(2, '0') + ':' + String(fim % 60).padStart(2, '0');
+    const eu = window.CURRENT_USER_ID;
+    const convidado = e.origem === 'agenda' && e.convidados.indexOf(eu) !== -1;
+    const resp = convidado ? e.respostas[eu] : null;
     return React.createElement("div", {
       key: e.id || i,
-      style: { display: 'flex', gap: 14, padding: '14px 18px', borderBottom: '1px solid var(--border)', alignItems: 'flex-start' }
+      onClick: () => onOpen && onOpen(e),
+      className: "bsp-row-hover",
+      style: { display: 'flex', gap: 14, padding: '14px 18px', borderBottom: '1px solid var(--border)', alignItems: 'flex-start', cursor: 'pointer', opacity: resp === 'nao' ? 0.55 : 1 }
     }, React.createElement("div", {
       style: { width: 92, flex: 'none', fontSize: 13, fontWeight: 700, color: c.c }
     }, (e.time || '') + '–' + ate), React.createElement("div", {
       style: { flex: 1, minWidth: 0, borderLeft: '3px solid ' + c.c, paddingLeft: 12 }
-    }, React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: 'var(--text-1)' } }, e.title), React.createElement("div", {
+    }, React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: 'var(--text-1)', display: 'flex', alignItems: 'center', gap: 6 } },
+      e.origem === 'agenda' && e.privado && React.createElement(I.Lock, { size: 12, stroke: 'var(--text-3)' }), e.title), React.createElement("div", {
       style: { fontSize: 12, color: 'var(--text-3)', marginTop: 3 }
-    }, c.label + ' · ' + (e.data ? 'Só em ' + bspDataCurta(e.data) : 'Todas as semanas'))), onDelete && React.createElement("button", {
-      onClick: () => onDelete(e.id), title: 'Apagar',
-      style: { border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 7, width: 30, height: 30, cursor: 'pointer', color: 'var(--text-3)', display: 'grid', placeItems: 'center', flex: 'none' }
-    }, React.createElement(I.X, { size: 13 })));
+    }, [c.label, e.data ? 'Só em ' + bspDataCurta(e.data) : 'Todas as semanas', e.local, e.origem === 'agenda' && e.dono !== eu ? 'Agenda de ' + ((window.userById(e.dono) || {}).name || 'colega') : '', e.origem === 'agenda' && e.convidados.length ? e.convidados.length + (e.convidados.length === 1 ? ' convidado' : ' convidados') : ''].filter(Boolean).join(' · ')),
+      convidado && React.createElement("div", { style: { fontSize: 12, fontWeight: 700, marginTop: 4, color: resp === 'sim' ? 'var(--sucesso)' : resp === 'nao' ? 'var(--perigo)' : 'var(--accent-d)' } },
+        resp ? 'A sua resposta: ' + BSP_RESPOSTAS_EVENTO[resp] : 'Convite por responder')));
   }));
 }
 /* Vista Mes: grelha de segunda a domingo; carregar num dia abre o Dia. */
@@ -11773,7 +12017,7 @@ function WeekGrid({
   todayIdx,
   datas,
   hojeISO,
-  onDelete,
+  onOpen,
   onAdd
 }) {
   const eHoje = di => datas ? datas[di] === hojeISO : di === todayIdx;
@@ -11876,29 +12120,10 @@ function WeekGrid({
           cursor: 'pointer'
         },
         className: "bsp-card-hover bsp-evt",
-        title: e.title
-      }, React.createElement("button", {
-        className: "bsp-evtdel",
-        onClick: ev => {
-          ev.stopPropagation();
-          onDelete && onDelete(e.id);
-        },
-        title: "Apagar",
-        style: {
-          position: 'absolute',
-          top: 2,
-          right: 2,
-          border: 'none',
-          background: 'rgba(255,255,255,.7)',
-          borderRadius: 5,
-          cursor: 'pointer',
-          color: c.c,
-          padding: 1,
-          lineHeight: 0
-        }
-      }, React.createElement(I.X, {
-        size: 11
-      })), React.createElement("div", {
+        title: e.title,
+        onClick: ev => { ev.stopPropagation(); onOpen && onOpen(e); },
+        onDoubleClick: ev => ev.stopPropagation()
+      }, React.createElement("div", {
         style: {
           fontWeight: 700,
           color: c.c,
@@ -11911,7 +12136,7 @@ function WeekGrid({
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap'
         }
-      }, e.title));
+      }, (e.origem === 'agenda' && e.privado ? '🔒 ' : '') + e.title));
     }));
   })), events.length === 0 && React.createElement("div", {
     style: {
@@ -23544,15 +23769,16 @@ const BSP_GUIA_FICHAS = [
     quem: 'Toda a equipa. A pasta pessoal só a vê o dono.',
     dica: 'Ficheiros mandados numa conversa ficam nessa conversa, e não no Drive de todos.' },
   { icone: 'Cal', nome: 'Calendário',
-    serve: 'A rotina semanal da clínica e os eventos com data marcada.',
+    serve: 'A sua agenda e a da equipa: eventos semanais, eventos numa data e convites.',
     faz: [
-      ['Crie um evento semanal:', 'repete-se todas as semanas nesse dia.'],
-      ['Ou marque-o numa data', 'concreta, só para esse dia.'],
-      ['Veja por Dia, Semana, Mês ou Ano.', ''],
-      ['Use as categorias:', 'Consulta, Formação, Pessoal, Revisão e Urgente.']
+      ['Crie um evento semanal', 'ou numa data concreta.'],
+      ['Escolha quem vê:', '«Só eu e os convidados» (privado, com cadeado) ou «Toda a equipa».'],
+      ['Convide colegas:', 'recebem o convite no sino e respondem «Vou», «Talvez» ou «Não vou».'],
+      ['Toque num evento', 'para o ver, responder, mudar ou apagar.'],
+      ['Veja por Dia, Semana, Mês ou Ano.', '']
     ],
-    quem: 'Toda a equipa.',
-    dica: 'Os eventos do dia seguem no e-mail do resumo matinal, às 06h30.' },
+    quem: 'Toda a equipa. Os privados só os vêem o dono, os convidados e, como nas tarefas privadas, a Direcção e a Coordenação, que também podem pôr eventos na agenda de outra pessoa.',
+    dica: 'A sua agenda do dia segue no e-mail do resumo matinal, às 06h30.' },
   { icone: 'Tasks', nome: 'Tarefas',
     serve: 'O quadro do trabalho da equipa e a sua lista privada.',
     faz: [

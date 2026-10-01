@@ -181,6 +181,13 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   a `resumo-matinal` só o anuncia nesse dia.
   Vistas Dia, Semana, Mês e Ano (25-09-2026): usar `bspEventoNaData(e,
   iso, todayIdx)` para uma data concreta.
+  Agenda privada (01-10-2026, `agenda-privada.sql`): eventos novos na tabela
+  `agenda_eventos` (privado/público, convidados, respostas), com as regras das
+  tarefas privadas; `useAgendaEventos`, `bspAgendaParaEvento` (mesma forma dos
+  eventos antigos, com `origem: 'agenda'`), `bspEventoNaAgenda`,
+  `bspPodeMudarEvento`, `EventoDetalhe`, `useProximosEventos`. Os eventos
+  antigos (`state.todayEvents`) têm `origem: 'equipa'`. Qualquer consumidor
+  novo da agenda junta os dois e filtra com `bspEventoNaAgenda`.
 - Tarefas privadas partilhadas: coluna `partilhada_com` em
   `tarefas_pessoais` (`tarefas-partilhadas.sql`). Editar uma tarefa
   privada vai por `pess.actualizar`, nunca por `actions.updateTask`. A edição

@@ -2513,3 +2513,28 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   O texto guardado não muda, por isso vale também para os registos antigos.
 - O iPhone do Elmar mostrava «Agenda» na barra de baixo: era uma versão
   guardada antiga (o código tem «Feed» desde 01-10-2026). Recarregar.
+
+## 3-cg. Agenda privada e pública, com convidados (01-10-2026)
+
+- Pedido do Elmar: «A mesma privacidade das tarefas quero no calendário,
+  agendas privadas e agendas públicas, convidar pessoas para o evento».
+- Servidor (`agenda-privada.sql`, aplicado): tabela `agenda_eventos` (dono,
+  criado_por, título, descrição, local, categoria, hora, duração, dia ou
+  data, privado, convidados, respostas). Regras como `tarefas_pessoais`:
+  privado só para dono, quem criou, convidados e `bsp_ve_tarefas_pessoais()`
+  (Direcção e Coordenação, que também põem eventos na agenda de outra
+  pessoa); público para todos. `bsp_evento_responder` (só o convidado, por
+  si). Gatilho `bsp_agenda_carimbo`: novidade «Convite: …» aos convidados,
+  «Novo na sua agenda» ao dono quando outro põe, «Resposta a um convite» ao
+  dono. Tempo real ligado. Testado com Cassia, Juliana, Solange e Elmar.
+- Ecrã: `useAgendaEventos`, `CalEventModal` (criar e mudar; «Quem vê», «Na
+  agenda de», «Convidar», «Local», «Descrição»), `EventoDetalhe` (respostas
+  dos convidados, Vou/Talvez/Não vou, Mudar, Apagar com confirmação). Tocar
+  num evento abre o detalhe (o X que apagava sem perguntar saiu). Seletor
+  «Agenda de» para quem vê as agendas de todos. Início e Feed: «Próximos 7
+  dias» (`useProximosEventos`). Os eventos antigos da equipa
+  (`shared_state.events`) continuam; ao mudá-los passam para a tabela nova.
+- `resumo-matinal` versão 11: «Hoje na agenda» por pessoa, com os eventos
+  que ela pode ver; quem não tem tarefas mas tem evento seu ou convite hoje
+  também recebe. A versão publicada é igual ao repositório.
+- Novidade a toda a equipa (id 79).
