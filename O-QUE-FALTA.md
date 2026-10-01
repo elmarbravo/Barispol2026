@@ -2217,3 +2217,26 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
 - Testado: .docx com título, texto e tabela abre no computador e no
   telemóvel (cabe na largura); .doc recusado no Chat com a explicação.
 - Excel e PowerPoint continuam a descarregar-se (decisão por tomar).
+
+## 3-bs. Assistente com IA (01-10-2026) — falta a chave
+
+- Pedido do Elmar: IA no sistema, a mais barata, com um limite por pessoa
+  como o do ChatGPT gratuito.
+- Modelo: Claude Haiku 4.5 (`claude-haiku-4-5`, 1 USD / 5 USD por milhão de
+  tokens de entrada / saída). Respostas até 600 tokens; só as últimas 4
+  mensagens seguem com cada pergunta; o guia dos menus vai nas instruções
+  (com cache).
+- Limite: 10 perguntas a cada 5 horas por pessoa (`assistente.sql`:
+  `assistente_uso`, `bsp_assistente_quota`). Sócios não usam; o «Ver como»
+  não pergunta.
+- Edge Function `assistente` (versão 1, verificação de JWT desligada, com
+  autenticação própria: sessão + pessoa da equipa). Testada: sem sessão
+  responde 401.
+- Workspace: botão de faísca «Assistente» no topo (computador e telemóvel),
+  `AssistentePainel` com o aviso de não escrever nomes de doentes nem dados
+  de facturação (as perguntas saem do servidor).
+- **Por fazer (Elmar):** criar a chave em console.anthropic.com → API Keys,
+  pôr um limite de gasto mensal na consola (ex.: 20 USD), e colá-la em
+  Supabase → Edge Functions → Secrets com o nome `ANTHROPIC_API_KEY`. Sem a
+  chave, o painel responde «O assistente ainda não está ligado».
+- Depois da chave: testar uma pergunta e lançar a novidade a `todos`.

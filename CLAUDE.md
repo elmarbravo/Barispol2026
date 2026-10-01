@@ -58,6 +58,10 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
     servidor ou sessão de gestor: qualquer destinatário. Sessão de outro
     colaborador: só endereços de `shared_state.team` ou
     empresa@barispol.com. Chave pública: recusada.
+  - `assistente` (01-10-2026): IA (Claude Haiku 4.5) com limite de 10
+    perguntas a cada 5 horas por pessoa (`assistente.sql`); verificação de
+    JWT desligada, autenticação própria; chave `ANTHROPIC_API_KEY` nos
+    segredos das funções (colada pelo Elmar). Painel `AssistentePainel`.
   - `contacto-site` (caixa de contacto do site): versão 5 (26-09-2026),
     para rececao@barispol.com com geral@barispol.com em cópia; aspecto
     igual ao site. Verificação de JWT desligada, só aceita barispol.com.

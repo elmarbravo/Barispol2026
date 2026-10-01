@@ -3273,7 +3273,7 @@ function Topbar({
       gap: 6,
       flex: 'none'
     }
-  }, React.createElement(BotaoTema, null), onVerComo && React.createElement("button", {
+  }, React.createElement(BotaoAssistente, { currentUser: currentUser }), React.createElement(BotaoTema, null), onVerComo && React.createElement("button", {
     title: "Ver como outra pessoa",
     "aria-label": "Ver como outra pessoa",
     className: "bsp-iconbtn",
@@ -3845,7 +3845,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'bsp_e_gestor'];
+const BSP_RPC_LEITURA = ['bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'bsp_e_gestor'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -17980,7 +17980,7 @@ function MobileTopbar({
     }
   }, titles[current] || 'Workspace')), React.createElement("div", {
     style: { display: 'flex', alignItems: 'center', gap: 6 }
-  }, React.createElement(BotaoGuia, { pg: current, tamanho: 34 }), React.createElement(BotaoTema, { tamanho: 18 }), onVerComo && React.createElement("button", {
+  }, React.createElement(BotaoGuia, { pg: current, tamanho: 34 }), React.createElement(BotaoAssistente, { currentUser: currentUser, tamanho: 38 }), React.createElement(BotaoTema, { tamanho: 18 }), onVerComo && React.createElement("button", {
     onClick: onVerComo,
     className: "bsp-iconbtn",
     style: { width: 38, height: 38 },
@@ -23021,6 +23021,90 @@ function GuiaEcra({ pg, currentUser }) {
       React.createElement("div", { style: { border: '1px solid var(--border)', borderLeft: '4px solid var(--accent)', padding: '12px 14px' } }, rot('Dica'), React.createElement("div", { style: { fontSize: 13.5, lineHeight: 1.45 } }, g.dica))),
     React.createElement("p", { style: { margin: 0, fontSize: 12, color: 'var(--text-3)' } }, 'Para voltar a ver este guia, carregue em «?» no topo do ecrã.')));
 }
+/* Assistente com IA (01-10-2026, pedido do Elmar; assistente.sql e a Edge
+   Function `assistente`): Claude Haiku 4.5, o mais barato; 10 perguntas a
+   cada 5 horas por pessoa, como o ChatGPT gratuito. A conversa nao fica
+   guardada: so as ultimas 4 mensagens seguem com cada pergunta. As
+   perguntas saem do servidor, por isso o painel lembra que nao se escrevem
+   nomes de doentes nem dados de facturacao. */
+function bspPodeAssistente(u) {
+  return !!u && u.id && u.id !== 'self' && !bspESocio(u) && !bspEmVerComo();
+}
+function BotaoAssistente({ currentUser, tamanho }) {
+  if (!bspPodeAssistente(currentUser)) return null;
+  return React.createElement("button", {
+    onClick: () => { try { window.dispatchEvent(new CustomEvent('bsp-assistente')); } catch (e) {} },
+    className: 'bsp-iconbtn', title: 'Assistente (IA)', 'aria-label': 'Assistente',
+    style: tamanho ? { width: tamanho, height: tamanho } : undefined
+  }, React.createElement(I.Sparkle, { size: 18 }));
+}
+function AssistentePainel({ currentUser }) {
+  const [aberto, setAberto] = React.useState(false);
+  const [msgs, setMsgs] = React.useState([]);
+  const [texto, setTexto] = React.useState('');
+  const [aEnviar, setAEnviar] = React.useState(false);
+  const [quota, setQuota] = React.useState(null);
+  const fimRef = React.useRef(null);
+  React.useEffect(() => {
+    const f = () => setAberto(true);
+    window.addEventListener('bsp-assistente', f);
+    return () => window.removeEventListener('bsp-assistente', f);
+  }, []);
+  React.useEffect(() => {
+    if (!aberto) return;
+    const cl = bspGetClient();
+    if (cl) cl.rpc('bsp_assistente_quota').then(r => { if (!r.error) setQuota(r.data); });
+  }, [aberto]);
+  React.useEffect(() => { try { fimRef.current && fimRef.current.scrollIntoView({ block: 'end' }); } catch (e) {} }, [msgs.length, aEnviar]);
+  if (!aberto || !bspPodeAssistente(currentUser)) return null;
+  const esgotado = quota && quota.restantes <= 0;
+  const perguntar = async () => {
+    const p = texto.trim();
+    if (!p || aEnviar || esgotado) return;
+    const cfg = bspGetCfg();
+    const t = await bspTestemunho();
+    if (!cfg || !cfg.url || !t) { setMsgs(l => l.concat([{ role: 'erro', text: 'O servidor não está ligado neste aparelho.' }])); return; }
+    const historico = msgs.filter(m => m.role === 'user' || m.role === 'assistant').slice(-4);
+    setMsgs(l => l.concat([{ role: 'user', text: p }]));
+    setTexto('');
+    setAEnviar(true);
+    try {
+      const r = await fetch(cfg.url.replace(/\/$/, '') + '/functions/v1/assistente', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + t },
+        body: JSON.stringify({ pergunta: p, historico })
+      });
+      const d = await r.json().catch(() => ({}));
+      if (d.quota) setQuota(d.quota);
+      setMsgs(l => l.concat([d.resposta ? { role: 'assistant', text: d.resposta + (d.cortada ? '\n\n(Resposta cortada por ser longa. Peça a continuação.)' : '') } : { role: 'erro', text: d.erro || 'O assistente não respondeu.' }]));
+    } catch (e) {
+      setMsgs(l => l.concat([{ role: 'erro', text: 'Sem ligação ao servidor.' }]));
+    }
+    setAEnviar(false);
+  };
+  const quotaTxt = !quota ? '' : esgotado
+    ? 'Chegou ao limite de ' + quota.limite + ' perguntas em ' + quota.horas + ' horas.' + (quota.proxima ? ' Volta a poder perguntar a ' + bspDataExacta(new Date(quota.proxima)) + '.' : '')
+    : 'Restam ' + quota.restantes + ' de ' + quota.limite + ' perguntas (renovam ao fim de ' + quota.horas + ' horas).';
+  const bolha = m => React.createElement("div", { key: m.i, style: {
+    alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '88%', padding: '9px 12px', borderRadius: 10, fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-wrap',
+    background: m.role === 'user' ? 'var(--accent-soft)' : 'var(--surface-2)', color: m.role === 'erro' ? 'var(--perigo)' : 'var(--text-1)', border: '1px solid var(--border)' } },
+    m.role === 'assistant' ? renderText(m.text) : m.text);
+  return React.createElement(Modal, {
+    open: true, onClose: () => setAberto(false), width: 600, title: 'Assistente',
+    footer: React.createElement("div", { style: { display: 'flex', gap: 8, width: '100%', alignItems: 'flex-end' } },
+      React.createElement("textarea", { value: texto, onChange: e => setTexto(e.target.value), rows: 2, disabled: esgotado, placeholder: esgotado ? 'Sem perguntas disponíveis agora.' : 'Escreva a sua pergunta…',
+        onKeyDown: e => { if (bspEnterEnvia(e)) { e.preventDefault(); perguntar(); } },
+        style: { flex: 1, minWidth: 0, resize: 'none', padding: '9px 11px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 14 } }),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: perguntar }, aEnviar ? 'A pensar…' : 'Perguntar'))
+  }, React.createElement("div", { style: { padding: 16, display: 'flex', flexDirection: 'column', gap: 10, minHeight: 260 } },
+    React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.5, borderLeft: '3px solid var(--accent)', paddingLeft: 10 } },
+      'Pergunte como usar o Workspace, ou peça ajuda para escrever uma mensagem, um comunicado ou um e-mail. ',
+      React.createElement("b", null, 'Não escreva nomes de doentes, contactos nem dados de facturação: as perguntas saem do servidor da clínica.')),
+    quotaTxt && React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: esgotado ? 'var(--perigo)' : 'var(--text-3)' } }, quotaTxt),
+    msgs.map((m, i) => bolha(Object.assign({ i }, m))),
+    aEnviar && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'A preparar a resposta…'),
+    React.createElement("div", { ref: fimRef })));
+}
 /* Proteccao contra capturas para todos (30-09-2026, pedido do Elmar). No
    navegador e no iPhone nao ha forma de impedir um print; o que se faz:
    - PrintScreen no computador: o ecra fica preto por instantes, a area de
@@ -24040,7 +24124,7 @@ function App() {
   }), pg === 'meetings' && React.createElement(MeetingsScreen, null), pg === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), pg === 'seguimento' && (bspVeCrm(currentUser) ? React.createElement(CrmScreen, null) : null), pg === 'marcacoes' && (bspVeMarcacoes(currentUser) ? React.createElement(MarcacoesScreen, null) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(DirectoryScreen, null), pg === 'admin' && React.createElement(AdminScreen, {
+  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), pg === 'seguimento' && (bspVeCrm(currentUser) ? React.createElement(CrmScreen, null) : null), pg === 'marcacoes' && (bspVeMarcacoes(currentUser) ? React.createElement(MarcacoesScreen, null) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(DirectoryScreen, null), pg === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
   }), pg === 'notifications' && React.createElement(NotificationsScreen, {
     onAbrir: abrirNotificacao
