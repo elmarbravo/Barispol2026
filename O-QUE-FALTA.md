@@ -2375,3 +2375,10 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   - Stock → Pedidos de compra (`PedidosCompraPainel`): o pedido vem dos
     artigos esgotados e a acabar (quantidade sugerida = saídas de 30 dias
     menos o saldo); só a gestão aprova; depois Comprado e Recebido.
+- Trocas de turno (`trocas-turno.sql`, aplicado; testado numa transacção
+  desfeita: a troca entra na escala, o visto mantém-se e a escala continua
+  em vigor; notas da escala registam a troca). Fluxo: quem está no turno
+  pede (`bsp_troca_pedir`, com turno do colega em troca opcional) → o colega
+  aceita (`bsp_troca_responder`) → a Direcção Clínica aprova
+  (`bsp_troca_decidir`, aplica com `bsp.visto = '1'`). Painel
+  `TrocasTurnoPainel` no topo de Escalas. Avisos pelas novidades.

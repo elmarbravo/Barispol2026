@@ -22123,6 +22123,7 @@ function EscalasScreen({ currentUser }) {
     e && React.createElement(EscalaTurnosModal, { open: modal === 'turnos', escala: e, onClose: () => setModal(''), onGuardar: ts => mudar(x => Object.assign({}, x, { turnos: ts })) }),
     e && React.createElement(EscalaPreencherModal, { open: modal === 'preencher', escala: e, onClose: () => setModal(''), onAplicar: (tid, ps, modo, so) => mudar(x => bspEscalaPreencher(x, tid, ps, modo, so)) }),
     e && React.createElement(EscalaPublicarModal, { open: modal === 'publicar', escala: e, analise, onClose: () => setModal(''), onPublicar: publicar }),
+    React.createElement(TrocasTurnoPainel, null),
     cabeca, ferramentas,
     React.createElement("div", { style: { display: 'flex', gap: 12, flex: 1, minHeight: 0, flexDirection: isMobile ? 'column' : 'row' } },
       React.createElement("div", { style: { flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' } }, corpo),
@@ -23440,7 +23441,8 @@ const BSP_GUIA_FICHAS = [
       ['Monte o mês:', 'turnos, horas e quem trabalha em cada dia.'],
       ['Veja os avisos:', 'turno sem ninguém, a mesma pessoa em dois turnos, horas por pessoa.'],
       ['Publique e peça o visto', 'da Direcção Clínica: só com o visto a escala entra em vigor e segue por e-mail.'],
-      ['Imprima a escala', 'para afixar.']
+      ['Imprima a escala', 'para afixar.'],
+      ['Peça uma troca de turno:', 'o colega aceita e a Direcção Clínica aprova; a escala muda sem perder o visto.']
     ],
     quem: 'Cada área vê a sua. Fazem-na o chefe da área, a Direcção Clínica e a Direcção e Coordenação.',
     dica: 'De 20 a 29 de cada mês, o chefe recebe um aviso diário até publicar a escala do mês seguinte.' },
@@ -24232,6 +24234,96 @@ function PedidosCompraPainel({ armazem, alertas, onFeito }) {
           gestor && p.estado === 'Pedido' && React.createElement("button", { onClick: () => estado(p, 'Recusado'), style: bspEscBotao(false) }, 'Recusar'),
           p.estado === 'Aprovado' && React.createElement("button", { onClick: () => estado(p, 'Comprado'), style: bspEscBotao(false) }, 'Comprado'),
           p.estado === 'Comprado' && React.createElement("button", { onClick: () => estado(p, 'Recebido'), style: bspEscBotao(false) }, 'Recebido')))));
+}
+/* Trocas de turno (01-10-2026, auditoria, trocas-turno.sql): quem esta no
+   turno pede -> o colega aceita -> a Direccao Clinica aprova e a troca
+   entra na escala sem perder o visto. So escalas em vigor e dias futuros. */
+function TrocasTurnoPainel() {
+  const toast = useToast();
+  const eu = window.CURRENT_USER_ID;
+  const dc = BSP_DIRECCAO_CLINICA_IDS.indexOf(eu) !== -1;
+  const [escalas, setEscalas] = React.useState([]);
+  const [trocas, setTrocas] = React.useState([]);
+  const [tick, setTick] = React.useState(0);
+  const [aberto, setAberto] = React.useState(false);
+  const [f, setF] = React.useState({ meu: '', para: '', troco: '', nota: '' });
+  const hoje = bspDataLocalISO(new Date());
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    const mes = hoje.slice(0, 8) + '01';
+    cl.from('escalas').select('id, area, mes, turnos, dias, estado, visto_em, exige_visto').in('mes', [mes, bspSomarMeses(mes, 1)]).eq('estado', 'publicada')
+      .then(r => { if (vivo && !r.error) setEscalas((r.data || []).filter(bspEscalaEmVigor)); });
+    cl.from('trocas_turno').select('*').order('criado_em', { ascending: false }).limit(200)
+      .then(r => { if (vivo && !r.error) setTrocas(r.data || []); });
+    return () => { vivo = false; };
+  }, [tick]);
+  const turnosDe = id => {
+    const out = [];
+    escalas.forEach(e => Object.keys(e.dias || {}).forEach(dia => {
+      if (dia < hoje) return;
+      (e.turnos || []).forEach(tu => { if (((e.dias[dia] || {})[tu.id] || []).indexOf(id) !== -1) out.push({ chave: e.id + '|' + dia + '|' + tu.id, escala: e, dia: dia, t: tu }); });
+    }));
+    return out.sort((a, b) => (a.dia + a.t.inicio).localeCompare(b.dia + b.t.inicio));
+  };
+  const meus = turnosDe(eu);
+  const sel = meus.find(x => x.chave === f.meu) || null;
+  const colegas = sel ? Array.from(new Set(Object.values(sel.escala.dias || {}).flatMap(d => Object.keys(d).filter(k => k !== '_n').flatMap(k => d[k] || [])))).filter(id => id !== eu && String(id).indexOf('x:') !== 0).sort((a, b) => bspCompararTexto(bspNomeDe(a), bspNomeDe(b))) : [];
+  const dele = sel && f.para ? turnosDe(f.para).filter(x => x.escala.id === sel.escala.id && x.dia !== sel.dia) : [];
+  const desc = (dia, tid, escalaId) => {
+    const e = escalas.find(x => x.id === escalaId);
+    const tu = e && (e.turnos || []).find(x => x.id === tid);
+    return bspDataCurta(dia) + (tu ? ' · ' + tu.inicio + '–' + tu.fim + ' ' + (tu.nome || '') : '');
+  };
+  async function rpc(nome, args, ok) {
+    const r = await bspGetClient().rpc(nome, args);
+    if (r.error) { toast('Não foi possível: ' + r.error.message); return false; }
+    toast(ok); setTick(x => x + 1); return true;
+  }
+  async function pedir() {
+    if (!sel || !f.para) { toast('Escolha o seu turno e o colega.'); return; }
+    const tr = f.troco ? dele.find(x => x.chave === f.troco) : null;
+    const ok = await rpc('bsp_troca_pedir', { p_escala: sel.escala.id, p_dia: sel.dia, p_turno: sel.t.id, p_para: f.para, p_dia2: tr ? tr.dia : null, p_turno2: tr ? tr.t.id : null, p_nota: f.nota.trim() }, 'Pedido enviado a ' + bspNomeDe(f.para).split(' ')[0] + '.');
+    if (ok) { setF({ meu: '', para: '', troco: '', nota: '' }); setAberto(false); }
+  }
+  const paraMim = trocas.filter(x => x.para_user === eu && x.estado === 'Pedido');
+  const paraAprovar = dc ? trocas.filter(x => x.estado === 'Aceite') : [];
+  const minhas = trocas.filter(x => x.de_user === eu).slice(0, 10);
+  if (!meus.length && !paraMim.length && !paraAprovar.length && !minhas.length && !dc) return null;
+  const linha = (x, accoes) => React.createElement("div", { key: x.id, style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', padding: '8px 0', borderTop: '1px solid var(--border)', fontSize: 13 } },
+    React.createElement("div", { style: { flex: '1 1 240px', minWidth: 0, color: 'var(--text-1)' } },
+      React.createElement("b", null, bspNomeDe(x.de_user).split(' ')[0] + ' → ' + bspNomeDe(x.para_user).split(' ')[0]), ' · ', desc(x.dia, x.turno, x.escala_id),
+      x.dia2 ? React.createElement("span", { style: { color: 'var(--text-2)' } }, ' · em troca: ' + desc(x.dia2, x.turno2, x.escala_id)) : null,
+      x.nota ? React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, x.nota) : null),
+    bspEstadoEtiqueta(x.estado === 'Aceite' ? 'Aceite' : x.estado), accoes);
+  const rot = bspTranspRot;
+  return React.createElement("div", { style: Object.assign({}, bspRegCaixa, { flex: 'none' }) },
+    React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' } },
+      React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)', flex: 1 } }, 'Trocas de turno' + (paraMim.length + paraAprovar.length ? ' · ' + (paraMim.length + paraAprovar.length) + ' por responder' : '')),
+      meus.length > 0 && React.createElement("button", { onClick: () => setAberto(a => !a), style: bspEscBotao(!aberto) }, aberto ? 'Fechar' : 'Pedir troca')),
+    aberto && React.createElement("div", { style: { marginTop: 10 } },
+      React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 } },
+        React.createElement("label", null, rot('O meu turno'), React.createElement("select", { value: f.meu, onChange: e => setF({ meu: e.target.value, para: '', troco: '', nota: f.nota }), style: bspTranspCampo },
+          React.createElement("option", { value: '' }, 'Escolha'), meus.map(x => React.createElement("option", { key: x.chave, value: x.chave }, bspDataCurta(x.dia) + ' · ' + x.t.inicio + '–' + x.t.fim + ' ' + (x.t.nome || '') + ' · ' + bspEscalaAreaNome(x.escala.area))))),
+        React.createElement("label", null, rot('Quem fica com ele'), React.createElement("select", { value: f.para, disabled: !sel, onChange: e => setF(Object.assign({}, f, { para: e.target.value, troco: '' })), style: bspTranspCampo },
+          React.createElement("option", { value: '' }, 'Escolha'), colegas.map(id => React.createElement("option", { key: id, value: id }, bspNomeDe(id))))),
+        React.createElement("label", null, rot('Em troca, fico com (opcional)'), React.createElement("select", { value: f.troco, disabled: !f.para, onChange: e => setF(Object.assign({}, f, { troco: e.target.value })), style: bspTranspCampo },
+          React.createElement("option", { value: '' }, 'Nada em troca'), dele.map(x => React.createElement("option", { key: x.chave, value: x.chave }, bspDataCurta(x.dia) + ' · ' + x.t.inicio + '–' + x.t.fim + ' ' + (x.t.nome || '')))))),
+      React.createElement("label", { style: { display: 'block', marginTop: 10 } }, rot('Motivo (opcional)'), React.createElement("input", { value: f.nota, onChange: e => setF(Object.assign({}, f, { nota: e.target.value })), style: bspTranspCampo })),
+      React.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' } },
+        React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, 'O colega aceita; depois a Direcção Clínica aprova e a troca entra na escala.'),
+        React.createElement("button", { onClick: pedir, style: bspEscBotao(true) }, 'Enviar pedido'))),
+    paraMim.length > 0 && React.createElement("div", { style: { marginTop: 8 } }, React.createElement("div", { style: { fontSize: 12.5, fontWeight: 700, color: 'var(--perigo)' } }, 'Pedem-lhe'),
+      paraMim.map(x => linha(x, React.createElement("div", { style: { display: 'flex', gap: 6 } },
+        React.createElement("button", { onClick: () => rpc('bsp_troca_responder', { p_id: x.id, p_estado: 'Aceite' }, 'Aceite. Falta a aprovação da Direcção Clínica.'), style: bspEscBotao(true) }, 'Aceitar'),
+        React.createElement("button", { onClick: () => rpc('bsp_troca_responder', { p_id: x.id, p_estado: 'Recusado' }, 'Recusada.'), style: bspEscBotao(false) }, 'Recusar'))))),
+    paraAprovar.length > 0 && React.createElement("div", { style: { marginTop: 8 } }, React.createElement("div", { style: { fontSize: 12.5, fontWeight: 700, color: 'var(--perigo)' } }, 'Para aprovar (Direcção Clínica)'),
+      paraAprovar.map(x => linha(x, React.createElement("div", { style: { display: 'flex', gap: 6 } },
+        React.createElement("button", { onClick: () => rpc('bsp_troca_decidir', { p_id: x.id, p_aprovar: true, p_motivo: '' }, 'Aprovada. A escala foi actualizada e mantém o visto.'), style: bspEscBotao(true) }, 'Aprovar'),
+        React.createElement("button", { onClick: () => { const m = window.prompt('Motivo (vai para os dois):', ''); if (m !== null) rpc('bsp_troca_decidir', { p_id: x.id, p_aprovar: false, p_motivo: m }, 'Não aprovada.'); }, style: bspEscBotao(false) }, 'Não aprovar'))))),
+    minhas.length > 0 && React.createElement("details", { style: { marginTop: 8 } }, React.createElement("summary", { style: { cursor: 'pointer', fontSize: 12.5, fontWeight: 700, color: 'var(--text-2)' } }, 'Os meus pedidos (' + minhas.length + ')'),
+      minhas.map(x => linha(x, (x.estado === 'Pedido' || x.estado === 'Aceite') ? React.createElement("button", { onClick: () => rpc('bsp_troca_responder', { p_id: x.id, p_estado: 'Cancelado' }, 'Pedido cancelado.'), style: bspEscBotao(false) }, 'Cancelar') : null))));
 }
 function PainelAtalho({ onAbrir }) {
   const [d, setD] = React.useState(null);

@@ -229,6 +229,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   não está em vigor (`bsp_escala_em_vigor` / `bspEscalaEmVigor`). Qualquer
   consumidor novo das escalas usa só as que estão em vigor. Mudar turnos ou
   dias apaga o visto.
+  Trocas de turno (01-10-2026, `trocas-turno.sql`): pedido → colega aceita →
+  Direcção Clínica aprova (`bsp_troca_decidir` aplica com `bsp.visto = '1'`,
+  o visto mantém-se). Painel `TrocasTurnoPainel` em Escalas.
 - Transporte (29-09-2026, `transporte.sql`): `transporte_viagens`,
   `transporte_abastecimentos`, `transporte_zonas`; acesso
   `bspVeTransporte`/`bsp_ve_transporte` (gestão e cargo «motorista»).
