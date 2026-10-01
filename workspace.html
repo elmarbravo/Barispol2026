@@ -3103,6 +3103,7 @@ function MenuConta({
       const c = bspGetClient();
       if (c) await c.auth.signOut();
     } catch (e) {}
+    bspUrlCacheLimpar();
     /* Limpar o estado guardado neste posto. Sem isto, o bsp-workspace-v1 mantém
        as mensagens directas, o feed e o directório, e o loadInitial() devolve
        tudo à pessoa seguinte que entrar — num posto partilhado, é uma fuga.
@@ -3918,6 +3919,46 @@ function bspGetClient() {
 const BSP_BUCKET = 'drive';
 const BSP_MAX_BYTES = 25 * 1024 * 1024;
 const __bspUrlCache = {};
+/* Tráfego (01-10-2026: o Supabase passou os 5 GB de saída do plano). Os
+   endereços assinados valiam uma hora e só ficavam na memória: cada vez que
+   o Workspace abria, cada fotografia tinha um endereço novo e o aparelho
+   voltava a descarregá-la. Agora valem 24 horas e ficam guardados neste
+   aparelho, por pessoa (bsp-urls-<id>), para o navegador reaproveitar a
+   cópia que já tem. Saem com a sessão (bspUrlCacheLimpar). */
+const BSP_URL_VALIDADE = 86400;
+let __bspUrlCacheDe = null;
+let __bspUrlGravar = null;
+function bspUrlCachePreparar() {
+  const id = window.CURRENT_USER_ID || '';
+  if (__bspUrlCacheDe === id) return;
+  Object.keys(__bspUrlCache).forEach(k => { delete __bspUrlCache[k]; });
+  __bspUrlCacheDe = id;
+  if (!id || bspEmVerComo()) return;
+  try {
+    const g = JSON.parse(localStorage.getItem('bsp-urls-' + id) || '{}');
+    const agora = Date.now();
+    Object.keys(g).forEach(k => { if (g[k] && g[k].url && g[k].expira > agora + 60000) __bspUrlCache[k] = g[k]; });
+  } catch (e) {}
+}
+function bspUrlCacheGravar() {
+  clearTimeout(__bspUrlGravar);
+  __bspUrlGravar = setTimeout(() => {
+    if (!__bspUrlCacheDe || bspEmVerComo()) return;
+    try {
+      const agora = Date.now();
+      const vivos = Object.keys(__bspUrlCache).filter(k => __bspUrlCache[k] && __bspUrlCache[k].expira > agora)
+        .sort((a, b) => __bspUrlCache[b].expira - __bspUrlCache[a].expira).slice(0, 600);
+      const o = {};
+      vivos.forEach(k => { o[k] = __bspUrlCache[k]; });
+      localStorage.setItem('bsp-urls-' + __bspUrlCacheDe, JSON.stringify(o));
+    } catch (e) {}
+  }, 500);
+}
+function bspUrlCacheLimpar() {
+  Object.keys(__bspUrlCache).forEach(k => { delete __bspUrlCache[k]; });
+  __bspUrlCacheDe = null;
+  try { Object.keys(localStorage).filter(k => k.indexOf('bsp-urls-') === 0).forEach(k => localStorage.removeItem(k)); } catch (e) {}
+}
 function bspSlugFicheiro(nome) {
   const p = String(nome || 'ficheiro').lastIndexOf('.');
   const base = p > 0 ? String(nome).slice(0, p) : String(nome);
@@ -3973,7 +4014,9 @@ async function bspUploadToStorage(file, prefixo) {
   const {
     error
   } = await cl.storage.from(BSP_BUCKET).upload(caminho, file, {
-    cacheControl: '3600',
+    /* Cada ficheiro tem um nome único e nunca muda: o aparelho pode
+       guardá-lo um ano sem voltar a perguntar (menos tráfego). */
+    cacheControl: '31536000',
     upsert: false,
     contentType: file.type || 'application/octet-stream'
   });
@@ -4016,21 +4059,23 @@ function bspSignedUrlEmLote(caminho) {
       const cl = bspGetClient();
       let porCaminho = {};
       try {
-        const { data } = cl ? await cl.storage.from(BSP_BUCKET).createSignedUrls(caminhos, 3600) : { data: null };
+        const { data } = cl ? await cl.storage.from(BSP_BUCKET).createSignedUrls(caminhos, BSP_URL_VALIDADE) : { data: null };
         (data || []).forEach(d => {
           if (d && d.path && d.signedUrl && !d.error) porCaminho[d.path] = d.signedUrl;
         });
       } catch (e) {}
       const agora = Date.now();
       Object.keys(porCaminho).forEach(c => {
-        __bspUrlCache[c] = { url: porCaminho[c], expira: agora + (3600 - 60) * 1000 };
+        __bspUrlCache[c] = { url: porCaminho[c], expira: agora + (BSP_URL_VALIDADE - 60) * 1000 };
       });
+      bspUrlCacheGravar();
       fila.forEach(x => x.resolve(porCaminho[x.caminho] || null));
     }, 30);
   });
 }
 async function bspSignedUrl(caminho, segundos, aoFalhar) {
   if (!caminho) return null;
+  bspUrlCachePreparar();
   const agora = Date.now();
   const guardado = __bspUrlCache[caminho];
   if (guardado && guardado.expira > agora) return guardado.url;
@@ -4041,11 +4086,11 @@ async function bspSignedUrl(caminho, segundos, aoFalhar) {
   }
   /* Pedido normal (uma hora): vai no lote. Se o lote falhar para este
      ficheiro, pede-se sozinho abaixo, para ter o motivo do erro. */
-  if (!segundos || segundos === 3600) {
+  if (!segundos || segundos === BSP_URL_VALIDADE) {
     const doLote = await bspSignedUrlEmLote(caminho);
     if (doLote) return doLote;
   }
-  const dur = segundos || 3600;
+  const dur = segundos || BSP_URL_VALIDADE;
   const {
     data,
     error
@@ -4058,6 +4103,7 @@ async function bspSignedUrl(caminho, segundos, aoFalhar) {
     url: data.signedUrl,
     expira: agora + (dur - 60) * 1000
   };
+  bspUrlCacheGravar();
   return data.signedUrl;
 }
 async function bspDeleteFromStorage(caminho) {
@@ -4067,6 +4113,7 @@ async function bspDeleteFromStorage(caminho) {
   try {
     await cl.storage.from(BSP_BUCKET).remove([caminho]);
     delete __bspUrlCache[caminho];
+    bspUrlCacheGravar();
   } catch (e) {}
 }
 /* Um ficheiro partilhado numa conversa fica NA conversa.
@@ -14414,7 +14461,7 @@ function FicheiroImg({
     /* O endereco assinado expira. Se isso acontecer com a imagem ja no
        ecra, mais vale pedir outro do que deixar o quadrado partido. */
     onError: () => {
-      try { delete __bspUrlCache[f.path]; } catch (e) {}
+      try { delete __bspUrlCache[f.path]; bspUrlCacheGravar(); } catch (e) {}
       setSrc(null);
       setErro('Não foi possível carregar a imagem. Feche e volte a abrir a conversa.');
     }
@@ -25754,6 +25801,7 @@ function App() {
     } catch (e) {}
     /* Mesma razão do MenuConta.sair: sem isto o estado guardado neste posto
        sobrevive à saída e volta para quem entrar a seguir. */
+    bspUrlCacheLimpar();
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch (e) {}

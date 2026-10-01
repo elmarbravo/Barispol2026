@@ -354,7 +354,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   (`bspWavDeAmostras`), porque o WebM não tocava no iPhone. Nunca voltar
   ao `MediaRecorder`.
   Fotografias do Chat reduzidas antes de subir (`bspReduzirImagem`,
-  30-09-2026); endereços assinados em lote (`bspSignedUrlEmLote`). Uma
+  30-09-2026); endereços assinados em lote (`bspSignedUrlEmLote`). Endereços de
+  24 h guardados no aparelho por pessoa (`bsp-urls-<id>`, 01-10-2026, para
+  não gastar tráfego); nunca voltar a endereços de 1 h só em memória. Uma
   mensagem de quem já saiu da equipa mostra «Antigo colaborador».
 
 ## Decisões aprovadas

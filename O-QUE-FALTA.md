@@ -2576,3 +2576,21 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   deitado), larguras fixas, alinhado ao topo, números à direita e sem partir,
   linhas alternadas, cabeçalho repetido por página, total de linhas. Usada em
   «Imprimir a lista» do Stock e das Validades. Usar nas listas novas.
+
+## 3-ck. Tráfego do Supabase acima do plano (01-10-2026)
+
+- O Elmar: «8 GB de 5». Não é espaço (base de dados 205 MB de 500 MB;
+  ficheiros 231 MB de 1 GB): é o tráfego de saída («Egress», 5 GB por mês
+  no plano gratuito).
+- Causa principal: fotografias do Chat (pasta `conversa`, 164 MB, média 1,6
+  MB, as anteriores a 30-09 sem redução) descarregadas de novo em cada
+  abertura, porque o endereço assinado mudava a cada vez (1 hora, só em
+  memória).
+- Correcção: endereços de 24 h guardados no aparelho por pessoa
+  (`bsp-urls-<id>`, `bspUrlCachePreparar`/`Gravar`/`Limpar`, apagados ao
+  sair); ficheiros novos com `cacheControl` de um ano (nome único).
+- Pode libertar espaço (decisão do Elmar): vídeos .mov no Chat (23 MB e
+  6,6 MB), `app-debug.apk` antigo (4,6 MB), arquivo do projecto antigo em
+  `privado/u1/arquivo-supabase-antigo-2026-09-24` (8,9 MB, cópia de
+  segurança da migração). Registos do cron (`cron.job_run_details`, 9,8 MB)
+  já se limpam ao domingo.
