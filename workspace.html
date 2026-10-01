@@ -3875,7 +3875,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes'];
+const BSP_RPC_LEITURA = ['bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -9756,14 +9756,64 @@ function VerAnteriores({ conv, desde }) {
     React.createElement("button", { onClick: carregar, disabled: estado === 'a-carregar', style: { border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-2)', borderRadius: 999, height: 30, padding: '0 14px', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, cursor: 'pointer' } },
       estado === 'a-carregar' ? 'A carregar…' : 'Ver mensagens anteriores'));
 }
+/* Tamanho dos ficheiros sem os descarregar (01-10-2026, tráfego): pedido em
+   lote a bsp_tamanho_ficheiros (respeita as regras dos ficheiros) e guardado
+   neste aparelho; um ficheiro nunca muda de tamanho. */
+const BSP_IMG_MAX_AUTO = 600 * 1024;
+const __bspTam = { mapa: null, fila: [], t: null };
+function bspTamanhoFicheiro(caminho) {
+  if (!__bspTam.mapa) { try { __bspTam.mapa = JSON.parse(localStorage.getItem('bsp-tamanhos') || '{}'); } catch (e) { __bspTam.mapa = {}; } }
+  if (!caminho) return Promise.resolve(null);
+  if (__bspTam.mapa[caminho] != null) return Promise.resolve(__bspTam.mapa[caminho]);
+  return new Promise(resolve => {
+    __bspTam.fila.push({ caminho: caminho, resolve: resolve });
+    if (__bspTam.t) return;
+    __bspTam.t = setTimeout(async () => {
+      const fila = __bspTam.fila.splice(0);
+      __bspTam.t = null;
+      const cl = bspGetClient();
+      try {
+        const r = cl ? await cl.rpc('bsp_tamanho_ficheiros', { p_caminhos: Array.from(new Set(fila.map(x => x.caminho))) }) : null;
+        ((r && r.data) || []).forEach(x => { __bspTam.mapa[x.caminho] = Number(x.bytes) || 0; });
+        try { localStorage.setItem('bsp-tamanhos', JSON.stringify(__bspTam.mapa)); } catch (e) {}
+      } catch (e) {}
+      fila.forEach(x => x.resolve(__bspTam.mapa[x.caminho] != null ? __bspTam.mapa[x.caminho] : null));
+    }, 40);
+  });
+}
+function bspTamanhoTexto(b) {
+  const n = Number(b) || 0;
+  return n >= 1048576 ? (n / 1048576).toLocaleString('pt-PT', { maximumFractionDigits: 1 }) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+}
 function AnexoMensagem({ a }) {
   const [erro, setErro] = React.useState('');
+  /* Imagens pesadas não descarregam sozinhas: cartão com «Ver imagem». */
+  const [tamanho, setTamanho] = React.useState(undefined);
+  const caminho = a && a.path;
+  React.useEffect(() => {
+    let vivo = true;
+    if (caminho && /\.(png|jpe?g|gif|webp)$/i.test(a.name || '')) bspTamanhoFicheiro(caminho).then(t => { if (vivo) setTamanho(t); });
+    else setTamanho(null);
+    return () => { vivo = false; };
+  }, [caminho]);
   if (!a) return null;
   const f = { name: a.name, path: a.path, dataUrl: a.dataUrl };
   /* Se a imagem nao carregar, mostra-se o cartao com o nome — sempre
      alguma coisa em que se possa carregar, e o motivo por baixo. */
-  const img = /\.(png|jpe?g|gif|webp)$/i.test(a.name || '') && !erro;
+  const eImagem = /\.(png|jpe?g|gif|webp)$/i.test(a.name || '');
+  const pesada = eImagem && a.path && !a.dataUrl && (tamanho === undefined || (tamanho != null && tamanho > BSP_IMG_MAX_AUTO));
+  const img = eImagem && !erro && !pesada;
   const abrir = () => bspAbrirFicheiro(f, m => setErro(m || 'Não foi possível abrir o ficheiro.'));
+  if (pesada && !erro) {
+    if (tamanho === undefined) return React.createElement("div", { style: { margin: '6px 0 2px', width: 160, height: 44, borderRadius: 10, background: 'var(--surface-2)' } });
+    return React.createElement("div", { style: { margin: '6px 0 2px' } }, React.createElement("button", {
+      onClick: abrir,
+      style: { display: 'inline-flex', alignItems: 'center', gap: 10, padding: '9px 13px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface-2)', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', maxWidth: '100%' }
+    }, React.createElement(I.Image || I.Drive, { size: 16, stroke: 'var(--text-2)' }),
+      React.createElement("span", { style: { minWidth: 0 } },
+        React.createElement("span", { style: { display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 } }, a.name || 'Imagem'),
+        React.createElement("span", { style: { display: 'block', fontSize: 11.5, color: 'var(--text-3)' } }, 'Imagem · ' + bspTamanhoTexto(tamanho) + ' · toque para ver'))));
+  }
   if (bspEAudio(a.name) && !erro) return React.createElement(AudioAnexo, { f: f, aoFalhar: m => setErro(m || 'Não foi possível tocar a nota de voz.') });
   return React.createElement("div", {
     style: { margin: '6px 0 2px' }

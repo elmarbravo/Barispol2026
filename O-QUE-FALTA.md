@@ -2594,3 +2594,15 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   `privado/u1/arquivo-supabase-antigo-2026-09-24` (8,9 MB, cópia de
   segurança da migração). Registos do cron (`cron.job_run_details`, 9,8 MB)
   já se limpam ao domingo.
+- Registos de 24 h: 2,77 GB em descargas de ficheiros, 1 559 pedidos, todos
+  fora da cache. Nove imagens PNG do #geral (campanha Outubro Rosa, cerca de
+  2,2 MB cada) foram descarregadas 93 a 116 vezes cada (cerca de 1,85 GB).
+- Segunda correcção: imagens do Chat acima de 600 KB já não descarregam
+  sozinhas; aparecem como cartão «Imagem · 2,1 MB · toque para ver»
+  (`AnexoMensagem`). O tamanho vem de `bsp_tamanho_ficheiros`
+  (`trafego.sql`, com as permissões de quem chama: só os ficheiros que a
+  pessoa pode ver) e fica guardado no aparelho (`bsp-tamanhos`).
+- Por decidir (Elmar): apagar as nove imagens pesadas do #geral, ou
+  reenviá-las (o Chat já as reduz ao subir). O excedente deste ciclo (até
+  24-10-2026) já existe; no plano gratuito o Supabase pode limitar o
+  projecto. A alternativa é o plano Pro.
