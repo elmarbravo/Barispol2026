@@ -2789,6 +2789,13 @@ const NAV_ITEMS = [{
   icon: 'Users',
   badge: null
 }, {
+  /* Avarias (01-10-2026, auditoria): toda a equipa reporta; a gestao e os
+     Servicos Gerais tratam (equipa-registos.sql). */
+  id: 'avarias',
+  label: 'Avarias',
+  icon: 'Cog',
+  badge: null
+}, {
   id: 'admin',
   label: 'Admin',
   icon: 'Shield',
@@ -3189,6 +3196,7 @@ function Topbar({
     documentos: 'Documentos da clínica',
     actividade: 'A minha actividade',
     directory: 'Equipa',
+    avarias: 'Avarias',
     admin: 'Painel de Administração',
     notifications: 'Notificações'
   };
@@ -18467,6 +18475,7 @@ function MobileTopbar({
     admin: 'Admin',
     notifications: 'Notificações',
     directory: 'Equipa',
+    avarias: 'Avarias',
     escalas: 'Escalas',
     transporte: 'Transporte',
     stock: 'Stock'
@@ -18590,7 +18599,7 @@ function MobileNav({
       }
     }, n > 99 ? '99+' : n)), it.label);
   }), React.createElement("button", {
-    "data-on": ['calendar', 'stock', 'meetings', 'drive', 'admin', 'notifications', 'directory', 'relatorios', 'escalas', 'transporte', 'seguimento', 'marcacoes', 'painel', 'actividade', 'documentos'].includes(current),
+    "data-on": ['calendar', 'stock', 'avarias', 'meetings', 'drive', 'admin', 'notifications', 'directory', 'relatorios', 'escalas', 'transporte', 'seguimento', 'marcacoes', 'painel', 'actividade', 'documentos'].includes(current),
     onClick: onMore
   }, React.createElement(I.MoreH, {
     size: 20
@@ -18782,6 +18791,10 @@ function MobileMore({
     id: 'directory',
     label: 'Equipa',
     icon: 'Users'
+  }, {
+    id: 'avarias',
+    label: 'Avarias',
+    icon: 'Cog'
   }, {
     id: 'escalas',
     label: 'Escalas',
@@ -23520,10 +23533,29 @@ const BSP_GUIA_FICHAS = [
       ['Imprima a lista', 'para a encomenda ou a contagem.'],
       ['Os alertas chegam ao sino', 'e ao Início.']
     ],
-    quem: 'A Arlete (todos os armazéns), a Solange (Farmácia) e a Direcção.',
-    dica: 'Os números vêm do MetaGest: para corrigir uma quantidade, corrija no MetaGest.' }
+    quem: 'A Arlete (todos os armazéns), a Solange (Farmácia) e a Direcção. Os pedidos de compra (separador próprio) são aprovados pela Direcção.',
+    dica: 'Os números vêm do MetaGest: para corrigir uma quantidade, corrija no MetaGest.' },
+  { icone: 'Users', nome: 'Equipa',
+    serve: 'Os contactos da equipa, as férias e ausências e as formações.',
+    faz: [
+      ['Procure um colega', 'e ligue ou escreva-lhe.'],
+      ['Peça férias ou uma ausência;', 'decide o seu superior, o chefe da área ou a Direcção, e recebe o aviso.'],
+      ['Veja quem vai estar fora', 'nos próximos 30 dias.'],
+      ['Registe as suas formações;', 'os certificados a caducar aparecem em destaque.']
+    ],
+    quem: 'Toda a equipa. Cada pessoa vê os seus pedidos e formações; os chefes vêem os da sua área.',
+    dica: 'Peça as férias com antecedência: o chefe precisa de acertar a escala.' },
+  { icone: 'Cog', nome: 'Avarias',
+    serve: 'O registo das avarias e o seu seguimento até estarem resolvidas.',
+    faz: [
+      ['Reporte uma avaria:', 'o que avariou, onde e a prioridade.'],
+      ['Acompanhe o estado:', 'Aberta, Em reparação, Resolvida.'],
+      ['Quem trata regista', 'o responsável, o custo e o que se fez.']
+    ],
+    quem: 'Toda a equipa reporta. A Direcção e os Serviços Gerais tratam.',
+    dica: 'Quem reportou recebe o aviso quando a avaria fica resolvida.' }
 ];
-const BSP_GUIA_IDS = ['dashboard', 'chat', 'feed', 'drive', 'calendar', 'tasks', 'escalas', 'transporte', 'seguimento', 'marcacoes', 'painel', 'relatorios', 'actividade', 'documentos', 'admin', 'stock'];
+const BSP_GUIA_IDS = ['dashboard', 'chat', 'feed', 'drive', 'calendar', 'tasks', 'escalas', 'transporte', 'seguimento', 'marcacoes', 'painel', 'relatorios', 'actividade', 'documentos', 'admin', 'stock', 'directory', 'avarias'];
 const BSP_GUIA = {};
 BSP_GUIA_IDS.forEach((id, i) => { BSP_GUIA[id] = BSP_GUIA_FICHAS[i]; });
 function bspGuiaVistos(uid) {
@@ -23804,6 +23836,8 @@ function StockScreen() {
   const [erro, setErro] = React.useState('');
   const [armazem, setArmazem] = React.useState('');
   const [filtro, setFiltro] = React.useState('alertas');
+  /* Separadores: artigos e pedidos de compra (01-10-2026). */
+  const [abaS, setAbaS] = React.useState('artigos');
   const [busca, setBusca] = React.useState('');
   const [ordem, setOrdem] = useOrdem('stock', 'estado-asc', BSP_ORDEM_STOCK.map(o => o[0]));
   const carregar = React.useCallback(() => {
@@ -23863,13 +23897,19 @@ function StockScreen() {
       onClick: () => setArmazem(a),
       style: chip(armazem === a)
     }, bspStockArmazemNome(a)))),
-    armazem && React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } },
+    armazem && React.createElement("div", { style: { display: 'flex', gap: 4, borderBottom: '1px solid var(--border)' } },
+      [['artigos', 'Artigos e alertas'], ['compras', 'Pedidos de compra']].map(([id, txt]) => React.createElement("button", {
+        key: id, onClick: () => setAbaS(id),
+        style: { padding: '8px 14px', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700, background: 'transparent', whiteSpace: 'nowrap', color: abaS === id ? 'var(--accent-d)' : 'var(--text-2)', borderBottom: '2px solid ' + (abaS === id ? 'var(--accent)' : 'transparent') }
+      }, txt))),
+    armazem && abaS === 'compras' && React.createElement(PedidosCompraPainel, { key: armazem, armazem: armazem, alertas: doArmazem }),
+    armazem && abaS === 'artigos' && React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } },
       caixa('alertas', 'Todos os alertas', doArmazem.filter(l => l.estado !== 'ok').length, 'var(--perigo)'),
       caixa('esgotado', 'Esgotados (com saídas em 30 dias)', conta('esgotado'), 'var(--perigo)'),
       caixa('a-acabar', 'A acabar (menos de 7 dias)', conta('a-acabar'), 'var(--perigo)'),
       caixa('a-caducar', 'Lote a caducar (até 60 dias)', conta('a-caducar'), 'var(--accent-d)'),
       caixa('todos', 'Todos os artigos', doArmazem.length, 'var(--text-1)')),
-    armazem && React.createElement(Card, { pad: 0 },
+    armazem && abaS === 'artigos' && React.createElement(Card, { pad: 0 },
       React.createElement("div", { style: { display: 'flex', gap: 10, alignItems: 'center', padding: 12, borderBottom: '1px solid var(--border)', flexWrap: 'wrap' } },
         React.createElement("div", { style: { flex: '1 1 220px' } }, React.createElement(TextInput, { value: busca, onChange: setBusca, placeholder: 'Procurar artigo, código ou grupo' })),
         React.createElement(OrdemSelect, { valor: ordem, onMudar: setOrdem, opcoes: BSP_ORDEM_STOCK }),
@@ -23892,6 +23932,306 @@ function StockScreen() {
         })))),
       lista.length > 400 && React.createElement("div", { style: { padding: 12, fontSize: 12, color: 'var(--text-3)' } }, 'Mostram-se os primeiros 400. Use a procura ou os filtros.')),
     React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)', lineHeight: 1.5 } }, 'Esgotado: quantidade 0 e saídas nos últimos 30 dias. A acabar: ao ritmo dos últimos 30 dias, dura menos de 7 dias. Lote a caducar: lote com quantidade e validade até 60 dias. Os números vêm dos movimentos do MetaGest; para corrigir, corrija no MetaGest.'));
+}
+/* Registos da equipa (01-10-2026, auditoria, equipa-registos.sql): ferias e
+   ausencias, formacoes, avarias e pedidos de compra. Quem le e quem decide e
+   o servidor que manda (RLS e funcoes); o ecra so mostra o que chega. */
+function useTabela(tabela, ordem) {
+  const [linhas, setLinhas] = React.useState(null);
+  const [erro, setErro] = React.useState('');
+  const [tick, setTick] = React.useState(0);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) { setErro('O servidor não está ligado neste aparelho.'); return; }
+    let vivo = true;
+    cl.from(tabela).select('*').order(ordem || 'id', { ascending: false }).limit(1000).then(r => {
+      if (!vivo) return;
+      if (r.error) { setErro(r.error.message || 'Não foi possível carregar.'); return; }
+      setErro('');
+      setLinhas(r.data || []);
+    });
+    return () => { vivo = false; };
+  }, [tabela, tick]);
+  return { linhas, erro, recarregar: () => setTick(t => t + 1) };
+}
+const bspNomeDe = id => { const u = window.userById(id); return u ? u.name : 'Antigo colaborador'; };
+const BSP_ESTADO_COR = { Pedido: 'var(--accent-d)', Aprovado: 'var(--sucesso)', Recusado: 'var(--perigo)', Cancelado: 'var(--text-3)', Aberta: 'var(--perigo)', 'Em reparação': 'var(--accent-d)', Resolvida: 'var(--sucesso)', Cancelada: 'var(--text-3)', Comprado: 'var(--accent-d)', Recebido: 'var(--sucesso)' };
+const bspEstadoEtiqueta = e => React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: BSP_ESTADO_COR[e] || 'var(--text-2)', whiteSpace: 'nowrap' } }, e);
+const bspRegCaixa = { padding: 14, border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)' };
+function bspDiasEntre(a, b) { return Math.round((bspDataDe(b) - bspDataDe(a)) / 86400000) + 1; }
+
+/* ───────────── Ferias e ausencias ───────────── */
+const BSP_AUSENCIA_TIPOS = ['Férias', 'Doença', 'Falta justificada', 'Formação', 'Licença', 'Outro'];
+function AusenciasPainel() {
+  const toast = useToast();
+  const eu = window.CURRENT_USER_ID;
+  const t = useTabela('ausencias', 'inicio');
+  const hoje = bspDataLocalISO(new Date());
+  const [f, setF] = React.useState({ tipo: 'Férias', inicio: '', fim: '', nota: '' });
+  const [busy, setBusy] = React.useState(false);
+  async function pedir() {
+    if (!f.inicio || !f.fim) { toast('Escolha o primeiro e o último dia.'); return; }
+    if (f.fim < f.inicio) { toast('O último dia não pode ser antes do primeiro.'); return; }
+    const cl = bspGetClient();
+    if (!cl) return;
+    setBusy(true);
+    const r = await cl.from('ausencias').insert({ tipo: f.tipo, inicio: f.inicio, fim: f.fim, nota: f.nota.trim() });
+    setBusy(false);
+    if (r.error) { toast('Não foi possível pedir: ' + r.error.message); return; }
+    toast('Pedido enviado. Quem decide recebe o aviso.');
+    setF({ tipo: 'Férias', inicio: '', fim: '', nota: '' });
+    t.recarregar();
+  }
+  async function decidir(a, estado) {
+    let motivo = '';
+    if (estado === 'Recusado') { motivo = window.prompt('Motivo da recusa (vai para a pessoa):', '') || ''; if (!motivo.trim()) return; }
+    if (estado === 'Cancelado' && !window.confirm('Cancelar este pedido?')) return;
+    const r = await bspGetClient().rpc('bsp_ausencia_decidir', { p_id: a.id, p_estado: estado, p_motivo: motivo });
+    if (r.error) { toast('Não foi possível: ' + r.error.message); return; }
+    toast('Pedido ' + estado.toLowerCase() + '.');
+    t.recarregar();
+  }
+  const linhas = t.linhas || [];
+  const meus = linhas.filter(a => a.user_id === eu);
+  const outros = linhas.filter(a => a.user_id !== eu);
+  const porDecidir = outros.filter(a => a.estado === 'Pedido');
+  const ausentes = outros.filter(a => a.estado === 'Aprovado' && a.fim >= hoje && a.inicio <= bspSomarDias(hoje, 30)).sort((a, b) => a.inicio.localeCompare(b.inicio));
+  const linha = (a, accoes) => React.createElement("div", { key: a.id, style: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 0', borderTop: '1px solid var(--border)' } },
+    React.createElement("div", { style: { flex: '1 1 220px', minWidth: 0 } },
+      React.createElement("div", { style: { fontSize: 13.5, fontWeight: 600, color: 'var(--text-1)' } }, (a.user_id !== eu ? bspNomeDe(a.user_id) + ' · ' : '') + a.tipo),
+      React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)' } }, bspDataCurta(a.inicio) + ' a ' + bspDataCurta(a.fim) + ' · ' + bspDiasEntre(a.inicio, a.fim) + ' dia(s)' + (a.nota ? ' · ' + a.nota : '')),
+      a.motivo ? React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, 'Motivo: ' + a.motivo) : null,
+      a.decidido_em && a.estado !== 'Pedido' ? React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)' } }, a.estado + ' por ' + bspNomeDe(a.decidido_por) + ' a ' + bspQuando(a.decidido_em)) : null),
+    bspEstadoEtiqueta(a.estado), accoes);
+  const rot = bspTranspRot;
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 14 } },
+    t.erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, t.erro) : null,
+    porDecidir.length > 0 && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { borderLeft: '4px solid var(--perigo)' }) },
+      React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)' } }, 'Para decidir (' + porDecidir.length + ')'),
+      porDecidir.map(a => linha(a, React.createElement("div", { style: { display: 'flex', gap: 6 } },
+        React.createElement("button", { onClick: () => decidir(a, 'Aprovado'), style: bspEscBotao(true) }, 'Aprovar'),
+        React.createElement("button", { onClick: () => decidir(a, 'Recusado'), style: bspEscBotao(false) }, 'Recusar'))))),
+    React.createElement("div", { style: bspRegCaixa },
+      React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } }, 'Pedir férias ou ausência'),
+      React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 } },
+        React.createElement("label", null, rot('Tipo'), React.createElement("select", { value: f.tipo, onChange: e => setF(Object.assign({}, f, { tipo: e.target.value })), style: bspTranspCampo }, BSP_AUSENCIA_TIPOS.map(x => React.createElement("option", { key: x, value: x }, x)))),
+        React.createElement("label", null, rot('Primeiro dia'), React.createElement("input", { type: 'date', value: f.inicio, onChange: e => setF(Object.assign({}, f, { inicio: e.target.value, fim: f.fim && f.fim >= e.target.value ? f.fim : e.target.value })), style: bspTranspCampo })),
+        React.createElement("label", null, rot('Último dia'), React.createElement("input", { type: 'date', value: f.fim, min: f.inicio || undefined, onChange: e => setF(Object.assign({}, f, { fim: e.target.value })), style: bspTranspCampo }))),
+      React.createElement("label", { style: { display: 'block', marginTop: 10 } }, rot('Nota (opcional)'), React.createElement("input", { value: f.nota, onChange: e => setF(Object.assign({}, f, { nota: e.target.value })), placeholder: 'Ex.: troca combinada com a colega', style: bspTranspCampo })),
+      React.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginTop: 12, flexWrap: 'wrap' } },
+        React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, f.inicio && f.fim && f.fim >= f.inicio ? bspDiasEntre(f.inicio, f.fim) + ' dia(s) de calendário. Decide o seu superior, o chefe da área ou a Direcção.' : 'Decide o seu superior, o chefe da área ou a Direcção.'),
+        React.createElement("button", { onClick: pedir, disabled: busy, style: bspEscBotao(true) }, busy ? 'A enviar…' : 'Pedir'))),
+    ausentes.length > 0 && React.createElement("div", { style: bspRegCaixa },
+      React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)' } }, 'Quem vai estar fora (próximos 30 dias)'),
+      ausentes.map(a => linha(a, null))),
+    React.createElement("div", { style: bspRegCaixa },
+      React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)' } }, 'Os meus pedidos'),
+      !meus.length ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)', marginTop: 6 } }, t.linhas ? 'Ainda sem pedidos.' : 'A carregar…')
+        : meus.map(a => linha(a, (a.estado === 'Pedido' || (a.estado === 'Aprovado' && a.inicio > hoje)) ? React.createElement("button", { onClick: () => decidir(a, 'Cancelado'), style: bspEscBotao(false) }, 'Cancelar') : null))),
+    outros.filter(a => a.estado !== 'Pedido').length > 0 && React.createElement("details", { style: bspRegCaixa },
+      React.createElement("summary", { style: { cursor: 'pointer', fontSize: 13.5, fontWeight: 700, color: 'var(--text-1)' } }, 'Histórico da equipa'),
+      outros.filter(a => a.estado !== 'Pedido').map(a => linha(a, null))));
+}
+
+/* ───────────── Formacoes ───────────── */
+function FormacoesPainel() {
+  const toast = useToast();
+  const eu = window.CURRENT_USER_ID;
+  const euU = window.userById(eu);
+  const gestor = bspGereMarcacoes(euU);
+  const t = useTabela('formacoes', 'data');
+  const hoje = bspDataLocalISO(new Date());
+  const vazio = { user_id: eu, titulo: '', entidade: '', data: '', horas: '', validade: '', nota: '' };
+  const [f, setF] = React.useState(vazio);
+  const [aberto, setAberto] = React.useState(false);
+  async function guardar() {
+    if (!f.titulo.trim() || !f.data) { toast('Escreva o título e a data.'); return; }
+    const r = await bspGetClient().from('formacoes').insert({ user_id: f.user_id, titulo: f.titulo.trim(), entidade: f.entidade.trim(), data: f.data, horas: f.horas ? Number(f.horas) : null, validade: f.validade || null, nota: f.nota.trim() });
+    if (r.error) { toast('Não foi possível guardar: ' + r.error.message); return; }
+    toast('Formação registada.');
+    setF(vazio); setAberto(false); t.recarregar();
+  }
+  async function apagar(x) {
+    if (!window.confirm('Apagar a formação «' + x.titulo + '»?')) return;
+    const r = await bspGetClient().from('formacoes').delete().eq('id', x.id).select('id');
+    if (r.error || !r.data || !r.data.length) { toast('Não foi possível apagar.'); return; }
+    t.recarregar();
+  }
+  const linhas = t.linhas || [];
+  const porPessoa = {};
+  linhas.forEach(x => { (porPessoa[x.user_id] = porPessoa[x.user_id] || []).push(x); });
+  const pessoas = Object.keys(porPessoa).sort((a, b) => a === eu ? -1 : b === eu ? 1 : bspCompararTexto(bspNomeDe(a), bspNomeDe(b)));
+  const caducam = linhas.filter(x => x.validade && x.validade <= bspSomarDias(hoje, 60));
+  const equipa = USERS.filter(u => u && u.id && String(u.id).indexOf('x:') !== 0 && !bspESocio(u)).slice().sort((a, b) => bspCompararTexto(a.name, b.name));
+  const rot = bspTranspRot;
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 14 } },
+    t.erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, t.erro) : null,
+    caducam.length > 0 && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { borderLeft: '4px solid var(--perigo)' }) },
+      React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)' } }, 'Certificados caducados ou a caducar em 60 dias'),
+      caducam.map(x => React.createElement("div", { key: x.id, style: { fontSize: 13, color: x.validade < hoje ? 'var(--perigo)' : 'var(--text-2)', marginTop: 4 } }, bspNomeDe(x.user_id) + ' · ' + x.titulo + ' · validade ' + bspDataCurta(x.validade)))),
+    React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end' } },
+      React.createElement("button", { onClick: () => setAberto(a => !a), style: bspEscBotao(true) }, aberto ? 'Fechar' : 'Registar formação')),
+    aberto && React.createElement("div", { style: bspRegCaixa },
+      React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10 } },
+        gestor && React.createElement("label", null, rot('Pessoa'), React.createElement("select", { value: f.user_id, onChange: e => setF(Object.assign({}, f, { user_id: e.target.value })), style: bspTranspCampo }, equipa.map(u => React.createElement("option", { key: u.id, value: u.id }, u.name)))),
+        React.createElement("label", null, rot('Formação'), React.createElement("input", { value: f.titulo, onChange: e => setF(Object.assign({}, f, { titulo: e.target.value })), placeholder: 'Ex.: Suporte Básico de Vida', style: bspTranspCampo })),
+        React.createElement("label", null, rot('Entidade'), React.createElement("input", { value: f.entidade, onChange: e => setF(Object.assign({}, f, { entidade: e.target.value })), style: bspTranspCampo })),
+        React.createElement("label", null, rot('Data'), React.createElement("input", { type: 'date', value: f.data, onChange: e => setF(Object.assign({}, f, { data: e.target.value })), style: bspTranspCampo })),
+        React.createElement("label", null, rot('Horas'), React.createElement("input", { type: 'number', min: 0, step: 0.5, value: f.horas, onChange: e => setF(Object.assign({}, f, { horas: e.target.value })), style: bspTranspCampo })),
+        React.createElement("label", null, rot('Validade (se tiver)'), React.createElement("input", { type: 'date', value: f.validade, onChange: e => setF(Object.assign({}, f, { validade: e.target.value })), style: bspTranspCampo }))),
+      React.createElement("label", { style: { display: 'block', marginTop: 10 } }, rot('Nota'), React.createElement("input", { value: f.nota, onChange: e => setF(Object.assign({}, f, { nota: e.target.value })), style: bspTranspCampo })),
+      React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', marginTop: 12 } }, React.createElement("button", { onClick: guardar, style: bspEscBotao(true) }, 'Guardar'))),
+    !pessoas.length ? React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, t.linhas ? 'Ainda sem formações registadas.' : 'A carregar…')
+      : pessoas.map(id => React.createElement("div", { key: id, style: bspRegCaixa },
+        React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)' } }, (id === eu ? 'As minhas formações' : bspNomeDe(id)) + ' · ' + porPessoa[id].reduce((n, x) => n + Number(x.horas || 0), 0).toLocaleString('pt-PT') + ' h'),
+        porPessoa[id].map(x => React.createElement("div", { key: x.id, style: { display: 'flex', gap: 10, alignItems: 'center', padding: '8px 0', borderTop: '1px solid var(--border)', flexWrap: 'wrap' } },
+          React.createElement("div", { style: { flex: '1 1 220px', minWidth: 0 } },
+            React.createElement("div", { style: { fontSize: 13.5, fontWeight: 600, color: 'var(--text-1)' } }, x.titulo),
+            React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)' } }, [bspDataCurta(x.data), x.entidade, x.horas ? x.horas + ' h' : '', x.validade ? 'validade ' + bspDataCurta(x.validade) : '', x.nota].filter(Boolean).join(' · '))),
+          (gestor || x.registado_por === eu) && React.createElement("button", { onClick: () => apagar(x), title: 'Apagar', style: { border: 0, background: 'transparent', cursor: 'pointer', color: 'var(--text-3)' } }, React.createElement(I.Trash, { size: 14 })))))));
+}
+
+/* Equipa: contactos, ferias e ausencias, formacoes. */
+function EquipaScreen() {
+  const [aba, setAba] = React.useState(() => window.__bspEquipaAba || 'contactos');
+  React.useEffect(() => { window.__bspEquipaAba = null; }, []);
+  const aba_ = (id, txt) => React.createElement("button", {
+    key: id, onClick: () => setAba(id),
+    style: { padding: '9px 16px', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700, background: 'transparent', whiteSpace: 'nowrap', flex: 'none', color: aba === id ? 'var(--accent-d)' : 'var(--text-2)', borderBottom: '2px solid ' + (aba === id ? 'var(--accent)' : 'transparent') }
+  }, txt);
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' } },
+    React.createElement("div", { style: { display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', flex: 'none', overflowX: 'auto' } },
+      aba_('contactos', 'Contactos'), aba_('ausencias', 'Férias e ausências'), aba_('formacoes', 'Formações')),
+    React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: 'auto', paddingBottom: 12 } },
+      aba === 'contactos' && React.createElement(DirectoryScreen, null),
+      aba === 'ausencias' && React.createElement(AusenciasPainel, null),
+      aba === 'formacoes' && React.createElement(FormacoesPainel, null)));
+}
+
+/* ───────────── Avarias ───────────── */
+function bspTrataAvarias(u) {
+  return !!u && (bspGereMarcacoes(u) || bspAreaChave(u.dept) === 'servicos gerais');
+}
+function AvariasScreen() {
+  const toast = useToast();
+  const eu = window.CURRENT_USER_ID;
+  const trata = bspTrataAvarias(window.userById(eu));
+  const t = useTabela('avarias', 'criado_em');
+  const [filtro, setFiltro] = React.useState('abertas');
+  const [aberto, setAberto] = React.useState(false);
+  const vazio = { equipamento: '', local: '', area: '', prioridade: 'Normal', descricao: '' };
+  const [f, setF] = React.useState(vazio);
+  const [ed, setEd] = React.useState(null);
+  async function reportar() {
+    if (!f.equipamento.trim()) { toast('Diga que equipamento ou coisa avariou.'); return; }
+    const r = await bspGetClient().from('avarias').insert({ equipamento: f.equipamento.trim(), local: f.local.trim(), area: f.area, prioridade: f.prioridade, descricao: f.descricao.trim() });
+    if (r.error) { toast('Não foi possível reportar: ' + r.error.message); return; }
+    toast('Avaria reportada. A gestão e os Serviços Gerais recebem o aviso.');
+    setF(vazio); setAberto(false); t.recarregar();
+  }
+  async function mudar(a, campos) {
+    const r = await bspGetClient().from('avarias').update(campos).eq('id', a.id).select('id');
+    if (r.error || !r.data || !r.data.length) { toast('Não foi possível guardar' + (r.error ? ': ' + r.error.message : '.')); return; }
+    toast('Avaria actualizada.');
+    setEd(null); t.recarregar();
+  }
+  const linhas = t.linhas || [];
+  const abertas = linhas.filter(a => a.estado === 'Aberta' || a.estado === 'Em reparação');
+  const lista = (filtro === 'abertas' ? abertas : filtro === 'resolvidas' ? linhas.filter(a => a.estado === 'Resolvida') : linhas)
+    .slice().sort((a, b) => ({ Urgente: 0, Alta: 1, Normal: 2 }[a.prioridade] - { Urgente: 0, Alta: 1, Normal: 2 }[b.prioridade]) || String(b.criado_em).localeCompare(String(a.criado_em)));
+  const rot = bspTranspRot;
+  const corPrio = { Urgente: 'var(--perigo)', Alta: 'var(--serie-4)', Normal: 'var(--text-3)' };
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'auto', paddingBottom: 12 } },
+    React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } },
+      React.createElement("button", { onClick: () => setFiltro('abertas'), style: bspEscChip(filtro === 'abertas') }, 'Por resolver ' + abertas.length),
+      React.createElement("button", { onClick: () => setFiltro('resolvidas'), style: bspEscChip(filtro === 'resolvidas') }, 'Resolvidas'),
+      React.createElement("button", { onClick: () => setFiltro('todas'), style: bspEscChip(filtro === 'todas') }, 'Todas'),
+      React.createElement("span", { style: { flex: 1 } }),
+      React.createElement("button", { onClick: () => setAberto(a => !a), style: bspEscBotao(true) }, aberto ? 'Fechar' : 'Reportar avaria')),
+    t.erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, t.erro) : null,
+    aberto && React.createElement("div", { style: bspRegCaixa },
+      React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10 } },
+        React.createElement("label", null, rot('O que avariou'), React.createElement("input", { value: f.equipamento, onChange: e => setF(Object.assign({}, f, { equipamento: e.target.value })), placeholder: 'Ex.: ar condicionado, impressora', style: bspTranspCampo })),
+        React.createElement("label", null, rot('Onde'), React.createElement("input", { value: f.local, onChange: e => setF(Object.assign({}, f, { local: e.target.value })), placeholder: 'Ex.: sala de colheitas', style: bspTranspCampo })),
+        React.createElement("label", null, rot('Área'), React.createElement("select", { value: f.area, onChange: e => setF(Object.assign({}, f, { area: e.target.value })), style: bspTranspCampo }, React.createElement("option", { value: '' }, '—'), bspEscalaAreas().map(a => React.createElement("option", { key: a.chave, value: a.chave }, a.nome)))),
+        React.createElement("label", null, rot('Prioridade'), React.createElement("select", { value: f.prioridade, onChange: e => setF(Object.assign({}, f, { prioridade: e.target.value })), style: bspTranspCampo }, ['Urgente', 'Alta', 'Normal'].map(x => React.createElement("option", { key: x, value: x }, x))))),
+      React.createElement("label", { style: { display: 'block', marginTop: 10 } }, rot('O que se passa'), React.createElement("textarea", { rows: 3, value: f.descricao, onChange: e => setF(Object.assign({}, f, { descricao: e.target.value })), style: Object.assign({}, bspTranspCampo, { height: 'auto', padding: 10, resize: 'vertical' }) })),
+      React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', marginTop: 12 } }, React.createElement("button", { onClick: reportar, style: bspEscBotao(true) }, 'Reportar'))),
+    !lista.length ? React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, t.linhas ? (filtro === 'abertas' ? 'Nenhuma avaria por resolver.' : 'Sem avarias.') : 'A carregar…')
+      : lista.map(a => React.createElement("div", { key: a.id, style: Object.assign({}, bspRegCaixa, { borderLeft: '4px solid ' + (corPrio[a.prioridade] || 'var(--border)') }) },
+        React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' } },
+          React.createElement("div", { style: { flex: '1 1 240px', minWidth: 0 } },
+            React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: corPrio[a.prioridade] } }, a.prioridade.toUpperCase() + (a.area ? ' · ' + bspEscalaAreaNome(a.area) : '') + (a.local ? ' · ' + a.local : '')),
+            React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)' } }, a.equipamento),
+            a.descricao ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 3, whiteSpace: 'pre-wrap' } }, a.descricao) : null,
+            React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 4 } }, 'Reportada por ' + bspNomeDe(a.criado_por) + ' a ' + bspQuando(a.criado_em)
+              + (a.responsavel ? ' · trata: ' + a.responsavel : '') + (a.custo ? ' · custo ' + Number(a.custo).toLocaleString('pt-PT') + ' Kz' : '')
+              + (a.resolvido_em ? ' · resolvida a ' + bspQuando(a.resolvido_em) : '')),
+            a.resolucao ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--sucesso)', marginTop: 3 } }, a.resolucao) : null),
+          bspEstadoEtiqueta(a.estado),
+          trata && a.estado !== 'Resolvida' && a.estado !== 'Cancelada' && React.createElement("button", { onClick: () => setEd(ed && ed.id === a.id ? null : { id: a.id, estado: a.estado, responsavel: a.responsavel, custo: a.custo || '', resolucao: a.resolucao }), style: bspEscBotao(false) }, 'Tratar'),
+          !trata && a.criado_por === eu && a.estado === 'Aberta' && React.createElement("button", { onClick: () => window.confirm('Cancelar esta avaria?') && mudar(a, { estado: 'Cancelada' }), style: bspEscBotao(false) }, 'Cancelar')),
+        ed && ed.id === a.id && React.createElement("div", { style: { marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' } },
+          React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 } },
+            React.createElement("label", null, rot('Estado'), React.createElement("select", { value: ed.estado, onChange: e => setEd(Object.assign({}, ed, { estado: e.target.value })), style: bspTranspCampo }, ['Aberta', 'Em reparação', 'Resolvida', 'Cancelada'].map(x => React.createElement("option", { key: x, value: x }, x)))),
+            React.createElement("label", null, rot('Quem trata'), React.createElement("input", { value: ed.responsavel, onChange: e => setEd(Object.assign({}, ed, { responsavel: e.target.value })), placeholder: 'Pessoa ou empresa', style: bspTranspCampo })),
+            React.createElement("label", null, rot('Custo (Kz)'), React.createElement("input", { type: 'number', min: 0, value: ed.custo, onChange: e => setEd(Object.assign({}, ed, { custo: e.target.value })), style: bspTranspCampo }))),
+          React.createElement("label", { style: { display: 'block', marginTop: 10 } }, rot('O que se fez'), React.createElement("input", { value: ed.resolucao, onChange: e => setEd(Object.assign({}, ed, { resolucao: e.target.value })), style: bspTranspCampo })),
+          React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', marginTop: 10 } }, React.createElement("button", { onClick: () => mudar(a, { estado: ed.estado, responsavel: ed.responsavel.trim(), custo: ed.custo === '' ? null : Number(ed.custo), resolucao: ed.resolucao.trim() }), style: bspEscBotao(true) }, 'Guardar'))))));
+}
+
+/* ───────────── Pedidos de compra (Stock) ───────────── */
+function PedidosCompraPainel({ armazem, alertas, onFeito }) {
+  const toast = useToast();
+  const eu = window.CURRENT_USER_ID;
+  const gestor = bspGereMarcacoes(window.userById(eu));
+  const t = useTabela('pedidos_compra', 'criado_em');
+  const [novo, setNovo] = React.useState(null);
+  function comecar() {
+    setNovo({ nota: '', itens: (alertas || []).filter(l => l.estado === 'esgotado' || l.estado === 'a-acabar').map(l => ({ artigo: l.artigo, nome: l.nome, unidade: l.unidade || '', qtd: Math.max(1, Math.ceil(Number(l.saidas_30d || 0) - Math.max(0, Number(l.qtd || 0)))) })) });
+  }
+  async function enviar() {
+    const itens = novo.itens.filter(i => Number(i.qtd) > 0);
+    if (!itens.length) { toast('O pedido não tem artigos.'); return; }
+    const r = await bspGetClient().from('pedidos_compra').insert({ armazem: armazem, itens: itens, nota: novo.nota.trim() });
+    if (r.error) { toast('Não foi possível enviar: ' + r.error.message); return; }
+    toast('Pedido de compra enviado à Direcção.');
+    setNovo(null); t.recarregar(); onFeito && onFeito();
+  }
+  async function estado(p, e) {
+    const r = await bspGetClient().from('pedidos_compra').update({ estado: e }).eq('id', p.id).select('id');
+    if (r.error || !r.data || !r.data.length) { toast('Não foi possível' + (r.error ? ': ' + r.error.message : '.')); return; }
+    toast('Pedido ' + e.toLowerCase() + '.'); t.recarregar();
+  }
+  const lista = (t.linhas || []).filter(p => p.armazem === armazem);
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+    t.erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, t.erro) : null,
+    !novo && React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end' } }, React.createElement("button", { onClick: comecar, style: bspEscBotao(true) }, 'Novo pedido com os artigos em falta')),
+    novo && React.createElement("div", { style: bspRegCaixa },
+      React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)' } }, 'Novo pedido · ' + bspStockArmazemNome(armazem)),
+      React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', margin: '2px 0 8px' } }, 'Quantidade sugerida: as saídas dos últimos 30 dias menos o que há. Acerte antes de enviar; 0 tira o artigo.'),
+      !novo.itens.length ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Sem artigos esgotados nem a acabar neste armazém.')
+        : novo.itens.map((i, k) => React.createElement("div", { key: i.artigo, style: { display: 'flex', gap: 8, alignItems: 'center', padding: '6px 0', borderTop: '1px solid var(--border)' } },
+          React.createElement("div", { style: { flex: 1, minWidth: 0, fontSize: 13, color: 'var(--text-1)' } }, i.nome, React.createElement("span", { style: { color: 'var(--text-3)', fontSize: 11.5 } }, ' · ' + i.artigo)),
+          React.createElement("input", { type: 'number', min: 0, value: i.qtd, onChange: e => setNovo(Object.assign({}, novo, { itens: novo.itens.map((x, j) => j === k ? Object.assign({}, x, { qtd: e.target.value }) : x) })), style: Object.assign({}, bspTranspCampo, { width: 90, height: 36 }) }),
+          React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)', width: 60 } }, String(i.unidade || '').toLowerCase()))),
+      React.createElement("label", { style: { display: 'block', marginTop: 10 } }, bspTranspRot('Nota para quem aprova'), React.createElement("input", { value: novo.nota, onChange: e => setNovo(Object.assign({}, novo, { nota: e.target.value })), style: bspTranspCampo })),
+      React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 } },
+        React.createElement("button", { onClick: () => setNovo(null), style: bspEscBotao(false) }, 'Cancelar'),
+        React.createElement("button", { onClick: enviar, style: bspEscBotao(true) }, 'Enviar pedido'))),
+    !lista.length ? React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, t.linhas ? 'Ainda sem pedidos de compra neste armazém.' : 'A carregar…')
+      : lista.map(p => React.createElement("div", { key: p.id, style: bspRegCaixa },
+        React.createElement("div", { style: { display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' } },
+          React.createElement("div", { style: { flex: '1 1 240px', minWidth: 0 } },
+            React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)' } }, 'Pedido n.º ' + p.id + ' · ' + (p.itens || []).length + ' artigo(s)'),
+            React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, 'Por ' + bspNomeDe(p.criado_por) + ' a ' + bspQuando(p.criado_em) + (p.decidido_em ? ' · ' + p.estado.toLowerCase() + ' por ' + bspNomeDe(p.decidido_por) : '')),
+            p.nota ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', marginTop: 2 } }, p.nota) : null,
+            React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', marginTop: 4 } }, (p.itens || []).map(i => i.nome + ' × ' + i.qtd).join(' · '))),
+          bspEstadoEtiqueta(p.estado),
+          gestor && p.estado === 'Pedido' && React.createElement("button", { onClick: () => estado(p, 'Aprovado'), style: bspEscBotao(true) }, 'Aprovar'),
+          gestor && p.estado === 'Pedido' && React.createElement("button", { onClick: () => estado(p, 'Recusado'), style: bspEscBotao(false) }, 'Recusar'),
+          p.estado === 'Aprovado' && React.createElement("button", { onClick: () => estado(p, 'Comprado'), style: bspEscBotao(false) }, 'Comprado'),
+          p.estado === 'Comprado' && React.createElement("button", { onClick: () => estado(p, 'Recebido'), style: bspEscBotao(false) }, 'Recebido')))));
 }
 function PainelAtalho({ onAbrir }) {
   const [d, setD] = React.useState(null);
@@ -24833,6 +25173,7 @@ function App() {
     }
     if (n.type === 'sistema') {
       const d = String(n.destino || '');
+      if (d === 'directory' && /f[ée]rias|aus[êe]ncia|licen|doen|falta/i.test(String(n.text || '') + ' ' + String(n.preview || ''))) window.__bspEquipaAba = 'ausencias';
       setPage({ tarefas: 'tasks', agenda: 'calendar' }[d] || d || 'dashboard');
       return;
     }
@@ -24971,7 +25312,7 @@ function App() {
   }), pg === 'meetings' && React.createElement(MeetingsScreen, null), pg === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), (pg === 'seguimento' || pg === 'marcacoes') && (bspVeCrm(currentUser) || bspVeMarcacoes(currentUser) ? React.createElement(CrmScreen, { key: pg, inicial: pg === 'marcacoes' ? 'marcacoes' : null }) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'stock' && (bspVeStock(currentUser) ? React.createElement(StockScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(DirectoryScreen, null), pg === 'admin' && React.createElement(AdminScreen, {
+  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), (pg === 'seguimento' || pg === 'marcacoes') && (bspVeCrm(currentUser) || bspVeMarcacoes(currentUser) ? React.createElement(CrmScreen, { key: pg, inicial: pg === 'marcacoes' ? 'marcacoes' : null }) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'stock' && (bspVeStock(currentUser) ? React.createElement(StockScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(EquipaScreen, null), pg === 'avarias' && (!bspESocio(currentUser) ? React.createElement(AvariasScreen, null) : null), pg === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
   }), pg === 'notifications' && React.createElement(NotificationsScreen, {
     onAbrir: abrirNotificacao

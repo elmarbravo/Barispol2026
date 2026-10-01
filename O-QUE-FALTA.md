@@ -2359,3 +2359,19 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   turnos da própria pessoa nas escalas em vigor (com visto) deste mês e do
   seguinte; 7 dias numa fila, «Ver todos» mostra o resto. Escalas sem visto
   não aparecem (regra de `bspEscalaEmVigor`).
+- Férias e ausências, formações, avarias e pedidos de compra
+  (`equipa-registos.sql`, aplicado em partes; testado no servidor numa
+  transacção desfeita e no navegador). Quem decide (`bsp_chefe_de`): a
+  gestão, o superior directo e o chefe da área (`bsp_escalas_responsaveis`);
+  ninguém decide os seus pedidos. Avisos pelas novidades.
+  - Equipa (`EquipaScreen`): Contactos (o Directório), Férias e ausências
+    (`AusenciasPainel`: pedir, para decidir, quem vai estar fora 30 dias, os
+    meus pedidos; `bsp_ausencia_decidir`) e Formações (`FormacoesPainel`:
+    horas por pessoa, certificados a caducar em 60 dias).
+  - Avarias (menu novo, `AvariasScreen`): toda a equipa reporta; a gestão e
+    os Serviços Gerais tratam (`bsp_trata_avarias` / `bspTrataAvarias`):
+    estado, quem trata, custo, o que se fez; quem reportou recebe o aviso
+    quando fica resolvida.
+  - Stock → Pedidos de compra (`PedidosCompraPainel`): o pedido vem dos
+    artigos esgotados e a acabar (quantidade sugerida = saídas de 30 dias
+    menos o saldo); só a gestão aprova; depois Comprado e Recebido.

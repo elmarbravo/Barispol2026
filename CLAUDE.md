@@ -273,6 +273,12 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
 - Menu «Utentes» (01-10-2026): CRM + Marcações num só item (`seguimento`,
   separadores em `CrmScreen({ inicial })`); a rota `marcacoes` abre o
   separador Marcações. Directório no menu como «Equipa».
+- Registos da equipa (01-10-2026, `equipa-registos.sql`): `ausencias`,
+  `formacoes`, `avarias`, `pedidos_compra`. Quem decide: `bsp_chefe_de`
+  (gestão, superior, chefe da área). Ecrãs: `EquipaScreen` (Contactos,
+  `AusenciasPainel`, `FormacoesPainel`), `AvariasScreen`
+  (`bspTrataAvarias` = gestão + Serviços Gerais), Stock →
+  `PedidosCompraPainel` (só a gestão aprova).
 - Sócios (27-09-2026, `socios.sql`): camada «Sócio» (`soNumeros`), só o
   Painel. Servidor: `bsp_e_socio`, `bsp_membro_e_socio`; ecrã: `bspESocio`,
   `bspVePainel`. Nunca usar a camada de sócio como camada de recurso.
