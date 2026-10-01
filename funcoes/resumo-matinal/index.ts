@@ -29,6 +29,7 @@
 // Sai um e-mail por endereco, para ninguem ver os enderecos dos outros.
 // Versao 11 (01-10-2026): o resumo leva a agenda de cada pessoa, com os
 // eventos de agenda_eventos que ela pode ver (agenda-privada.sql).
+// Versao 12 (01-10-2026): eventos de todos os meses (dia_mes).
 // Desde a versao 10 (30-09-2026) os envios vao para toda a equipa com
 // e-mail valido, tambem os enderecos pessoais dos medicos (decisao do
 // Elmar), menos quem tem a marca semEmails.
@@ -811,9 +812,11 @@ Deno.serve(async (req) => {
   // 1. A cada pessoa, o que é dela (tarefas e agenda).
   const { data: agendaLinhas } = await admin
     .from("agenda_eventos")
-    .select("dono, titulo, hora, dia, data, privado, convidados, respostas, local");
+    .select("dono, titulo, hora, dia, data, dia_mes, privado, convidados, respostas, local");
+  /* dia_mes: todos os meses nesse dia, a partir de data. */
   agendaHoje = ((agendaLinhas || []) as any[]).filter((e: any) =>
-    e && (e.data ? String(e.data) === hoje : Number(e.dia) === diaSemana));
+    e && (e.dia_mes ? String(e.data || "") <= hoje && Number(hoje.slice(8, 10)) === Number(e.dia_mes)
+      : e.data ? String(e.data) === hoje : Number(e.dia) === diaSemana));
   for (const u of destinatarios) {
     const minhas = pendentes.filter((t) => (t.assignees || []).includes(u.id));
     const ag = agendaDe(u);

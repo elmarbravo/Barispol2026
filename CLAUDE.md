@@ -188,6 +188,7 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   `bspPodeMudarEvento`, `EventoDetalhe`, `useProximosEventos`. Os eventos
   antigos (`state.todayEvents`) têm `origem: 'equipa'`. Qualquer consumidor
   novo da agenda junta os dois e filtra com `bspEventoNaAgenda`.
+  Mensais: `dia_mes` (início em `data`), no ecrã `e.diaMes`/`e.desde`.
 - Tarefas privadas partilhadas: coluna `partilhada_com` em
   `tarefas_pessoais` (`tarefas-partilhadas.sql`). Editar uma tarefa
   privada vai por `pess.actualizar`, nunca por `actions.updateTask`. A edição

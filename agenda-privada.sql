@@ -33,6 +33,8 @@ create table if not exists public.agenda_eventos (
   actualizado_em timestamptz not null default now(),
   check (dia is not null or data is not null)
 );
+-- Todos os meses no mesmo dia (01-10-2026): data = início, dia_mes = dia.
+alter table public.agenda_eventos add column if not exists dia_mes smallint check (dia_mes between 1 and 31);
 create index if not exists agenda_eventos_dono on public.agenda_eventos (dono);
 create index if not exists agenda_eventos_convidados on public.agenda_eventos using gin (convidados);
 alter table public.agenda_eventos enable row level security;
@@ -98,7 +100,8 @@ begin
   end if;
   new.convidados := array(select distinct x from unnest(coalesce(new.convidados, '{}')) x where x is not null and x <> new.dono);
   new.actualizado_em := now();
-  quando := case when new.data is not null then to_char(new.data, 'DD-MM-YYYY')
+  quando := case when new.dia_mes is not null then 'todos os meses, no dia ' || new.dia_mes
+                 when new.data is not null then to_char(new.data, 'DD-MM-YYYY')
                  else 'todas as ' || (array['segundas', 'terças', 'quartas', 'quintas', 'sextas', 'sábados', 'domingos'])[new.dia + 1] end
             || ' às ' || new.hora;
   novos := array(select x from unnest(new.convidados) x

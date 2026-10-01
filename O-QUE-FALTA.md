@@ -2548,3 +2548,22 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   voltar ao ecrã, `HEAD` ao `workspace.html` sem cache; se a ETag (ou
   Last-Modified) mudou, faixa «Há uma versão nova do Workspace» com
   «Actualizar». Nunca recarrega sozinho.
+
+## 3-ci. Agenda: «Todos os meses» e eventos do Gmail (01-10-2026)
+
+- Pedido do Elmar: pôr as marcações da Barispol do 365 e do Gmail no
+  calendário privado dele, com os membros convidados.
+- **365: não ligado** nesta sessão (o conector Microsoft 365 pede
+  autorização nas definições de conectores do claude.ai). As reuniões do
+  plano «Barispol · …» (reunião de direcção, fecho mensal, acções) foram
+  apagadas do Gmail a 29-09 e devem estar no calendário do 365.
+- **Gmail:** só duas séries são da Barispol; criadas na agenda privada do
+  Elmar (ids na tabela, `dia_mes`): «Fichas e relatórios para o mapa de
+  pagamento dos médicos» (dia 1, 08h00, convidada a Juliana; a caixa
+  financas@barispol.com não é membro da equipa) e «Iniciar mapa de pagamento
+  dos médicos» (dia 3, 09h00). O resto do Gmail é pessoal ou de outros
+  negócios (Evolutiva, Quinta do Pinhão, AIEC) e ficou de fora.
+- Novo: eventos «Todos os meses» (coluna `dia_mes`, início em `data`);
+  `bspEventoNaData`/`bspEventoNoDia` tratam `e.diaMes`/`e.desde`; botão
+  «Todos os meses» no formulário. `resumo-matinal` versão 12 (igual ao
+  repositório) conta-os.

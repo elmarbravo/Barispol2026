@@ -3435,6 +3435,7 @@ function bspDiaDaSemanaAtual(di) {
   return bspDataLocalISO(d);
 }
 function bspEventoNoDia(e, di, todayIdx) {
+  if (e && e.diaMes) return bspEventoNaData(e, bspDiaDaSemanaAtual(di), todayIdx);
   if (e && e.data) return String(e.data) === bspDiaDaSemanaAtual(di);
   return (e.day == null ? todayIdx : e.day) === di;
 }
@@ -3462,6 +3463,8 @@ function bspSegundaDe(iso) {
    evento com data, so nessa data. */
 function bspEventoNaData(e, iso, todayIdx) {
   if (!e) return false;
+  /* Todos os meses no mesmo dia, a partir de «desde» (01-10-2026). */
+  if (e.diaMes) return String(iso) >= String(e.desde || '') && Number(String(iso).slice(8, 10)) === Number(e.diaMes);
   if (e.data) return String(e.data) === iso;
   const di = (bspDataDe(iso).getDay() + 6) % 7;
   return (e.day == null ? todayIdx : e.day) === di;
@@ -11200,7 +11203,8 @@ function bspAgendaParaEvento(a) {
     criadoPor: a.criado_por || a.dono, convidados: Array.isArray(a.convidados) ? a.convidados : [], respostas: a.respostas || {},
     criadoEm: a.criado_em
   };
-  if (a.data) ev.data = a.data;
+  if (a.dia_mes) { ev.diaMes = Number(a.dia_mes); ev.desde = a.data || ''; ev.day = null; }
+  else if (a.data) ev.data = a.data;
   return ev;
 }
 function bspVeTodasAgendas() {
@@ -11302,7 +11306,7 @@ function bspQuandoEvento(e) {
   const [hh, mm] = String(e.time || '09:00').split(':').map(Number);
   const fim = hh * 60 + (mm || 0) + (Number(e.dur) || 60);
   const ate = String(Math.floor(fim / 60) % 24).padStart(2, '0') + ':' + String(fim % 60).padStart(2, '0');
-  return (e.data ? bspDiaExtenso(e.data + 'T12:00:00') : 'Todas as ' + SEM[e.day == null ? 0 : e.day]) + ', ' + (e.time || '') + '–' + ate;
+  return (e.diaMes ? 'Todos os meses, no dia ' + e.diaMes : e.data ? bspDiaExtenso(e.data + 'T12:00:00') : 'Todas as ' + SEM[e.day == null ? 0 : e.day]) + ', ' + (e.time || '') + '–' + ate;
 }
 function EventoDetalhe({ evento, onClose, onEditar, onApagar, onResponder }) {
   const e = evento;
@@ -11365,6 +11369,7 @@ function CalEventModal({
   /* Privacidade e convidados (01-10-2026, agenda-privada.sql). */
   const eu = window.CURRENT_USER_ID;
   const podeDelegar = bspVeTodasAgendas();
+  const [mensal, setMensal] = React.useState(false);
   const [privado, setPrivado] = React.useState(true);
   const [convidados, setConvidados] = React.useState([]);
   const [dono, setDono] = React.useState(eu);
@@ -11380,8 +11385,9 @@ function CalEventModal({
     setTime(e && e.time ? e.time : '09:00');
     setDur(String(e && e.dur ? e.dur : 60));
     setCat(e && e.cat ? e.cat : 'reuniao');
-    setRepete(!(e && e.data));
-    setData(e && e.data ? e.data : bspDataLocalISO(new Date()));
+    setRepete(!(e && (e.data || e.diaMes)));
+    setMensal(!!(e && e.diaMes));
+    setData(e && (e.data || e.desde) ? (e.data || e.desde) : bspDataLocalISO(new Date()));
     setPrivado(e ? (e.origem === 'agenda' ? !!e.privado : false) : true);
     setConvidados(e && e.convidados ? e.convidados.slice() : []);
     setDono(e && e.dono ? e.dono : eu);
@@ -11397,6 +11403,7 @@ function CalEventModal({
     const err = await onSave({
       titulo: title.trim(), hora: time, duracao: Math.max(5, Number(dur) || 60), categoria: cat,
       dia: repete ? Number(day) : null, data: repete ? null : data,
+      dia_mes: !repete && mensal ? Number(data.slice(8, 10)) : null,
       privado: privado, convidados: convidados.filter(x => x !== dono), dono: dono,
       local: local.trim(), descricao: descricao.trim()
     });
@@ -11517,12 +11524,17 @@ function CalEventModal({
       marginBottom: 10
     }
   }, React.createElement("button", {
-    onClick: () => setRepete(true),
+    onClick: () => { setRepete(true); setMensal(false); },
     style: chip(repete)
   }, "Todas as semanas"), React.createElement("button", {
-    onClick: () => setRepete(false),
-    style: chip(!repete)
-  }, "Numa data")), repete ? React.createElement("div", {
+    onClick: () => { setRepete(false); setMensal(true); },
+    style: chip(!repete && mensal)
+  }, "Todos os meses"), React.createElement("button", {
+    onClick: () => { setRepete(false); setMensal(false); },
+    style: chip(!repete && !mensal)
+  }, "Numa data")), !repete && mensal && React.createElement("div", {
+    style: { fontSize: 12, color: 'var(--text-3)', marginBottom: 6 }
+  }, 'A partir desta data, repete-se todos os meses no dia ' + Number(String(data).slice(8, 10) || 1) + '.'), repete ? React.createElement("div", {
     style: {
       display: 'flex',
       gap: 5,
@@ -11915,7 +11927,7 @@ function AgendaDia({ events, iso, todayIdx, onOpen, onAdd }) {
     }, React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: 'var(--text-1)', display: 'flex', alignItems: 'center', gap: 6 } },
       e.origem === 'agenda' && e.privado && React.createElement(I.Lock, { size: 12, stroke: 'var(--text-3)' }), e.title), React.createElement("div", {
       style: { fontSize: 12, color: 'var(--text-3)', marginTop: 3 }
-    }, [c.label, e.data ? 'Só em ' + bspDataCurta(e.data) : 'Todas as semanas', e.local, e.origem === 'agenda' && e.dono !== eu ? 'Agenda de ' + ((window.userById(e.dono) || {}).name || 'colega') : '', e.origem === 'agenda' && e.convidados.length ? e.convidados.length + (e.convidados.length === 1 ? ' convidado' : ' convidados') : ''].filter(Boolean).join(' · ')),
+    }, [c.label, e.diaMes ? 'Todos os meses, dia ' + e.diaMes : e.data ? 'Só em ' + bspDataCurta(e.data) : 'Todas as semanas', e.local, e.origem === 'agenda' && e.dono !== eu ? 'Agenda de ' + ((window.userById(e.dono) || {}).name || 'colega') : '', e.origem === 'agenda' && e.convidados.length ? e.convidados.length + (e.convidados.length === 1 ? ' convidado' : ' convidados') : ''].filter(Boolean).join(' · ')),
       convidado && React.createElement("div", { style: { fontSize: 12, fontWeight: 700, marginTop: 4, color: resp === 'sim' ? 'var(--sucesso)' : resp === 'nao' ? 'var(--perigo)' : 'var(--accent-d)' } },
         resp ? 'A sua resposta: ' + BSP_RESPOSTAS_EVENTO[resp] : 'Convite por responder')));
   }));
