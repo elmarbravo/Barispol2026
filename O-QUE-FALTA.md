@@ -2382,3 +2382,8 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   aceita (`bsp_troca_responder`) → a Direcção Clínica aprova
   (`bsp_troca_decidir`, aplica com `bsp.visto = '1'`). Painel
   `TrocasTurnoPainel` no topo de Escalas. Avisos pelas novidades.
+- Escalas de Outubro em vigor sem visto (decisão do Elmar, 01-10-2026):
+  Recepção (7), Laboratório (10) e Raio X (11) passaram a
+  `exige_visto = false`, com a nota na escala; nenhum visto foi registado em
+  nome da Direcção Clínica. O ecrã diz «Em vigor sem visto da Direcção
+  Clínica». Para voltar a exigir: `exige_visto = true` (com `bsp.visto = '1'`).

@@ -21414,7 +21414,9 @@ function bspEscalaEmVigor(e) {
 function bspEscalaVistoTxt(e) {
   if (!e || e.estado !== 'publicada') return '';
   if (e.visto_em) return 'Visto da Direcção Clínica: ' + ((window.userById(e.visto_por) || {}).name || bspNomeCurto(e.visto_por || '')) + ', ' + bspDataExacta(new Date(e.visto_em));
-  if (e.exige_visto === false) return 'Em vigor (publicada antes do visto obrigatório)';
+  /* Dispensada do visto: publicada antes da regra, ou por decisao do Elmar
+     (Outubro de 2026, ver as notas da escala). */
+  if (e.exige_visto === false) return 'Em vigor sem visto da Direcção Clínica';
   return 'Aguarda o visto da Direcção Clínica: ainda não está em vigor';
 }
 function bspVeEscala(u, area) {
