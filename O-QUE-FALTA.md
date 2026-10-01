@@ -2341,3 +2341,10 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   faltaram, cancelaram, «por actualizar» (data passada e ainda agendadas) e
   por via. Em 01-10-2026, nos últimos 60 dias: 144 marcadas, 81
   compareceram, 43 por actualizar.
+- Menu «Utentes»: CRM e Marcações num só item (`id: 'seguimento'`,
+  `utentesOnly`), com os separadores Marcações (quem tem `bspVeMarcacoes`),
+  Pedidos, Funil, Recuperar, Fichas e Resultados (quem tem `bspVeCrm`). A
+  rota `marcacoes` continua a existir (avisos, e-mails) e abre o mesmo ecrã
+  no separador Marcações (`CrmScreen({ inicial })`). O Directório entrou no
+  menu como «Equipa». No «Mais» do telemóvel: Utentes, Agenda, Stock e
+  Equipa (o Feed saiu de lá, está na barra).

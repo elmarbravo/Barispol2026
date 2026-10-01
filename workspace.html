@@ -2751,17 +2751,13 @@ const NAV_ITEMS = [{
   badge: null,
   stockOnly: true
 }, {
+  /* Utentes (01-10-2026, auditoria): CRM e Marcações num só menu, com
+     separadores; cada um so aparece a quem o pode ver. */
   id: 'seguimento',
-  label: 'CRM',
+  label: 'Utentes',
   icon: 'Heart',
   badge: null,
-  crmOnly: true
-}, {
-  id: 'marcacoes',
-  label: 'Marcações',
-  icon: 'Cal',
-  badge: null,
-  marcacoesOnly: true
+  utentesOnly: true
 }, {
   id: 'painel',
   label: 'Painel',
@@ -2785,6 +2781,12 @@ const NAV_ITEMS = [{
   id: 'documentos',
   label: 'Documentos',
   icon: 'Folder',
+  badge: null
+}, {
+  /* Equipa (01-10-2026, auditoria): o Directorio nao tinha entrada. */
+  id: 'directory',
+  label: 'Equipa',
+  icon: 'Users',
   badge: null
 }, {
   id: 'admin',
@@ -2952,14 +2954,13 @@ function Sidebar({
       badge: chatPorLer > 99 ? '99+' : chatPorLer
     }) : itemBase.id === 'documentos' && docsPorLer > 0 ? Object.assign({}, itemBase, { badge: docsPorLer }) : itemBase;
     if (item.adminOnly && !bspCamada(currentUser).podeGerirUtilizadores) return null;
-    if (item.crmOnly && !bspVeCrm(currentUser)) return null;
-    if (item.marcacoesOnly && !bspVeMarcacoes(currentUser)) return null;
+    if (item.utentesOnly && !bspVeCrm(currentUser) && !bspVeMarcacoes(currentUser)) return null;
     if (item.painelOnly && !bspVePainel(currentUser)) return null;
     if (item.transporteOnly && !bspVeTransporte(currentUser)) return null;
     if (item.stockOnly && !bspVeStock(currentUser)) return null;
     if (item.actividadeOnly && !bspVeActividade(currentUser)) return null;
     if (bspESocio(currentUser) && item.id !== 'painel') return null;
-    const active = current === item.id;
+    const active = current === item.id || (item.id === 'seguimento' && current === 'marcacoes');
     const IconComp = I[item.icon];
     return React.createElement("button", {
       key: item.id,
@@ -3178,8 +3179,8 @@ function Topbar({
     drive: 'Drive',
     calendar: 'Calendário',
     tasks: 'Tarefas',
-    seguimento: 'CRM',
-    marcacoes: 'Marcações',
+    seguimento: 'Utentes',
+    marcacoes: 'Utentes',
     escalas: 'Escalas de serviço',
     transporte: 'Transporte',
     stock: 'Stock',
@@ -3187,7 +3188,7 @@ function Topbar({
     relatorios: 'Relatórios do dia',
     documentos: 'Documentos da clínica',
     actividade: 'A minha actividade',
-    directory: 'Directório',
+    directory: 'Equipa',
     admin: 'Painel de Administração',
     notifications: 'Notificações'
   };
@@ -3221,7 +3222,7 @@ function Topbar({
       fontSize: 12.5,
       color: 'var(--text-3)'
     }
-  }, current === 'dashboard' && 'Bom dia, ' + currentUser.name.split(' ')[0], current === 'chat' && CHANNELS.filter(c => bspVeCanal(currentUser, c)).length + ' canais', current === 'meetings' && 'Reuniões da equipa', current === 'feed' && 'Mural de avisos', current === 'drive' && 'Ficheiros partilhados', current === 'calendar' && 'O seu calendário', current === 'tasks' && 'Quadro de tarefas', current === 'seguimento' && 'Pedidos, recuperação e resultados', current === 'marcacoes' && 'Consultas e exames marcados', current === 'admin' && ('Camada: ' + bspCamadaNome(currentUser)))), React.createElement("div", {
+  }, current === 'dashboard' && 'Bom dia, ' + currentUser.name.split(' ')[0], current === 'chat' && CHANNELS.filter(c => bspVeCanal(currentUser, c)).length + ' canais', current === 'meetings' && 'Reuniões da equipa', current === 'feed' && 'Mural de avisos', current === 'drive' && 'Ficheiros partilhados', current === 'calendar' && 'O seu calendário', current === 'tasks' && 'Quadro de tarefas', (current === 'seguimento' || current === 'marcacoes') && 'Marcações, pedidos, funil e fichas', current === 'admin' && ('Camada: ' + bspCamadaNome(currentUser)))), React.createElement("div", {
     style: {
       flex: 1,
       display: 'flex',
@@ -18387,15 +18388,18 @@ function MobileTopbar({
     drive: 'Drive',
     calendar: 'Calendário',
     tasks: 'Tarefas',
-    seguimento: 'CRM',
-    marcacoes: 'Marcações',
+    seguimento: 'Utentes',
+    marcacoes: 'Utentes',
     painel: 'Painel',
     relatorios: 'Relatórios',
     documentos: 'Documentos',
     actividade: 'A minha actividade',
     admin: 'Admin',
     notifications: 'Notificações',
-    directory: 'Directório'
+    directory: 'Equipa',
+    escalas: 'Escalas',
+    transporte: 'Transporte',
+    stock: 'Stock'
   };
   return React.createElement("div", {
     style: {
@@ -18687,10 +18691,6 @@ function MobileMore({
   onLogout
 }) {
   const items = [{
-    id: 'feed',
-    label: 'Feed',
-    icon: 'Feed'
-  }, {
     id: 'drive',
     label: 'Drive',
     icon: 'Drive'
@@ -18698,8 +18698,20 @@ function MobileMore({
     /* O CRM. Estava na barra lateral do computador mas faltava aqui
        (24-09-2026). */
     id: 'seguimento',
-    label: 'CRM',
+    label: 'Utentes',
     icon: 'Heart'
+  }, {
+    id: 'calendar',
+    label: 'Agenda',
+    icon: 'Cal'
+  }, {
+    id: 'stock',
+    label: 'Stock',
+    icon: 'Box'
+  }, {
+    id: 'directory',
+    label: 'Equipa',
+    icon: 'Users'
   }, {
     id: 'escalas',
     label: 'Escalas',
@@ -18708,10 +18720,6 @@ function MobileMore({
     id: 'transporte',
     label: 'Transporte',
     icon: 'Car'
-  }, {
-    id: 'marcacoes',
-    label: 'Marcações',
-    icon: 'Cal'
   }, {
     id: 'painel',
     label: 'Painel',
@@ -18738,12 +18746,12 @@ function MobileMore({
     label: 'Admin',
     icon: 'Shield'
   });
-  if (!veCrm) {
+  if (!veCrm && !veMarcacoes) {
     const k = items.findIndex(x => x.id === 'seguimento');
     if (k !== -1) items.splice(k, 1);
   }
-  if (!veMarcacoes) {
-    const k = items.findIndex(x => x.id === 'marcacoes');
+  if (!bspVeStock(window.userById(window.CURRENT_USER_ID))) {
+    const k = items.findIndex(x => x.id === 'stock');
     if (k !== -1) items.splice(k, 1);
   }
   if (!vePainel) {
@@ -23347,9 +23355,10 @@ const BSP_GUIA_FICHAS = [
     ],
     quem: 'O motorista e a Direcção e Coordenação.',
     dica: 'Cada registo aparece no canal #transporte. À segunda às 07h45 sai o relatório da semana.' },
-  { icone: 'Heart', nome: 'CRM',
-    serve: 'O seguimento dos pedidos e dos utentes da clínica.',
+  { icone: 'Heart', nome: 'Utentes',
+    serve: 'As marcações, os pedidos do WhatsApp e o seguimento dos utentes, num só menu.',
     faz: [
+      ['Marque e actualize', 'as consultas e exames (separador Marcações).'],
       ['Acompanhe os pedidos do WhatsApp:', 'o que pediram e se foram facturados.'],
       ['Veja o funil de vendas:', 'quantos escreveram, foram respondidos, marcados e vieram, e onde se perdem.'],
       ['Recupere utentes', 'a partir de um ficheiro CSV do MetaGest.'],
@@ -23974,13 +23983,16 @@ function bspCrmFaltaServidor(msg) {
   return /function|does not exist|schema cache|not find/i.test(String(msg || ''));
 }
 
-function CrmScreen() {
-  const [aba, setAba] = React.useState('pedidos');
+function CrmScreen({ inicial }) {
+  const eu = window.userById(window.CURRENT_USER_ID);
+  const veCrm = bspVeCrm(eu);
+  const veMarc = bspVeMarcacoes(eu);
+  const [aba, setAba] = React.useState(inicial && (inicial !== 'marcacoes' || veMarc) ? inicial : veMarc ? 'marcacoes' : 'pedidos');
   const aba_ = (id, txt) => React.createElement("button", {
     key: id, onClick: () => setAba(id),
     style: {
       padding: '9px 16px', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-      fontSize: 13.5, fontWeight: 700, background: 'transparent',
+      fontSize: 13.5, fontWeight: 700, background: 'transparent', whiteSpace: 'nowrap', flex: 'none',
       color: aba === id ? 'var(--accent-d)' : 'var(--text-2)',
       borderBottom: '2px solid ' + (aba === id ? 'var(--accent)' : 'transparent')
     }
@@ -23989,8 +24001,9 @@ function CrmScreen() {
     style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' }
   }, React.createElement("div", {
     style: { display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', flex: 'none', overflowX: 'auto' }
-  }, aba_('pedidos', 'Pedidos do WhatsApp'), aba_('funil', 'Funil de vendas'), aba_('recuperar', 'Recuperar utentes'), aba_('fichas', 'Fichas de pacientes'), aba_('resultados', 'Resultados')),
-  React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: 'hidden' } },
+  }, veMarc && aba_('marcacoes', 'Marcações'), veCrm && aba_('pedidos', 'Pedidos do WhatsApp'), veCrm && aba_('funil', 'Funil de vendas'), veCrm && aba_('recuperar', 'Recuperar utentes'), veCrm && aba_('fichas', 'Fichas de pacientes'), veCrm && aba_('resultados', 'Resultados')),
+  React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: aba === 'marcacoes' ? 'auto' : 'hidden' } },
+    aba === 'marcacoes' && veMarc && React.createElement(MarcacoesScreen, null),
     aba === 'pedidos' && React.createElement(CrmPedidos, null),
     aba === 'recuperar' && React.createElement(SeguimentoScreen, null),
     aba === 'fichas' && React.createElement(CrmFichas, null),
@@ -24871,7 +24884,7 @@ function App() {
   }), pg === 'meetings' && React.createElement(MeetingsScreen, null), pg === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), pg === 'seguimento' && (bspVeCrm(currentUser) ? React.createElement(CrmScreen, null) : null), pg === 'marcacoes' && (bspVeMarcacoes(currentUser) ? React.createElement(MarcacoesScreen, null) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'stock' && (bspVeStock(currentUser) ? React.createElement(StockScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(DirectoryScreen, null), pg === 'admin' && React.createElement(AdminScreen, {
+  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), (pg === 'seguimento' || pg === 'marcacoes') && (bspVeCrm(currentUser) || bspVeMarcacoes(currentUser) ? React.createElement(CrmScreen, { key: pg, inicial: pg === 'marcacoes' ? 'marcacoes' : null }) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'stock' && (bspVeStock(currentUser) ? React.createElement(StockScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(DirectoryScreen, null), pg === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
   }), pg === 'notifications' && React.createElement(NotificationsScreen, {
     onAbrir: abrirNotificacao

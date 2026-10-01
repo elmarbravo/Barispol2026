@@ -270,6 +270,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   conta na etapa mais avançada.
 - Barra do telemóvel (01-10-2026): Início, Chat, Tarefas, Feed, Mais (a
   Agenda está em «Mais»); no Início, `FeedInicioCartao`.
+- Menu «Utentes» (01-10-2026): CRM + Marcações num só item (`seguimento`,
+  separadores em `CrmScreen({ inicial })`); a rota `marcacoes` abre o
+  separador Marcações. Directório no menu como «Equipa».
 - Sócios (27-09-2026, `socios.sql`): camada «Sócio» (`soNumeros`), só o
   Painel. Servidor: `bsp_e_socio`, `bsp_membro_e_socio`; ecrã: `bspESocio`,
   `bspVePainel`. Nunca usar a camada de sócio como camada de recurso.
