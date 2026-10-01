@@ -270,8 +270,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   `StockAlertaCartao`.
 - Facturas por receber (01-10-2026, `cobrancas.sql`): acerto diário
   `erp.reconciliar_cobrancas` (a cópia `erp.sales_invoice` só relê 7 dias);
-  `bsp_cobrancas()` no Painel (`PainelCobrancas`), e-mail
-  `bsp_cobrancas_email` às 06h40 seg–sex só para quem vê o Painel. Utentes
+  `bsp_cobrancas()` no Painel (`PainelCobrancas`). Sem e-mail de
+  cobranças (decisão do Elmar): `bsp_cobrancas_email` existe mas não se
+  agenda. Utentes
   nunca com nome. Nas funções SQL do servidor, nunca a palavra `truncate`
   (a ferramenta fica à espera de confirmação).
 - Funções com filtro de acesso (01-10-2026): calcular primeiro o que a

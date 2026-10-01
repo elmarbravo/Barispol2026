@@ -13,9 +13,9 @@
 --    de 50 Kz (arredondamentos) não contam.
 -- 3. Quem vê: as mesmas pessoas do Painel (bsp_ve_painel: Elmar, Financeiro,
 --    sócios). Ecrã: Painel → «Por receber» (public.bsp_cobrancas).
--- 4. E-mail de manhã, segunda a sexta às 06h40 (public.bsp_cobrancas_email,
---    cron bsp-cobrancas), só para essas pessoas. Nada sai para seguradoras
---    nem clientes.
+-- 4. E-mail (public.bsp_cobrancas_email): existe mas NÃO está agendado.
+--    O Elmar não quer o e-mail de cobranças (01-10-2026). Nada sai para
+--    seguradoras nem clientes.
 
 create table if not exists erp.cobrancas_estado (
   id int primary key default 1 check (id = 1),
@@ -252,12 +252,11 @@ begin
 end $function$;
 revoke all on function public.bsp_cobrancas_email(boolean) from public, anon, authenticated;
 
--- Acerto às 05h50 e às 13h50; e-mail às 06h40, de segunda a sexta (hora de Luanda = UTC+1).
+-- Acerto às 05h50 e às 13h50 (hora de Luanda = UTC+1). Sem e-mail agendado.
 select cron.unschedule(jobname) from cron.job where jobname in ('bsp-cobrancas-acerto', 'bsp-cobrancas');
 select cron.schedule('bsp-cobrancas-acerto', '50 4,12 * * *', $$set statement_timeout to '8min'; select erp.reconciliar_cobrancas();$$);
-select cron.schedule('bsp-cobrancas', '40 5 * * 1-5', $$set statement_timeout to '2min'; select public.bsp_cobrancas_email(true);$$);
 
 insert into public.novidades (titulo, texto, grupos, destino)
-values ('Facturas por receber', 'Novo no Painel: «Por receber», com o que falta cobrar, o vencido e quem deve mais. Recebe também um resumo por e-mail de segunda a sexta às 06h40.', array['u1'], 'painel');
+values ('Facturas por receber', 'Novo no Painel: «Por receber», com o que falta cobrar, o vencido e quem deve mais.', array['u1'], 'painel');
 
 notify pgrst, 'reload schema';

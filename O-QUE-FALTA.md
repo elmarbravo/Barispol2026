@@ -2447,3 +2447,6 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   juntar clientes duplicados da mesma seguradora (ENSA, NOSSA); tirar do
   grupo Seguradora os clientes que são pessoas; corrigir a factura com
   vencimento em 2006.
+- Correcção (01-10-2026, Elmar: «Não faz email de cobrança»): o cron
+  `bsp-cobrancas` foi apagado antes do primeiro envio. Ficam o acerto e o
+  cartão no Painel. A novidade deixou de falar do e-mail.
