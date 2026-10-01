@@ -92,6 +92,16 @@ begin
 end $function$;
 revoke all on function erp.reconciliar_cobrancas() from public, anon, authenticated;
 
+-- Planos de saúde e convénios com nome de pessoa (01-10-2026, Elmar: «FP e
+-- [a família] é um plano de saúde familiar»): o cliente do MetaGest conta
+-- como seguradora e aparece com o nome desta tabela, nunca com o do MetaGest.
+-- As linhas ficam só no servidor (nomes de pessoas não entram no repositório).
+create table if not exists erp.cobrancas_planos (
+  customer text primary key,
+  nome text not null
+);
+revoke all on erp.cobrancas_planos from public, anon, authenticated;
+
 create or replace function erp.cobrancas_dados()
 returns jsonb
 language sql
@@ -106,10 +116,14 @@ as $function$
   f0 as (
     select si.posting_date, si.outstanding_amount v,
       coalesce(nullif(si.raw->>'due_date', '')::date, si.posting_date) venc,
-      coalesce(nullif(si.customer_name, ''), si.customer) nome,
-      case when si.customer in (select customer from seg) then 'Seguradora'
+      -- O código do cliente, nunca o nome da factura: numa factura de uma
+      -- seguradora, o nome pode ser o do utente (01-10-2026).
+      coalesce(nullif(si.customer, ''), si.customer_name) nome,
+      pl.nome plano,
+      case when pl.nome is not null or si.customer in (select customer from seg) then 'Seguradora'
            when si.customer_group = 'Commercial' then 'Empresa' end tipo0
     from erp.sales_invoice si
+    left join erp.cobrancas_planos pl on pl.customer = si.customer
     where si.docstatus = 1 and not coalesce(si.is_return, false) and si.outstanding_amount >= 50
   ),
   f as (
@@ -117,9 +131,10 @@ as $function$
       case when empresa then tipo0 else 'Particulares' end tipo,
       -- Igual a bspNomeSeguradora (workspace.html): corta em « - » ou na
       -- vírgula e tira o «S.A.» final, para juntar a mesma seguradora.
-      case when empresa then btrim(regexp_replace(split_part(regexp_replace(nome, '\s+-\s+', ',', 'g'), ',', 1), '\s+S\.?\s?A\.?\s*$', '', 'i'))
+      case when plano is not null then plano
+           when empresa then btrim(regexp_replace(split_part(regexp_replace(nome, '\s+-\s+', ',', 'g'), ',', 1), '\s+S\.?\s?A\.?\s*$', '', 'i'))
            else 'Particulares (utentes)' end devedor
-    from (select f0.*, tipo0 is not null and nome ~* '(\mS\.?\s?A\.?(\s|$)|\mLDA\M|SEGUR|\mBANCO\M|COMPANHIA|SA[UÚ]DE|GEST[AÃ]O|SOCIEDADE|CORPORA|M[UÚ]TUA|\mFUNDO\M|ASSOCIA|INSTITUTO|MINIST|EMPRESA|CL[IÍ]NICA|PACOTE|TRABALHADORES|FUNCION[AÁ]RIOS|COM[EÉ]RCIO|CONSTR|\mE\.\s?P\.?)' empresa from f0) z
+    from (select f0.*, tipo0 is not null and (plano is not null or nome ~* '(\mS\.?\s?A\.?(\s|$)|\mLDA\M|SEGUR|\mBANCO\M|COMPANHIA|SA[UÚ]DE|GEST[AÃ]O|SOCIEDADE|CORPORA|M[UÚ]TUA|\mFUNDO\M|ASSOCIA|INSTITUTO|MINIST|EMPRESA|CL[IÍ]NICA|PACOTE|TRABALHADORES|FUNCION[AÁ]RIOS|COM[EÉ]RCIO|CONSTR|\mE\.\s?P\.?)') empresa from f0) z
   ),
   g as (select f.*, (select d from hoje) - f.venc dias from f)
   select jsonb_build_object(

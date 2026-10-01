@@ -264,6 +264,9 @@
 
     /* Texto sobre fundos pasteis (eventos da agenda): escuro nos dois modos. */
     --texto-sobre-pastel: #1C2033;
+    /* Folha de impressão (bspImprimirIos): branca também no modo escuro. */
+    --papel: #FFFFFF;
+    --papel-texto: #1C2033;
     /* Titulos em marinho; no modo escuro ficam claros. */
     --navy-texto: #292F58;
     /* Avisos (27-09-2026): erro e confirmacao, legiveis nos dois modos. */
@@ -21699,7 +21702,74 @@ function bspEscalaEmailCorpo(e, uid) {
 /* Imprimir sem abrir outra janela (na app, uma janela nova prende o
    Workspace): o documento vai para uma moldura escondida e imprime-se
    dali. */
+function bspEIos() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+/* Impressão no iPhone e no iPad (01-10-2026): o Safari imprime a página
+   principal e não o iframe, e a página principal imprime em branco
+   (ProteccaoEcra). O documento abre numa camada própria (#bsp-impressao, com
+   Shadow DOM para isolar os estilos); «Imprimir» chama window.print() no
+   próprio toque e a regra de impressão deixa ver só essa camada. */
+function bspImprimirIos(html) {
+  const velho = document.getElementById('bsp-impressao');
+  if (velho && velho.bspFechar) velho.bspFechar();
+  const estilos = [];
+  String(html).replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, (m, c) => { estilos.push(c); return ''; });
+  const mc = /<body[^>]*>([\s\S]*)<\/body>/i.exec(html);
+  const corpo = (mc ? mc[1] : String(html).replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')).replace(/<script[\s\S]*?<\/script>/gi, '');
+  const pagina = [];
+  const css = estilos.join('\n')
+    .replace(/@page\s*\{[^}]*\}/gi, x => { pagina.push(x); return ''; })
+    .replace(/(^|[}\s,])body(?=[\s{,.:])/g, '$1.bsp-imp-corpo');
+  const regra = document.createElement('style');
+  regra.id = 'bsp-imp-pagina';
+  regra.textContent = (pagina.join('') || '@page{margin:12mm}') +
+    '@media print{body.bsp-a-imprimir > *{display:none !important}body.bsp-a-imprimir > #bsp-impressao{display:block !important;position:static !important;overflow:visible !important;height:auto !important}' +
+    'body.bsp-a-imprimir::after{content:none !important;display:none !important}body.bsp-a-imprimir .bsp-imp-barra{display:none !important}}';
+  const raiz = document.createElement('div');
+  raiz.id = 'bsp-impressao';
+  raiz.style.cssText = 'position:fixed;inset:0;z-index:100003;background:var(--bg);overflow:auto;-webkit-overflow-scrolling:touch';
+  const barra = document.createElement('div');
+  barra.className = 'bsp-imp-barra';
+  barra.style.cssText = 'position:sticky;top:0;z-index:1;display:flex;gap:8px;align-items:center;padding:10px 12px;padding-top:max(10px, env(safe-area-inset-top));background:var(--surface);border-bottom:1px solid var(--border);font-family:inherit';
+  const botao = (txt, principal, fn) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = txt;
+    b.style.cssText = 'height:38px;padding:0 14px;border-radius:8px;font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;' +
+      (principal ? 'border:0;background:var(--navy);color:var(--surface)' : 'border:1px solid var(--border);background:var(--surface);color:var(--text-1)');
+    b.onclick = fn;
+    return b;
+  };
+  const fechar = () => {
+    raiz.remove(); regra.remove();
+    document.body.classList.remove('bsp-a-imprimir');
+  };
+  raiz.bspFechar = fechar;
+  barra.appendChild(botao('Fechar', false, fechar));
+  const esp = document.createElement('span'); esp.style.flex = '1'; barra.appendChild(esp);
+  if (navigator.share && window.File) {
+    barra.appendChild(botao('Partilhar', false, () => {
+      try {
+        const f = new File([html], 'barispol-documento.html', { type: 'text/html' });
+        const dados = navigator.canShare && navigator.canShare({ files: [f] }) ? { files: [f], title: 'Documento do Workspace' } : null;
+        if (dados) navigator.share(dados).catch(() => {});
+      } catch (x) {}
+    }));
+  }
+  barra.appendChild(botao('Imprimir', true, () => { try { window.print(); } catch (x) {} }));
+  const folha = document.createElement('div');
+  folha.style.cssText = 'background:var(--papel);color:var(--papel-texto);margin:0 auto;max-width:1100px';
+  const sombra = folha.attachShadow({ mode: 'open' });
+  sombra.innerHTML = '<style>:host{display:block}.bsp-imp-corpo{padding:12px;font-family:"Titillium Web","Segoe UI",Arial,sans-serif}' + css + '</style><div class="bsp-imp-corpo">' + corpo + '</div>';
+  raiz.appendChild(barra);
+  raiz.appendChild(folha);
+  document.head.appendChild(regra);
+  document.body.classList.add('bsp-a-imprimir');
+  document.body.appendChild(raiz);
+}
 function bspImprimirHtml(html) {
+  if (bspEIos()) { bspImprimirIos(html); return; }
   const f = document.createElement('iframe');
   f.setAttribute('aria-hidden', 'true');
   f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';

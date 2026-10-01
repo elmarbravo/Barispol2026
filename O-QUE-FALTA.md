@@ -2464,3 +2464,39 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   caixa «Validades (lote a lote)» com prazo (60 dias, 6 meses, 1 ano, todos)
   e impressão; o sino e o Início contam os caducados.
 - Hoje: 586 lotes com quantidade, 57 caducam em 60 dias, nenhum caducado.
+
+## 3-cd. Fiscalização: passos A e B (01-10-2026)
+
+- B1 «apaga»: `mig-recebe` e `bsp-crm-patch` passaram a recusar tudo (versão
+  2, 410, verificação de JWT); as funções `_mig_*` ficaram sem execução para
+  todos. As ferramentas daqui não apagam Edge Functions nem fazem `drop`
+  (ficam à espera de confirmação). **Falta o Elmar:** Supabase → Edge
+  Functions → `mig-recebe` → Delete; o mesmo para `bsp-crm-patch`.
+- B2 «liga»: só no painel. **Falta o Elmar:** Authentication → Sign In /
+  Providers → Email → «Prevent use of leaked passwords» → Save (pede o plano
+  Pro).
+- B3 «tira o acesso»: nenhuma função `bsp_*` com privilégios fica aberta a
+  visitantes (`funcoes-fechadas.sql`). Testado: com sessão funcionam
+  mensagens, novidades, stock e o gatilho das avarias; sem sessão, recusado.
+- A1: a dívida antiga fica com a contabilista.
+- A2 «junta»: no MetaGest a ENSA e a NOSSA já são um só cliente cada; os
+  «duplicados» eram o nome escrito na factura. As cobranças agrupam agora
+  pelo código do cliente (nunca pelo nome da factura, que pode ser o do
+  utente). Único par a ver: «UNISAÚDE SEGUROS» e «UNISAUDE - GESTÃO DE SAÚDE,
+  LDA» (podem ser entidades diferentes).
+- A3: o cliente «PACOTE FP» é um plano de saúde familiar: tabela
+  `erp.cobrancas_planos` (só no servidor), mostrado como «Pacote FP (plano de
+  saúde familiar)».
+
+## 3-ce. Imprimir no iPhone e no iPad (01-10-2026)
+
+- O Elmar: «Os botões imprimir … iphone não funcionam». O Safari imprime a
+  página principal e não o iframe; a página principal imprime em branco
+  (`ProteccaoEcra`).
+- `bspImprimirHtml` no iOS chama `bspImprimirIos`: camada `#bsp-impressao`
+  (Shadow DOM, estilos isolados; `body` passa a `.bsp-imp-corpo`, `@page` vai
+  para a cabeça), botões Fechar, Partilhar (menu de partilha) e Imprimir
+  (`window.print()` no toque). Variáveis `--papel`, `--papel-texto`.
+- Testado no Chromium a fazer de iPhone: só o documento sai no papel; a escala
+  (documento completo) também. **Falta confirmar num iPhone real**, também
+  na aplicação do ecrã principal.
