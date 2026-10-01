@@ -4167,6 +4167,57 @@ function bspAbrirDocumento(id) {
   if (typeof window.bspIrParaEcra === 'function') window.bspIrParaEcra('documentos');
   setTimeout(() => { try { window.dispatchEvent(new Event('bsp-abrir-documento')); } catch (e) {} }, 80);
 }
+/* Registos do Transporte no Chat como cartões (01-10-2026, pedido do Elmar:
+   «uma espécie de linha de tempo menos confusa»). As mensagens do Transporte
+   começam por um símbolo (🚗 saída/viagem, ⛽ abastecimento, 📝 registo,
+   🔧 manutenção, 🏠 em casa); o cartão mostra o tipo, a hora e os dados em
+   duas colunas. O texto guardado não muda. */
+const BSP_REGISTO_TIPOS = [
+  ['🚗', 'viagem', '--serie-1'],
+  ['⛽', 'abastecimento', '--serie-2'],
+  ['📝', 'registo', '--serie-3'],
+  ['🔧', 'manutencao', '--serie-4'],
+  ['🏠', 'casa', '--navy-texto']
+];
+function bspRegistoDaMensagem(texto) {
+  const t = String(texto || '').trim();
+  const tipo = BSP_REGISTO_TIPOS.find(x => t.indexOf(x[0]) === 0);
+  if (!tipo) return null;
+  const linhas = t.split('\n').map(l => l.trim()).filter(Boolean);
+  const primeira = linhas[0].slice(tipo[0].length).replace(/^️/, '').trim();
+  let titulo = primeira, sub = '';
+  const dp = primeira.indexOf(': ');
+  const ponto = primeira.indexOf(' · ');
+  if (dp !== -1 && (ponto === -1 || dp < ponto)) { titulo = primeira.slice(0, dp); sub = primeira.slice(dp + 2); }
+  else if (ponto !== -1) { titulo = primeira.slice(0, ponto); sub = primeira.slice(ponto + 3); }
+  if (tipo[1] === 'viagem' && !/^Saída/i.test(titulo)) { sub = [titulo, sub].filter(Boolean).join(' · '); titulo = 'Viagem feita'; }
+  const campos = [], pontos = [], notas = [];
+  linhas.slice(1).forEach(l => {
+    if (/^[•\-]\s/.test(l)) { pontos.push(l.replace(/^[•\-]\s*/, '')); return; }
+    const i = l.indexOf(': ');
+    if (i > 0 && i < 40) campos.push([l.slice(0, i), l.slice(i + 2)]);
+    else notas.push(l);
+  });
+  return { cor: tipo[2], icone: tipo[0], titulo, sub, campos, pontos, notas };
+}
+function CartaoRegisto({ r, quando }) {
+  return React.createElement("div", {
+    style: { borderLeft: '4px solid var(' + r.cor + ')', background: 'var(--surface-2)', borderRadius: '0 8px 8px 0', padding: '8px 12px', maxWidth: 560, lineHeight: 1.45 }
+  },
+    React.createElement("div", { style: { display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' } },
+      React.createElement("span", { 'aria-hidden': true, style: { fontSize: 15 } }, r.icone),
+      React.createElement("b", { style: { fontSize: 14, color: 'var(--text-1)' } }, r.titulo),
+      React.createElement("span", { style: { flex: 1 } }),
+      quando && React.createElement("span", { style: { fontSize: 11.5, color: 'var(--text-3)', whiteSpace: 'nowrap' } }, quando)),
+    r.sub && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 1 } }, r.sub),
+    r.campos.length > 0 && React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 10, rowGap: 2, marginTop: 6, fontSize: 13 } },
+      r.campos.map(([k, v], i) => React.createElement(React.Fragment, { key: i },
+        React.createElement("span", { style: { color: 'var(--text-3)', maxWidth: 130 } }, k),
+        React.createElement("span", { style: { color: 'var(--text-1)', overflowWrap: 'anywhere' } }, v)))),
+    r.pontos.length > 0 && React.createElement("ul", { style: { margin: '6px 0 0', paddingLeft: 18, fontSize: 13, color: 'var(--text-1)' } },
+      r.pontos.map((x, i) => React.createElement("li", { key: i }, x))),
+    r.notas.map((x, i) => React.createElement("div", { key: i, style: { fontSize: 12, color: 'var(--text-3)', marginTop: 4 } }, x)));
+}
 function BotaoDocumento({ id }) {
   return React.createElement("div", { style: { marginTop: 6 } }, React.createElement(Button, {
     variant: "secondary",
@@ -8657,7 +8708,7 @@ function ChatScreen({
       style: {
         display: 'flex',
         gap: 12,
-        marginTop: grouped ? 4 : 18
+        marginTop: grouped ? (bspRegistoDaMensagem(bspTextoVisivel(m.text)) ? 10 : 4) : 18
       },
       className: "bsp-msg-row" + (accoesDe === m.id ? " bsp-msg-sel" : "")
     }, React.createElement("div", {
@@ -8786,6 +8837,8 @@ function ChatScreen({
       /* Mudancas de linha visiveis (01-10-2026): no telemovel o Enter ja
          muda de linha, e o Chat juntava tudo numa linha so. */
       const botaoDoc = docM.id ? React.createElement(BotaoDocumento, { key: 'doc', id: docM.id }) : null;
+      const reg = !cit && bspRegistoDaMensagem(vis);
+      if (reg) return [React.createElement(CartaoRegisto, { key: 'reg', r: reg, quando: bspQuandoChat(m.iso, m.ts) }), botaoTarefa, botaoDoc];
       if (!cit) return [React.createElement("span", { key: 'r', style: { whiteSpace: 'pre-wrap' } }, renderText(vis)), botaoTarefa, botaoDoc];
       return [React.createElement("div", {
         key: 'cit',

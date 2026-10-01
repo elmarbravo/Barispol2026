@@ -2500,3 +2500,15 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
 - Testado no Chromium a fazer de iPhone: só o documento sai no papel; a escala
   (documento completo) também. **Falta confirmar num iPhone real**, também
   na aplicação do ecrã principal.
+
+## 3-cf. Registos do Transporte em cartões no Chat (01-10-2026)
+
+- Pedido do Elmar: «uma espécie de linha de tempo menos confusa no chat».
+  As mensagens seguidas da mesma pessoa juntavam-se sem hora e os registos
+  pareciam um só texto.
+- `bspRegistoDaMensagem` + `CartaoRegisto`: mensagens que começam por 🚗,
+  ⛽, 📝, 🔧 ou 🏠 mostram-se como cartão (barra de cor por tipo, título,
+  hora sempre visível, campos em duas colunas); 10 px entre cartões seguidos.
+  O texto guardado não muda, por isso vale também para os registos antigos.
+- O iPhone do Elmar mostrava «Agenda» na barra de baixo: era uma versão
+  guardada antiga (o código tem «Feed» desde 01-10-2026). Recarregar.

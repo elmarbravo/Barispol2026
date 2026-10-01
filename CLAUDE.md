@@ -242,6 +242,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   aprova). Relatório semanal ao motorista, segunda às 07h45, tipo
   `transporte` da `resumo-matinal` (versão 9), com a Administração em cópia
   e como `reply_to`; `{"previa": true}` mostra sem enviar.
+  No Chat (01-10-2026), as mensagens do Transporte (começam por 🚗 ⛽ 📝 🔧 🏠)
+  mostram-se como cartões (`bspRegistoDaMensagem`, `CartaoRegisto`): manter
+  esses símbolos no início e os campos como «Nome: valor», uma linha cada.
   Viagens de outros dias (30-09-2026): «Data da viagem» no
   `TranspIniciarModal` (viagem inteira de uma vez); abastecimento com data e
   hora. Percurso «origem → destino» por `bspTranspPercurso`.
