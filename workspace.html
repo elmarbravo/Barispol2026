@@ -3859,7 +3859,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'bsp_e_gestor'];
+const BSP_RPC_LEITURA = ['bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_e_gestor'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -6780,6 +6780,35 @@ function LoginScreen({
     }, "Guardar e ligar")
   ))));
 }
+/* Ultimas publicacoes do Feed no Inicio (01-10-2026, pedido do Elmar: «o
+   Feed esta longe»). Carregar numa abre-a no Feed, com os comentarios. */
+function FeedInicioCartao({ onAbrir }) {
+  const { state } = useStore();
+  const posts = (state.feedPosts || []).slice().sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || String(b.iso || '').localeCompare(String(a.iso || ''))).slice(0, 2);
+  if (!posts.length) return null;
+  const abrir = p => {
+    window.__bspAlvoPost = String(p.sid || p.id);
+    onAbrir();
+    setTimeout(() => { try { window.dispatchEvent(new Event('bsp-abrir-post')); } catch (e) {} }, 80);
+  };
+  const tipos = { comunicado: 'Comunicado', reconhecimento: 'Reconhecimento', enquete: 'Enquete', evento: 'Evento' };
+  return React.createElement(Card, { style: { marginBottom: 20 } },
+    React.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 } },
+      React.createElement("h3", { style: { fontSize: 15, fontWeight: 700, margin: 0, color: 'var(--text-1)' } }, "Feed"),
+      React.createElement("button", { onClick: onAbrir, style: { border: 'none', background: 'transparent', color: 'var(--accent-d)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' } }, "Ver o Feed →")),
+    posts.map(p => {
+      const u = window.userById(p.userId) || { id: p.userId, name: 'Antigo colaborador' };
+      const corpo = String(p.body || '').replace(/\[anexo:[^\]]+\]/g, '').trim();
+      return React.createElement("button", {
+        key: p.id,
+        onClick: () => abrir(p),
+        style: { display: 'flex', gap: 10, alignItems: 'flex-start', width: '100%', textAlign: 'left', padding: '10px 0', border: 'none', borderTop: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }
+      }, React.createElement(Avatar, { user: u, size: 30 }), React.createElement("div", { style: { minWidth: 0, flex: 1 } },
+        React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, React.createElement("b", { style: { color: 'var(--text-1)' } }, u.name), tipos[p.type] ? ' · ' + tipos[p.type] : '', p.iso ? ' · ' + bspQuando(p.iso) : ''),
+        p.title ? React.createElement("div", { style: { fontSize: 13.5, fontWeight: 600, color: 'var(--text-1)', marginTop: 2 } }, p.title) : null,
+        corpo ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 2, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere' } }, corpo) : null));
+    }));
+}
 function DashboardScreen({
   currentUser,
   onSwitch
@@ -6980,7 +7009,7 @@ function DashboardScreen({
     }
   }, I[q.icon] ? React.createElement(I[q.icon], {
     size: 15
-  }) : null, " ", q.label))))), React.createElement(Card, {
+  }) : null, " ", q.label))))), React.createElement(FeedInicioCartao, { onAbrir: () => onSwitch('feed') }), React.createElement(Card, {
     style: {
       marginBottom: 20
     }
@@ -18408,9 +18437,11 @@ function MobileNav({
     label: 'Tarefas',
     icon: 'Tasks'
   }, {
-    id: 'calendar',
-    label: 'Agenda',
-    icon: 'Cal'
+    /* Feed na barra (01-10-2026, pedido do Elmar: «o Feed está longe»).
+       A Agenda passou para «Mais»; o Início já mostra a rotina da semana. */
+    id: 'feed',
+    label: 'Feed',
+    icon: 'Feed'
   }];
   return React.createElement("nav", {
     className: "bsp-mnav"
@@ -18449,7 +18480,7 @@ function MobileNav({
       }
     }, n > 99 ? '99+' : n)), it.label);
   }), React.createElement("button", {
-    "data-on": ['feed', 'meetings', 'drive', 'admin', 'notifications', 'directory', 'relatorios', 'escalas', 'transporte', 'seguimento', 'marcacoes', 'painel', 'actividade', 'documentos'].includes(current),
+    "data-on": ['calendar', 'stock', 'meetings', 'drive', 'admin', 'notifications', 'directory', 'relatorios', 'escalas', 'transporte', 'seguimento', 'marcacoes', 'painel', 'actividade', 'documentos'].includes(current),
     onClick: onMore
   }, React.createElement(I.MoreH, {
     size: 20
@@ -23284,6 +23315,7 @@ const BSP_GUIA_FICHAS = [
     serve: 'O seguimento dos pedidos e dos utentes da clínica.',
     faz: [
       ['Acompanhe os pedidos do WhatsApp:', 'o que pediram e se foram facturados.'],
+      ['Veja o funil de vendas:', 'quantos escreveram, foram respondidos, marcados e vieram, e onde se perdem.'],
       ['Recupere utentes', 'a partir de um ficheiro CSV do MetaGest.'],
       ['Abra a ficha do paciente', 'com marcações e histórico.'],
       ['Veja os resultados', 'do seguimento.']
@@ -23921,11 +23953,12 @@ function CrmScreen() {
     style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' }
   }, React.createElement("div", {
     style: { display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', flex: 'none', overflowX: 'auto' }
-  }, aba_('pedidos', 'Pedidos do WhatsApp'), aba_('recuperar', 'Recuperar utentes'), aba_('fichas', 'Fichas de pacientes'), aba_('resultados', 'Resultados')),
+  }, aba_('pedidos', 'Pedidos do WhatsApp'), aba_('funil', 'Funil de vendas'), aba_('recuperar', 'Recuperar utentes'), aba_('fichas', 'Fichas de pacientes'), aba_('resultados', 'Resultados')),
   React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: 'hidden' } },
     aba === 'pedidos' && React.createElement(CrmPedidos, null),
     aba === 'recuperar' && React.createElement(SeguimentoScreen, null),
     aba === 'fichas' && React.createElement(CrmFichas, null),
+    aba === 'funil' && React.createElement(CrmFunil, null),
     aba === 'resultados' && React.createElement(CrmResultados, null)));
 }
 
@@ -24288,6 +24321,101 @@ function CrmFichas() {
     ficha && React.createElement(CrmFicha, { alvo: ficha, onClose: () => setFicha(null) }));
 }
 
+/* Funil de vendas (01-10-2026, pedido do Elmar, crm-funil.sql): dos pedidos
+   do WhatsApp até à factura. Cada pedido conta na etapa mais avançada a que
+   chegou; as perdas dizem onde se perdem as pessoas. */
+function CrmFunil() {
+  const [dias, setDias] = React.useState(30);
+  const [origem, setOrigem] = React.useState('');
+  const [servico, setServico] = React.useState('');
+  const [d, setD] = React.useState(null);
+  const [erro, setErro] = React.useState('');
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) { setErro('O servidor não está ligado neste aparelho.'); return; }
+    let vivo = true;
+    setErro('');
+    cl.rpc('crm_funil', { p_dias: dias, p_origem: origem || null, p_servico: servico || null }).then(r => {
+      if (!vivo) return;
+      if (r.error) { setErro(r.error.message || 'Não foi possível carregar.'); return; }
+      setD(r.data || {});
+    });
+    return () => { vivo = false; };
+  }, [dias, origem, servico]);
+  const pct = (a, b) => b ? Math.round(100 * a / b) + '%' : '—';
+  const min = v => v == null ? '—' : Number(v) < 60 ? Math.round(v) + ' min' : (Number(v) / 60).toLocaleString('pt-PT', { maximumFractionDigits: 1 }) + ' h';
+  const chipE = on => ({
+    padding: '7px 13px', borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600,
+    border: '1px solid ' + (on ? 'var(--accent-d)' : 'var(--border)'),
+    background: on ? 'var(--accent-soft)' : 'transparent', color: on ? 'var(--accent-d)' : 'var(--text-2)'
+  });
+  const sel = { height: 34, padding: '0 8px', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-2)', fontSize: 16, fontFamily: 'inherit' };
+  const etapas = d && d.etapas || [];
+  const topo = etapas.length ? Number(etapas[0].n) || 0 : 0;
+  const perdas = d && d.perdas || {};
+  const th = { textAlign: 'left', padding: '8px 10px', fontSize: 12, color: 'var(--text-3)', fontWeight: 700, borderBottom: '1px solid var(--border)' };
+  const td = { padding: '8px 10px', fontSize: 13, color: 'var(--text-1)', borderBottom: '1px solid var(--border)' };
+  const perda = (rot, n, dica) => React.createElement(Card, { key: rot, style: { padding: 14, flex: '1 1 180px', minWidth: 0, borderLeft: '4px solid var(--perigo)' } },
+    React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', fontWeight: 600 } }, rot),
+    React.createElement("div", { style: { fontSize: 22, fontWeight: 800, color: n ? 'var(--perigo)' : 'var(--text-1)', marginTop: 2 } }, n || 0),
+    React.createElement("div", { style: { fontSize: 12, color: 'var(--text-2)', marginTop: 2 } }, dica));
+  const semanas = d && d.por_semana || [];
+  const maxSem = Math.max(1, ...semanas.map(s => Number(s.pedidos) || 0));
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'auto' } },
+    React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } },
+      [7, 30, 90, 365].map(n => React.createElement("button", { key: n, onClick: () => setDias(n), style: chipE(dias === n) }, n === 365 ? 'Último ano' : 'Últimos ' + n + ' dias')),
+      React.createElement("select", { value: origem, onChange: e => setOrigem(e.target.value), style: sel, 'aria-label': 'Origem' },
+        React.createElement("option", { value: '' }, 'Todas as origens'), (d && d.origens || []).map(o => React.createElement("option", { key: o, value: o }, o))),
+      React.createElement("select", { value: servico, onChange: e => setServico(e.target.value), style: sel, 'aria-label': 'Serviço' },
+        React.createElement("option", { value: '' }, 'Todos os serviços'), (d && d.servicos || []).slice().sort(bspCompararTexto).map(s => React.createElement("option", { key: s, value: s }, s)))),
+    erro ? React.createElement(Card, { pad: 16 }, erro) : !d ? React.createElement(Card, { pad: 16 }, 'A carregar…') : React.createElement(React.Fragment, null,
+      React.createElement(Card, { pad: 18 },
+        React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)', marginBottom: 12 } }, 'Funil de vendas · WhatsApp até à factura'),
+        etapas.map((e, i) => {
+          const n = Number(e.n) || 0;
+          const larg = topo ? Math.max(4, Math.round(100 * n / topo)) : 4;
+          const ant = i > 0 ? Number(etapas[i - 1].n) || 0 : null;
+          return React.createElement("div", { key: e.id, style: { marginBottom: 10 } },
+            React.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: 'var(--text-2)', marginBottom: 4, gap: 8 } },
+              React.createElement("b", { style: { color: 'var(--text-1)' } }, e.nome),
+              React.createElement("span", null, n + (i > 0 ? ' · ' + pct(n, ant) + ' da etapa anterior' : ''))),
+            React.createElement("div", { style: { height: 30, background: 'var(--surface-2)', borderRadius: 6, overflow: 'hidden' } },
+              React.createElement("div", { style: { width: larg + '%', height: '100%', background: 'var(--serie-' + (i + 1) + ')', borderRadius: 6, display: 'flex', alignItems: 'center', paddingLeft: 10, color: '#fff', fontSize: 12.5, fontWeight: 700, minWidth: 40 } }, pct(n, topo))));
+        }),
+        React.createElement("div", { style: { display: 'flex', gap: 18, flexWrap: 'wrap', marginTop: 10, fontSize: 12.5, color: 'var(--text-2)' } },
+          React.createElement("span", null, 'Facturado: ', React.createElement("b", { style: { color: 'var(--text-1)' } }, bspCrmKz(d.valor))),
+          React.createElement("span", null, 'Por quem veio: ', React.createElement("b", { style: { color: 'var(--text-1)' } }, etapas[3] && Number(etapas[3].n) ? bspCrmKz(Number(d.valor) / Number(etapas[3].n)) : '—')),
+          React.createElement("span", null, 'Tempo de resposta (mediana): ', React.createElement("b", { style: { color: 'var(--text-1)' } }, min(d.resposta_mediana_min))),
+          React.createElement("span", null, 'Resposta em 15 min: ', React.createElement("b", { style: { color: 'var(--text-1)' } }, pct(d.em_15_min, topo))),
+          React.createElement("span", null, 'Pediram preço e receberam: ', React.createElement("b", { style: { color: 'var(--text-1)' } }, (d.preco_dado || 0) + ' de ' + (d.pediram_preco || 0))))),
+      React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: 'var(--text-1)' } }, 'Onde se perdem'),
+      React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } },
+        perda('Sem resposta de uma pessoa', perdas.sem_resposta, 'Escreveram e ninguém respondeu.'),
+        perda('Respondidos, sem marcação', perdas.sem_marcacao, 'Falta propor dia e hora.'),
+        perda('Marcados que não vieram', perdas.nao_veio, 'Ligar na véspera e no dia.'),
+        React.createElement(Card, { key: 'curso', style: { padding: 14, flex: '1 1 180px', minWidth: 0 } },
+          React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', fontWeight: 600 } }, 'Em curso (últimos 7 dias)'),
+          React.createElement("div", { style: { fontSize: 22, fontWeight: 800, color: 'var(--text-1)', marginTop: 2 } }, perdas.em_curso || 0),
+          React.createElement("div", { style: { fontSize: 12, color: 'var(--text-2)', marginTop: 2 } }, 'Ainda podem avançar.'))),
+      React.createElement(Card, { pad: 0, style: { overflow: 'auto' } },
+        React.createElement("div", { style: { padding: '12px 12px 4px', fontSize: 13, fontWeight: 700, color: 'var(--text-1)' } }, 'Por quem respondeu'),
+        React.createElement("table", { style: { width: '100%', borderCollapse: 'collapse' } },
+          React.createElement("thead", null, React.createElement("tr", null, ['Quem respondeu', 'Pedidos', 'Marcados', 'Vieram', 'Conversão', 'Resposta (mediana)'].map(h => React.createElement("th", { key: h, style: th }, h)))),
+          React.createElement("tbody", null, (d.por_responsavel || []).map(r => React.createElement("tr", { key: r.responsavel },
+            React.createElement("td", { style: Object.assign({}, td, { fontWeight: 600 }) }, r.responsavel),
+            React.createElement("td", { style: td }, r.pedidos), React.createElement("td", { style: td }, r.marcados), React.createElement("td", { style: td }, r.vieram),
+            React.createElement("td", { style: td }, pct(r.vieram, r.pedidos)), React.createElement("td", { style: td }, min(r.resposta_mediana_min))))))),
+      semanas.length > 1 && React.createElement(Card, { pad: 16 },
+        React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } }, 'Semana a semana'),
+        React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 6 } }, semanas.map(s => React.createElement("div", { key: s.semana, style: { display: 'grid', gridTemplateColumns: '92px minmax(0,1fr) 120px', gap: 8, alignItems: 'center', fontSize: 12 } },
+          React.createElement("span", { style: { color: 'var(--text-3)' } }, 'Sem. ' + bspDataCurta(s.semana)),
+          React.createElement("div", { style: { height: 14, background: 'var(--surface-2)', borderRadius: 4, position: 'relative', overflow: 'hidden' } },
+            React.createElement("div", { style: { position: 'absolute', inset: 0, width: Math.round(100 * s.pedidos / maxSem) + '%', background: 'var(--serie-1)', opacity: .35 } }),
+            React.createElement("div", { style: { position: 'absolute', inset: 0, width: Math.round(100 * s.vieram / maxSem) + '%', background: 'var(--serie-4)' } })),
+          React.createElement("span", { style: { color: 'var(--text-2)', whiteSpace: 'nowrap' } }, s.pedidos + ' → ' + s.marcados + ' → ' + s.vieram)))),
+        React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)', marginTop: 8 } }, 'Escreveram → marcados → vieram. Barra azul: pedidos; barra amarela: quem veio.')),
+      React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)', lineHeight: 1.5 } }, 'Cada pedido conta na etapa mais avançada a que chegou. «Vieram e pagaram» = factura no MetaGest nos 30 dias após o contacto. Os pedidos dos últimos 7 dias que ainda não vieram contam como «em curso», e não como perdas.')));
+}
 function CrmResultados() {
   const [dias, setDias] = React.useState(30);
   const [dados, setDados] = React.useState(null);

@@ -2306,3 +2306,22 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   caducar; nos outros armazéns, nada.
 - Os papéis do utilizador da API no MetaGest (Gestor de Contas, Gestor de
   Stock, Gestor do Item, Médico…) deixam gravar. O Workspace só lê.
+
+## 3-bw. Feed mais perto e funil de vendas (01-10-2026)
+
+- Pedido do Elmar: «o Feed está longe» e «preciso ter um funil de vendas».
+- Feed: na barra do telemóvel (`MobileNav`) passa a estar o Feed no lugar
+  da Agenda; a Agenda fica em «Mais». No Início, `FeedInicioCartao` mostra
+  as 2 publicações mais recentes (as fixadas primeiro); carregar numa abre-a
+  no Feed com os comentários.
+- Funil de vendas: separador «Funil de vendas» no CRM (`CrmFunil`), função
+  `crm_funil(dias, origem, serviço)` (`crm-funil.sql`, aplicado; só quem vê
+  o CRM, testado). Etapas: escreveram → respondidos por uma pessoa →
+  marcados → vieram e pagaram (factura nos 30 dias). Perdas: sem resposta,
+  respondidos sem marcação, marcados que não vieram; os últimos 7 dias
+  contam «em curso». Também: facturado, valor por quem veio, tempo de
+  resposta (mediana), resposta em 15 min, preço dado a quem pediu, por quem
+  respondeu e semana a semana.
+- Números reais dos últimos 30 dias (01-10-2026): 539 escreveram, 449
+  respondidos, 63 marcados, 51 vieram; 353 respondidos sem marcação;
+  resposta mediana de 68 minutos.

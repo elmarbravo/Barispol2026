@@ -265,6 +265,11 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   quem vê: `stock_responsaveis` + gestão (`bsp_ve_stock`) e, no ecrã,
   `bspVeStock` / `BSP_STOCK_RESPONSAVEIS`. Ecrã `StockScreen`, Início
   `StockAlertaCartao`.
+- Funil de vendas (01-10-2026, `crm-funil.sql`): `crm_funil(dias, origem,
+  servico)` sobre `crm.caixa`; separador `CrmFunil` no CRM. Cada pedido
+  conta na etapa mais avançada.
+- Barra do telemóvel (01-10-2026): Início, Chat, Tarefas, Feed, Mais (a
+  Agenda está em «Mais»); no Início, `FeedInicioCartao`.
 - Sócios (27-09-2026, `socios.sql`): camada «Sócio» (`soNumeros`), só o
   Painel. Servidor: `bsp_e_socio`, `bsp_membro_e_socio`; ecrã: `bspESocio`,
   `bspVePainel`. Nunca usar a camada de sócio como camada de recurso.
