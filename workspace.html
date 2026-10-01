@@ -4110,9 +4110,27 @@ function bspCitacao(texto) {
 }
 /* Para avisos e pre-visualizacoes: a resposta, sem a linha da citacao. */
 function bspTextoResumo(texto) {
-  const v = bspTextoVisivel(texto);
+  const v = bspTarefaDaMensagem(bspTextoVisivel(texto)).resto;
   const c = bspCitacao(v);
   return c ? c.resto : v;
+}
+/* Tarefa levada para o Chat (01-10-2026, pedido do Elmar): a mensagem
+   termina com a linha «[tarefa:<id>]», que o Chat troca pelo botão «Abrir
+   a tarefa». Os comentarios de cada tarefa vivem na conversa
+   «tarefa-<id>» (tarefas-comentarios.sql). */
+const BSP_RX_TAREFA = /\n?\[tarefa:([A-Za-z0-9-]{1,60})\]\s*$/;
+function bspTarefaDaMensagem(texto) {
+  const t = String(texto == null ? '' : texto);
+  const m = BSP_RX_TAREFA.exec(t);
+  return m ? { id: m[1], resto: t.slice(0, m.index) } : { id: null, resto: t };
+}
+function bspTarefaConv(id) {
+  return 'tarefa-' + id;
+}
+function bspAbrirTarefa(id) {
+  window.__bspAlvoTarefa = String(id);
+  if (typeof window.bspIrParaEcra === 'function') window.bspIrParaEcra('tasks');
+  setTimeout(() => { try { window.dispatchEvent(new Event('bsp-abrir-tarefa')); } catch (e) {} }, 80);
 }
 function bspExcertoParaCitar(texto) {
   const a = bspAnexoDaMensagem(texto);
@@ -4513,6 +4531,10 @@ function StoreProvider({
   children
 }) {
   const [state, setState] = React.useState(loadInitial);
+  /* O estado do ultimo desenho, para os avisos que chegam pelo tempo real
+     (comentarios das tarefas, 01-10-2026). */
+  const estadoRef = React.useRef(state);
+  estadoRef.current = state;
   const [sync, setSync] = React.useState({
     status: 'off',
     error: ''
@@ -4676,6 +4698,45 @@ function StoreProvider({
           preview: texto
         }));
         bspIncoming(name + ' · comentário no Feed', texto);
+        return;
+      }
+      /* Comentario numa tarefa (conversa "tarefa-<id>", 01-10-2026). Avisa
+         quem esta na tarefa (responsaveis, quem a criou, dono e partilhas),
+         quem ja la comentou e quem foi mencionado. Abre a tarefa. */
+      if (chave.indexOf('tarefa-') === 0) {
+        const idT = chave.slice(7);
+        const eu = window.CURRENT_USER_ID;
+        const texto = bspTextoResumo(m.text).slice(0, 90);
+        const euT = window.userById && window.userById(eu);
+        const nomeT = euT ? String(euT.name).split(' ').slice(0, 2).join(' ').toLowerCase() : '';
+        const mencionadoT = !!nomeT && String(m.text || '').toLowerCase().indexOf('@' + nomeT) !== -1;
+        const st = estadoRef.current || {};
+        const jaComentei = (st.channelMessages && st.channelMessages[chave] || []).some(x => x.userId === eu && !bspLinhaDeControlo(x.text));
+        const avisar = titulo => {
+          setState(s => pushNotif(s, {
+            type: 'task',
+            userId: m.user_id,
+            tarefa: idT,
+            text: (mencionadoT ? 'mencionou-o na tarefa' : 'comentou a tarefa') + (titulo ? ' «' + titulo + '»' : ''),
+            preview: texto
+          }));
+          bspIncoming(name + ' · comentário numa tarefa', texto);
+        };
+        if (idT.charAt(0) === 'p') {
+          const cl = bspGetClient();
+          const n = parseInt(idT.slice(1), 10);
+          if (!cl || !n) { if (mencionadoT || jaComentei) avisar(''); return; }
+          cl.from('tarefas_pessoais').select('titulo,user_id,partilhada_com,criada_por').eq('id', n).maybeSingle().then(r => {
+            const t = r && r.data;
+            const naTarefa = !!t && (t.user_id === eu || t.criada_por === eu || (t.partilhada_com || []).indexOf(eu) !== -1);
+            if (naTarefa || mencionadoT || jaComentei) avisar(t ? t.titulo : '');
+          }, () => {});
+          return;
+        }
+        let tk = null;
+        Object.keys(st.tasks || {}).forEach(c => { (st.tasks[c] || []).forEach(x => { if (x.id === idT) tk = x; }); });
+        const naTarefa = !!tk && ((tk.assignees || []).indexOf(eu) !== -1 || tk.criadoPor === eu);
+        if (naTarefa || mencionadoT || jaComentei) avisar(tk ? tk.title : '');
         return;
       }
       const emTopico = chave.indexOf('th~') === 0;
@@ -5441,6 +5502,9 @@ function StoreProvider({
         ...s.tasks,
         [col]: [...(s.tasks[col] || []), {
           id: nextId('t'),
+          /* Quem criou e quando (01-10-2026): recebe os comentarios. */
+          criadoPor: CURRENT_USER_ID,
+          criadoEm: new Date().toISOString(),
           ...task
         }]
       }
@@ -8553,13 +8617,22 @@ function ChatScreen({
         minWidth: 0
       }
     }, (() => {
-      const vis = bspTextoVisivel(m.text);
+      const tar = bspTarefaDaMensagem(bspTextoVisivel(m.text));
+      const vis = tar.resto;
       const cit = bspCitacao(vis);
-      if (!cit) return renderText(vis);
+      const botaoTarefa = tar.id ? React.createElement("div", { key: 'tar', style: { marginTop: 6 } }, React.createElement(Button, {
+        variant: "secondary",
+        size: "sm",
+        icon: React.createElement(I.Check, { size: 13 }),
+        onClick: () => bspAbrirTarefa(tar.id)
+      }, "Abrir a tarefa")) : null;
+      /* Mudancas de linha visiveis (01-10-2026): no telemovel o Enter ja
+         muda de linha, e o Chat juntava tudo numa linha so. */
+      if (!cit) return [React.createElement("span", { key: 'r', style: { whiteSpace: 'pre-wrap' } }, renderText(vis)), botaoTarefa];
       return [React.createElement("div", {
         key: 'cit',
         style: { borderLeft: '3px solid var(--accent)', background: 'var(--surface-2)', padding: '4px 10px', margin: '2px 0 4px', fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.45, maxWidth: 520 }
-      }, React.createElement("b", { style: { color: 'var(--text-1)' } }, cit.quem), ' · ', cit.excerto), React.createElement("span", { key: 'r' }, renderText(cit.resto))];
+      }, React.createElement("b", { style: { color: 'var(--text-1)' } }, cit.quem), ' · ', cit.excerto), React.createElement("span", { key: 'r', style: { whiteSpace: 'pre-wrap' } }, renderText(cit.resto)), botaoTarefa];
     })(), React.createElement(AnexoMensagem, {
       a: bspAnexoDaMensagem(m.text)
     }), grouped && m.editada && React.createElement("em", {
@@ -12293,6 +12366,8 @@ function TaskComposer({
     label: 'Baixa'
   }];
   const [title, setTitle] = React.useState('');
+  /* Descricao (01-10-2026, pedido do Elmar). */
+  const [descr, setDescr] = React.useState('');
   const [col, setCol] = React.useState(defaultCol || 'todo');
   const [prio, setPrio] = React.useState('media');
   const [who, setWho] = React.useState([]);
@@ -12320,6 +12395,7 @@ function TaskComposer({
   React.useEffect(() => {
     if (open) {
       setTitle(editTask ? editTask.title : '');
+      setDescr(editTask ? editTask.desc || '' : '');
       setCol(defaultCol || 'todo');
       setPrio(editTask ? editTask.priority || 'media' : 'media');
       setWho(editTask ? editTask.assignees || [] : []);
@@ -12341,6 +12417,7 @@ function TaskComposer({
       const campos = {
         coluna: col,
         titulo: title.trim(),
+        descricao: descr.trim(),
         prioridade: prio,
         inicio: inicio,
         prazo: prazo
@@ -12364,6 +12441,7 @@ function TaskComposer({
       if (col !== fromCol && onMove) onMove(fromCol, col, editTask.id);
       if (onUpdate) onUpdate(col, editTask.id, {
         title: title.trim(),
+        desc: descr.trim(),
         priority: prio,
         assignees: who,
         start: inicio,
@@ -12378,6 +12456,7 @@ function TaskComposer({
     const partilhadaCom = pessoal ? escolhidos.filter(x => x !== dono) : [];
     onCreate(col, {
       title: title.trim(),
+      desc: descr.trim(),
       priority: prio,
       /* Uma tarefa pessoal não tem responsáveis: é sua e mais de ninguém. */
       assignees: pessoal ? [] : who,
@@ -12516,6 +12595,21 @@ function TaskComposer({
     value: title,
     onChange: setTitle,
     placeholder: "Ex.: Confirmar escala de enfermagem"
+  })), React.createElement("div", null, React.createElement("label", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: 'var(--text-2)',
+      display: 'block',
+      marginBottom: 6
+    }
+  }, "Descrição ", React.createElement("span", {
+    style: { fontWeight: 400, color: 'var(--text-3)' }
+  }, "(o que é preciso fazer, passos, contactos)")), React.createElement(TextArea, {
+    value: descr,
+    onChange: setDescr,
+    rows: 4,
+    placeholder: "Ex.: Pedir à Filomena a escala de Novembro e confirmar os turnos de fim-de-semana."
   })), React.createElement("div", null, React.createElement("div", {
     style: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 10 }
   }, React.createElement(CampoDataTarefa, {
@@ -12869,6 +12963,7 @@ function useTarefasPessoais() {
       user_id: dados.dono || window.CURRENT_USER_ID || null,
       coluna: coluna,
       titulo: dados.title,
+      descricao: dados.desc || '',
       prioridade: dados.priority || 'media',
       inicio: dados.start || null,
       prazo: dados.due || null,
@@ -12923,6 +13018,9 @@ function useTarefasPessoais() {
         /* Quem a delegou, quando nao foi o proprio dono. */
         delegadaPor: t.criada_por && t.criada_por !== t.user_id ? ((window.userById(t.criada_por) || {}).name || 'Colega') : null,
         title: t.titulo,
+        desc: t.descricao || '',
+        criadoPor: t.criada_por || t.user_id,
+        criadoEm: t.created_at || '',
         priority: t.prioridade,
         due: t.prazo || '',
         start: t.inicio || '',
@@ -12965,6 +13063,9 @@ function TasksScreen() {
     open: false,
     col: 'todo'
   });
+  /* Tarefa aberta (01-10-2026): o id, para seguir a tarefa se mudar de
+     coluna enquanto esta aberta. */
+  const [detalhe, setDetalhe] = React.useState(null);
   const cols = [{
     id: 'todo',
     label: 'A Fazer',
@@ -13026,6 +13127,35 @@ function TasksScreen() {
       pess.mover(idReal(taskId), to);
     } else actions.moveTask(fromCol, to, taskId);
   }
+  /* A tarefa aberta, procurada no quadro de cada vez (muda de coluna,
+     e editada noutro aparelho). */
+  let aberta = null;
+  let abertaCol = 'todo';
+  if (detalhe) order.forEach(c => (board[c] || []).forEach(x => { if (x.id === detalhe) { aberta = x; abertaCol = c; } }));
+  /* Vindo do Chat («Abrir a tarefa») ou de uma notificacao. As privadas
+     chegam depois, por isso espera que a lista esteja pronta. */
+  const [alvoTick, setAlvoTick] = React.useState(0);
+  React.useEffect(() => {
+    const f = () => setAlvoTick(x => x + 1);
+    window.addEventListener('bsp-abrir-tarefa', f);
+    return () => window.removeEventListener('bsp-abrir-tarefa', f);
+  }, []);
+  React.useEffect(() => {
+    const alvo = window.__bspAlvoTarefa;
+    if (!alvo) return;
+    const existe = order.some(c => (board[c] || []).some(x => x.id === alvo));
+    if (existe) {
+      window.__bspAlvoTarefa = null;
+      if (!verPessoais && ePessoal(alvo)) setVerPessoais(true);
+      setDetalhe(alvo);
+      return;
+    }
+    if (!ePessoal(alvo) || pess.estado === 'pronto' || pess.estado === 'erro' || pess.estado === 'sem-servidor' || pess.estado === 'sem-tabela') {
+      if (ePessoal(alvo) && !verPessoais) { setVerPessoais(true); return; }
+      window.__bspAlvoTarefa = null;
+      toast('Esta tarefa já não existe ou não tem acesso a ela.');
+    }
+  }, [alvoTick, board, pess.estado]);
   return React.createElement("div", {
     style: {
       height: '100%',
@@ -13033,7 +13163,15 @@ function TasksScreen() {
       flexDirection: 'column',
       overflow: 'hidden'
     }
-  }, React.createElement(TaskComposer, {
+  }, aberta && React.createElement(TarefaDetalhe, {
+    t: aberta,
+    col: abertaCol,
+    onClose: () => setDetalhe(null),
+    onEdit: () => {
+      setComposer({ open: true, col: abertaCol, task: aberta });
+      setDetalhe(null);
+    }
+  }), React.createElement(TaskComposer, {
     open: composer.open,
     defaultCol: composer.col,
     editTask: composer.task || null,
@@ -13287,7 +13425,9 @@ function TasksScreen() {
       open: true,
       col: c.id,
       task: tk
-    })
+    }),
+    onOpen: () => setDetalhe(tk.id),
+    nComentarios: (state.channelMessages[bspTarefaConv(tk.id)] || []).filter(m => !bspLinhaDeControlo(m.text)).length
   })))))));
 }
 function TaskCard({
@@ -13301,7 +13441,9 @@ function TaskCard({
   onPrev,
   onNext,
   onDelete,
-  onEdit
+  onEdit,
+  onOpen,
+  nComentarios
 }) {
   const prioMeta = {
     urgente: {
@@ -13427,8 +13569,8 @@ function TaskCard({
   }, React.createElement(I.Trash, {
     size: 13
   }))), React.createElement("div", {
-    onClick: onEdit,
-    title: "Clique para editar",
+    onClick: onOpen || onEdit,
+    title: "Abrir a tarefa",
     style: {
       fontSize: 13,
       fontWeight: 600,
@@ -13439,7 +13581,21 @@ function TaskCard({
       opacity: t.done ? .6 : 1,
       cursor: 'pointer'
     }
-  }, t.title), React.createElement("div", {
+  }, t.title), t.desc ? React.createElement("div", {
+    onClick: onOpen || onEdit,
+    style: {
+      fontSize: 12,
+      color: 'var(--text-2)',
+      lineHeight: 1.45,
+      marginBottom: 6,
+      cursor: 'pointer',
+      overflow: 'hidden',
+      display: '-webkit-box',
+      WebkitLineClamp: 2,
+      WebkitBoxOrient: 'vertical',
+      overflowWrap: 'anywhere'
+    }
+  }, t.desc) : null, React.createElement("div", {
     /* Datas (28-09-2026): inicio e fim; o fim a vermelho quando ja passou
        (25-09-2026), e as antigas sem fim assinaladas. */
     style: {
@@ -13491,11 +13647,176 @@ function TaskCard({
     title: "Mover para a direita"
   }, React.createElement(I.ChevR, {
     size: 13
-  }))), assignees.length > 0 && React.createElement(AvatarGroup, {
+  })), React.createElement("button", {
+    onClick: onOpen || onEdit,
+    className: "bsp-iconbtn",
+    title: nComentarios ? nComentarios + (nComentarios === 1 ? ' comentário' : ' comentários') : 'Comentar',
+    style: {
+      height: 26,
+      width: 'auto',
+      padding: '0 7px',
+      gap: 4,
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: nComentarios ? 'var(--accent-d)' : 'var(--text-3)'
+    }
+  }, React.createElement(I.Chat, {
+    size: 13
+  }), nComentarios ? nComentarios : null)), assignees.length > 0 && React.createElement(AvatarGroup, {
     users: assignees,
     size: 22,
     max: 2
   })));
+}
+/* Tarefa aberta (01-10-2026, pedido do Elmar: «tal igual a um Kanban do
+   Teams»): descricao, pessoas, datas, comentarios dentro da propria tarefa
+   (conversa "tarefa-<id>", tarefas-comentarios.sql) e «Levar para o Chat».
+   Os comentarios de uma tarefa privada so os le quem ve a tarefa: a regra
+   e do servidor (bsp_ve_conversa). */
+const BSP_COLUNAS_TAREFA = { todo: 'A Fazer', doing: 'Em Progresso', review: 'Em Revisão', done: 'Concluído' };
+function TarefaDetalhe({
+  t,
+  col,
+  onClose,
+  onEdit
+}) {
+  const { state, actions } = useStore();
+  const toast = useToast();
+  const eu = window.CURRENT_USER_ID;
+  const conv = t ? bspTarefaConv(t.id) : '';
+  const [rascunho, setRascunho] = React.useState('');
+  const [levar, setLevar] = React.useState(false);
+  const [destino, setDestino] = React.useState('');
+  const fimRef = React.useRef(null);
+  /* Os comentarios antigos vem do servidor ao abrir, como no Chat. */
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl || !conv) return;
+    let vivo = true;
+    cl.from('messages').select('*').eq('conv_key', conv).order('created_at', { ascending: false }).limit(300).then(r => {
+      if (vivo && !r.error && window.__bspIngerirAntigas) window.__bspIngerirAntigas(r.data || []);
+    });
+    setRascunho('');
+    setLevar(false);
+    setDestino('');
+    return () => { vivo = false; };
+  }, [conv]);
+  const comentarios = (state.channelMessages[conv] || []).filter(m => !bspLinhaDeControlo(m.text));
+  React.useEffect(() => {
+    try { fimRef.current && fimRef.current.scrollIntoView({ block: 'end' }); } catch (e) {}
+  }, [comentarios.length]);
+  if (!t) return null;
+  const pessoas = (t.pessoal ? [t.donoId].concat(t.partilhadaCom || []) : (t.assignees || [])).map(window.userById).filter(Boolean);
+  const criador = t.criadoPor ? window.userById(t.criadoPor) : null;
+  const meEu = window.userById(eu);
+  const canais = (window.CHANNELS || []).filter(c => meEu && bspVeCanal(meEu, c)).slice().sort((a, b) => bspCompararTexto(a.name, b.name));
+  const colegas = USERS.filter(u => bspPodeConversar(u));
+  function comentar() {
+    const txt = rascunho.trim();
+    if (!txt || bspEmVerComo()) return;
+    actions.sendMessage(conv, { userId: eu, text: txt });
+    setRascunho('');
+  }
+  function enviarParaChat() {
+    if (!destino || bspEmVerComo()) return;
+    const desc = String(t.desc || '').trim();
+    const linhas = ['📋 Tarefa: ' + t.title];
+    if (desc) linhas.push(desc.length > 280 ? desc.slice(0, 280) + '…' : desc);
+    linhas.push((t.start ? 'Início: ' + bspDataCurta(t.start) + ' · ' : '') + (t.due ? 'Fim: ' + bspDataCurta(t.due) + ' · ' : '') + (BSP_COLUNAS_TAREFA[col] || ''));
+    linhas.push('[tarefa:' + t.id + ']');
+    const chave = destino.indexOf('u:') === 0 ? 'dm-' + [eu, destino.slice(2)].sort().join('_') : destino;
+    actions.sendMessage(chave, { userId: eu, text: linhas.join('\n') });
+    toast(t.pessoal ? 'Tarefa enviada para o Chat. É privada: só quem está nela a consegue abrir.' : 'Tarefa enviada para o Chat.');
+    setLevar(false);
+    onClose();
+    if (typeof window.bspAbrirConversa === 'function') window.bspAbrirConversa(chave);
+  }
+  const rotulo = { fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 };
+  return React.createElement(Modal, {
+    open: !!t,
+    onClose: onClose,
+    title: t.title,
+    width: 620,
+    footer: React.createElement(React.Fragment, null, React.createElement(Button, {
+      variant: "ghost",
+      size: "sm",
+      onClick: () => setLevar(v => !v),
+      icon: React.createElement(I.Send, { size: 13 })
+    }, "Levar para o Chat"), React.createElement(Button, {
+      variant: "secondary",
+      size: "sm",
+      onClick: onEdit,
+      icon: React.createElement(I.Edit, { size: 13 })
+    }, "Editar"), React.createElement(Button, {
+      variant: "primary",
+      size: "sm",
+      onClick: onClose
+    }, "Fechar"))
+  }, React.createElement("div", {
+    style: { padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }
+  }, React.createElement("div", {
+    style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', fontSize: 12, color: 'var(--text-2)' }
+  }, React.createElement(Badge, { tone: 'accent' }, BSP_COLUNAS_TAREFA[col] || 'A Fazer'), React.createElement(Badge, null, 'Prioridade: ' + ({ urgente: 'Urgente', alta: 'Alta', media: 'Média', baixa: 'Baixa' }[t.priority] || 'Média')), t.pessoal && React.createElement(Badge, { tone: 'amber' }, t.partilhada ? 'Privada, partilhada' : 'Privada'), React.createElement("span", null, (t.start ? 'Início: ' + bspDataCurta(t.start) : '') + (t.start && t.due ? ' · ' : '') + (t.due ? 'Fim: ' + bspDataCurta(t.due) : ''))), pessoas.length > 0 && React.createElement("div", null, React.createElement("div", { style: rotulo }, t.pessoal ? 'Pessoas da tarefa' : 'Responsáveis'), React.createElement("div", {
+    style: { display: 'flex', gap: 10, flexWrap: 'wrap' }
+  }, pessoas.map(u => React.createElement("span", {
+    key: u.id,
+    style: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--text-1)' }
+  }, React.createElement(Avatar, { user: u, size: 22 }), u.name)))), React.createElement("div", null, React.createElement("div", { style: rotulo }, "Descrição"), t.desc ? React.createElement("div", {
+    style: { whiteSpace: 'pre-wrap', fontSize: 13.5, lineHeight: 1.55, color: 'var(--text-1)', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px', overflowWrap: 'anywhere' }
+  }, t.desc) : React.createElement("div", {
+    style: { fontSize: 12.5, color: 'var(--text-3)' }
+  }, "Sem descrição. Carregue em «Editar» para a escrever.")), criador && React.createElement("div", {
+    style: { fontSize: 11.5, color: 'var(--text-3)' }
+  }, 'Criada por ' + criador.name + (t.criadoEm && bspQuando(t.criadoEm) ? ' a ' + bspQuando(t.criadoEm) : '') + (t.delegadaPor ? ' · delegada por ' + t.delegadaPor : '')), levar && React.createElement("div", {
+    style: { border: '1px solid var(--accent-d)', background: 'var(--accent-soft)', borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }
+  }, React.createElement("div", { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--texto-sobre-pastel)' } }, "Levar a tarefa para uma conversa"), React.createElement("select", {
+    value: destino,
+    onChange: e => setDestino(e.target.value),
+    style: { width: '100%', height: 40, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 16, background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit' }
+  }, React.createElement("option", { value: '' }, 'Escolha o canal, grupo ou pessoa'), React.createElement("optgroup", { label: 'Canais e grupos' }, canais.map(c => React.createElement("option", { key: c.id, value: c.id }, (c.membros && c.membros.length ? '' : '#') + c.name))), React.createElement("optgroup", { label: 'Pessoas' }, colegas.map(u => React.createElement("option", { key: u.id, value: 'u:' + u.id }, u.name)))), React.createElement("div", { style: { display: 'flex', gap: 8, justifyContent: 'flex-end' } }, React.createElement(Button, {
+    variant: "ghost",
+    size: "sm",
+    onClick: () => setLevar(false)
+  }, "Cancelar"), React.createElement(Button, {
+    variant: "primary",
+    size: "sm",
+    onClick: enviarParaChat,
+    icon: React.createElement(I.Send, { size: 13 })
+  }, "Enviar"))), React.createElement("div", null, React.createElement("div", { style: rotulo }, 'Comentários (' + comentarios.length + ')'), React.createElement("div", {
+    style: { display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 300, overflow: 'auto', marginBottom: 10 }
+  }, comentarios.length === 0 && React.createElement("div", {
+    style: { fontSize: 12.5, color: 'var(--text-3)' }
+  }, "Ainda sem comentários. Os comentários ficam na tarefa e todos os que a vêem os lêem."), comentarios.map(m => {
+    const u = window.userById(m.userId) || { id: m.userId, name: 'Antigo colaborador' };
+    return React.createElement("div", {
+      key: m.id || m.cid,
+      style: { display: 'flex', gap: 10, alignItems: 'flex-start' }
+    }, React.createElement(Avatar, { user: u, size: 28 }), React.createElement("div", { style: { minWidth: 0, flex: 1 } }, React.createElement("div", {
+      style: { fontSize: 12, color: 'var(--text-3)' }
+    }, React.createElement("b", { style: { color: 'var(--text-1)' } }, u.name), ' · ', bspQuandoChat(m.iso, m.ts)), (() => {
+      const vis = bspTextoVisivel(m.text);
+      const cit = bspCitacao(vis);
+      return React.createElement("div", {
+        style: { fontSize: 13.5, color: 'var(--text-1)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', lineHeight: 1.5 }
+      }, cit && React.createElement("div", {
+        style: { borderLeft: '3px solid var(--accent)', background: 'var(--surface-2)', padding: '3px 9px', margin: '2px 0 4px', fontSize: 12.5, color: 'var(--text-2)', whiteSpace: 'normal' }
+      }, React.createElement("b", { style: { color: 'var(--text-1)' } }, cit.quem), ' · ', cit.excerto), renderText(cit ? cit.resto : vis));
+    })()));
+  }), React.createElement("div", { ref: fimRef })), React.createElement("div", {
+    style: { display: 'flex', gap: 8, alignItems: 'flex-end' }
+  }, React.createElement("textarea", {
+    value: rascunho,
+    onChange: e => setRascunho(e.target.value),
+    onKeyDown: e => { if (bspEnterEnvia(e)) { e.preventDefault(); comentar(); } },
+    rows: 2,
+    placeholder: 'Escreva um comentário… (@Nome para mencionar)',
+    style: { flex: 1, minWidth: 0, padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 16, fontFamily: 'inherit', color: 'var(--text-1)', background: 'var(--surface)', resize: 'vertical', outline: 'none' }
+  }), React.createElement(Button, {
+    variant: "primary",
+    size: "sm",
+    onClick: comentar,
+    icon: React.createElement(I.Send, { size: 13 })
+  }, "Comentar")))));
 }
 Object.assign(window, {
   CalendarScreen,
@@ -22873,8 +23194,9 @@ const BSP_GUIA_FICHAS = [
   { icone: 'Tasks', nome: 'Tarefas',
     serve: 'O quadro do trabalho da equipa e a sua lista privada.',
     faz: [
-      ['Crie tarefas com início e fim;', 'as duas datas são obrigatórias.'],
+      ['Crie tarefas com início e fim;', 'as duas datas são obrigatórias. Escreva a descrição.'],
       ['Mova-as no quadro:', 'A fazer, Em progresso, Em revisão e Concluído.'],
+      ['Abra a tarefa para comentar;', 'quem está nela recebe o aviso. «Levar para o Chat» envia-a a um canal ou colega.'],
       ['Partilhe uma tarefa privada', 'com um colega.'],
       ['Direcção e Coordenação delegam:', 'criam tarefas na lista de outra pessoa.']
     ],
@@ -23966,7 +24288,10 @@ function App() {
       setAlvoChat({ conv: conv, vez: Date.now() });
       setPage('chat');
     };
-    return () => { window.bspAbrirConversa = null; };
+    /* Ir para um ecra a partir de qualquer sitio (01-10-2026: o botao
+       «Abrir a tarefa» das mensagens do Chat). */
+    window.bspIrParaEcra = p => setPage(p);
+    return () => { window.bspAbrirConversa = null; window.bspIrParaEcra = null; };
   }, []);
   const abrirNotificacao = React.useCallback(n => {
     if (!n) return;
@@ -23977,6 +24302,11 @@ function App() {
       window.__bspAlvoPost = String(post);
       setPage('feed');
       setTimeout(() => { try { window.dispatchEvent(new Event('bsp-abrir-post')); } catch (e) {} }, 60);
+      return;
+    }
+    /* Comentario numa tarefa (01-10-2026): abre a propria tarefa. */
+    if (n.tarefa) {
+      bspAbrirTarefa(n.tarefa);
       return;
     }
     if (n.conv) {

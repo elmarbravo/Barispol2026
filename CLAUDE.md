@@ -186,6 +186,11 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   privada vai por `pess.actualizar`, nunca por `actions.updateTask`. A edição
   também muda `user_id` e `partilhada_com` (todos os da tarefa; só quem
   delega muda o dono).
+- Tarefas com descrição e comentários (01-10-2026, `tarefas-comentarios.sql`):
+  `desc` (equipa) / `descricao` (privadas); janela `TarefaDetalhe`;
+  comentários na conversa `tarefa-<id>` (privadas: `tarefa-p<id>`, só quem
+  vê a tarefa, em `bsp_ve_conversa`); «Levar para o Chat» termina com
+  `[tarefa:<id>]` (`bspTarefaDaMensagem`, `bspAbrirTarefa`).
 - Datas das tarefas (28-09-2026): início e fim obrigatórios
   (`bspTarefaErroDatas` no `TaskComposer`; gatilho `bsp_tarefa_datas`,
   `tarefas-datas.sql`). Equipa: `start`/`due`; privadas: `inicio`/`prazo`.

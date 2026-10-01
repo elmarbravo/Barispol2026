@@ -2259,3 +2259,26 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
 - Por decidir com o Elmar: tapar a ligação do Teams com a senha embutida
   na mensagem 751 da Direcção (`wa-direccao-751`).
 - Próximo `--base` livre: 8000000.
+
+## 3-bu. Tarefas: descrição, comentários e «Levar para o Chat» (01-10-2026)
+
+- Pedido do Elmar: campo descrição, comentar dentro da própria tarefa (como
+  o Kanban do Teams) e levar a tarefa para o Chat.
+- Descrição: campo novo no `TaskComposer`. Tarefas da equipa guardam-na no
+  estado partilhado (`desc`); as privadas na coluna `descricao` de
+  `tarefas_pessoais` (`tarefas-comentarios.sql`, aplicado). O cartão mostra
+  as duas primeiras linhas e o número de comentários.
+- Carregar numa tarefa abre o `TarefaDetalhe`: coluna, prioridade, datas,
+  pessoas, descrição, quem a criou e os comentários. «Editar» abre o
+  formulário; «Levar para o Chat» envia a tarefa a um canal, grupo ou
+  colega, com o botão «Abrir a tarefa» (linha `[tarefa:<id>]`,
+  `bspTarefaDaMensagem`, `bspAbrirTarefa`).
+- Comentários: mensagens na conversa `tarefa-<id>` (equipa: `tarefa-t…`,
+  privada: `tarefa-p<id>`). No servidor, `bsp_ve_conversa` deixa ler os de
+  uma tarefa privada só a quem vê a tarefa (testado: dono e Direcção sim,
+  outro colega não). Aviso no sino (tipo `task`, abre a tarefa) a quem
+  está na tarefa, a quem a criou (`criadoPor`, novo), a quem já comentou e
+  a quem foi mencionado.
+- Chat: as mensagens passam a mostrar as mudanças de linha (`pre-wrap`).
+- Testado no navegador (servidor simulado): criar, abrir, comentar, citar,
+  levar para #geral e voltar à tarefa pelo botão; telemóvel em ecrã inteiro.
