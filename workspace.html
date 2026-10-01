@@ -11333,6 +11333,44 @@ function CalEventModal({
     }
   }), v.label))))));
 }
+/* Os meus turnos no Calendario (01-10-2026, auditoria): das escalas em
+   vigor (com o visto da Direccao Clinica) deste mes e do seguinte. Mostra
+   os proximos 7 dias numa fila; «Ver todos» mostra o resto. */
+function MeusTurnosCartao() {
+  const [lista, setLista] = React.useState(null);
+  const [tudo, setTudo] = React.useState(false);
+  const eu = window.CURRENT_USER_ID;
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    const mes = bspDataLocalISO(new Date()).slice(0, 8) + '01';
+    const prox = bspSomarMeses(mes, 1);
+    cl.from('escalas').select('area, mes, turnos, dias, estado, visto_em, exige_visto').in('mes', [mes, prox]).eq('estado', 'publicada')
+      .then(r => { if (vivo && !r.error) setLista((r.data || []).filter(bspEscalaEmVigor)); });
+    return () => { vivo = false; };
+  }, []);
+  const hoje = bspDataLocalISO(new Date());
+  const meus = [];
+  (lista || []).forEach(e => Object.keys(e.dias || {}).forEach(dia => {
+    if (dia < hoje) return;
+    const d = e.dias[dia] || {};
+    (e.turnos || []).forEach(tu => { if ((d[tu.id] || []).indexOf(eu) !== -1) meus.push({ dia: dia, t: tu, area: e.area }); });
+  }));
+  meus.sort((a, b) => (a.dia + a.t.inicio).localeCompare(b.dia + b.t.inicio));
+  if (!lista || !meus.length) return null;
+  const limite = bspSomarDias(hoje, 6);
+  const ver = tudo ? meus : meus.filter(x => x.dia <= limite);
+  return React.createElement(Card, { pad: 14, style: { marginBottom: 12, flex: 'none' } },
+    React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 } },
+      React.createElement(I.Clock, { size: 16, stroke: 'var(--accent-d)' }),
+      React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)', flex: 1 } }, 'Os meus turnos'),
+      meus.length > ver.length || tudo ? React.createElement("button", { onClick: () => setTudo(v => !v), style: { border: 0, background: 'transparent', color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' } }, tudo ? 'Só 7 dias' : 'Ver todos (' + meus.length + ')') : null),
+    React.createElement("div", { style: tudo ? { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 6, maxHeight: 260, overflow: 'auto' } : { display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 } },
+      ver.map(x => React.createElement("div", { key: x.dia + x.t.id, style: { flex: tudo ? undefined : '0 0 180px', borderLeft: '3px solid ' + (x.dia === hoje ? 'var(--accent)' : 'var(--border)'), padding: '3px 8px', fontSize: 12.5 } },
+        React.createElement("div", { style: { fontWeight: 700, color: 'var(--text-1)' } }, (x.dia === hoje ? 'Hoje · ' : '') + bspDiaExtenso(x.dia + 'T12:00:00').replace(/ de \d{4}$/, '')),
+        React.createElement("div", { style: { color: 'var(--text-2)' } }, x.t.inicio + '–' + x.t.fim + ' · ' + (x.t.nome || '') + ' · ' + bspEscalaAreaNome(x.area))))));
+}
 function CalendarScreen() {
   const {
     state,
@@ -11376,7 +11414,7 @@ function CalendarScreen() {
       flexDirection: 'column',
       overflow: 'hidden'
     }
-  }, React.createElement(CalEventModal, {
+  }, React.createElement(MeusTurnosCartao, null), React.createElement(CalEventModal, {
     open: open,
     onClose: () => setOpen(false),
     onCreate: actions.createEvent

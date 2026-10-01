@@ -2355,3 +2355,7 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   (`bspDocumentoDaMensagem`, `bspAbrirDocumento`, `BotaoDocumento`). O
   botão «Comunicado» do Feed leva a Documentos. Falta decidir com o Elmar
   se se apagam as pastas «Comunicados» e «Protocolos» do Drive (nada mudado).
+- Turnos no Calendário: `MeusTurnosCartao` no topo do Calendário, com os
+  turnos da própria pessoa nas escalas em vigor (com visto) deste mês e do
+  seguinte; 7 dias numa fila, «Ver todos» mostra o resto. Escalas sem visto
+  não aparecem (regra de `bspEscalaEmVigor`).
