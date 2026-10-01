@@ -2398,3 +2398,18 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
 - Falta: refazer o `OrgChart` pelo desenho do Elmar, com os dados da equipa
   (campo `superior`). A Arlete fica ao nível dos chefes de área. Os sócios
   não aparecem. Depois, pôr `BSP_ORGANOGRAMA_VISIVEL = true`.
+
+## 3-bz. Fiscalização de 01-10-2026: duas fugas fechadas
+
+- `bsp_wa_linhas` (nomes e telefones de quem escreveu ao WhatsApp) e
+  `bsp_entradas_rececao` (hora de entrada da Recepção) respondiam a qualquer
+  um com a chave publicável. Fechadas (`funcoes-fechadas.sql`); os e-mails
+  das 8h e das 16h correm como dono e continuam.
+- Por fazer, em segurança:
+  - Apagar as funções `mig-recebe` e `bsp-crm-patch` (migração, já não
+    servem).
+  - Ligar a protecção contra palavras-passe divulgadas (Auth → Providers →
+    Email → «Prevent use of leaked passwords»). Só o Elmar.
+  - Tirar o acesso de visitante às restantes funções `security definer`
+    que só servem quem tem sessão (testadas: recusam ou devolvem vazio).
+  - Fixar o `search_path` de 16 funções.
