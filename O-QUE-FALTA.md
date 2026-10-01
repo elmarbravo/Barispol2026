@@ -2348,3 +2348,10 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   no separador Marcações (`CrmScreen({ inicial })`). O Directório entrou no
   menu como «Equipa». No «Mais» do telemóvel: Utentes, Agenda, Stock e
   Equipa (o Feed saiu de lá, está na barra).
+- Comunicado oficial só em Documentos (`comunicados-documentos.sql`,
+  aplicado; testado numa transacção desfeita): publicar em Documentos um
+  documento «comunicado» cria a publicação no Feed e a mensagem em #avisos,
+  com a linha `[documento:<id>]` → botão «Abrir o documento»
+  (`bspDocumentoDaMensagem`, `bspAbrirDocumento`, `BotaoDocumento`). O
+  botão «Comunicado» do Feed leva a Documentos. Falta decidir com o Elmar
+  se se apagam as pastas «Comunicados» e «Protocolos» do Drive (nada mudado).

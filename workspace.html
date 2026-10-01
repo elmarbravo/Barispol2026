@@ -4125,7 +4125,7 @@ function bspCitacao(texto) {
 }
 /* Para avisos e pre-visualizacoes: a resposta, sem a linha da citacao. */
 function bspTextoResumo(texto) {
-  const v = bspTarefaDaMensagem(bspTextoVisivel(texto)).resto;
+  const v = bspDocumentoDaMensagem(bspTarefaDaMensagem(bspTextoVisivel(texto)).resto).resto;
   const c = bspCitacao(v);
   return c ? c.resto : v;
 }
@@ -4141,6 +4141,28 @@ function bspTarefaDaMensagem(texto) {
 }
 function bspTarefaConv(id) {
   return 'tarefa-' + id;
+}
+/* Comunicado oficial em Documentos (01-10-2026, comunicados-documentos.sql):
+   a publicacao do Feed e a mensagem de #avisos terminam com
+   «[documento:<id>]», que se troca pelo botao «Abrir o documento». */
+const BSP_RX_DOCUMENTO = /\n?\[documento:(\d{1,12})\]\s*$/;
+function bspDocumentoDaMensagem(texto) {
+  const t = String(texto == null ? '' : texto);
+  const m = BSP_RX_DOCUMENTO.exec(t);
+  return m ? { id: m[1], resto: t.slice(0, m.index) } : { id: null, resto: t };
+}
+function bspAbrirDocumento(id) {
+  window.__bspDocAlvo = String(id);
+  if (typeof window.bspIrParaEcra === 'function') window.bspIrParaEcra('documentos');
+  setTimeout(() => { try { window.dispatchEvent(new Event('bsp-abrir-documento')); } catch (e) {} }, 80);
+}
+function BotaoDocumento({ id }) {
+  return React.createElement("div", { style: { marginTop: 6 } }, React.createElement(Button, {
+    variant: "secondary",
+    size: "sm",
+    icon: React.createElement(I.File, { size: 13 }),
+    onClick: () => bspAbrirDocumento(id)
+  }, "Abrir o documento"));
 }
 function bspAbrirTarefa(id) {
   window.__bspAlvoTarefa = String(id);
@@ -8740,7 +8762,8 @@ function ChatScreen({
         minWidth: 0
       }
     }, (() => {
-      const tar = bspTarefaDaMensagem(bspTextoVisivel(m.text));
+      const docM = bspDocumentoDaMensagem(bspTextoVisivel(m.text));
+      const tar = bspTarefaDaMensagem(docM.resto);
       const vis = tar.resto;
       const cit = bspCitacao(vis);
       const botaoTarefa = tar.id ? React.createElement("div", { key: 'tar', style: { marginTop: 6 } }, React.createElement(Button, {
@@ -8751,11 +8774,12 @@ function ChatScreen({
       }, "Abrir a tarefa")) : null;
       /* Mudancas de linha visiveis (01-10-2026): no telemovel o Enter ja
          muda de linha, e o Chat juntava tudo numa linha so. */
-      if (!cit) return [React.createElement("span", { key: 'r', style: { whiteSpace: 'pre-wrap' } }, renderText(vis)), botaoTarefa];
+      const botaoDoc = docM.id ? React.createElement(BotaoDocumento, { key: 'doc', id: docM.id }) : null;
+      if (!cit) return [React.createElement("span", { key: 'r', style: { whiteSpace: 'pre-wrap' } }, renderText(vis)), botaoTarefa, botaoDoc];
       return [React.createElement("div", {
         key: 'cit',
         style: { borderLeft: '3px solid var(--accent)', background: 'var(--surface-2)', padding: '4px 10px', margin: '2px 0 4px', fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.45, maxWidth: 520 }
-      }, React.createElement("b", { style: { color: 'var(--text-1)' } }, cit.quem), ' · ', cit.excerto), React.createElement("span", { key: 'r', style: { whiteSpace: 'pre-wrap' } }, renderText(cit.resto)), botaoTarefa];
+      }, React.createElement("b", { style: { color: 'var(--text-1)' } }, cit.quem), ' · ', cit.excerto), React.createElement("span", { key: 'r', style: { whiteSpace: 'pre-wrap' } }, renderText(cit.resto)), botaoTarefa, botaoDoc];
     })(), React.createElement(AnexoMensagem, {
       a: bspAnexoDaMensagem(m.text)
     }), grouped && m.editada && React.createElement("em", {
@@ -9863,7 +9887,9 @@ function FeedScreen({
     const Ic = I[b.i];
     return React.createElement("button", {
       key: b.l,
-      onClick: () => setComposeType(b.t),
+      /* O comunicado oficial publica-se em Documentos (01-10-2026): ali tem
+         leitura confirmada, e sai sozinho no Feed e em #avisos. */
+      onClick: () => b.t === 'comunicado' ? (window.bspIrParaEcra && window.bspIrParaEcra('documentos')) : setComposeType(b.t),
       style: {
         flex: 1,
         minWidth: 110,
@@ -10273,6 +10299,11 @@ function ComposePostModal({
   const meta = typeMeta[type] || typeMeta.normal;
   function publish() {
     if (!body.trim() && !att) return;
+    if (type === 'comunicado') {
+      window.alert('Os comunicados oficiais publicam-se em Documentos (categoria «Comunicados»): têm leitura confirmada e aparecem sozinhos no Feed e em #avisos.');
+      if (window.bspIrParaEcra) window.bspIrParaEcra('documentos');
+      return;
+    }
     const base = {
       userId: currentUser.id,
       type: type || 'normal',
@@ -10692,7 +10723,8 @@ function FeedPost({
       letterSpacing: '-.01em'
     }
   }, post.title), (() => {
-    const parts = String(post.body || '').split(/\[anexo:([^\]]+)\]/g);
+    const docP = bspDocumentoDaMensagem(post.body);
+    const parts = String(docP.resto || '').split(/\[anexo:([^\]]+)\]/g);
     const texts = [],
       files = [];
     parts.forEach((p, i) => {
@@ -10709,7 +10741,7 @@ function FeedPost({
         whiteSpace: 'pre-wrap'
       }
       /* Ligacoes clicaveis e imagens por ligacao, como no chat (24-09-2026). */
-    }, renderText(texts.join('\n'))), files.map(name => {
+    }, renderText(texts.join('\n'))), docP.id && React.createElement("div", { style: { marginBottom: 14, marginTop: -6 } }, React.createElement(BotaoDocumento, { id: docP.id })), files.map(name => {
       const f = (state.driveFiles || []).find(x => x.name === name);
       const isImg = /\.(png|jpe?g|gif|webp)$/i.test(name);
       if (isImg && f && (f.path || f.dataUrl)) return React.createElement("button", {
@@ -23061,6 +23093,23 @@ function DocumentosScreen({ currentUser }) {
   const [abertos, setAbertos] = React.useState({});
   const [verLeituras, setVerLeituras] = React.useState(null);
   const [publicar, setPublicar] = React.useState(undefined);
+  /* Vindo do botao «Abrir o documento» (Feed, #avisos): mostra so esse. */
+  const [alvoTick, setAlvoTick] = React.useState(0);
+  React.useEffect(() => {
+    const f = () => setAlvoTick(x => x + 1);
+    window.addEventListener('bsp-abrir-documento', f);
+    return () => window.removeEventListener('bsp-abrir-documento', f);
+  }, []);
+  React.useEffect(() => {
+    const alvo = window.__bspDocAlvo;
+    if (!alvo || !docs.docs || !docs.docs.length) return;
+    const d = docs.docs.find(x => String(x.id) === alvo);
+    window.__bspDocAlvo = null;
+    if (!d) { toast('Este documento já não está disponível.'); return; }
+    setCat('todos');
+    setArquivo(!!d.arquivado);
+    setBusca(d.numero || d.titulo);
+  }, [alvoTick, docs.docs]);
   const equipa = ((state.team && state.team.length) ? state.team : USERS).filter(u => u && u.id !== 'self' && !bspESocio(u) && !u.semEmails);
   const nomeDe = id => { const u = window.userById(id); return u ? u.name : 'Alguém'; };
   const vazio = x => React.createElement("div", { style: { padding: '40px 20px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13.5 } }, x);
@@ -23296,7 +23345,7 @@ const BSP_GUIA_FICHAS = [
     serve: 'O mural da clínica: novidades, reconhecimentos e momentos da equipa.',
     faz: [
       ['Publique texto, fotografias, vídeos e ficheiros.', ''],
-      ['Faça um comunicado', 'e fixe-o no topo do mural.'],
+      ['Os comunicados oficiais', 'publicam-se em Documentos e aparecem aqui sozinhos, com o botão «Abrir o documento».'],
       ['Reconheça um colega', 'pelo bom trabalho.'],
       ['Crie enquetes e eventos', 'e veja os aniversários da semana.'],
       ['Comente as publicações;', 'o aviso abre a publicação certa.']
