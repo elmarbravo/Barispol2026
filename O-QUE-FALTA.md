@@ -1925,3 +1925,30 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
      Este ficheiro tem uma chave privada: nunca no repositório nem no chat.
   5. Actions → «App Android» → «Run workflow» e instalar o APK novo uma vez
      em cada telemóvel.
+
+## 3-db. Relatório da Recepção: qualidade do atendimento (02-10-2026)
+
+- Pedido do Elmar: «Esse relatório da receção está muito vago e
+  redundante, coloque dados de qualidade de atendimento da equipa».
+- `recepcao-qualidade.sql` (aplicado): `erp.recepcao_qualidade(dia)` e
+  `bsp_srv_recepcao_qualidade(dia)` (só a chave do servidor).
+- `relatorios-diarios` versões 9 e 10, relatório da Recepção das 07h15:
+  - quadro: utentes, WhatsApp de ontem (respondidos em 15 min), marcações
+    de hoje;
+  - «Pontos de atenção»: relatório de turno por entregar, primeira resposta
+    no WhatsApp acima de 15 min, esperas acima de 1 h, preço pedido e não
+    dado, notas de crédito, quem não abriu o Workspace, marcações de ontem
+    em aberto, marcações de amanhã sem contacto;
+  - WhatsApp (`crm.caixa`): mediana da primeira resposta, % em 15 min,
+    preço dado, marcados na conversa; tabela por colaborador (7 dias);
+  - facturação de ontem por colaborador (MetaGest): documentos, sem médico
+    solicitante, notas de crédito, rascunhos;
+  - marcações de ontem e de amanhã, e as registadas no Workspace por
+    colaborador (telefone, e-mail, ficha);
+  - Workspace aberto ontem (`presenca_dias`): entrou, saiu, horas;
+  - relatório de turno: espera, satisfação, reclamações, incidentes.
+  - Saiu a tabela das consultas (já está no da Clínica) e a dos tipos de
+    documento (FR, FT, NC).
+  - Versão 10: sem médico, marcações passadas por fechar e rascunhos ficam
+    só nos alertas do topo (antes repetiam-se no fim).
+- Nomes da equipa, nunca de utentes.

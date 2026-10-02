@@ -19,6 +19,13 @@
 //     Versão 8 (02-10-2026): o quadro da Clínica mostra todas as áreas do
 //     centro (consulta, laboratório, imagiologia, cardiologia, enfermagem,
 //     farmácia e exames enviados para fora).
+//     Versão 9 (02-10-2026, recepcao-qualidade.sql, pedido do Elmar: «muito
+//     vago e redundante»): o da Recepção passa a medir a qualidade do
+//     atendimento por colaborador (WhatsApp, facturação, marcações,
+//     Workspace aberto, relatório de turno). Sai a tabela das consultas
+//     (está no da Clínica) e a dos tipos de documento.
+//     Versão 10 (02-10-2026): o da Recepção deixa de repetir o que os
+//     alertas do topo já dizem (sem médico, marcações passadas, rascunhos).
 // Utentes nunca com nome. Um envio por relatório, dia e destino
 // (relatorios_enviados). {"previa": true} devolve os e-mails sem enviar;
 // {"dia": "AAAA-MM-DD"} escolhe o dia; {"forcar": true} volta a enviar.
@@ -366,15 +373,6 @@ Deno.serve(async (req) => {
     // O que vinha nos relatórios antigos das áreas e o MetaGest dá (sem nomes de utentes).
     const ex = d.extra || {};
     const mesTxt = (m: string) => { const [a, b] = String(m).split("-"); return MESES[Number(b) - 1] + " " + a; };
-    const recepcaoExtra = () => {
-      const doc = ex.documentos || {};
-      const mf = ex.marcacoes_por_fechar || {};
-      const ra = ex.rascunhos || {};
-      return sec("Documentos de ontem") + tabela(["Documento", "Qtd"], [["Factura-recibo (FR)", n0(doc.fr)], ["Factura (FT)", n0(doc.ft)], ["Nota de crédito (NC)", n0(doc.nc)]].concat(Number(doc.outros || 0) ? [["Outros", n0(doc.outros)]] : [])) +
-        (Number(mf.total || 0) ? sec("Marcações passadas por fechar") + paragrafo(n0(mf.total) + " marcações já passaram e continuam «Agendada» ou «Confirmada». Marque Compareceu, Faltou, Cancelou ou Remarcado.") +
-          tabela(["Mês", "Qtd"], ((mf.por_mes || []) as any[]).map((x) => [escapar(mesTxt(x.mes)), n0(x.n)])) : "") +
-        (Number(ra.total || 0) ? paragrafo("<b>" + n0(ra.total) + " documentos em rascunho</b> no MetaGest desde Julho" + (Number(ra.periodo || 0) ? " (" + n0(ra.periodo) + " de ontem)" : "") + ". Emita-os ou apague-os.") : "");
-    };
     const farmaciaExtra = () =>
       (((ex.farmacia_vendido || []) as any[]).length ? sec("Vendido ontem e stock que fica") +
         tabela(["Produto", "Qtd", "Stock que fica"], (ex.farmacia_vendido as any[]).map((x) => [escapar(frase(x.nome)), n0(x.qtd), x.fica == null ? "—" : n0(x.fica)])) : "") +
@@ -387,6 +385,9 @@ Deno.serve(async (req) => {
        Clínica, que vai para a Direcção Clínica. */
     const gc: any = ((resp || []) as any[]).some((r) => r.area === "clinica")
       ? (await admin.rpc("bsp_srv_direccao_clinica", { p_dia: dia })).data : null;
+    /* Qualidade do atendimento da Recepção (versão 9, recepcao-qualidade.sql). */
+    const rq: any = ((resp || []) as any[]).some((r) => r.area === "recepcao")
+      ? (await admin.rpc("bsp_srv_recepcao_qualidade", { p_dia: dia })).data : null;
     const pc1 = (v: unknown) => v == null ? "—" : Number(v).toLocaleString("pt-PT", { maximumFractionDigits: 1 }) + "%";
     const num1 = (v: unknown) => v == null ? "—" : Number(v).toLocaleString("pt-PT", { maximumFractionDigits: 1 });
     const variacao = (a: number, b: number) => {
@@ -473,6 +474,64 @@ Deno.serve(async (req) => {
           (((pr.falhas || []) as any[]).length ? paragrafo("Passos que falharam: " + (pr.falhas as any[]).map((x) => escapar(x.nome) + " (" + n0(x.n) + ")").join(", ") + ".") : "")
           : paragrafo(semDados("das áreas de saúde")));
     };
+    /* Qualidade do atendimento da Recepção (versão 9). Nomes da equipa,
+       nunca de utentes. */
+    const qualidadeRecepcaoHtml = () => {
+      if (!rq) return "";
+      const wo = (rq.whatsapp && rq.whatsapp.ontem) || {}, ws = (rq.whatsapp && rq.whatsapp.semana) || {};
+      const pcN = (a: unknown, b: unknown) => Number(b) ? pc1(Number(a) / Number(b) * 100) : "—";
+      const min = (v: unknown) => v == null ? "—" : n0(v) + " min";
+      const verm = (t: string) => '<span style="color:#B42318">' + t + "</span>";
+      const mo = (rq.marcacoes && rq.marcacoes.ontem) || {}, ma = (rq.marcacoes && rq.marcacoes.amanha) || {};
+      const tu = rq.turno || {};
+      const fa: any[] = rq.facturacao || [];
+      const pres: any[] = rq.presenca || [];
+      const reg: any[] = rq.marcacoes_registadas || [];
+      const wp: any[] = rq.whatsapp_pessoas || [];
+      /* Pontos de atenção: o que pede uma acção hoje. */
+      const atencao: string[] = [];
+      if (!Number(tu.relatorios)) atencao.push("O relatório de turno da Recepção de ontem não foi entregue (menu Relatórios).");
+      if (wo.mediana_min != null && Number(wo.mediana_min) > 15) atencao.push("WhatsApp: a primeira resposta levou " + min(wo.mediana_min) + " (mediana). A referência é até 15 min.");
+      if (Number(wo.mais60)) atencao.push(n0(wo.mais60) + " pedido(s) do WhatsApp esperaram mais de 1 hora pela primeira resposta.");
+      if (Number(wo.pediu_preco) > Number(wo.preco_dado)) atencao.push(n0(Number(wo.pediu_preco) - Number(wo.preco_dado)) + " utente(s) pediram o preço no WhatsApp e não o receberam.");
+      const nc = fa.reduce((a, x) => a + Number(x.notas_credito || 0), 0);
+      if (nc) atencao.push(n0(nc) + " nota(s) de crédito ontem: cada uma é uma factura anulada. Confirme o motivo.");
+      const semAbrir = pres.filter((x) => !x.primeira).map((x) => escapar(x.nome));
+      if (semAbrir.length) atencao.push("Não abriram o Workspace ontem: " + semAbrir.join(", ") + ".");
+      if (Number(mo.em_aberto)) atencao.push(n0(mo.em_aberto) + " marcação(ões) de ontem continuam em aberto: marque Compareceu, Faltou, Cancelou ou Remarcado.");
+      if (Number(ma.sem_contacto)) atencao.push(n0(ma.sem_contacto) + " marcação(ões) de amanhã sem telefone nem e-mail.");
+      return sec("Qualidade do atendimento") +
+        (atencao.length ? lista(atencao.map(verm)) : paragrafo('<span style="color:#1D7A46">Sem pontos de atenção ontem.</span>')) +
+        subt("WhatsApp") +
+        mosaicos([["Primeira resposta", min(wo.mediana_min), "mediana de ontem · 7 dias: " + min(ws.mediana_min)],
+          ["Em 15 minutos", pcN(wo.ate15, wo.com_resposta), n0(wo.ate15) + " de " + n0(wo.com_resposta) + " · ref. 80% ou mais"],
+          ["Preço dado", pcN(wo.preco_dado, wo.pediu_preco), n0(wo.preco_dado) + " de " + n0(wo.pediu_preco) + " que pediram"]]) +
+        paragrafo("Ontem: " + n0(wo.pedidos) + " pedidos, " + n0(wo.com_resposta) + " respondidos por uma pessoa, " + n0(wo.fora_horario) + " fora do horário, " + n0(wo.marcou) + " marcados na própria conversa. Nos 7 dias: " + n0(ws.pedidos) + " pedidos, " + n0(ws.marcou) + " marcados.") +
+        (wp.length ? tabela(["Colaborador (7 dias)", "Pedidos", "1.ª resposta", "Em 15 min", "Preço dado", "Marcou"],
+          wp.map((x) => [escapar(x.nome), n0(x.pedidos), min(x.mediana_min), n0(x.ate15) + " de " + n0(x.com_resposta), n0(x.preco_dado) + " de " + n0(x.pediu_preco), n0(x.marcou)])) : "") +
+        subt("Facturação de ontem, por colaborador") +
+        (fa.length ? tabela(["Colaborador", "Documentos", "Sem médico", "Notas de crédito", "Rascunhos"],
+          fa.map((x) => [escapar(x.nome), n0(x.documentos), Number(x.sem_medico) ? verm(n0(x.sem_medico)) : "0", Number(x.notas_credito) ? verm(n0(x.notas_credito)) : "0", Number(x.rascunhos) ? verm(n0(x.rascunhos)) : "0"])) +
+          paragrafo('<span style="color:' + SUAVE + '">«Sem médico» e notas de crédito são correcções por fazer: a factura clínica leva sempre o médico solicitante.</span>')
+          : paragrafo("Sem documentos no MetaGest ontem.")) +
+        subt("Marcações") +
+        lista([
+          "Ontem: " + n0(mo.total) + " marcadas · " + n0(mo.compareceu) + " compareceram · " + n0(mo.faltou) + " faltaram · " + n0(mo.cancelou) + " cancelaram · " + n0(mo.remarcado) + " remarcadas" + (Number(mo.em_aberto) ? " · " + verm(n0(mo.em_aberto) + " em aberto") : "") + ".",
+          "Amanhã: " + n0(ma.total) + " marcadas · " + n0(ma.confirmadas) + " confirmadas · " + n0(ma.por_confirmar) + " por confirmar.",
+        ]) +
+        (reg.length ? tabela(["Registadas ontem no Workspace", "Marcações", "Com telefone", "Com e-mail", "Ligadas à ficha"],
+          reg.map((x) => [escapar(x.nome), n0(x.marcacoes), n0(x.com_telefone), n0(x.com_email), n0(x.com_ficha)]))
+          : paragrafo(verm("Nenhuma marcação foi registada ontem no Workspace.") + " As marcações do WhatsApp e do telefone entram em Utentes → Marcações.")) +
+        subt("Workspace aberto ontem") +
+        (pres.length ? tabela(["Colaborador", "Entrou", "Saiu", "Horas"], pres.map((x) => [escapar(x.nome), x.primeira || verm("não abriu"), x.ultima || "—", x.horas == null ? "—" : num1(x.horas) + " h"])) : "") +
+        subt("Relatório de turno") +
+        (Number(tu.relatorios) ? lista([
+          "Espera na sala: " + (tu.espera_min == null ? "—" : n0(tu.espera_min) + " min em média") + " · " + n0(tu.espera_30) + " utentes esperaram mais de 30 min.",
+          "Satisfação: " + n0(tu.satisf_ok) + " satisfeitos em " + n0(tu.satisf_resp) + " inquéritos · " + n0(tu.reclamacoes) + " reclamações.",
+          "Incidentes: " + n0(tu.incidentes) + " · quase-erros: " + n0(tu.quase_erros) + "." + (Number(tu.fecho_caixa_por_enviar) ? " " + verm("Fecho de caixa por enviar.") : ""),
+        ]) : paragrafo(verm("Não foi entregue."))) +
+        (Number(rq.site) ? paragrafo("Pedidos pela caixa de contacto do site: <b>" + n0(rq.site) + "</b>.") : "");
+    };
     /* Secções com números reais (pedido do Elmar, 02-10-2026). */
     const comparacaoHtml = () => {
       const c = gc && gc.comparacao;
@@ -524,9 +583,15 @@ Deno.serve(async (req) => {
       recepcao: {
         titulo: "Recepção",
         tem: () => true,
-        corpo: () => mosaicos([["Utentes atendidos", n0(nm.utentes), n0(nm.novos) + " novos"], ["Marcações hoje", n0(marc.hoje), n0(marc.por_confirmar) + " por confirmar"], ["Amanhã", n0(marc.amanha), "marcações"]]) +
-          (Number(d.sem_medico || 0) ? paragrafo('<b style="color:#8A5A00">' + n0(d.sem_medico) + (Number(d.sem_medico) === 1 ? " factura" : " facturas") + " de ontem sem médico solicitante.</b> Corrija no MetaGest.") : "") +
-          recepcaoExtra() + topTab("consulta", "Consultas de ontem"),
+        corpo: () => {
+          const wo = (rq && rq.whatsapp && rq.whatsapp.ontem) || {};
+          return mosaicos([["Utentes atendidos", n0(nm.utentes), n0(nm.novos) + " novos"],
+              ["WhatsApp ontem", n0(wo.pedidos), n0(wo.ate15) + " de " + n0(wo.com_resposta) + " respondidos em 15 min"],
+              ["Marcações hoje", n0(marc.hoje), n0(marc.por_confirmar) + " por confirmar"]]) +
+            /* Sem médico, marcações passadas e rascunhos ja vêm nos alertas do
+               topo: não se repetem (versão 10). */
+            qualidadeRecepcaoHtml();
+        },
       },
       clinica: {
         titulo: "Clínica",

@@ -348,6 +348,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `bsp_srv_direccao_clinica`, modelo JCI/OMS), sempre com números reais ao lado
   de cada percentagem (pedido do Elmar). Endereços extra só no servidor (`relatorios_diarios_destinos`;
   `relatorios_destinos` é dos relatórios por área, outra coisa).
+  O da Recepção mede a qualidade do atendimento por colaborador
+  (`recepcao-qualidade.sql`, `bsp_srv_recepcao_qualidade`: WhatsApp, facturação,
+  marcações, Workspace aberto, relatório de turno).
   Painel clínico: `PainelClinicoScreen` / `bsp_painel_clinico` sobre
   `erp.clinico_dados`; nunca Kz nem nomes de utentes. Os quadros da
   Recepção, Farmácia e Laboratório vêm de `erp.clinico_extra` (campo
