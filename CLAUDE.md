@@ -2,7 +2,8 @@
 
 Este ficheiro é lido automaticamente pelo Claude Code em cada tarefa. Tem as
 regras aprovadas pelo Elmar Bravo e o estado do projecto. O passo a passo do
-servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
+servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece. O texto
+completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
 
 ## Regras (aprovadas pelo Elmar, não negociáveis)
 
@@ -131,6 +132,9 @@ servidor está em `O-QUE-FALTA.md`, e esse ficheiro prevalece.
   `vendor/pdfjs`, 30-09-2026). Word .docx em `bspVerWord(url, nome)`
   (`LeitorWord`, `vendor/docx`, 01-10-2026); o .doc antigo é recusado nas
   conversas. `bspAbrirFicheiro` escolhe sozinho.
+- Logotipo (02-10-2026): `BarispolLogo` com `sm` 38, `md` 64, `lg` 104 px;
+  no site, 72 px no cabeçalho (60 no telemóvel). Nunca voltar a tamanhos
+  menores (pedido do Elmar).
 - Sem zoom no telemóvel (30-09-2026): `viewport` com `maximum-scale=1,
   user-scalable=no`, `gesturestart` bloqueado e caixas de escrita com 16 px
   (abaixo disso o iPhone amplia). Nada pode passar da largura do ecrã.

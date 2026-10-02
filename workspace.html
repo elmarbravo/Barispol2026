@@ -2810,7 +2810,7 @@ function BarispolLogo({
   stacked = false,
   mono = false
 }) {
-  const px = size === 'sm' ? 30 : size === 'md' ? 40 : 56;
+  const px = size === 'sm' ? 38 : size === 'md' ? 64 : 104;
   const pad = mono ? Math.round(px * 0.1) : 0;
   return React.createElement("span", {
     className: "bsp-logo",
@@ -2874,22 +2874,8 @@ function Sidebar({
       alignItems: 'center',
       justifyContent: collapsed ? 'center' : 'flex-start'
     }
-  }, collapsed ? React.createElement("span", {
-    style: {
-      width: 32,
-      height: 32,
-      borderRadius: 8,
-      background: isNavyBg ? '#fff' : 'var(--navy)',
-      color: isNavyBg ? 'var(--navy)' : '#fff',
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontWeight: 800,
-      letterSpacing: '.02em',
-      fontSize: 13
-    }
-  }, "B") : React.createElement(BarispolLogo, {
-    size: "md",
+  }, React.createElement(BarispolLogo, {
+    size: collapsed ? "sm" : "md",
     mono: isNavyBg
   })), !collapsed && React.createElement("div", {
     style: {
@@ -2908,9 +2894,9 @@ function Sidebar({
     }
   }, React.createElement("span", {
     style: {
-      width: 28,
-      height: 28,
-      borderRadius: 7,
+      width: 36,
+      height: 36,
+      borderRadius: 8,
       background: '#fff',
       flex: 'none',
       padding: 2,
@@ -6695,9 +6681,9 @@ function LoginScreen({
       display: 'inline-flex',
       alignItems: 'center',
       justifyContent: 'center',
-      width: 64,
-      height: 64,
-      borderRadius: 16,
+      width: 92,
+      height: 92,
+      borderRadius: 20,
       background: 'var(--navy)',
       boxShadow: '0 8px 22px rgba(41,47,88,.25)'
     }
