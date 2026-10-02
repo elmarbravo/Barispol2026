@@ -140,6 +140,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `avisos_mensagens`. O Workspace já não envia esse e-mail directamente.
 - Som das notificações: um só `AudioContext` (`bspAudio`), desbloqueado
   no primeiro toque (`bspDesbloquearSom`). Nunca criar um por aviso.
+- Quem está online (02-10-2026): sempre `bspEstadoDe(user)` /
+  `bspEstaOnline(id)` (tempo real ou sinal na `presenca` há menos de 3
+  min), nunca `user.status` sozinho, que é o que ficou gravado na ficha.
 - Abrir uma conversa directa de qualquer ecrã: `bspConversaCom(id)`.
 - Grupos do Chat (30-09-2026): editam-se com `NovoGrupoModal` (`inicial`) e
   `actions.editarCanal`; o servidor segue o id e os membros, não o nome. Um

@@ -2225,6 +2225,26 @@ const STATUS_META = {
     label: 'Offline'
   }
 };
+/* Quem está online (02-10-2026, Elmar: «tenho pessoas online e está a
+   dizer que estão off»). Dois sinais, basta um: a ligação em tempo real
+   (__bspOnline, cai com a rede móvel e nos separadores de fundo) e o sinal
+   «estou aqui» da tabela presenca (__bspVistos: id -> instante), que cada
+   aparelho grava a cada minuto e o ecrã relê a cada minuto. */
+const BSP_ONLINE_MS = 3 * 60 * 1000;
+function bspEstaOnline(id) {
+  if (window.__bspOnline && window.__bspOnline.indexOf(id) !== -1) return true;
+  const v = window.__bspVistos && window.__bspVistos[id];
+  return !!v && Date.now() - v < BSP_ONLINE_MS;
+}
+/* O estado a mostrar de uma pessoa: o verdadeiro, e não o que ficou gravado
+   na ficha. «Ausente» e «Ocupado» escolhidos pela pessoa mantêm-se enquanto
+   está ligada. */
+function bspEstadoDe(user) {
+  if (!user) return 'offline';
+  if (user.id === window.CURRENT_USER_ID || (!window.__bspOnline && !window.__bspVistos)) return user.status;
+  if (!bspEstaOnline(user.id)) return 'offline';
+  return user.status === 'away' || user.status === 'busy' ? user.status : 'online';
+}
 const AVATAR_TONES = [['#E0F2FE', '#0369A1'], ['#FCE7F3', '#9D174D'], ['#FEF3C7', '#92400E'], ['#DCFCE7', '#166534'], ['#EDE9FE', '#5B21B6'], ['#FFE4E6', '#9F1239'], ['#E0F7FA', '#075985'], ['#FEF9C3', '#854D0E'], ['#F1F5F9', '#1E293B'], ['#FCE7F3', '#831843'], ['#DBEAFE', '#1E3A8A'], ['#D1FAE5', '#065F46']];
 function toneFor(id) {
   let h = 0;
@@ -2240,10 +2260,7 @@ function Avatar({
   if (!user) return null;
   const [bg, fg] = toneFor(user.id);
   const fs = Math.round(size * 0.38);
-  let estado = user.status;
-  if (window.__bspOnline && user.id !== window.CURRENT_USER_ID) {
-    estado = window.__bspOnline.indexOf(user.id) !== -1 ? 'online' : 'offline';
-  }
+  const estado = bspEstadoDe(user);
   const s = STATUS_META[estado] || STATUS_META.offline;
   const dot = Math.max(8, Math.round(size * 0.28));
   return React.createElement("span", {
@@ -5442,22 +5459,43 @@ function StoreProvider({
           if (!document.hidden && !cancelled) {
             verificar();
             sinalPresenca();
+            lerPresencas();
           }
         };
-        /* "Estou aqui", a cada minuto, so com o Workspace a vista. O servidor
-           usa isto para saber se a pessoa esta offline antes de lhe mandar
-           um e-mail por uma mensagem directa por ler. */
+        /* "Estou aqui", a cada minuto, com o Workspace aberto (tambem num
+           separador de fundo, desde 02-10-2026: quem trabalha no MetaGest com
+           o Workspace ao lado aparecia offline). O servidor usa isto para
+           saber se a pessoa esta offline antes de lhe mandar um e-mail por
+           uma mensagem directa por ler; o ecra, para o ponto verde. */
         const sinalPresenca = () => {
           try {
-            if (document.hidden || !window.CURRENT_USER_ID || window.CURRENT_USER_ID === 'self') return;
+            if (bspEmVerComo() || !window.CURRENT_USER_ID || window.CURRENT_USER_ID === 'self') return;
             client.from('presenca').upsert({
               user_id: window.CURRENT_USER_ID,
               visto_em: new Date().toISOString()
             }).then(() => {}, () => {});
           } catch (e) {}
         };
+        /* Quem deu sinal nos ultimos minutos (bspEstaOnline). So com o
+           Workspace a vista: em fundo ninguem olha para o ponto verde. */
+        const lerPresencas = () => {
+          try {
+            if (document.hidden) return;
+            client.from('presenca').select('user_id, visto_em').gt('visto_em', new Date(Date.now() - BSP_ONLINE_MS).toISOString()).then(r => {
+              if (cancelled || !r || r.error || !r.data) return;
+              const m = {};
+              r.data.forEach(x => { const t = Date.parse(x.visto_em); if (t) m[x.user_id] = t; });
+              window.__bspVistos = m;
+              setState(s => ({
+                ...s,
+                presTick: (s.presTick || 0) + 1
+              }));
+            }, () => {});
+          } catch (e) {}
+        };
         sinalPresenca();
-        syncRef.current.presenca = setInterval(sinalPresenca, 60000);
+        lerPresencas();
+        syncRef.current.presenca = setInterval(() => { sinalPresenca(); lerPresencas(); }, 60000);
         /* Notificacoes com o Workspace fechado (02-10-2026): regista este
            aparelho e diz ao servidor se as notificacoes estao activas. */
         if (!bspEmVerComo()) setTimeout(() => {
@@ -9810,7 +9848,7 @@ function DmInfo({
     value: user.phone
   }), React.createElement(InfoRow, {
     label: "Estado",
-    value: (STATUS_META[user.status] || STATUS_META.offline).label
+    value: (STATUS_META[bspEstadoDe(user)] || STATUS_META.offline).label
   })), user.bio && React.createElement(React.Fragment, null, React.createElement("div", {
     style: {
       height: 1,
@@ -16042,8 +16080,8 @@ function DirectoryScreen() {
       color: 'var(--text-2)'
     }
   }, React.createElement(StatusDot, {
-    status: u.status
-  }), (STATUS_META[u.status] || STATUS_META.offline).label), React.createElement("div", {
+    status: bspEstadoDe(u)
+  }), (STATUS_META[bspEstadoDe(u)] || STATUS_META.offline).label), React.createElement("div", {
     style: {
       display: 'flex',
       justifyContent: 'flex-end',

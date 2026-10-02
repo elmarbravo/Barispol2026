@@ -2016,3 +2016,21 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   confirma-se logo, porque o texto está no próprio cartão.
 - A janela e a ficha do guia já não dizem que sai um e-mail no instante
   (ver 3-dd).
+
+## 3-df. Quem está online (02-10-2026)
+
+- O Elmar via colegas ligados como «offline». Havia duas causas:
+  - o ponto verde só seguia a ligação em tempo real (`bsp-presenca`), que
+    cai com a rede móvel e nos separadores de fundo;
+  - a lista da Equipa e a ficha mostravam o estado gravado na ficha
+    (`u.status`), que nunca muda sozinho.
+- Agora `bspEstadoDe(user)` / `bspEstaOnline(id)`: online se estiver no
+  tempo real ou se o aparelho deu sinal na tabela `presenca` nos últimos 3
+  minutos (`BSP_ONLINE_MS`). O ecrã relê a `presenca` a cada minuto
+  (`__bspVistos`), só com o Workspace à vista.
+- O sinal «estou aqui» passa a sair também com o Workspace num separador
+  de fundo, e nunca durante «Ver como». Consequência: o e-mail de mensagem
+  directa por ler (tipo `mensagens` da `resumo-matinal`) não vai a quem tem
+  o Workspace aberto noutro separador.
+- [ ] Confirmar com o Elmar, com duas pessoas ligadas, que o ponto verde
+  bate certo.
