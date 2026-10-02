@@ -2169,3 +2169,10 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   existem), Serviços Gerais (rascunho completo, sem visto) e a escala
   geral da Clínica (só 3 dias). Novembro: só a Recepção começou
   (rascunho).
+- Decisões do Elmar no mesmo dia: «administração não há escala, elimine» e
+  «serviços gerais aprova».
+  - A Administração sai do ecrã das Escalas (`EscalasScreen`); no servidor
+    já estava fora de `bsp_escalas_responsaveis` e dos avisos. A escala
+    vazia de Setembro da Administração foi apagada.
+  - Serviços Gerais de Outubro (id 6): publicada e em vigor sem visto da
+    Direcção Clínica, por aprovação do Elmar (`exige_visto = false`).

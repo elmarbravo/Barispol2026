@@ -23199,7 +23199,9 @@ function EscalasScreen({ currentUser }) {
   const toast = useToast();
   const isMobile = useIsMobile();
   const eu = currentUser || window.userById(window.CURRENT_USER_ID);
-  const areas = bspEscalaAreas().filter(a => bspVeEscala(eu, a.chave));
+  /* A Administração não tem escala (Elmar, 02-10-2026); no servidor já
+     estava fora de bsp_escalas_responsaveis. */
+  const areas = bspEscalaAreas().filter(a => a.chave !== 'administracao' && bspVeEscala(eu, a.chave));
   const minha = bspAreaChave(eu && eu.dept);
   const abrir = window.__bspEscalaAbrir || null;
   React.useEffect(() => { window.__bspEscalaAbrir = null; }, []);
