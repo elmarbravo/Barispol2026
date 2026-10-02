@@ -290,7 +290,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   todas as áreas e dá o visto (`bsp_escala_dar_visto`); sem visto a escala
   não está em vigor (`bsp_escala_em_vigor` / `bspEscalaEmVigor`). Qualquer
   consumidor novo das escalas usa só as que estão em vigor. Mudar turnos ou
-  dias apaga o visto.
+  dias apaga o visto, excepto quando quem muda é a gestão ou a Direcção
+  Clínica (`escalas-visto-gestao.sql`, `bspMantemVistoEscala`, 02-10-2026).
+  Nas cargas de PowerPoint, «Ludmila» (Da Silva) e «Luidmila» (Chitata, u6)
+  são pessoas diferentes.
   A Administração não tem escala (Elmar, 02-10-2026): fora do ecrã e dos
   avisos.
   Trocas de turno (01-10-2026, `trocas-turno.sql`): pedido → colega aceita →

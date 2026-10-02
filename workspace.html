@@ -22628,6 +22628,13 @@ function bspEditaEscala(u, area) {
 function bspDaVistoEscala(u) {
   return !!u && BSP_RELATORIOS_DIRECCAO_CLINICA.indexOf(u.id) !== -1 && !bspEmVerComo();
 }
+/* Quem altera uma escala em vigor sem lhe tirar o visto: a gestão e a
+   Direcção Clínica (02-10-2026; no servidor, bsp_escalas_alterado). */
+function bspMantemVistoEscala(u) {
+  if (!u) return false;
+  const c = bspCamada(u);
+  return BSP_RELATORIOS_DIRECCAO_CLINICA.indexOf(u.id) !== -1 || !!(c && c.podeGerirUtilizadores);
+}
 function bspEscalaEmVigor(e) {
   return !!e && e.estado === 'publicada' && (!!e.visto_em || e.exige_visto === false);
 }
@@ -23257,7 +23264,17 @@ function EscalasScreen({ currentUser }) {
     return () => { vivo = false; };
   }, [area, mes]);
   /* Grava sozinho, pouco depois de cada mudanca. */
-  const mudar = fn => { setRasc(e => fn(e)); versao.current++; setGravacao(g => Object.assign({}, g, { estado: 'por-gravar' })); };
+  /* Uma escala em vigor alterada por um chefe de área sai de vigor até ao
+     visto (02-10-2026): pergunta antes, uma vez. A gestão e a Direcção
+     Clínica mantêm o visto (bsp_escalas_alterado, escalas-visto-gestao.sql). */
+  const avisouVigor = React.useRef(false);
+  const mudar = fn => {
+    if (rasc && rasc.estado === 'publicada' && bspEscalaEmVigor(rasc) && !bspMantemVistoEscala(eu) && !avisouVigor.current) {
+      if (!window.confirm('Esta escala está em vigor. Se a mudar, sai de vigor até a Direcção Clínica dar o visto, e a equipa deixa de a ver.\n\nContinuar?')) return;
+      avisouVigor.current = true;
+    }
+    setRasc(e => fn(e)); versao.current++; setGravacao(g => Object.assign({}, g, { estado: 'por-gravar' }));
+  };
   React.useEffect(() => {
     if (!rasc || gravacao.estado !== 'por-gravar') return;
     const v = versao.current;

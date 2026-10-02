@@ -2230,3 +2230,26 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   `ligado: true`.
 - Alterações feitas hoje à equipa ou às tarefas da equipa depois das 12h44
   podem não ter ficado gravadas: confirmar e refazer.
+
+## 3-do. Escala da Clínica de Outubro: duas médicas e o visto (02-10-2026)
+
+- Sintoma: a Dra. Ludmila Da Silva não via nenhuma escala.
+- Causas:
+  1. Na carga do PowerPoint da Medicina Geral juntei «Dra. Ludmila» e
+     «Dra. Luidmila» na u6. O PowerPoint distingue-as. Corrigido na escala 12:
+     - Ludmila Da Silva (`u1790954656000`): segundas e quartas de manhã,
+       sextas à tarde e domingo 11, 11 turnos.
+     - Luidmila Chitata (u6): quintas à tarde e domingos 4, 18 e 25, 8 turnos.
+  2. A Direcção mudou a escala no ecrã às 15h41 e o visto apagou-se: a
+     escala saiu de vigor e ninguém a via. Reposta em vigor com
+     `exige_visto = false` (decisão do Elmar: «o director é que enviou»).
+- Para não se repetir (`escalas-visto-gestao.sql`, aplicado): uma mudança
+  feita pela gestão ou pela Direcção Clínica mantém o visto. A de um chefe
+  de área continua a apagá-lo, mas o ecrã pergunta antes
+  (`bspMantemVistoEscala`). Testado no servidor com desfazer: Elmar mantém,
+  outra pessoa tira de vigor.
+- Por decidir (Elmar): o rascunho de Novembro da Clínica (id 13) herdou a
+  u6 em 13 turnos (sextas à tarde e domingos incluídos). Rever quem é cada
+  uma antes de publicar.
+- Nas cargas de PowerPoint: nomes parecidos nunca se juntam; na dúvida,
+  perguntar.
