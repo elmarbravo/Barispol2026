@@ -1773,3 +1773,42 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   - utentes por financiador (particular, seguradora, empresa) e por
     seguradora;
   - dias com consultas e consultas por dia de cada médico.
+
+## 3-cv. Regulamento interno nas regras do sistema (02-10-2026)
+
+- Pedido do Elmar: «colocar o regulamento interno nas regras do sistema;
+  ler os artigos e, sempre que necessário, usar sem ter de ir ler todo
+  ele».
+- **O texto não está no repositório.** O repositório é público (serve
+  barispol.com) e o regulamento é do foro interno. Fica no servidor:
+  - `documentos_texto` (`documentos-texto.sql`, aplicado): o texto de
+    cada documento de Documentos. Só o servidor lê.
+  - `conhecimento` (mesmo ficheiro): resumo por secção, chave
+    `regulamento-interno`, com as referências RI-1 a RI-10, as notas
+    internas e onde o Workspace já as aplica. Para ler:
+    `select texto from public.conhecimento where chave = 'regulamento-interno'`.
+- Edge Function `documento-texto` (versão 3, verificação de JWT
+  desligada, autenticação própria): lê os .docx e os PDF de
+  `documentos/` (nunca os anexos do Chat). Os PDF digitalizados ficam
+  `pdf-sem-texto` até haver `ANTHROPIC_API_KEY`; com a chave, o Claude
+  transcreve-os. Cron `bsp-documentos-texto` às 04h20 UTC (05h20 de
+  Luanda), aplicado e activo.
+- `assistente` versão 2: junta o `conhecimento` às regras e responde às
+  perguntas sobre regras de trabalho com a referência «RI-x.y».
+- Estado: o regulamento (.docx, 62 502 caracteres) está lido. As 8 notas
+  internas em PDF são digitalizações e esperam pela chave da Anthropic
+  (colada pelo Elmar). Duas notas têm o mesmo número
+  (BRSP-DG-NINT-24-001): falta renumerar uma.
+
+## 3-cw. Documentos: enviar para o Chat (02-10-2026)
+
+- Pedido do Elmar: «coloque a opção de enviar o documento para o chat,
+  um atalho ou algo parecido».
+- `DocumentosScreen`: botão «Enviar para o Chat» em cada documento em
+  vigor (fora da vista «Ver como»). Escolhe-se o canal, o grupo ou a
+  pessoa. A mensagem leva o título, o número, a descrição curta, a
+  categoria e a data de entrada em vigor, e termina com
+  `[documento:<id>]`, que o Chat troca pelo botão «Abrir o documento»
+  (`BotaoDocumento`). O ficheiro não se copia para o Chat: abre sempre a
+  versão em vigor e a leitura continua a contar em Documentos.
+- Ficha do guia de Documentos actualizada.

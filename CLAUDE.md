@@ -31,6 +31,23 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
 9. Sempre que se mexe no código, actualizar `O-QUE-FALTA.md` na mesma
    alteração.
 
+## Regulamento interno (02-10-2026)
+
+- O repositório é público: o regulamento e as notas internas nunca entram
+  nele (RI-4.8, foro interno). Ficam só no servidor.
+- Resumo por secção (referências **RI-n.m**, com os prazos, números e quem
+  decide): `select texto from public.conhecimento where chave =
+  'regulamento-interno'`. Consultá-lo sempre que um pedido toque em
+  horários, faltas, férias, licenças, disciplina, confidencialidade,
+  telefones, informática, aparência, benefícios ou conduta, e citar a
+  referência RI. Não é preciso ler o documento inteiro. O assistente do
+  Workspace lê a mesma tabela.
+- Texto integral: `documentos_texto` (documento 1), preenchido pela Edge
+  Function `documento-texto`. Em dúvida, prevalece o original.
+- Qualquer função nova do Workspace sobre pessoas (ausências, férias,
+  faltas, escalas) segue os prazos do resumo. Ler a tabela antes de
+  escrever o código; os números não se copiam para o repositório.
+
 ## O que é
 
 - `barispol.com` é servido pelo GitHub Pages a partir de `main` (ficheiro

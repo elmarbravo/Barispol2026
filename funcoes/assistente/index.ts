@@ -1,4 +1,4 @@
-// Barispol Workspace · assistente com IA (versão 1, 01-10-2026)
+// Barispol Workspace · assistente com IA (versão 2, 02-10-2026; versão 1 a 01-10-2026)
 //
 // Pedido do Elmar: o modelo mais barato (Claude Haiku 4.5), com um limite
 // por pessoa como o do ChatGPT gratuito: 10 perguntas a cada 5 horas
@@ -11,6 +11,11 @@
 // CHAVE DA API: segredo ANTHROPIC_API_KEY nas Edge Functions, criado e
 // colado pelo Elmar. Sem ela, a função responde que o assistente ainda não
 // está ligado.
+// REGULAMENTO INTERNO (versão 2, 02-10-2026): o resumo por secção (RI-n.m)
+// vem da tabela conhecimento (só o servidor lê) e entra nas regras; o
+// assistente responde a perguntas de faltas, férias, licenças, disciplina e
+// conduta citando a referência. O repositório é público: o texto nunca está
+// neste ficheiro.
 // DADOS: as perguntas saem do servidor para a Anthropic. O Workspace avisa
 // para não escrever nomes de doentes nem dados de facturação (regra 4).
 
@@ -44,6 +49,7 @@ Ajudas a equipa a usar o Workspace e a redigir mensagens, comunicados e e-mails 
 Escreve sempre em português de Portugal, sem o Acordo Ortográfico de 1990 (ex.: «acção», «direcção», «actividade»), sem gerúndio, com frases curtas e verbos concretos.
 Responde em poucas linhas. Usa listas só quando ajudam.
 Sobre o Workspace, baseia-te só no guia abaixo. Se o guia não responde, diz que não sabes e sugere perguntar à Direcção ou à Coordenação. Não inventes menus nem funções.
+Sobre regras de trabalho (horário, faltas, férias, licenças, doença, disciplina, conduta, confidencialidade, telefones, informática, aparência, benefícios), responde com base no regulamento interno abaixo e cita a referência (ex.: «RI-6.2»). Se o resumo não chegar, diz que convém ver o documento completo em Documentos ou falar com o Capital Humano.
 Não dês diagnósticos nem conselhos médicos a doentes. Não peças nem repitas nomes de doentes, contactos de doentes, dados de facturação nem palavras-passe. Se a pessoa os escrever, lembra-lhe que não deve.
 
 # Guia dos menus do Workspace
@@ -85,12 +91,15 @@ Deno.serve(async (req) => {
   const chave = (Deno.env.get("ANTHROPIC_API_KEY") || "").trim();
   if (!chave) return responder({ erro: "O assistente ainda não está ligado: falta a chave da API no servidor." }, 503);
 
+  /* Regulamento interno e outros textos de referência (tabela conhecimento). */
+  const { data: saber } = await admin.from("conhecimento").select("titulo, texto").order("chave");
+  const referencia = ((saber || []) as any[]).map((k) => "\n\n# " + k.titulo + "\n" + k.texto).join("");
   const cliente = new Anthropic({ apiKey: chave });
   try {
     const r = await cliente.messages.create({
       model: MODELO,
       max_tokens: 600,
-      system: [{ type: "text", text: REGRAS + GUIA, cache_control: { type: "ephemeral" } }],
+      system: [{ type: "text", text: REGRAS + GUIA + referencia, cache_control: { type: "ephemeral" } }],
       messages: [
         ...historico,
         { role: "user", content: "Quem pergunta: " + String(pessoa.name || "") + " (" + String(pessoa.role || "") + ", " + String(pessoa.dept || "") + ").\n\n" + pergunta },

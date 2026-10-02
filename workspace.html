@@ -23753,7 +23753,7 @@ function DocPublicarModal({ open, substituir, onClose }) {
 }
 function DocumentosScreen({ currentUser }) {
   const toast = useToast();
-  const { state } = useStore();
+  const { state, actions } = useStore();
   const docs = useDocumentos();
   const eu = currentUser && currentUser.id;
   const publica = bspPublicaDocumentos(currentUser);
@@ -23763,6 +23763,10 @@ function DocumentosScreen({ currentUser }) {
   const [abertos, setAbertos] = React.useState({});
   const [verLeituras, setVerLeituras] = React.useState(null);
   const [publicar, setPublicar] = React.useState(undefined);
+  /* Enviar para o Chat (02-10-2026, pedido do Elmar): a mensagem termina com
+     «[documento:<id>]», que o Chat troca pelo botao «Abrir o documento». */
+  const [enviar, setEnviar] = React.useState(null);
+  const [destino, setDestino] = React.useState('');
   /* Vindo do botao «Abrir o documento» (Feed, #avisos): mostra so esse. */
   const [alvoTick, setAlvoTick] = React.useState(0);
   React.useEffect(() => {
@@ -23800,6 +23804,23 @@ function DocumentosScreen({ currentUser }) {
     toast('Leitura confirmada.');
     bspDocsCarregar();
   };
+  const meEu = window.userById(eu);
+  const canais = (window.CHANNELS || []).filter(c => meEu && bspVeCanal(meEu, c)).slice().sort((a, b) => bspCompararTexto(a.name, b.name));
+  const colegas = USERS.filter(u => bspPodeConversar(u));
+  const enviarParaChat = d => {
+    if (!destino || bspEmVerComo()) return;
+    const linhas = ['📄 Documento: ' + d.titulo + (d.numero ? ' (' + d.numero + ')' : '')];
+    const desc = String(d.descricao || '').trim();
+    if (desc) linhas.push(desc.length > 280 ? desc.slice(0, 280) + '…' : desc);
+    linhas.push(bspDocCategoria(d.categoria) + ' · em vigor desde ' + bspDataCurta(d.em_vigor_desde) + (d.leitura_obrigatoria ? ' · leitura obrigatória' : ''));
+    linhas.push('[documento:' + d.id + ']');
+    const chave = destino.indexOf('u:') === 0 ? 'dm-' + [eu, destino.slice(2)].sort().join('_') : destino;
+    actions.sendMessage(chave, { userId: eu, text: linhas.join('\n') });
+    toast('Documento enviado para o Chat.');
+    setEnviar(null);
+    setDestino('');
+    if (typeof window.bspAbrirConversa === 'function') window.bspAbrirConversa(chave);
+  };
   const arquivar = async d => {
     if (!window.confirm('Passar «' + d.titulo + '» para o arquivo? Deixa de ser pedida a leitura.')) return;
     const r = await bspGetClient().from('documentos').update({ arquivado: true }).eq('id', d.id).select('id');
@@ -23827,7 +23848,27 @@ function DocumentosScreen({ currentUser }) {
             onClick: () => abertos[d.id] ? confirmar(d) : toast('Abra primeiro o documento.'),
             title: abertos[d.id] ? '' : 'Abra primeiro o documento',
             style: Object.assign(bspEscBotao(!!abertos[d.id]), { height: 40, opacity: abertos[d.id] ? 1 : .55 })
-          }, React.createElement(I.Check, { size: 15 }), 'Li e tomei conhecimento'))),
+          }, React.createElement(I.Check, { size: 15 }), 'Li e tomei conhecimento'),
+          !d.arquivado && !bspEmVerComo() && React.createElement("button", {
+            onClick: () => { setEnviar(v => v === d.id ? null : d.id); setDestino(''); },
+            style: Object.assign(bspEscBotao(false), { height: 40 })
+          }, React.createElement(I.Send, { size: 15 }), 'Enviar para o Chat'))),
+      enviar === d.id && React.createElement("div", {
+        style: { marginTop: 12, border: '1px solid var(--accent-d)', background: 'var(--accent-soft)', borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }
+      }, React.createElement("div", { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--texto-sobre-pastel)' } }, "Enviar o documento para uma conversa"), React.createElement("select", {
+        value: destino,
+        onChange: e => setDestino(e.target.value),
+        style: { width: '100%', height: 40, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 16, background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit' }
+      }, React.createElement("option", { value: '' }, 'Escolha o canal, grupo ou pessoa'), React.createElement("optgroup", { label: 'Canais e grupos' }, canais.map(c => React.createElement("option", { key: c.id, value: c.id }, (c.membros && c.membros.length ? '' : '#') + c.name))), React.createElement("optgroup", { label: 'Pessoas' }, colegas.map(u => React.createElement("option", { key: u.id, value: 'u:' + u.id }, u.name)))), React.createElement("div", { style: { display: 'flex', gap: 8, justifyContent: 'flex-end' } }, React.createElement(Button, {
+        variant: "ghost",
+        size: "sm",
+        onClick: () => setEnviar(null)
+      }, "Cancelar"), React.createElement(Button, {
+        variant: "primary",
+        size: "sm",
+        onClick: () => enviarParaChat(d),
+        icon: React.createElement(I.Send, { size: 13 })
+      }, "Enviar"))),
       publica && React.createElement("div", { style: { marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border)' } },
         React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } },
           React.createElement("button", { onClick: () => setVerLeituras(v => v === d.id ? null : d.id), style: { border: 0, background: 'transparent', color: 'var(--accent-d)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: 0 } },
@@ -24133,6 +24174,7 @@ const BSP_GUIA_FICHAS = [
       ['Leia o regulamento interno, notas internas, comunicados,', 'procedimentos, protocolos e formulários.'],
       ['Confirme a leitura', 'com «Li e tomei conhecimento».'],
       ['Procure', 'pelo título ou pelo número.'],
+      ['Envie para o Chat', 'com «Enviar para o Chat»: a conversa recebe o botão «Abrir o documento».'],
       ['Quem publica vê quem leu', 'e pode pôr uma nova versão.']
     ],
     quem: 'Toda a equipa lê. Publicam Direcção, Coordenação, Direcção Clínica e Administração.',
