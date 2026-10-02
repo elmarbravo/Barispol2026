@@ -1,0 +1,23 @@
+-- Barispol Workspace · quem vê o Painel clínico e a actividade dos médicos (02-10-2026)
+-- Pedidos do Elmar, 02-10-2026: «o painel clínico os médicos não podem ver
+-- tudo» e «o Dr. Osvaldo pode ver a produção de todos, a actividade e escolher
+-- que médicos quer ver». Aplicado no projecto Barispol (gnqleaxrtuerlcrriqqs)
+-- no mesmo dia, por alteração das funções existentes:
+--
+--   bsp_painel_clinico(de, ate)
+--     · vêem tudo: gestão (bsp_e_gestor), quem vê o Painel (bsp_ve_painel) e
+--       a Direcção Clínica (bsp_le_areas_medicas);
+--     · os chefes de área (bsp_escalas_responsaveis) vêem só a sua área;
+--     · os outros recebem o erro «O Painel clínico é só da Direcção, da
+--       Direcção Clínica e dos chefes de área.»;
+--     · a tabela «Por médico» (produção de cada médico) só vai a quem vê tudo.
+--   bsp_minha_actividade(de, ate, membro)
+--     · a Direcção Clínica também escolhe o médico (antes: gestão e Painel);
+--     · membro «mg:<código MetaGest>» lê um médico sem conta no Workspace.
+--   bsp_metagest_medicos()
+--     · lista dos médicos do MetaGest também para a Direcção Clínica e para
+--       quem vê o Painel.
+--
+-- O texto completo das funções está no servidor; este ficheiro regista as
+-- regras. Para as voltar a aplicar, ver o histórico desta conversa em
+-- O-QUE-FALTA.md (3-dm).

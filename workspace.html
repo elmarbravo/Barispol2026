@@ -24684,14 +24684,46 @@ function DocumentosScreen({ currentUser }) {
    (a mesma regra do Painel). Nunca a facturacao da clinica, outros
    medicos, seguradoras nem nomes de doentes. A ligacao e o campo metagest
    (codigos ref_practitioner) da pessoa, posto no Admin. */
+/* Quem escolhe o médico em «A minha actividade» (02-10-2026, Elmar: «o dr
+   Osvaldo pode ver a produção de todos»): a Direcção Clínica, a gestão e quem
+   vê o Painel. No servidor: bsp_minha_actividade com p_membro. */
+function bspEscolheMedicoActividade(u) {
+  if (!u || bspESocio(u)) return false;
+  const c = bspCamada(u);
+  return BSP_DIRECCAO_CLINICA_IDS.indexOf(u.id) !== -1 || !!(c && c.podeGerirUtilizadores) || bspVePainel(u);
+}
 function bspVeActividade(u) {
-  return !!(u && !bspESocio(u) && Array.isArray(u.metagest) && u.metagest.length);
+  return !!(u && !bspESocio(u) && ((Array.isArray(u.metagest) && u.metagest.length) || bspEscolheMedicoActividade(u)));
+}
+/* O Painel clínico só para a gestão, a Direcção Clínica, quem vê o Painel e
+   os chefes de área (Elmar, 02-10-2026). Os médicos vêem «A minha actividade».
+   No servidor, bsp_painel_clinico recusa os outros. */
+function bspChefeDeArea(u) {
+  if (!u) return false;
+  const equipa = window.USERS || [];
+  return /(chefe|supervis|coordenad|director|directora|respons)/i.test(String(u.role || '')) || equipa.some(x => x && x.superior === u.id);
 }
 const bspGrupoActo = t => { const x = String(t || '').trim().toLowerCase(); return x ? x.charAt(0).toUpperCase() + x.slice(1) : 'Outros'; };
 const BSP_MESES_CURTOS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 function ActividadeScreen({ currentUser }) {
   const hoje = bspDataLocalISO(new Date());
   const [periodo, setPeriodo] = React.useState('mes');
+  /* Quem escolhe vê todos os médicos do MetaGest (bsp_metagest_medicos),
+     também os que não têm conta no Workspace: o valor é «mg:<código>». */
+  const escolhe = bspEscolheMedicoActividade(currentUser);
+  const [medicos, setMedicos] = React.useState([]);
+  React.useEffect(() => {
+    if (!escolhe) return;
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    cl.rpc('bsp_metagest_medicos').then(r => { if (vivo && !r.error) setMedicos((r.data || []).map(m => ({ id: 'mg:' + m.id, name: String(m.nome || '').toLowerCase().replace(/(^|\s)(\S)/g, (x, e, l) => e + l.toUpperCase()).replace(/ (Da|De|Do|Dos|Das|E) /g, w => w.toLowerCase()) || m.id, n: m.n })).sort((a, b) => bspCompararTexto(a.name, b.name))); });
+    return () => { vivo = false; };
+  }, [escolhe]);
+  const meuCodigo = currentUser && Array.isArray(currentUser.metagest) && currentUser.metagest.length ? 'mg:' + currentUser.metagest[0] : '';
+  const [membro, setMembro] = React.useState('');
+  const alvo = escolhe ? (membro || meuCodigo || (medicos[0] && medicos[0].id) || '') : currentUser.id;
+  const proprio = !escolhe || alvo === meuCodigo;
   const [d, setD] = React.useState(null);
   const [erro, setErro] = React.useState('');
   const intervalo = React.useMemo(() => {
@@ -24704,15 +24736,15 @@ function ActividadeScreen({ currentUser }) {
   }, [periodo, hoje]);
   React.useEffect(() => {
     const cl = bspGetClient();
-    if (!cl || !currentUser) return;
+    if (!cl || !currentUser || !alvo) return;
     let vivo = true;
     setD(null); setErro('');
-    cl.rpc('bsp_minha_actividade', { p_de: intervalo[0], p_ate: intervalo[1], p_membro: currentUser.id }).then(r => {
+    cl.rpc('bsp_minha_actividade', { p_de: intervalo[0], p_ate: intervalo[1], p_membro: alvo }).then(r => {
       if (!vivo) return;
       if (r.error) setErro(String(r.error.message || r.error)); else setD(r.data || {});
     });
     return () => { vivo = false; };
-  }, [intervalo[0], intervalo[1], currentUser && currentUser.id]);
+  }, [intervalo[0], intervalo[1], alvo]);
   const vazio = x => React.createElement("div", { style: { padding: '40px 20px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13.5 } }, x);
   const tile = (rot, val, sub) => React.createElement(Card, { pad: 16, style: { flex: '1 1 160px' } },
     React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-3)' } }, rot),
@@ -24724,7 +24756,7 @@ function ActividadeScreen({ currentUser }) {
   let corpo;
   if (erro) corpo = vazio('Não foi possível carregar. ' + erro);
   else if (!d) corpo = vazio('A carregar…');
-  else if (!d.ligado) corpo = vazio('A sua conta ainda não está ligada ao seu nome no MetaGest. Peça à Administração.');
+  else if (!d.ligado) corpo = vazio(proprio ? 'A sua conta ainda não está ligada ao seu nome no MetaGest. Peça à Administração.' : 'Este médico ainda não está ligado ao seu nome no MetaGest.');
   else {
     const r = d.resumo || {};
     const meses = (d.meses || []).map(m => ({
@@ -24736,7 +24768,7 @@ function ActividadeScreen({ currentUser }) {
         tile('Doentes', Number(r.doentes || 0).toLocaleString('pt-PT'), intervalo[2]),
         tile('Consultas', Number(r.consultas || 0).toLocaleString('pt-PT'), 'Doente por dia com consulta'),
         tile('Só exames', Number(r.exames || 0).toLocaleString('pt-PT'), 'Doente por dia sem consulta'),
-        tile('Valor facturado dos seus actos', bspPainelKz(r.valor), (r.facturas || 0) + ((r.facturas === 1) ? ' factura' : ' facturas'))),
+        tile(proprio ? 'Valor facturado dos seus actos' : 'Valor facturado dos actos', bspPainelKz(r.valor), (r.facturas || 0) + ((r.facturas === 1) ? ' factura' : ' facturas'))),
       React.createElement(Card, { pad: 16 },
         React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } }, 'Actos por grupo · ' + intervalo[2]),
         !(d.grupos || []).length ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Sem actos neste período.')
@@ -24745,12 +24777,16 @@ function ActividadeScreen({ currentUser }) {
             React.createElement("span", { style: { color: 'var(--text-2)', fontVariantNumeric: 'tabular-nums' } }, Number(g.qtd || 0).toLocaleString('pt-PT') + (Number(g.qtd) === 1 ? ' acto' : ' actos')),
             React.createElement("b", { style: { fontVariantNumeric: 'tabular-nums' } }, bspPainelKz(g.valor))))),
       React.createElement(Card, { pad: 16 },
-        React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } }, 'Valor facturado dos seus actos · últimos 12 meses'),
+        React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } }, (proprio ? 'Valor facturado dos seus actos' : 'Valor facturado dos actos') + ' · últimos 12 meses'),
         meses.length ? React.createElement(PainelColunas, { dados: meses, formatar: v => bspPainelKz(v), cor: '--serie-1', altura: 200 }) : React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Sem dados.')),
       React.createElement("p", { style: { margin: 0, fontSize: 12, color: 'var(--text-3)' } },
-        'Dados do MetaGest' + (d.actualizado ? ', actualizados a ' + bspDataExacta(new Date(d.actualizado)) : '') + '. As facturas anuladas por nota de crédito não contam. Só vê a sua própria actividade.'));
+        'Dados do MetaGest' + (d.actualizado ? ', actualizados a ' + bspDataExacta(new Date(d.actualizado)) : '') + '. As facturas anuladas por nota de crédito não contam.' + (escolhe ? '' : ' Só vê a sua própria actividade.')));
   }
-  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'auto', paddingBottom: 12 } }, chips, corpo);
+  const escolha = escolhe && React.createElement("label", { style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 13, fontWeight: 600, color: 'var(--text-2)' } }, 'Médico',
+    React.createElement("select", { value: alvo, onChange: e => setMembro(e.target.value), style: Object.assign({}, bspTranspCampo, { maxWidth: 360 }) },
+      !medicos.length && React.createElement("option", { value: '' }, 'A carregar os médicos…'),
+      medicos.map(u => React.createElement("option", { key: u.id, value: u.id }, u.name))));
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'auto', paddingBottom: 12 } }, escolha, chips, corpo);
 }
 /* Atalho no Inicio para os medicos (30-09-2026): o mes em curso e o
    botao para o painel completo. */
@@ -24952,7 +24988,7 @@ const BSP_GUIA_FICHAS = [
       ['Veja os actos por grupo', '(consultas, laboratório, enfermagem...).'],
       ['Acompanhe os últimos 12 meses', 'num gráfico.']
     ],
-    quem: 'Cada médico vê só os seus números.',
+    quem: 'Cada médico vê só os seus números. A Direcção Clínica e a Direcção escolhem o médico e vêem a actividade de todos.',
     dica: 'Os valores já descontam as notas de crédito, como no relatório mensal.' },
   { icone: 'Folder', nome: 'Documentos',
     serve: 'Os documentos oficiais da clínica, com leitura confirmada.',
@@ -25019,7 +25055,7 @@ const BSP_GUIA_FICHAS = [
       ['Consulte os actos mais feitos', 'de cada área e, na Clínica, as consultas por médico.'],
       ['Receba o mesmo resumo por e-mail', 'todas as manhãs às 07h15, se chefia a área.']
     ],
-    quem: 'Toda a equipa vê a sua área. A Direcção, a Coordenação e a Direcção Clínica vêem todas.',
+    quem: 'A Direcção, a Coordenação e a Direcção Clínica vêem tudo; os chefes de área vêem só a sua. Os médicos vêem a sua produção em «A minha actividade».',
     dica: 'Nunca mostra valores em Kz nem nomes de utentes.' }
 ];
 const BSP_GUIA_IDS = ['dashboard', 'chat', 'feed', 'drive', 'calendar', 'tasks', 'escalas', 'transporte', 'seguimento', 'marcacoes', 'painel', 'relatorios', 'actividade', 'documentos', 'admin', 'stock', 'directory', 'avarias', 'painel-clinico'];
@@ -26079,7 +26115,9 @@ function PainelCobrancas() {
    recebe as suas areas (bsp_painel_clinico no servidor); Direccao,
    Coordenacao e Direccao Clinica vem todas. Nunca Kz nem nomes de utentes. */
 function bspVePainelClinico(u) {
-  return !!u && !bspESocio(u);
+  if (!u || bspESocio(u)) return false;
+  const c = bspCamada(u);
+  return !!(c && c.podeGerirUtilizadores) || bspVePainel(u) || BSP_DIRECCAO_CLINICA_IDS.indexOf(u.id) !== -1 || bspChefeDeArea(u);
 }
 const BSP_CLINICO_AREAS = { recepcao: 'Recepção', clinica: 'Clínica', laboratorio: 'Laboratório', farmacia: 'Farmácia', enfermagem: 'Enfermagem', radiologia: 'Imagiologia', 'servicos gerais': 'Serviços Gerais' };
 const BSP_CLINICO_NIVEL = { perigo: 'var(--perigo)', aviso: 'var(--accent-d)', info: 'var(--text-2)' };

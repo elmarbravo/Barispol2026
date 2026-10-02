@@ -2176,3 +2176,21 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
     vazia de Setembro da Administração foi apagada.
   - Serviços Gerais de Outubro (id 6): publicada e em vigor sem visto da
     Direcção Clínica, por aprovação do Elmar (`exige_visto = false`).
+
+## 3-dm. Painel clínico e actividade dos médicos (02-10-2026)
+
+- Pedido do Elmar: «o painel clínico os médicos não podem ver tudo».
+  - Antes, toda a equipa (menos sócios) tinha o Painel clínico, e quem era
+    da Clínica (os médicos) recebia a tabela «Por médico» com a produção
+    dos colegas.
+  - Agora (`painel-clinico-acesso.sql`, `bspVePainelClinico`,
+    `bspChefeDeArea`): vêem tudo a gestão, quem vê o Painel e a Direcção
+    Clínica; os chefes de área vêem só a sua área; os outros não têm o
+    menu, e o servidor recusa. A tabela «Por médico» só vai a quem vê tudo.
+- Pedido do Elmar: «o Dr. Osvaldo pode ver a produção de todos, a
+  actividade e escolher que médicos quer ver».
+  - «A minha actividade»: a Direcção Clínica, a gestão e quem vê o Painel
+    (`bspEscolheMedicoActividade`) têm uma lista com os médicos do MetaGest
+    (`bsp_metagest_medicos`, 52 com facturas desde 2025), também os que não
+    têm conta no Workspace (valor `mg:<código>`).
+  - A actividade mostra o valor facturado (Kz) de cada médico.
