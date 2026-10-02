@@ -2034,3 +2034,29 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   o Workspace aberto noutro separador.
 - [ ] Confirmar com o Elmar, com duas pessoas ligadas, que o ponto verde
   bate certo.
+
+## 3-dg. Alterar documentos e recibos de leitura com nomes (02-10-2026)
+
+- Pedido do Elmar: «permita alterar os nomes das notas internas e datas» e
+  «a nota preciso alterar descrição e título».
+  - `DocPublicarModal` com `editar`: botão «Alterar» em cada documento,
+    para quem publica. Muda o tipo, o título, o número, a data «em vigor
+    desde» e a descrição, e troca o ficheiro só se se escolher outro. Não
+    volta a avisar nem a pedir leitura (para isso há «Nova versão»). A
+    regra `documentos_mudar` do servidor já o permitia.
+  - A publicação no Feed e no #avisos de um comunicado fica com o título
+    antigo.
+- Pedido do Elmar: «active o recibo de leitura de todos para ver quem
+  ignora».
+  - Toda a gente já registava a leitura, e não há forma de a desligar.
+  - `RecibosMensagem`: em cada mensagem própria, «Visto por X de Y · Z por
+    ver». Ao carregar, abre a lista de quem viu e de quem não viu, com a
+    última leitura de cada pessoa (`state.leiturasEm`). Nas directas:
+    «Visto» ou «Enviado, por ver». A Direcção e a Coordenação
+    (`bspVeRecibosDeTodos`) vêem-no em todas as mensagens dos canais.
+  - Quem deve ler: `bspDestinatariosConversa` (quem vê o canal, sem
+    sócios nem ocultos).
+  - Só conta como lido com o Workspace à vista. Antes, uma conversa
+    aberta num separador de fundo marcava como lido o que ninguém viu.
+  - Ao abrir uma conversa, o ecrã pede todos os recibos dela (um por
+    pessoa), além das 300 mensagens mais recentes.

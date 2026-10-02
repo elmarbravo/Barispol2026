@@ -143,6 +143,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
 - Quem está online (02-10-2026): sempre `bspEstadoDe(user)` /
   `bspEstaOnline(id)` (tempo real ou sinal na `presenca` há menos de 3
   min), nunca `user.status` sozinho, que é o que ficou gravado na ficha.
+- Recibos de leitura (02-10-2026): `RecibosMensagem` em cada mensagem
+  própria (gestão: em todas as dos canais, `bspVeRecibosDeTodos`); quem
+  deve ler vem de `bspDestinatariosConversa`. Só se marca como lido com o
+  Workspace à vista (`marcarLido` nunca com `document.hidden`).
 - Abrir uma conversa directa de qualquer ecrã: `bspConversaCom(id)`.
 - Grupos do Chat (30-09-2026): editam-se com `NovoGrupoModal` (`inicial`) e
   `actions.editarCanal`; o servidor segue o id e os membros, não o nome. Um
@@ -415,6 +419,8 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `documento-aviso` já não se chama (`emails-pausa.sql`).
   Um comunicado pode ser só texto (`caminho` vazio): sem «Abrir», e a
   leitura confirma-se no cartão.
+  «Alterar» (`DocPublicarModal` com `editar`) muda título, número, data e
+  descrição sem pedir nova leitura.
 - «A minha actividade» (30-09-2026, `minha-actividade.sql`): médicos vêem
   só a sua produção (`bsp_minha_actividade`, sem notas de crédito, igual ao
   Painel). Ligação pelo campo `metagest` (códigos `ref_practitioner`) na

@@ -5240,9 +5240,15 @@ function StoreProvider({
           };
           if (!conv[m.user_id] || conv[m.user_id] < sidL) conv[m.user_id] = sidL;
           lv[m.conv_key] = conv;
+          /* Quando leu (recibos com nomes, 02-10-2026). */
+          const le = {
+            ...(s.leiturasEm || {})
+          };
+          if (m.created_at) le[m.conv_key] = { ...(le[m.conv_key] || {}), [m.user_id]: m.created_at };
           const novo = {
             ...s,
-            leituras: lv
+            leituras: lv,
+            leiturasEm: le
           };
           /* Li noutro aparelho: a notificacao sai tambem neste. */
           return m.user_id === window.CURRENT_USER_ID ? bspSemNotifsLidas(novo) : novo;
@@ -7979,6 +7985,58 @@ function NovoGrupoModal({
     }
   }, "O grupo fica disponível para toda a equipa assim que o servidor sincronizar. A Direcção vê todos os grupos.")));
 }
+/* Recibos de leitura com nomes (02-10-2026, Elmar: «active o recibo de
+   leitura de todos para ver quem ignora»). Todos registam a leitura (não há
+   forma de a desligar); quem escreveu vê, em cada mensagem, quem viu e quem
+   ainda não viu. A Direcção e a Coordenação vêem-no em todas as mensagens
+   dos canais. Uma pessoa viu a mensagem se a última leitura dela na
+   conversa chega a essa mensagem. */
+function bspVeRecibosDeTodos(u) {
+  const c = u && bspCamada(u);
+  return !!(c && c.podeGerirUtilizadores && !bspESocio(u));
+}
+function bspDestinatariosConversa(convKey, autorId, equipa) {
+  const lista = (equipa || []).filter(u => u && u.id && u.id !== 'self' && u.id !== autorId && !bspESocio(u) && !bspOculto(u));
+  if (String(convKey).indexOf('dm-') === 0) {
+    const par = String(convKey).slice(3).split('_');
+    return lista.filter(u => par.indexOf(u.id) !== -1);
+  }
+  const canal = (window.CHANNELS || []).find(c => c.id === convKey);
+  return canal ? lista.filter(u => bspVeCanal(u, canal)) : [];
+}
+function RecibosMensagem({ m, convKey, isDM, autorId }) {
+  const { state } = useStore();
+  const [aberto, setAberto] = React.useState(false);
+  const lv = (state.leituras || {})[convKey] || {};
+  const quando = (state.leiturasEm || {})[convKey] || {};
+  const equipa = (state.team && state.team.length) ? state.team : USERS;
+  const destinos = bspDestinatariosConversa(convKey, autorId, equipa);
+  if (!destinos.length) return null;
+  const viram = destinos.filter(u => (lv[u.id] || 0) >= m.sid);
+  const porVer = destinos.filter(u => (lv[u.id] || 0) < m.sid);
+  const cor = porVer.length ? 'var(--text-3)' : 'var(--accent-d)';
+  const rotulo = isDM ? (viram.length ? '\u2713\u2713 Visto' : '\u2713 Enviado, por ver')
+    : '\u2713\u2713 Visto por ' + viram.length + ' de ' + destinos.length;
+  const linha = (u, visto) => React.createElement("div", { key: u.id, style: { display: 'flex', justifyContent: 'space-between', gap: 10, padding: '3px 0' } },
+    React.createElement("span", { style: { color: visto ? 'var(--text-1)' : 'var(--perigo)' } }, u.name),
+    React.createElement("span", { style: { color: 'var(--text-3)', whiteSpace: 'nowrap' } },
+      visto ? (quando[u.id] ? 'última leitura ' + bspDataExacta(new Date(quando[u.id])) : 'viu')
+        : (quando[u.id] ? 'última leitura ' + bspDataExacta(new Date(quando[u.id])) : 'nunca abriu a conversa')));
+  return React.createElement("div", { style: { marginTop: 4, fontSize: 10.5 } },
+    React.createElement("button", {
+      type: 'button',
+      onClick: e => { e.stopPropagation(); setAberto(a => !a); },
+      title: 'Ver quem viu',
+      style: { border: 0, background: 'transparent', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 10.5, color: cor }
+    }, rotulo + (porVer.length && !isDM ? ' · ' + porVer.length + ' por ver' : '') + (aberto ? ' \u25B4' : ' \u25BE')),
+    aberto && React.createElement("div", {
+      style: { marginTop: 6, padding: '8px 10px', border: '1px solid var(--border)', background: 'var(--surface)', fontSize: 12, maxWidth: 360 }
+    },
+      porVer.length > 0 && React.createElement("div", { style: { fontWeight: 700, color: 'var(--perigo)', marginBottom: 2 } }, 'Por ver (' + porVer.length + ')'),
+      porVer.map(u => linha(u, false)),
+      viram.length > 0 && React.createElement("div", { style: { fontWeight: 700, color: 'var(--sucesso)', margin: (porVer.length ? '8px' : '0') + ' 0 2px' } }, 'Viram (' + viram.length + ')'),
+      viram.map(u => linha(u, true))));
+}
 function ChatScreen({
   currentUser,
   alvo
@@ -8078,6 +8136,11 @@ function ChatScreen({
     cl.from('messages').select('*').eq('conv_key', convKey).order('created_at', { ascending: false }).limit(300).then(r => {
       if (vivo && !r.error && window.__bspIngerirAntigas) window.__bspIngerirAntigas(r.data || []);
     });
+    /* Os recibos de leitura de todos (um por pessoa): sem eles, quem leu há
+       mais de 300 mensagens aparecia como «nunca abriu a conversa». */
+    cl.from('messages').select('*').eq('conv_key', convKey).like('text', '\u200bl\u200b%').limit(500).then(r => {
+      if (vivo && !r.error && window.__bspIngerirAntigas) window.__bspIngerirAntigas(r.data || []);
+    });
     return () => { vivo = false; };
   }, [convKey]);
   /* Responder em privado: a mensagem citada chega ao campo de escrita da
@@ -8089,17 +8152,27 @@ function ChatScreen({
     setDraft(r.texto);
     setTimeout(() => { try { taRef.current && taRef.current.focus(); } catch (e) {} }, 60);
   }, [convKey]);
-  /* Recibo de leitura: ao ter a conversa aberta, regista até onde leu. */
+  /* Recibo de leitura: ao ter a conversa aberta, regista até onde leu.
+     Só com o Workspace à vista (02-10-2026): uma conversa aberta num
+     separador de fundo marcava como lido o que ninguém viu, e os recibos
+     servem para saber quem ignora. */
   const ultimoLidoRef = React.useRef({});
+  const [vistaTick, setVistaTick] = React.useState(0);
   React.useEffect(() => {
+    const f = () => { if (!document.hidden) setVistaTick(n => n + 1); };
+    document.addEventListener('visibilitychange', f);
+    window.addEventListener('focus', f);
+    return () => { document.removeEventListener('visibilitychange', f); window.removeEventListener('focus', f); };
+  }, []);
+  React.useEffect(() => {
+    if (document.hidden || bspEmVerComo()) return;
     const comSid = messages.filter(x => x.sid);
     const topo = comSid.length ? comSid[comSid.length - 1].sid : 0;
     if (!topo) return;
     if ((ultimoLidoRef.current[convKey] || 0) >= topo) return;
     ultimoLidoRef.current[convKey] = topo;
     actions.marcarLido(convKey, topo);
-  }, [convKey, messages.length]);
-  const ultimaMinha = [...messages].reverse().find(x => x.userId === currentUser.id && x.sid);
+  }, [convKey, messages.length, vistaTick]);
   /* Pesquisa local nas conversas que a pessoa pode ver. */
   const normTxt = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   let resultados = [];
@@ -9252,18 +9325,12 @@ function ChatScreen({
         gap: 4,
         cursor: 'pointer'
       }
-    }, r.e, " ", React.createElement("span", null, r.n)))), isOwn && m.sid && ultimaMinha && m.id === ultimaMinha.id && (() => {
-      const lv = (state.leituras || {})[convKey] || {};
-      const leitores = Object.keys(lv).filter(uid => uid !== currentUser.id && lv[uid] >= m.sid);
-      if (!leitores.length) return null;
-      return React.createElement("div", {
-        style: {
-          marginTop: 4,
-          fontSize: 10.5,
-          color: 'var(--text-3)'
-        }
-      }, isDM ? '\u2713\u2713 Visto' : '\u2713\u2713 Visto por ' + leitores.length);
-    })(), m.pinned && React.createElement("div", {
+    }, r.e, " ", React.createElement("span", null, r.n)))), m.sid && (isOwn || (!isDM && bspVeRecibosDeTodos(currentUser))) && React.createElement(RecibosMensagem, {
+      m: m,
+      convKey: convKey,
+      isDM: isDM,
+      autorId: m.userId
+    }), m.pinned && React.createElement("div", {
       style: {
         marginTop: 6,
         fontSize: 11,
@@ -24034,9 +24101,15 @@ function DocsPorLerCartao({ currentUser, onAbrir }) {
         React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 2 } }, l.slice(0, 3).map(d => d.titulo).join(' · ') + (l.length > 3 ? ' …' : ''))),
       React.createElement(Button, { variant: 'primary', size: 'sm', onClick: onAbrir }, 'Ler e confirmar')));
 }
-function DocPublicarModal({ open, substituir, onClose }) {
+/* «editar» (02-10-2026, Elmar: «permita alterar os nomes das notas
+   internas e datas»): muda o tipo, o título, o número, a data e o texto de um
+   documento já publicado, e troca o ficheiro só se se escolher outro. Não
+   volta a pedir a leitura à equipa (para isso há «Nova versão»). */
+function DocPublicarModal({ open, substituir, editar, onClose }) {
   const toast = useToast();
-  const vazio = () => ({ categoria: substituir ? substituir.categoria : 'comunicado', titulo: substituir ? substituir.titulo : '', numero: '', descricao: '', vigor: bspDataLocalISO(new Date()) });
+  const vazio = () => editar
+    ? { categoria: editar.categoria, titulo: editar.titulo || '', numero: editar.numero || '', descricao: editar.descricao || '', vigor: editar.em_vigor_desde || bspDataLocalISO(new Date()) }
+    : ({ categoria: substituir ? substituir.categoria : 'comunicado', titulo: substituir ? substituir.titulo : '', numero: '', descricao: '', vigor: bspDataLocalISO(new Date()) });
   const [f, setF] = React.useState(vazio);
   const [ficheiro, setFicheiro] = React.useState(null);
   const [aGravar, setAGravar] = React.useState(false);
@@ -24046,14 +24119,31 @@ function DocPublicarModal({ open, substituir, onClose }) {
   /* Um comunicado pode ser só texto (Elmar, 02-10-2026): sem ficheiro, o
      texto é obrigatório e é o que a equipa lê e confirma. */
   const soTexto = f.categoria === 'comunicado';
+  const temFicheiro = !!ficheiro || !!(editar && editar.caminho);
   const erro = !f.titulo.trim() ? 'Escreva o título.'
-    : !ficheiro && !soTexto ? 'Escolha o ficheiro (PDF, de preferência).'
-    : !ficheiro && !f.descricao.trim() ? 'Escreva o texto do comunicado ou escolha um ficheiro.' : '';
+    : !temFicheiro && !soTexto ? 'Escolha o ficheiro (PDF, de preferência).'
+    : !temFicheiro && !f.descricao.trim() ? 'Escreva o texto do comunicado ou escolha um ficheiro.' : '';
   const campo = (k, rot, ph, tipo) => React.createElement("label", null, bspTranspRot(rot),
     React.createElement("input", { type: tipo || 'text', value: f[k], onChange: e => setF(x => Object.assign({}, x, { [k]: e.target.value })), placeholder: ph, style: bspTranspCampo }));
   const publicar = async () => {
     if (erro || aGravar) return;
     setAGravar(true);
+    if (editar) {
+      try {
+        const mud = { categoria: f.categoria, titulo: f.titulo.trim(), numero: f.numero.trim(), descricao: f.descricao.trim(), em_vigor_desde: f.vigor || editar.em_vigor_desde };
+        if (ficheiro) Object.assign(mud, { caminho: await bspUploadToStorage(ficheiro, 'documentos/' + f.categoria), nome_ficheiro: ficheiro.name, tamanho: ficheiro.size });
+        const r = await bspGetClient().from('documentos').update(mud).eq('id', editar.id).select('id');
+        if (r.error) throw r.error;
+        if (!r.data || !r.data.length) throw new Error('o servidor não deixou alterar este documento.');
+        toast('Alterações gravadas.');
+        bspDocsCarregar();
+        onClose();
+      } catch (e) {
+        toast('Não foi possível gravar: ' + (e && e.message || e));
+        setAGravar(false);
+      }
+      return;
+    }
     try {
       const caminho = ficheiro ? await bspUploadToStorage(ficheiro, 'documentos/' + f.categoria) : '';
       const r = await bspGetClient().from('documentos').insert({
@@ -24071,10 +24161,10 @@ function DocPublicarModal({ open, substituir, onClose }) {
     }
   };
   return React.createElement(Modal, {
-    open, onClose, width: 560, title: substituir ? 'Nova versão: ' + substituir.titulo : 'Publicar documento',
+    open, onClose, width: 560, title: editar ? 'Alterar: ' + editar.titulo : substituir ? 'Nova versão: ' + substituir.titulo : 'Publicar documento',
     footer: React.createElement(React.Fragment, null,
       React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: onClose }, 'Cancelar'),
-      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: publicar }, aGravar ? 'A publicar…' : 'Publicar e avisar a equipa'))
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: publicar }, aGravar ? (editar ? 'A gravar…' : 'A publicar…') : editar ? 'Gravar alterações' : 'Publicar e avisar a equipa'))
   }, React.createElement("div", { style: { padding: 20, display: 'flex', flexDirection: 'column', gap: 14 } },
     React.createElement("div", null, bspTranspRot('Tipo'),
       React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
@@ -24086,9 +24176,11 @@ function DocPublicarModal({ open, substituir, onClose }) {
       React.createElement("textarea", { value: f.descricao, onChange: e => setF(x => Object.assign({}, x, { descricao: e.target.value })), rows: soTexto ? 6 : 3, style: Object.assign({}, bspTranspCampo, { height: 'auto', padding: '10px 12px' }) })),
     React.createElement("div", null, bspTranspRot(soTexto ? 'Ficheiro (opcional)' : 'Ficheiro'),
       React.createElement("input", { ref, type: 'file', accept: '.pdf,image/*,.doc,.docx,.xls,.xlsx', style: { display: 'none' }, onChange: e => { const x = e.target.files && e.target.files[0]; e.target.value = ''; if (x) setFicheiro(x); } }),
-      React.createElement("button", { type: 'button', onClick: () => ref.current && ref.current.click(), style: bspEscBotao(false) }, React.createElement(I.Upload, { size: 15 }), ficheiro ? 'Trocar ficheiro' : 'Escolher ficheiro'),
-      ficheiro && React.createElement("span", { style: { marginLeft: 10, fontSize: 12.5, color: 'var(--sucesso)' } }, '✓ ' + ficheiro.name)),
+      React.createElement("button", { type: 'button', onClick: () => ref.current && ref.current.click(), style: bspEscBotao(false) }, React.createElement(I.Upload, { size: 15 }), (ficheiro || (editar && editar.caminho)) ? 'Trocar ficheiro' : 'Escolher ficheiro'),
+      ficheiro ? React.createElement("span", { style: { marginLeft: 10, fontSize: 12.5, color: 'var(--sucesso)' } }, '✓ ' + ficheiro.name)
+        : editar && editar.caminho ? React.createElement("span", { style: { marginLeft: 10, fontSize: 12.5, color: 'var(--text-3)' } }, 'Fica o actual: ' + (editar.nome_ficheiro || 'ficheiro')) : null),
     substituir && React.createElement("p", { style: { margin: 0, fontSize: 12.5, color: 'var(--text-3)' } }, 'A versão anterior passa para o arquivo. A leitura volta a ser pedida a toda a equipa.'),
+    editar ? React.createElement("p", { style: { margin: 0, fontSize: 12.5, color: 'var(--text-3)' } }, 'As alterações não voltam a avisar a equipa nem a pedir a leitura. Para isso, use «Nova versão».') :
     React.createElement("p", { style: { margin: 0, fontSize: 12.5, color: 'var(--text-3)' } }, 'Ao publicar, a equipa recebe logo um aviso no sino e no telemóvel, e o documento segue no e-mail das novidades da manhã. Cada pessoa tem de confirmar a leitura.'),
     erro && (f.titulo || ficheiro || f.descricao) && React.createElement("div", { role: 'alert', style: { fontSize: 13, color: 'var(--perigo)' } }, erro)));
 }
@@ -24104,6 +24196,7 @@ function DocumentosScreen({ currentUser }) {
   const [abertos, setAbertos] = React.useState({});
   const [verLeituras, setVerLeituras] = React.useState(null);
   const [publicar, setPublicar] = React.useState(undefined);
+  const [editar, setEditar] = React.useState(null);
   /* Enviar para o Chat (02-10-2026, pedido do Elmar): a mensagem termina com
      «[documento:<id>]», que o Chat troca pelo botao «Abrir o documento». */
   const [enviar, setEnviar] = React.useState(null);
@@ -24216,6 +24309,7 @@ function DocumentosScreen({ currentUser }) {
           React.createElement("button", { onClick: () => setVerLeituras(v => v === d.id ? null : d.id), style: { border: 0, background: 'transparent', color: 'var(--accent-d)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, padding: 0 } },
             'Leituras: ' + leram.length + ' de ' + (leram.length + faltam.length) + (verLeituras === d.id ? ' ▲' : ' ▼')),
           React.createElement("span", { style: { flex: 1 } }),
+          !bspEmVerComo() && React.createElement("button", { onClick: () => setEditar(d), style: Object.assign(bspEscBotao(false), { height: 34, fontSize: 12.5 }) }, 'Alterar'),
           !d.arquivado && React.createElement("button", { onClick: () => setPublicar(d), style: Object.assign(bspEscBotao(false), { height: 34, fontSize: 12.5 }) }, 'Nova versão'),
           !d.arquivado && React.createElement("button", { onClick: () => arquivar(d), style: Object.assign(bspEscBotao(false), { height: 34, fontSize: 12.5 }) }, 'Arquivar')),
         verLeituras === d.id && React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12, marginTop: 10, fontSize: 13 } },
@@ -24226,6 +24320,7 @@ function DocumentosScreen({ currentUser }) {
   };
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'auto', paddingBottom: 12 } },
     React.createElement(DocPublicarModal, { open: publicar !== undefined, substituir: publicar || null, onClose: () => setPublicar(undefined) }),
+    React.createElement(DocPublicarModal, { open: !!editar, editar: editar, onClose: () => setEditar(null) }),
     React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' } },
       React.createElement("input", { value: busca, onChange: e => setBusca(e.target.value), placeholder: 'Procurar pelo título ou número', style: Object.assign({}, bspTranspCampo, { height: 40, fontSize: 14, flex: '1 1 220px', width: 'auto' }) }),
       publica && React.createElement(Button, { variant: 'primary', size: 'sm', icon: React.createElement(I.Plus, { size: 13 }), onClick: () => setPublicar(null) }, 'Publicar documento')),
@@ -24389,6 +24484,7 @@ const BSP_GUIA_FICHAS = [
       ['Escreva nos canais', 'da sua área, em #geral e em #avisos.'],
       ['Carregue numa pessoa', 'para lhe mandar uma mensagem directa, ou use «Responder em privado».'],
       ['Envie fotografias, PDF e notas de voz;', 'as fotografias são reduzidas e abrem depressa.'],
+      ['Veja quem leu:', 'carregue em «Visto por» debaixo da sua mensagem para ver quem viu e quem ainda não viu.'],
       ['Faça chamadas de voz e de vídeo', 'e chame alguém com @Nome.'],
       ['Corrija uma mensagem sua', 'depois de enviada.']
     ],
@@ -24519,7 +24615,8 @@ const BSP_GUIA_FICHAS = [
       ['Procure', 'pelo título ou pelo número.'],
       ['Envie para o Chat', 'com «Enviar para o Chat»: a conversa recebe o botão «Abrir o documento».'],
       ['Quem publica vê quem leu', 'e pode pôr uma nova versão.'],
-      ['Um comunicado pode ser só texto:', 'escreva-o em «Texto do comunicado» e não precisa de ficheiro.']
+      ['Um comunicado pode ser só texto:', 'escreva-o em «Texto do comunicado» e não precisa de ficheiro.'],
+      ['Corrija um documento', 'com «Alterar»: título, número, data, descrição e tipo, sem pedir nova leitura.']
     ],
     quem: 'Toda a equipa lê. Publicam Direcção, Coordenação, Direcção Clínica e Administração.',
     dica: 'Um documento novo chega no mesmo instante, no sino e no telemóvel, e segue no e-mail das novidades da manhã.' },
