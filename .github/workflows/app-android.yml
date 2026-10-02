@@ -61,6 +61,23 @@ jobs:
         working-directory: app
         run: npm ci
 
+      # Notificacoes na app (ideia C, 02-10-2026): com o segredo
+      # GOOGLE_SERVICES_JSON (o google-services.json do projecto Firebase da
+      # clinica), a app leva o plugin de notificacoes. Sem ele, sai como
+      # antes: o plugin sem o Firebase fechava a app ao registar.
+      - name: Firebase (notificações)
+        working-directory: app
+        env:
+          GSJ: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GSJ" ]; then
+            printf '%s' "$GSJ" > android/app/google-services.json
+            npm install --no-save @capacitor/push-notifications@8.1.2
+            echo "::notice title=Notificações::A app leva o Firebase e recebe avisos com o Workspace fechado."
+          else
+            echo "::notice title=Sem notificações na app::Falta o segredo GOOGLE_SERVICES_JSON (ficheiro do projecto Firebase)."
+          fi
+
       - name: Sincronizar o site para dentro da app
         working-directory: app
         run: node sincronizar.js && npx cap sync android

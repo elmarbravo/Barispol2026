@@ -2,7 +2,7 @@
 //
 // Pedido do Elmar, 02-10-2026: «as 3 ideias implementa» (A: pedir a
 // permissão logo à entrada; B: notificações reais com o Workspace fechado,
-// no computador e no iPhone; C: na app Android). Esta função é a B.
+// no computador e no iPhone; C: na app Android). Esta função faz a B e a C.
 //
 // Envia um aviso a cada aparelho registado em push_subscricoes, pela norma
 // Web Push (RFC 8030), com o conteúdo cifrado (RFC 8291, aes128gcm) e a
@@ -18,6 +18,12 @@
 // Corpo: {"para": ["u1", ...] ou "todos", "exceto": "u5", "titulo": "...",
 //         "corpo": "...", "url": "#/chat/dm-u1_u5", "tag": "conv-..."}
 // Aparelhos que o serviço diz que já não existem (404/410) saem da lista.
+//
+// APP ANDROID (ideia C): os aparelhos da app registam-se com
+// endpoint «fcm:<token>» e recebem pelo Firebase Cloud Messaging (API v1).
+// Precisa do segredo FCM_SERVICE_ACCOUNT nas Edge Functions (o JSON da conta
+// de serviço do projecto Firebase da clínica, colado pelo Elmar). Sem ele,
+// esses aparelhos ficam de fora e a resposta diz «sem FCM_SERVICE_ACCOUNT».
 //
 // SEGURANÇA: só o código do agendamento (x-bsp-agendamento, conferido pela
 // base de dados) ou a chave do servidor. Os gatilhos da base de dados
@@ -96,6 +102,42 @@ export async function vapid(endpoint: string, privadaJwk: { x: string; y: string
   return "vapid t=" + cab + "." + dados + "." + b64u(ass) + ", k=" + publica;
 }
 
+/* ---- Firebase (FCM v1) para a app Android ---- */
+let fcmCache: { token: string; ate: number } | null = null;
+async function fcmAcesso(conta: any): Promise<string> {
+  if (fcmCache && fcmCache.ate > Date.now() + 60000) return fcmCache.token;
+  const pem = String(conta.private_key || "").replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
+  const der = Uint8Array.from(atob(pem), (c) => c.charCodeAt(0));
+  const k = await crypto.subtle.importKey("pkcs8", der as BufferSource, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
+  const agora = Math.floor(Date.now() / 1000);
+  const cab = b64u(txt(JSON.stringify({ alg: "RS256", typ: "JWT" })));
+  const dados = b64u(txt(JSON.stringify({ iss: conta.client_email, scope: "https://www.googleapis.com/auth/firebase.messaging",
+    aud: "https://oauth2.googleapis.com/token", iat: agora, exp: agora + 3600 })));
+  const ass = new Uint8Array(await crypto.subtle.sign("RSASSA-PKCS1-v1_5", k, txt(cab + "." + dados) as BufferSource));
+  const r = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: "grant_type=" + encodeURIComponent("urn:ietf:params:oauth:grant-type:jwt-bearer") + "&assertion=" + cab + "." + dados + "." + b64u(ass),
+  });
+  const d = await r.json();
+  if (!r.ok || !d.access_token) throw new Error("oauth " + r.status + ": " + JSON.stringify(d).slice(0, 200));
+  fcmCache = { token: d.access_token, ate: Date.now() + Number(d.expires_in || 3600) * 1000 };
+  return fcmCache.token;
+}
+async function fcmEnviar(conta: any, token: string, m: { titulo: string; corpo: string; url: string; tag: string }) {
+  const acesso = await fcmAcesso(conta);
+  return await fetch("https://fcm.googleapis.com/v1/projects/" + conta.project_id + "/messages:send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + acesso },
+    body: JSON.stringify({ message: {
+      token,
+      notification: { title: m.titulo, body: m.corpo },
+      data: { url: m.url, tag: m.tag },
+      android: { priority: "high", notification: { tag: m.tag || undefined } },
+    } }),
+  });
+}
+
 Deno.serve(async (req: Request) => {
   const URL_SB = Deno.env.get("SUPABASE_URL") || "";
   const SERVICO = chavesServidor()[0] || "";
@@ -136,14 +178,29 @@ Deno.serve(async (req: Request) => {
   const exceto = String(corpo.exceto || "");
   const lista = ((subs || []) as any[]).filter((s) => s.user_id !== exceto);
 
-  const conteudo = txt(JSON.stringify({
+  const msg = {
     titulo: String(corpo.titulo || "Barispol Workspace").slice(0, 120),
     corpo: String(corpo.corpo || "").slice(0, 300),
     url: String(corpo.url || ""),
     tag: String(corpo.tag || ""),
-  }));
+  };
+  const conteudo = txt(JSON.stringify(msg));
+  let contaFcm: any = null;
+  try { contaFcm = Deno.env.get("FCM_SERVICE_ACCOUNT") ? JSON.parse(Deno.env.get("FCM_SERVICE_ACCOUNT")!) : null; } catch { contaFcm = null; }
   const res = await Promise.all(lista.map(async (s) => {
     try {
+      if (String(s.endpoint).startsWith("fcm:")) {
+        if (!contaFcm) return { user: s.user_id, erro: "sem FCM_SERVICE_ACCOUNT" };
+        const r = await fcmEnviar(contaFcm, String(s.endpoint).slice(4), msg);
+        const t = r.ok ? "" : await r.text();
+        if (r.status === 404 || /UNREGISTERED|INVALID_ARGUMENT/.test(t)) {
+          await admin.from("push_subscricoes").delete().eq("endpoint", s.endpoint);
+          return { user: s.user_id, estado: r.status, removido: true };
+        }
+        if (r.ok) await admin.from("push_subscricoes").update({ ultimo_ok: new Date().toISOString(), falhas: 0 }).eq("endpoint", s.endpoint);
+        else await admin.rpc("bsp_push_falhou", { p_endpoint: s.endpoint });
+        return { user: s.user_id, estado: r.status, via: "fcm", erro: r.ok ? undefined : t.slice(0, 200) };
+      }
       const r = await fetch(s.endpoint, {
         method: "POST",
         headers: {

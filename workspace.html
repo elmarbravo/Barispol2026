@@ -3734,7 +3734,7 @@ function bspAparelhoId() {
   } catch (e) { return ''; }
 }
 function bspPermissaoNotif() {
-  if (bspEmApp()) return 'app';
+  if (bspEmApp()) return window.__bspPermApp ? 'app-' + window.__bspPermApp : 'app';
   return 'Notification' in window ? Notification.permission : 'unsupported';
 }
 function bspDeB64u(s) {
@@ -3742,8 +3742,42 @@ function bspDeB64u(s) {
   const bin = atob(t + '='.repeat((4 - t.length % 4) % 4));
   return Uint8Array.from(bin, c => c.charCodeAt(0));
 }
+/* App Android (ideia C): so quando o APK leva o Firebase (plugin
+   PushNotifications, ver app-android.yml). Sem ele, register() fechava a
+   app; por isso pergunta-se primeiro se o plugin existe. */
+async function bspPushApp() {
+  try {
+    const C = window.Capacitor;
+    if (!bspEmApp() || !C.isPluginAvailable || !C.isPluginAvailable('PushNotifications') || bspEmVerComo()) return false;
+    const P = C.Plugins.PushNotifications;
+    let st = await P.checkPermissions();
+    if (st.receive === 'prompt' || st.receive === 'prompt-with-rationale') st = await P.requestPermissions();
+    window.__bspPermApp = st.receive;
+    if (st.receive !== 'granted') return false;
+    if (!window.__bspPushAppOuvintes) {
+      window.__bspPushAppOuvintes = true;
+      P.addListener('registration', t => {
+        const cl = bspGetClient();
+        if (!cl || !t || !t.value) return;
+        cl.rpc('bsp_push_registar', { p_endpoint: 'fcm:' + t.value, p_p256dh: 'fcm', p_auth: 'fcm', p_plataforma: bspPlataforma() }).then(r => {
+          window.__bspPushActivo = !r.error && r.data === true;
+          bspNotifRegistarEstado();
+        }, () => {});
+      });
+      P.addListener('pushNotificationActionPerformed', a => {
+        const d = a && a.notification && a.notification.data;
+        if (d && d.url) setTimeout(() => bspIrPara(d.url), 300);
+      });
+    }
+    await P.register();
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
 async function bspPushActivar() {
   try {
+    if (bspEmApp()) return await bspPushApp();
     if (!bspPushSuportado() || Notification.permission !== 'granted' || bspEmVerComo()) return false;
     const cl = bspGetClient();
     if (!cl) return false;

@@ -79,7 +79,8 @@ returns boolean language plpgsql security definer set search_path to 'public'
 as $$
 declare eu text := public.bsp_meu_id();
 begin
-  if eu is null or coalesce(p_endpoint, '') !~ '^https://' then return false; end if;
+  -- https://… = navegador (Web Push); fcm:<token> = app Android (Firebase).
+  if eu is null or coalesce(p_endpoint, '') !~ '^(https://|fcm:)' then return false; end if;
   insert into public.push_subscricoes (endpoint, user_id, p256dh, auth, plataforma)
   values (p_endpoint, eu, p_p256dh, p_auth, left(p_plataforma, 80))
   on conflict (endpoint) do update set user_id = excluded.user_id, p256dh = excluded.p256dh,

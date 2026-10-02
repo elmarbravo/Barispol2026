@@ -1897,3 +1897,31 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
     produzem os pedidos certos (testes desfeitos no fim). Falta: um aviso
     real entregue a um telemóvel (o contentor não chega à Google).
 - **C. App Android:** ver 3-da.
+
+## 3-da. Notificações na app Android (ideia C, 02-10-2026)
+
+- Pronto do nosso lado, à espera do Firebase:
+  - `app-android.yml`: com o segredo `GOOGLE_SERVICES_JSON` no GitHub, o
+    APK leva o `google-services.json` e o plugin
+    `@capacitor/push-notifications@8.1.2`. Sem o segredo, sai como antes
+    (o plugin sem Firebase fechava a app ao registar).
+  - O Workspace, na app, só pede a permissão e regista o aparelho quando o
+    APK tem o plugin (`bspPushApp`). Registo «fcm:<token>» em
+    `push_subscricoes`. Tocar no aviso abre o sítio certo.
+  - `push-enviar` versão 2 envia pelo Firebase (API v1) com o segredo
+    `FCM_SERVICE_ACCOUNT` nas Edge Functions.
+  - `google-services.json` está no `.gitignore` da app.
+- [ ] **Passos do Elmar** (uma vez, com a conta Google da Barispol):
+  1. console.firebase.google.com → «Criar projecto» (por exemplo
+     «Barispol Workspace»).
+  2. «Adicionar app» → Android → nome do pacote `com.barispol.workspace` →
+     descarregar o `google-services.json`.
+  3. GitHub → repositório → Settings → Secrets and variables → Actions →
+     «New repository secret»: nome `GOOGLE_SERVICES_JSON`, valor = o texto
+     todo do ficheiro.
+  4. Firebase → Definições do projecto → «Contas de serviço» → «Gerar nova
+     chave privada» (ficheiro JSON). No Supabase → Edge Functions →
+     Secrets: nome `FCM_SERVICE_ACCOUNT`, valor = o texto todo do ficheiro.
+     Este ficheiro tem uma chave privada: nunca no repositório nem no chat.
+  5. Actions → «App Android» → «Run workflow» e instalar o APK novo uma vez
+     em cada telemóvel.
