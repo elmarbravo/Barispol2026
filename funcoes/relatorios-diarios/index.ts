@@ -16,6 +16,9 @@
 //     Versão 7 (02-10-2026, qualidade-clinica.sql): mais a qualidade e
 //     segurança do utente (incidentes, satisfação, espera, laboratório e
 //     protocolos), a partir dos relatórios de turno.
+//     Versão 8 (02-10-2026): o quadro da Clínica mostra todas as áreas do
+//     centro (consulta, laboratório, imagiologia, cardiologia, enfermagem,
+//     farmácia e exames enviados para fora).
 // Utentes nunca com nome. Um envio por relatório, dia e destino
 // (relatorios_enviados). {"previa": true} devolve os e-mails sem enviar;
 // {"dia": "AAAA-MM-DD"} escolhe o dia; {"forcar": true} volta a enviar.
@@ -528,7 +531,10 @@ Deno.serve(async (req) => {
       clinica: {
         titulo: "Clínica",
         tem: () => true,
-        corpo: () => mosaicos([["Utentes", n0(nm.utentes), n0(nm.novos) + " novos"], ["Consultas", n0(nm.consultas)], ["Exames de laboratório", n0(nm.exames_lab)]]) +
+        /* Todas as áreas do centro no quadro (pedido do Elmar, 02-10-2026). */
+        corpo: () => mosaicos([["Utentes", n0(nm.utentes), n0(nm.novos) + " novos"], ["Consultas", n0(nm.consultas), "todas as especialidades"], ["Laboratório", n0(nm.exames_lab), "exames · " + n0(nm.utentes_lab) + " utentes"]]) +
+          mosaicos([["Raio-X", n0(nm.raiox), "Imagiologia"], ["Ecografias", n0(nm.ecografias), "Imagiologia"], ["Cardiologia", n0(nm.cardiologia), "exames"]]) +
+          mosaicos([["Enfermagem", n0(nm.actos_enfermagem), "actos · " + n0(nm.utentes_enfermagem) + " utentes"], ["Farmácia", n0(nm.unidades_farmacia), "unidades · " + n0(nm.utentes_farmacia) + " utentes"], ["Exames enviados para fora", n0(nm.exames_externos), "laboratórios externos"]]) +
           ((d.medicos || []).length ? sec("Por médico") + tabela(["Médico", "Consultas", "Utentes"], (d.medicos as any[]).map((m) => [escapar(m.nome), n0(m.consultas), n0(m.utentes)])) : "") +
           topTab("consulta", "Consultas por especialidade") + gestaoClinica(),
       },

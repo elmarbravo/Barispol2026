@@ -1848,3 +1848,13 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   Recepção, à Direcção Clínica e à gestão.
 - Por fazer: notificação individual de incidentes, com análise da causa
   (ficha própria), se a Direcção Clínica a quiser.
+
+## 3-cy. Relatório da Clínica: todas as áreas no quadro (02-10-2026)
+
+- Pedido do Elmar (imagem do quadro com Utentes, Consultas e Exames de
+  laboratório): «neste campo coloque todas as áreas que temos no centro».
+- `relatorios-diarios` versão 8: o quadro do relatório da Clínica tem três
+  linhas. Utentes, Consultas, Laboratório (exames e utentes); Raio-X,
+  Ecografias, Cardiologia; Enfermagem (actos e utentes), Farmácia
+  (unidades e utentes), Exames enviados para fora. Números do MetaGest
+  (`bsp_srv_clinico_dados`), sem valores.
