@@ -1594,3 +1594,12 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
 - A Dax só aparece em aparelhos que a tenham instalada: o site não tem os
   ficheiros. Para a mostrar a todos, falta a licença web da Dax (ficheiros
   `.woff2`) — a pedir ao Elmar.
+
+## 3-cn. Logotipo cortado no site (02-10-2026)
+
+- O círculo branco (`border-radius:50%` na própria imagem) cortava as letras
+  «CENTRO MÉDICO» e «BARISPOL» no rodapé, no cabeçalho em modo escuro e em
+  `gestor.html`. Agora o círculo é pintado por trás
+  (`radial-gradient(circle,#fff 70.5%,transparent 71%)`) com mais margem, e a
+  imagem nunca se recorta. Confirmado em capturas, claro e escuro.
+- Regra: nunca pôr `border-radius` na imagem do logotipo.
