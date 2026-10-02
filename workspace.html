@@ -25087,7 +25087,7 @@ const BSP_GUIA_FICHAS = [
       ['Acompanhe o estado:', 'Aberta, Em reparação, Resolvida.'],
       ['Quem trata regista', 'o responsável, o custo e o que se fez.']
     ],
-    quem: 'Toda a equipa reporta. A Direcção e os Serviços Gerais tratam.',
+    quem: 'Toda a equipa reporta. Cada pessoa vê as avarias reportadas pela sua área. A Direcção e os Serviços Gerais vêem todas e tratam.',
     dica: 'Carregue uma só vez em «Reportar»: o mesmo texto repetido não cria outra avaria. A Direcção apaga as repetidas.' },
   { icone: 'Heart', nome: 'Painel clínico',
     serve: 'O trabalho de cada área, em números e sem valores: utentes, consultas, exames, actos e stock.',
@@ -25891,6 +25891,8 @@ function AvariasScreen() {
       React.createElement("span", { style: { flex: 1 } }),
       React.createElement("button", { onClick: () => setAberto(a => !a), style: bspEscBotao(true) }, aberto ? 'Fechar' : 'Reportar avaria ou dano')),
     t.erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, t.erro) : null,
+    /* Cada área vê só as suas (02-10-2026, avarias-por-area.sql). */
+    !trata && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Vê as avarias reportadas pela sua área. A Direcção e os Serviços Gerais vêem todas.'),
     gestor && repetidas.length > 0 && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { borderLeft: '4px solid var(--perigo)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }) },
       React.createElement("div", { style: { flex: '1 1 220px', fontSize: 13.5, color: 'var(--text-1)' } }, React.createElement("b", null, repetidas.length === 1 ? 'Há uma avaria repetida' : 'Há ' + repetidas.length + ' avarias repetidas'), ' (a mesma pessoa, o mesmo texto). Fica a primeira de cada.'),
       React.createElement("button", { onClick: () => apagar(repetidas, 'Apagar ' + repetidas.length + ' avaria(s) repetida(s)? Fica a primeira de cada.'), style: bspEscBotao(true) }, 'Apagar as repetidas')),

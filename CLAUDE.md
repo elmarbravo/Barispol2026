@@ -370,7 +370,8 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `formacoes`, `avarias`, `pedidos_compra`. Quem decide: `bsp_chefe_de`
   (gestão, superior, chefe da área). Ecrãs: `EquipaScreen` (Contactos,
   `AusenciasPainel`, `FormacoesPainel`), `AvariasScreen`
-  (`bspTrataAvarias` = gestão + Serviços Gerais), Stock →
+  (`bspTrataAvarias` = gestão + Serviços Gerais, que vêem todas; os outros só
+  as da sua área, `avarias-por-area.sql`, 02-10-2026), Stock →
   `PedidosCompraPainel` (só a gestão aprova).
   Mapa de férias (02-10-2026, `ferias-mapa.sql`): `bsp_mapa_ferias(ano)` /
   `MapaFerias`; toda a equipa vê só as férias aprovadas (pessoa e datas). Os

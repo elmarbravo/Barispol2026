@@ -2253,3 +2253,17 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   uma antes de publicar.
 - Nas cargas de PowerPoint: nomes parecidos nunca se juntam; na dúvida,
   perguntar.
+
+## 3-dp. Avarias por área (02-10-2026)
+
+- Pedido do Elmar: «as avarias não podem aparecer todas para todos, só
+  aparece aos demais as que a sua área reporta».
+- Servidor (`avarias-por-area.sql`, aplicado): a regra `avarias_ler` deixa
+  ler tudo só à gestão e aos Serviços Gerais (`bsp_trata_avarias`). Os
+  outros lêem as suas e as reportadas por colegas da sua área
+  (`bsp_ids_da_minha_area()`, calculada uma vez por consulta). Quem não tem
+  área só vê as suas.
+- Ecrã: linha «Vê as avarias reportadas pela sua área» para quem não trata;
+  ficha do guia actualizada.
+- Testado no servidor com desfazer: Elmar e Serviços Gerais vêem as 6;
+  Recepção e Clínica, 0 (as 6 foram reportadas pelos Serviços Gerais).
