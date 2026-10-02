@@ -10,6 +10,9 @@
 //     (bsp_escalas_responsaveis) o que é da sua área, sem valores, com
 //     adm@barispol.com em cópia. A Imagiologia vai para a Direcção
 //     Clínica (u14), e não para o responsável da área (Elmar, 02-10-2026).
+//     O da Clínica leva também os indicadores de gestão clínica dos últimos
+//     30 dias (direccao-clinica.sql, modelo JCI/OMS: acesso, continuidade,
+//     prática clínica, rastreabilidade e governação).
 // Utentes nunca com nome. Um envio por relatório, dia e destino
 // (relatorios_enviados). {"previa": true} devolve os e-mails sem enviar;
 // {"dia": "AAAA-MM-DD"} escolhe o dia; {"forcar": true} volta a enviar.
@@ -374,6 +377,49 @@ Deno.serve(async (req) => {
     const labExtra = () => ((ex.lab_consumiveis || []) as any[]).length
       ? sec("Testes e consumíveis") + tabela(["Artigo", "Stock", "Saídas 30 dias", "Dá para"], (ex.lab_consumiveis as any[]).map((x) => [escapar(frase(x.nome)), n0(x.stock), n0(x.saidas_30d), x.dias == null ? "—" : n0(x.dias) + (Number(x.dias) === 1 ? " dia" : " dias")]))
       : "";
+    /* Gestão clínica (02-10-2026, direccao-clinica.sql): só no relatório da
+       Clínica, que vai para a Direcção Clínica. */
+    const gc: any = ((resp || []) as any[]).some((r) => r.area === "clinica")
+      ? (await admin.rpc("bsp_srv_direccao_clinica", { p_dia: dia })).data : null;
+    const pc1 = (v: unknown) => v == null ? "—" : Number(v).toLocaleString("pt-PT", { maximumFractionDigits: 1 }) + "%";
+    const num1 = (v: unknown) => v == null ? "—" : Number(v).toLocaleString("pt-PT", { maximumFractionDigits: 1 });
+    const variacao = (a: number, b: number) => {
+      if (!b) return "";
+      const v = (a - b) / b * 100;
+      return '<b style="color:' + (v < 0 ? "#B42318" : "#1D7A46") + '">' + (v > 0 ? "+" : "") + v.toLocaleString("pt-PT", { maximumFractionDigits: 0 }) + "%</b> face aos 7 dias anteriores";
+    };
+    const gestaoClinica = () => {
+      if (!gc) return "";
+      const ac = gc.acesso || {}, co = gc.continuidade || {}, to = gc.totais || {}, ra = gc.rastreio || {}, te = gc.tendencia || {}, go = gc.governacao || {};
+      const esc: any[] = go.escalas_sem_visto || [];
+      const gov = [
+        esc.length ? '<span style="color:#B42318">Escalas à espera do seu visto: ' + esc.map((e) => escapar(frase(String(e.area))) + " (" + escapar(mesTxt(String(e.mes).slice(0, 7))) + ")").join(", ") + "</span>" : "Escalas: todas com visto.",
+        "Trocas de turno à espera da sua aprovação: " + n0(go.trocas_por_aprovar) + ".",
+        "Relatórios de turno das áreas médicas nos últimos 7 dias: " + n0(go.relatorios_turno_7d) + ".",
+        "Avarias por resolver: " + n0(go.avarias_abertas) + (Number(go.avarias_urgentes) ? " (" + n0(go.avarias_urgentes) + " urgentes ou de prioridade alta)" : "") + ".",
+        "Formações da equipa: " + n0(go.formacoes_caducadas) + " caducadas, " + n0(go.formacoes_a_caducar) + " a caducar em 60 dias.",
+        "Ausências aprovadas hoje: " + n0(go.ausencias_hoje) + ".",
+      ];
+      return sec("Gestão clínica · " + curta(gc.de) + " a " + curta(gc.dia)) +
+        paragrafo("Indicadores dos últimos 30 dias, no modelo usado pela JCI e pela OMS. Sem valores e sem nomes de utentes.") +
+        ((gc.alertas || []).length ? lista((gc.alertas as any[]).map((a) => '<span style="color:' + (COR_NIVEL[a.nivel] || TEXTO) + '">' + escapar(a.texto) + "</span>")) : "") +
+        '<p style="margin:14px 0 4px;font-family:' + FONTE + ';font-size:14px;font-weight:700;color:' + MARINHO + '">Acesso</p>' +
+        mosaicos([["Faltas", pc1(ac.taxa_faltas), n0(ac.faltou) + " de " + n0(Number(ac.compareceu || 0) + Number(ac.faltou || 0)) + " · ref. < 10%"],
+          ["Cancelamentos", pc1(ac.taxa_cancel), n0(ac.cancelou) + " de " + n0(ac.marcacoes) + " marcações"],
+          ["Espera até à consulta", num1(ac.espera_mediana) + " d", "mediana · média " + num1(ac.espera_media) + " d"]]) +
+        '<p style="margin:14px 0 4px;font-family:' + FONTE + ';font-size:14px;font-weight:700;color:' + MARINHO + '">Continuidade de cuidados</p>' +
+        mosaicos([["Utentes novos", pc1(co.novos_pc), n0(co.novos) + " de " + n0(co.utentes)],
+          ["Reconsulta em 7 dias", pc1(co.reconsulta_7), "de " + n0(co.base) + " consultas"],
+          ["Reconsulta em 30 dias", pc1(co.reconsulta_30), "seguimento"]]) +
+        '<p style="margin:14px 0 4px;font-family:' + FONTE + ';font-size:14px;font-weight:700;color:' + MARINHO + '">Prática clínica e rastreabilidade</p>' +
+        mosaicos([["Exames por consulta", num1(to.lab_por_consulta), n0(to.lab) + " exames · " + n0(to.consultas) + " consultas"],
+          ["Imagem por 100 consultas", num1(to.imagem_por_100), n0(to.imagem) + " exames de imagem"],
+          ["Com médico solicitante", pc1(ra.pc), n0(ra.com_medico) + " de " + n0(ra.total) + " · ref. 100%"]]) +
+        paragrafo("Últimos 7 dias: " + n0(te.utentes) + " atendimentos e " + n0(te.consultas) + " consultas" + (variacao(Number(te.consultas), Number(te.consultas_antes)) ? " (consultas " + variacao(Number(te.consultas), Number(te.consultas_antes)) + ")" : "") + ". Exames enviados para fora: " + pc1(to.externos_pc) + ".") +
+        ((gc.pratica || []).length ? '<p style="margin:14px 0 4px;font-family:' + FONTE + ';font-size:14px;font-weight:700;color:' + MARINHO + '">Pedidos por médico (30 dias)</p>' +
+          tabela(["Médico", "Consultas", "Laboratório", "Por consulta", "Imagem"], (gc.pratica as any[]).slice(0, 20).map((m) => [escapar(m.nome), n0(m.consultas), n0(m.lab), m.lab_por_consulta == null ? "—" : num1(m.lab_por_consulta), n0(m.imagem)])) : "") +
+        '<p style="margin:14px 0 4px;font-family:' + FONTE + ';font-size:14px;font-weight:700;color:' + MARINHO + '">Governação clínica</p>' + lista(gov);
+    };
     const AREAS: Record<string, { titulo: string; corpo: () => string; tem: () => boolean }> = {
       recepcao: {
         titulo: "Recepção",
@@ -387,7 +433,7 @@ Deno.serve(async (req) => {
         tem: () => true,
         corpo: () => mosaicos([["Utentes", n0(nm.utentes), n0(nm.novos) + " novos"], ["Consultas", n0(nm.consultas)], ["Exames de laboratório", n0(nm.exames_lab)]]) +
           ((d.medicos || []).length ? sec("Por médico") + tabela(["Médico", "Consultas", "Utentes"], (d.medicos as any[]).map((m) => [escapar(m.nome), n0(m.consultas), n0(m.utentes)])) : "") +
-          topTab("consulta", "Consultas por especialidade"),
+          topTab("consulta", "Consultas por especialidade") + gestaoClinica(),
       },
       laboratorio: {
         titulo: "Laboratório",

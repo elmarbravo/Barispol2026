@@ -326,7 +326,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
 - Relatórios diários (02-10-2026, `relatorios-diarios.sql`, Edge Function
   `relatorios-diarios`): Direcção 06h50 (sócios + Director, com valores) e
   áreas 07h15 (chefes, sem valores, adm@barispol.com em cópia), em vez do
-  Zapier. A Imagiologia vai para a Direcção Clínica (u14, `PARA_AREA`). Endereços extra só no servidor (`relatorios_diarios_destinos`;
+  Zapier. A Imagiologia vai para a Direcção Clínica (u14, `PARA_AREA`).
+  O da Clínica leva a gestão clínica de 30 dias (`direccao-clinica.sql`,
+  `bsp_srv_direccao_clinica`, modelo JCI/OMS). Endereços extra só no servidor (`relatorios_diarios_destinos`;
   `relatorios_destinos` é dos relatórios por área, outra coisa).
   Painel clínico: `PainelClinicoScreen` / `bsp_painel_clinico` sobre
   `erp.clinico_dados`; nunca Kz nem nomes de utentes. Os quadros da

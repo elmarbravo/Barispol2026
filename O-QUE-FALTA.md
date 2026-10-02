@@ -1732,3 +1732,30 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
 - `relatorios-diarios` versão 3: `PARA_AREA` (`radiologia` → `u14`). As
   outras áreas continuam com o responsável da escala
   (`bsp_escalas_responsaveis`).
+
+## 3-cu. Gestão clínica no relatório da Direcção Clínica (02-10-2026)
+
+- Pedido do Elmar: ver o que falta no relatório da Direcção Clínica e o
+  que é útil em gestão clínica internacional. Novo `direccao-clinica.sql`
+  (aplicado): `erp.direccao_clinica_dados(dia)` e
+  `bsp_srv_direccao_clinica(dia)`, 30 dias até ao dia, modelo JCI/OMS:
+  - Acesso: faltas (referência abaixo de 10%), cancelamentos, espera
+    entre o contacto e a consulta (mediana e média).
+  - Continuidade: utentes novos, reconsulta em 7 e em 30 dias.
+  - Prática clínica: exames de laboratório por consulta, imagem por 100
+    consultas, exames enviados para fora, pedidos por médico.
+  - Rastreabilidade: facturas clínicas com médico solicitante
+    (referência 100%).
+  - Governação: escalas à espera do visto, trocas por aprovar,
+    relatórios de turno, avarias, formações, ausências.
+  - Alertas quando passa da referência.
+  No relatório da Clínica das 07h15 (`relatorios-diarios` versão 4), que
+  vai para a Direcção Clínica (u14). Cerca de 7 s de cálculo.
+- Falta para o modelo internacional (não há dados no sistema):
+  - satisfação do utente;
+  - incidentes e eventos adversos;
+  - tempo de espera na sala;
+  - tempo de entrega dos resultados do laboratório;
+  - cumprimento de protocolos.
+  Os relatórios de turno das áreas médicas (menu Relatórios) nunca foram
+  preenchidos.
