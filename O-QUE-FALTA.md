@@ -2134,3 +2134,17 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
 - Recibos: a Joice aparecia como «viu» estando offline. Estava certo: leu
   às 12h02 e às 12h05 e fechou às 12h06. «Visto» é leitura em algum
   momento, e não estar ligado agora.
+
+## 3-dk. Leitor de PowerPoint (02-10-2026)
+
+- Pedido do Elmar: «podes colocar leitura pptx no workspace».
+- `LeitorPptx` / `bspVerPptx` / `bspPptxLer`: leitor próprio sobre o JSZip
+  (`vendor/docx/jszip.min.js`). Desenha cada diapositivo com o texto
+  (tamanho, negrito, itálico, cor, alinhamento), as imagens, as formas com
+  cor, o fundo e as tabelas, nas posições do original. Os gráficos e o
+  SmartArt aparecem como «[gráfico]».
+- `bspAbrirFicheiro` abre os .pptx no visor (Drive, Chat, Documentos).
+  Documentos aceita .pptx. O .ppt antigo descarrega-se.
+- Testado com uma apresentação de 3 diapositivos (título, lista, forma,
+  imagem, tabela): tudo no sítio, sem erros. As marcas de lista que vêm só
+  do diapositivo-mestre não aparecem.

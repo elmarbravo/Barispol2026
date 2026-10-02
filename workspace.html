@@ -4658,6 +4658,260 @@ function LeitorWord({ url }) {
         React.createElement("button", { onClick: () => setZoom(z => Math.min(3, +(z + 0.25).toFixed(2))), style: bz, 'aria-label': 'Ampliar' }, '+')),
     React.createElement("div", { ref: caixa, style: { flex: 1, minHeight: 0, overflow: 'auto', padding: '0 4px calc(env(safe-area-inset-bottom, 0px) + 14px)', WebkitOverflowScrolling: 'touch', display: estado && estado.indexOf('Não') === 0 ? 'none' : 'block' } }));
 }
+/* PowerPoint dentro do Workspace (02-10-2026, pedido do Elmar: «podes
+   colocar leitura pptx no workspace»). Leitor próprio sobre o JSZip
+   (vendor/docx): lê cada diapositivo do .pptx e desenha o texto (tamanho,
+   negrito, itálico, cor, alinhamento), as imagens, as formas com cor de
+   fundo e as tabelas, nas posições do original. Gráficos e SmartArt
+   aparecem como «[gráfico]». O .ppt antigo (97-2003) não se mostra:
+   descarrega-se. */
+const BSP_PPTX = /\.pptx([?#]|$)/i;
+function bspVerPptx(url, nome) {
+  try {
+    window.dispatchEvent(new CustomEvent('bsp-ver-imagem', { detail: { url: url, nome: nome || '', pptx: true } }));
+  } catch (e) {
+    window.open(url, '_blank', 'noopener');
+  }
+}
+function bspCarregarJsZip() {
+  return window.JSZip ? Promise.resolve(window.JSZip) : bspCarregarScript('vendor/docx/jszip.min.js').then(() => window.JSZip);
+}
+async function bspPptxLer(blob) {
+  const JSZip = await bspCarregarJsZip();
+  const zip = await JSZip.loadAsync(blob);
+  const xml = async caminho => { const f = zip.file(caminho); return f ? new DOMParser().parseFromString(await f.async('string'), 'application/xml') : null; };
+  const todos = (el, n) => el ? Array.from(el.getElementsByTagNameNS('*', n)) : [];
+  const filhos = (el, n) => el ? Array.from(el.children).filter(c => c.localName === n) : [];
+  const filho = (el, n) => filhos(el, n)[0] || null;
+  const dir = c => c.slice(0, c.lastIndexOf('/') + 1);
+  const resolver = (base, alvo) => {
+    const partes = (dir(base) + alvo).split('/'), r = [];
+    partes.forEach(x => { if (x === '..') r.pop(); else if (x !== '.') r.push(x); });
+    return r.join('/');
+  };
+  const rels = async caminho => {
+    const d = await xml(dir(caminho) + '_rels/' + caminho.slice(caminho.lastIndexOf('/') + 1) + '.rels');
+    const m = {};
+    todos(d, 'Relationship').forEach(r => { m[r.getAttribute('Id')] = { alvo: resolver(caminho, r.getAttribute('Target') || ''), tipo: r.getAttribute('Type') || '' }; });
+    return m;
+  };
+  const pres = await xml('ppt/presentation.xml');
+  const presRels = await rels('ppt/presentation.xml');
+  const sz = todos(pres, 'sldSz')[0];
+  const cx = Number(sz && sz.getAttribute('cx')) || 12192000, cy = Number(sz && sz.getAttribute('cy')) || 6858000;
+  /* Cores do tema. */
+  const tema = {};
+  const temaRel = Object.values(presRels).find(r => /theme/.test(r.tipo));
+  const temaXml = await xml(temaRel ? temaRel.alvo : 'ppt/theme/theme1.xml');
+  const esquema = todos(temaXml, 'clrScheme')[0];
+  if (esquema) Array.from(esquema.children).forEach(c => {
+    const v = filho(c, 'srgbClr'), sy = filho(c, 'sysClr');
+    tema[c.localName] = '#' + ((v && v.getAttribute('val')) || (sy && sy.getAttribute('lastClr')) || '000000');
+  });
+  const ALIAS = { tx1: 'dk1', bg1: 'lt1', tx2: 'dk2', bg2: 'lt2' };
+  const cor = el => {
+    if (!el) return null;
+    const f = el.localName === 'solidFill' ? el : filho(el, 'solidFill');
+    if (!f) return null;
+    const rgb = filho(f, 'srgbClr'), sc = filho(f, 'schemeClr'), sy = filho(f, 'sysClr');
+    if (rgb) return '#' + rgb.getAttribute('val');
+    if (sy) return '#' + (sy.getAttribute('lastClr') || '000000');
+    if (sc) { const k = sc.getAttribute('val'); return tema[ALIAS[k] || k] || null; }
+    return null;
+  };
+  const urls = {};
+  const imagem = async caminho => {
+    if (urls[caminho]) return urls[caminho];
+    const f = zip.file(caminho);
+    if (!f) return null;
+    const ext = (caminho.split('.').pop() || '').toLowerCase();
+    const tipo = ext === 'svg' ? 'image/svg+xml' : ext === 'jpg' ? 'image/jpeg' : 'image/' + ext;
+    return (urls[caminho] = URL.createObjectURL(new Blob([await f.async('arraybuffer')], { type: tipo })));
+  };
+  const xfrm = el => {
+    const x = todos(el, 'xfrm')[0];
+    const off = x && filho(x, 'off'), ext = x && filho(x, 'ext');
+    return off && ext ? { x: +off.getAttribute('x'), y: +off.getAttribute('y'), w: +ext.getAttribute('cx'), h: +ext.getAttribute('cy') } : null;
+  };
+  const phDe = sp => { const ph = todos(sp, 'ph')[0]; return ph ? { tipo: ph.getAttribute('type') || 'body', idx: ph.getAttribute('idx') || '' } : null; };
+  const procurarPh = (doc, ph) => {
+    if (!doc || !ph) return null;
+    const sps = todos(doc, 'sp');
+    return sps.find(sp => { const p = phDe(sp); return p && ph.idx && p.idx === ph.idx; })
+      || sps.find(sp => { const p = phDe(sp); return p && (p.tipo === ph.tipo || (ph.tipo === 'ctrTitle' && p.tipo === 'title') || (ph.tipo === 'subTitle' && p.tipo === 'body')); }) || null;
+  };
+  const paragrafos = (txBody, base) => filhos(txBody, 'p').map(p => {
+    const pPr = filho(p, 'pPr');
+    const runs = Array.from(p.children).filter(c => c.localName === 'r' || c.localName === 'br' || c.localName === 'fld').map(r => {
+      if (r.localName === 'br') return { br: true };
+      const rPr = filho(r, 'rPr');
+      const t = filho(r, 't');
+      return { t: t ? t.textContent : '', sz: rPr && rPr.getAttribute('sz') ? +rPr.getAttribute('sz') / 100 : null,
+        b: rPr && rPr.getAttribute('b') === '1', i: rPr && rPr.getAttribute('i') === '1', u: rPr && rPr.getAttribute('u') && rPr.getAttribute('u') !== 'none', cor: cor(rPr) };
+    });
+    return { algn: (pPr && pPr.getAttribute('algn')) || base.algn || '', lvl: +((pPr && pPr.getAttribute('lvl')) || 0), bullet: !!(pPr && filho(pPr, 'buChar')) || (base.bullet && !(pPr && filho(pPr, 'buNone'))), runs };
+  });
+  const ids = todos(pres, 'sldId').map(s => s.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id') || s.getAttribute('r:id'));
+  const diapositivos = [];
+  for (const id of ids) {
+    const caminho = presRels[id] && presRels[id].alvo;
+    if (!caminho) continue;
+    const doc = await xml(caminho);
+    const r = await rels(caminho);
+    const layRel = Object.values(r).find(x => /slideLayout/.test(x.tipo));
+    const layout = layRel ? await xml(layRel.alvo) : null;
+    const layRels = layRel ? await rels(layRel.alvo) : {};
+    const mesRel = Object.values(layRels).find(x => /slideMaster/.test(x.tipo));
+    const mestre = mesRel ? await xml(mesRel.alvo) : null;
+    const bg = todos(doc, 'bg')[0] || todos(layout, 'bg')[0] || todos(mestre, 'bg')[0];
+    const bgPr = bg && todos(bg, 'bgPr')[0];
+    let fundo = bgPr ? cor(bgPr) : null;
+    let fundoImg = null;
+    const blipBg = bg && todos(bg, 'blip')[0];
+    if (blipBg) {
+      const rid = blipBg.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'embed');
+      const fonte = todos(doc, 'bg')[0] ? r : todos(layout, 'bg')[0] ? layRels : (mesRel ? await rels(mesRel.alvo) : {});
+      if (rid && fonte[rid]) fundoImg = await imagem(fonte[rid].alvo);
+    }
+    const formas = [];
+    const arvore = todos(doc, 'spTree')[0];
+    const percorrer = async (no, gx) => {
+      for (const el of Array.from(no ? no.children : [])) {
+        if (el.localName === 'grpSp') {
+          const gp = filho(el, 'grpSpPr'), x = gp && filho(gp, 'xfrm');
+          const off = x && filho(x, 'off'), ext = x && filho(x, 'ext'), cof = x && filho(x, 'chOff'), cex = x && filho(x, 'chExt');
+          const t = off && ext && cof && cex && +cex.getAttribute('cx') && +cex.getAttribute('cy') ? {
+            sx: +ext.getAttribute('cx') / +cex.getAttribute('cx'), sy: +ext.getAttribute('cy') / +cex.getAttribute('cy'),
+            dx: +off.getAttribute('x') - +cof.getAttribute('x') * (+ext.getAttribute('cx') / +cex.getAttribute('cx')),
+            dy: +off.getAttribute('y') - +cof.getAttribute('y') * (+ext.getAttribute('cy') / +cex.getAttribute('cy')) } : null;
+          const comp = t && gx ? { sx: t.sx * gx.sx, sy: t.sy * gx.sy, dx: gx.dx + t.dx * gx.sx, dy: gx.dy + t.dy * gx.sy } : (t || gx);
+          await percorrer(el, comp);
+          continue;
+        }
+        const ph = el.localName === 'sp' ? phDe(el) : null;
+        let pos = xfrm(filho(el, 'spPr') || filho(el, 'xfrm') ? el : null) || xfrm(el);
+        let base = { algn: '', bullet: false, sz: null };
+        if (ph) {
+          const lay = procurarPh(layout, ph), mes = procurarPh(mestre, ph);
+          if (!pos) pos = (lay && xfrm(lay)) || (mes && xfrm(mes));
+          const ref = lay || mes;
+          const lvl1 = ref && todos(ref, 'lvl1pPr')[0];
+          const dr = lvl1 && filho(lvl1, 'defRPr');
+          const eTitulo = ph.tipo === 'title' || ph.tipo === 'ctrTitle';
+          base = { algn: (lvl1 && lvl1.getAttribute('algn')) || (ph.tipo === 'ctrTitle' || ph.tipo === 'subTitle' ? 'ctr' : ''), bullet: ph.tipo === 'body' && !!(lvl1 && filho(lvl1, 'buChar')),
+            sz: dr && dr.getAttribute('sz') ? +dr.getAttribute('sz') / 100 : (eTitulo ? (ph.tipo === 'ctrTitle' ? 44 : 32) : ph.tipo === 'subTitle' ? 24 : 18), titulo: eTitulo };
+        }
+        if (!pos) continue;
+        if (gx) pos = { x: gx.dx + pos.x * gx.sx, y: gx.dy + pos.y * gx.sy, w: pos.w * gx.sx, h: pos.h * gx.sy };
+        if (el.localName === 'sp') {
+          const spPr = filho(el, 'spPr');
+          const tx = filho(el, 'txBody');
+          formas.push({ tipo: 'texto', pos, fundo: spPr && !filho(spPr, 'noFill') ? cor(spPr) : null,
+            linha: spPr && filho(spPr, 'ln') ? cor(filho(spPr, 'ln')) : null,
+            anchor: tx && filho(tx, 'bodyPr') ? (filho(tx, 'bodyPr').getAttribute('anchor') || (base.titulo ? 'ctr' : 't')) : 't',
+            pars: tx ? paragrafos(tx, base) : [], sz: base.sz || 18, titulo: !!base.titulo });
+        } else if (el.localName === 'pic') {
+          const blip = todos(el, 'blip')[0];
+          const rid = blip && blip.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'embed');
+          const src = rid && r[rid] ? await imagem(r[rid].alvo) : null;
+          if (src) formas.push({ tipo: 'imagem', pos, src });
+        } else if (el.localName === 'graphicFrame') {
+          const tbl = todos(el, 'tbl')[0];
+          if (tbl) formas.push({ tipo: 'tabela', pos, linhas: filhos(tbl, 'tr').map(tr => filhos(tr, 'tc').map(tc => todos(tc, 't').map(t => t.textContent).join(' '))) });
+          else formas.push({ tipo: 'grafico', pos });
+        }
+      }
+    };
+    await percorrer(arvore, null);
+    diapositivos.push({ fundo, fundoImg, formas });
+  }
+  return { cx, cy, diapositivos, libertar: () => Object.values(urls).forEach(u => { try { URL.revokeObjectURL(u); } catch (e) {} }) };
+}
+function bspPptxDiapositivo(d, n, total, cx, cy, largura) {
+  const k = largura / cx;
+  const pt = largura / (cx / 12700);
+  const caixa = document.createElement('div');
+  caixa.setAttribute('aria-label', 'Diapositivo ' + n + ' de ' + total);
+  Object.assign(caixa.style, { position: 'relative', width: largura + 'px', height: Math.round(cy * k) + 'px', margin: '0 auto 12px', overflow: 'hidden', borderRadius: '4px',
+    background: d.fundo || '#ffffff', fontFamily: 'Calibri, "Segoe UI", Arial, sans-serif', color: '#000' });
+  if (d.fundoImg) Object.assign(caixa.style, { backgroundImage: 'url(' + d.fundoImg + ')', backgroundSize: 'cover', backgroundPosition: 'center' });
+  const ALGN = { ctr: 'center', r: 'right', just: 'justify' };
+  d.formas.forEach(f => {
+    const el = document.createElement('div');
+    Object.assign(el.style, { position: 'absolute', left: f.pos.x * k + 'px', top: f.pos.y * k + 'px', width: f.pos.w * k + 'px', height: f.pos.h * k + 'px', boxSizing: 'border-box' });
+    if (f.tipo === 'imagem') {
+      const im = document.createElement('img');
+      im.src = f.src; im.alt = '';
+      Object.assign(im.style, { width: '100%', height: '100%', objectFit: 'fill', display: 'block' });
+      el.appendChild(im);
+    } else if (f.tipo === 'grafico') {
+      Object.assign(el.style, { border: '1px dashed #999', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#777', fontSize: Math.max(10, 14 * pt) + 'px' });
+      el.textContent = '[gráfico]';
+    } else if (f.tipo === 'tabela') {
+      const t = document.createElement('table');
+      Object.assign(t.style, { width: '100%', borderCollapse: 'collapse', fontSize: Math.max(8, 12 * pt) + 'px' });
+      f.linhas.forEach((l, i) => {
+        const tr = document.createElement('tr');
+        l.forEach(c => { const td = document.createElement(i ? 'td' : 'th'); td.textContent = c; Object.assign(td.style, { border: '1px solid #bbb', padding: (3 * pt) + 'px ' + (5 * pt) + 'px', textAlign: 'left', verticalAlign: 'top' }); tr.appendChild(td); });
+        t.appendChild(tr);
+      });
+      el.appendChild(t);
+    } else {
+      Object.assign(el.style, { display: 'flex', flexDirection: 'column', justifyContent: f.anchor === 'ctr' ? 'center' : f.anchor === 'b' ? 'flex-end' : 'flex-start',
+        padding: (7.2 * pt) + 'px ' + (7.2 * pt) + 'px', background: f.fundo || 'transparent', border: f.linha ? '1px solid ' + f.linha : 'none', overflow: 'hidden', lineHeight: '1.15', wordBreak: 'break-word' });
+      f.pars.forEach(p => {
+        const pe = document.createElement('div');
+        Object.assign(pe.style, { textAlign: ALGN[p.algn] || 'left', marginLeft: (p.lvl * 18 + (p.bullet ? 14 : 0)) * pt + 'px', minHeight: '0.6em' });
+        if (p.bullet && p.runs.some(r => r.t)) { const b = document.createElement('span'); b.textContent = '• '; b.style.marginLeft = (-12 * pt) + 'px'; pe.appendChild(b); }
+        p.runs.forEach(r => {
+          if (r.br) { pe.appendChild(document.createElement('br')); return; }
+          const sp = document.createElement('span');
+          sp.textContent = r.t;
+          Object.assign(sp.style, { fontSize: Math.max(6, (r.sz || f.sz) * pt) + 'px', fontWeight: r.b || (f.titulo && !r.sz) ? '700' : '400', fontStyle: r.i ? 'italic' : 'normal', textDecoration: r.u ? 'underline' : 'none' });
+          if (r.cor) sp.style.color = r.cor;
+          pe.appendChild(sp);
+        });
+        if (!p.runs.length) pe.innerHTML = '&nbsp;';
+        if (!p.runs.length) pe.style.fontSize = Math.max(6, f.sz * pt) + 'px';
+        el.appendChild(pe);
+      });
+    }
+    caixa.appendChild(el);
+  });
+  return caixa;
+}
+function LeitorPptx({ url }) {
+  const caixa = React.useRef(null);
+  const [estado, setEstado] = React.useState('A abrir a apresentação…');
+  const [zoom, setZoom] = React.useState(1);
+  const [doc, setDoc] = React.useState(null);
+  React.useEffect(() => {
+    let vivo = true, lido = null;
+    setEstado('A abrir a apresentação…'); setDoc(null);
+    fetch(url).then(r => { if (!r.ok) throw new Error('O servidor respondeu ' + r.status + '.'); return r.blob(); })
+      .then(b => bspPptxLer(b))
+      .then(d => { lido = d; if (!vivo) return d.libertar(); if (!d.diapositivos.length) throw new Error('A apresentação não tem diapositivos.'); setDoc(d); setEstado(''); })
+      .catch(e => { if (vivo) setEstado('Não foi possível abrir a apresentação. ' + (e && e.message || '')); });
+    return () => { vivo = false; if (lido) lido.libertar(); };
+  }, [url]);
+  const desenhar = React.useCallback(() => {
+    const el = caixa.current;
+    if (!el || !doc) return;
+    el.innerHTML = '';
+    const largura = Math.max(200, Math.min(el.clientWidth - 8, 1100) * zoom);
+    doc.diapositivos.forEach((d, i) => el.appendChild(bspPptxDiapositivo(d, i + 1, doc.diapositivos.length, doc.cx, doc.cy, largura)));
+  }, [doc, zoom]);
+  React.useEffect(() => { desenhar(); }, [desenhar]);
+  React.useEffect(() => { const f = () => desenhar(); window.addEventListener('resize', f); return () => window.removeEventListener('resize', f); }, [desenhar]);
+  const bz = { height: 34, minWidth: 40, padding: '0 12px', borderRadius: 17, border: 'none', background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' };
+  return React.createElement("div", { onClick: e => e.stopPropagation(), style: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' } },
+    estado ? React.createElement("div", { style: { color: '#fff', textAlign: 'center', padding: 30, fontSize: 14 } }, estado)
+      : React.createElement("div", { style: { display: 'flex', gap: 8, justifyContent: 'center', padding: '0 0 8px' } },
+        React.createElement("button", { onClick: () => setZoom(z => Math.max(0.5, +(z - 0.25).toFixed(2))), style: bz, 'aria-label': 'Reduzir' }, '−'),
+        React.createElement("span", { style: { color: '#fff', fontSize: 13, alignSelf: 'center', minWidth: 90, textAlign: 'center' } }, doc.diapositivos.length + ' diapositivos · ' + Math.round(zoom * 100) + '%'),
+        React.createElement("button", { onClick: () => setZoom(z => Math.min(3, +(z + 0.25).toFixed(2))), style: bz, 'aria-label': 'Ampliar' }, '+')),
+    React.createElement("div", { ref: caixa, style: { flex: 1, minHeight: 0, overflow: 'auto', padding: '0 4px calc(env(safe-area-inset-bottom, 0px) + 14px)', WebkitOverflowScrolling: 'touch' } }));
+}
 function LeitorPdf({ url }) {
   const caixa = React.useRef(null);
   const [estado, setEstado] = React.useState('A abrir o PDF…');
@@ -4749,7 +5003,7 @@ function VisorImagem() {
   return ReactDOM.createPortal(React.createElement("div", {
     onClick: fechar,
     style: {
-      position: 'fixed', inset: 0, zIndex: 100001, background: img.pdf || img.word ? 'rgb(6,10,20)' : 'rgba(6,10,20,.92)',
+      position: 'fixed', inset: 0, zIndex: 100001, background: img.pdf || img.word || img.pptx ? 'rgb(6,10,20)' : 'rgba(6,10,20,.92)',
       display: 'flex', flexDirection: 'column'
     }
   }, React.createElement("div", {
@@ -4764,7 +5018,7 @@ function VisorImagem() {
     href: img.url, download: img.nome || 'imagem', target: '_blank', rel: 'noopener noreferrer', style: botao
   }, "Guardar"), React.createElement("button", {
     onClick: fechar, style: botao, "aria-label": "Fechar"
-  }, "✕ Fechar")), img.word ? React.createElement(LeitorWord, { url: img.url }) : img.pdf ? React.createElement(LeitorPdf, { url: img.url }) : React.createElement("div", {
+  }, "✕ Fechar")), img.pptx ? React.createElement(LeitorPptx, { url: img.url }) : img.word ? React.createElement(LeitorWord, { url: img.url }) : img.pdf ? React.createElement(LeitorPdf, { url: img.url }) : React.createElement("div", {
     style: {
       flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: '0 10px calc(env(safe-area-inset-bottom, 0px) + 14px)'
@@ -4792,6 +5046,10 @@ async function bspAbrirFicheiro(f, aoFalhar) {
       bspVerWord(url, f.name);
       return true;
     }
+    if (url && BSP_PPTX.test(f.name || f.path || '')) {
+      bspVerPptx(url, f.name);
+      return true;
+    }
     if (url) {
       window.open(url, '_blank', 'noopener');
       return true;
@@ -4807,6 +5065,10 @@ async function bspAbrirFicheiro(f, aoFalhar) {
   }
   if (f && f.dataUrl && BSP_WORD.test(f.name || '')) {
     bspVerWord(f.dataUrl, f.name);
+    return true;
+  }
+  if (f && f.dataUrl && BSP_PPTX.test(f.name || '')) {
+    bspVerPptx(f.dataUrl, f.name);
     return true;
   }
   if (f && f.dataUrl) {
@@ -24256,7 +24518,7 @@ function DocPublicarModal({ open, substituir, editar, onClose }) {
     React.createElement("label", null, bspTranspRot(soTexto ? (ficheiro ? 'Texto do comunicado (opcional com ficheiro)' : 'Texto do comunicado') : 'Resumo (opcional)'),
       React.createElement("textarea", { value: f.descricao, onChange: e => setF(x => Object.assign({}, x, { descricao: e.target.value })), rows: soTexto ? 6 : 3, style: Object.assign({}, bspTranspCampo, { height: 'auto', padding: '10px 12px' }) })),
     React.createElement("div", null, bspTranspRot(soTexto ? 'Ficheiro (opcional)' : 'Ficheiro'),
-      React.createElement("input", { ref, type: 'file', accept: '.pdf,image/*,.doc,.docx,.xls,.xlsx', style: { display: 'none' }, onChange: e => { const x = e.target.files && e.target.files[0]; e.target.value = ''; if (x) setFicheiro(x); } }),
+      React.createElement("input", { ref, type: 'file', accept: '.pdf,image/*,.doc,.docx,.xls,.xlsx,.pptx', style: { display: 'none' }, onChange: e => { const x = e.target.files && e.target.files[0]; e.target.value = ''; if (x) setFicheiro(x); } }),
       React.createElement("button", { type: 'button', onClick: () => ref.current && ref.current.click(), style: bspEscBotao(false) }, React.createElement(I.Upload, { size: 15 }), (ficheiro || (editar && editar.caminho)) ? 'Trocar ficheiro' : 'Escolher ficheiro'),
       ficheiro ? React.createElement("span", { style: { marginLeft: 10, fontSize: 12.5, color: 'var(--sucesso)' } }, '✓ ' + ficheiro.name)
         : editar && editar.caminho ? React.createElement("span", { style: { marginLeft: 10, fontSize: 12.5, color: 'var(--text-3)' } }, 'Fica o actual: ' + (editar.nome_ficheiro || 'ficheiro')) : null),
