@@ -424,9 +424,11 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   leitura confirma-se no cartão.
   «Alterar» (`DocPublicarModal` com `editar`) muda título, número, data e
   descrição sem pedir nova leitura.
-  Para quem (02-10-2026, `documentos-destino.sql`): coluna `grupos` (grupos
-  das novidades); `bsp_ve_documento` no servidor e `bspNosGrupos` no ecrã,
-  mudar os dois juntos. Fora de «todos», nada vai para o Feed nem #avisos.
+  Para quem (02-10-2026, `documentos-destino.sql`): coluna `grupos` com
+  `todos`, `camada:<nome>` ou `cargo:<família>` (nunca pessoas nem áreas,
+  decisão do Elmar); `bsp_doc_no_grupo`/`bsp_cargo_grupos` no servidor e
+  `bspNosGrupos`/`BSP_DOC_CARGOS` no ecrã, mudar os dois juntos. Fora de
+  «todos», nada vai para o Feed nem #avisos.
 - «A minha actividade» (30-09-2026, `minha-actividade.sql`): médicos vêem
   só a sua produção (`bsp_minha_actividade`, sem notas de crédito, igual ao
   Painel). Ligação pelo campo `metagest` (códigos `ref_practitioner`) na

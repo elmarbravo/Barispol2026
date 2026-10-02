@@ -97,3 +97,103 @@ begin
 end $function$;
 
 notify pgrst, 'reload schema';
+
+-- ---------------------------------------------------------------------------
+-- Por camada ou cargo, e não por pessoa nem por área (Elmar, 02-10-2026:
+-- «por camada ou cargo não por pessoa»). Valores de `grupos`:
+--   'todos' · 'camada:<nome da camada>' · 'cargo:<família>'
+-- As famílias de cargo saem do texto do cargo (campo role da equipa), com as
+-- mesmas expressões que BSP_DOC_CARGOS no workspace.html.
+-- A novidade e o aviso do telemóvel levam a lista de ids já calculada.
+
+create or replace function public.bsp_cargo_grupos(p_cargo text)
+returns text[] language sql immutable set search_path to 'public'
+as $$
+  select array_remove(array[
+    case when p_cargo ~* '(m[eé]dic|director cl[ií]nico|pediatra)' then 'cargo:medicos' end,
+    case when p_cargo ~* 'radiolog' then 'cargo:radiologistas' end,
+    case when p_cargo ~* 'enferm' then 'cargo:enfermeiros' end,
+    case when p_cargo ~* '(t[eé]cnic|analista)' then 'cargo:tecnicos' end,
+    case when p_cargo ~* '(chefe|supervisor|director)' then 'cargo:chefes' end,
+    case when p_cargo ~* 'recep' then 'cargo:recepcao' end,
+    case when p_cargo ~* '(administrativ|\mrh\M|recursos humanos)' then 'cargo:administrativos' end,
+    case when p_cargo ~* 'motorista' then 'cargo:motorista' end
+  ], null)
+$$;
+
+create or replace function public.bsp_doc_no_grupo(membro jsonb, p_grupos text[])
+returns boolean language sql stable set search_path to 'public'
+as $$
+  select membro is not null and not public.bsp_membro_e_socio(membro) and (
+       'todos' = any (coalesce(p_grupos, array['todos']))
+    or ('camada:' || coalesce(membro->>'accessLevel', '')) = any (p_grupos)
+    or public.bsp_cargo_grupos(membro->>'role') && p_grupos)
+$$;
+
+create or replace function public.bsp_doc_destinatarios(p_grupos text[])
+returns text[] language sql stable security definer set search_path to 'public'
+as $$
+  select coalesce(array_agg(e->>'id'), array[]::text[])
+    from public.shared_state s, jsonb_array_elements(coalesce(s.team, '[]'::jsonb)) e
+   where s.id = 1 and public.bsp_doc_no_grupo(e, p_grupos)
+$$;
+
+create or replace function public.bsp_ve_documento(p_grupos text[], p_publicado_por text)
+returns boolean language sql stable security definer set search_path to 'public'
+as $$
+  select not public.bsp_e_socio() and (
+       'todos' = any (coalesce(p_grupos, array['todos']))
+    or p_publicado_por = public.bsp_meu_id()
+    or public.bsp_publica_documentos()
+    or public.bsp_doc_no_grupo(public.bsp_eu_membro(), p_grupos))
+$$;
+
+create or replace function public.bsp_documentos_publicado()
+ returns trigger
+ language plpgsql
+ security definer
+ set search_path to 'public'
+as $function$
+declare
+  para_todos boolean := 'todos' = any (coalesce(new.grupos, array['todos']));
+begin
+  if new.substitui is not null then
+    update public.documentos set arquivado = true where id = new.substitui;
+  end if;
+  if new.categoria = 'comunicado' and para_todos then
+    insert into public.posts (user_id, type, title, body, cid)
+    values (new.publicado_por, 'comunicado', new.titulo,
+            coalesce(nullif(btrim(new.descricao), ''), 'Comunicado oficial publicado em Documentos.') || E'\n[documento:' || new.id || ']',
+            'doc-' || new.id);
+    insert into public.messages (conv_key, user_id, text, cid)
+    values ('c-avisos', new.publicado_por,
+            '📄 Comunicado: ' || new.titulo || coalesce(' (' || nullif(new.numero, '') || ')', '') || E'\n[documento:' || new.id || ']',
+            'doc-' || new.id);
+  end if;
+  insert into public.novidades (titulo, texto, grupos, destino)
+  values ('Documento novo' || case when new.leitura_obrigatoria then ' (leitura obrigatória)' else '' end || ': ' || new.titulo,
+          'Publicado em Documentos' || coalesce(' com o n.º ' || nullif(new.numero, ''), '') || '. Abra-o no Workspace'
+          || case when new.leitura_obrigatoria then ' e carregue em «Li e tomei conhecimento».' else '.' end,
+          case when para_todos then array['todos'] else public.bsp_doc_destinatarios(new.grupos) end, 'documentos');
+  update public.documentos set aviso_enviado_em = now() where id = new.id;
+  return new;
+end $function$;
+
+create or replace function public.bsp_push_documento()
+ returns trigger
+ language plpgsql
+ security definer
+ set search_path to 'public'
+as $function$
+begin
+  if coalesce(new.arquivado, false) then return null; end if;
+  perform public.bsp_push_post(jsonb_build_object(
+    'para', case when 'todos' = any (coalesce(new.grupos, array['todos'])) then to_jsonb('todos'::text)
+                 else to_jsonb(public.bsp_doc_destinatarios(new.grupos)) end,
+    'exceto', new.publicado_por,
+    'titulo', 'Documento novo' || case when new.leitura_obrigatoria then ' · leitura obrigatória' else '' end,
+    'corpo', left(coalesce(new.titulo, ''), 160), 'url', '#/documentos', 'tag', 'documento-' || new.id));
+  return null;
+end $function$;
+
+notify pgrst, 'reload schema';

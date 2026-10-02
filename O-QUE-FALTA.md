@@ -2087,3 +2087,15 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
     Clínica, e a Clínica viu-o (transacção desfeita no fim).
   - O ficheiro no armazenamento não tem regra própria: quem não vê o
     documento não sabe o endereço, mas ele não está fechado por área.
+
+- Correcção do Elmar no mesmo dia: «por camada ou cargo, não por pessoa».
+  - `grupos` passa a ter `todos`, `camada:<nome>` ou `cargo:<família>`.
+  - As famílias saem do texto do cargo (`bsp_cargo_grupos` no servidor,
+    `BSP_DOC_CARGOS` no ecrã): médicos, radiologistas, enfermeiros,
+    técnicos, chefes e supervisores, recepção, administrativos e motorista.
+  - Regra de leitura: `bsp_doc_no_grupo`. A novidade e o aviso do telemóvel
+    levam a lista de ids (`bsp_doc_destinatarios`).
+  - Contagens no servidor (02-10-2026): médicos 5, radiologistas 2,
+    enfermeiros 4, técnicos 3, chefes 6, recepção 3.
+  - Um cargo novo com um nome diferente fica fora das famílias: rever
+    `bsp_cargo_grupos` e `BSP_DOC_CARGOS` juntos.

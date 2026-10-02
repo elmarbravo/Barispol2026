@@ -24059,32 +24059,44 @@ function TransporteScreen({ currentUser }) {
    servidor (bsp_publica_documentos). A leitura e obrigatoria: cada pessoa
    confirma «Li e tomei conhecimento» depois de abrir o documento, e quem
    publica ve quem confirmou e quem falta. O aviso sai no instante da
-   publicacao: e-mail (documento-aviso) e sino em tempo real. */
+   publicacao: sino e telemovel; o e-mail segue nas novidades da manha
+   (02-10-2026). */
 const BSP_DOC_CATEGORIAS = [['regulamento', 'Regulamento interno'], ['nota', 'Notas internas'], ['comunicado', 'Comunicados'], ['procedimento', 'Procedimentos e protocolos'], ['formulario', 'Formulários e minutas']];
 const bspDocCategoria = c => (BSP_DOC_CATEGORIAS.find(x => x[0] === c) || [c, 'Documento'])[1];
-/* Para quem é cada documento (02-10-2026, documentos-destino.sql): os grupos
-   das novidades. A mesma regra no servidor (bsp_ve_documento com
-   bsp_membro_nos_grupos): mudar os dois lados juntos. */
-const BSP_DOC_GRUPOS = [['todos', 'Toda a equipa'], ['clinica', 'Médicos (Clínica)'], ['direccao-clinica', 'Direcção Clínica'], ['enfermagem', 'Enfermagem'],
-  ['laboratorio', 'Laboratório'], ['farmacia', 'Farmácia'], ['radiologia', 'Imagiologia'], ['recepcao', 'Recepção'], ['administracao', 'Administração'],
-  ['servicos gerais', 'Serviços Gerais'], ['gestao', 'Direcção e Coordenação']];
+/* Para quem é cada documento (02-10-2026, documentos-destino.sql): por
+   camada ou por cargo, nunca por pessoa (Elmar). Valores: 'todos',
+   'camada:<nome>' e 'cargo:<família>'. A família sai do texto do cargo, com
+   as mesmas expressões de bsp_cargo_grupos no servidor (bsp_ve_documento /
+   bsp_doc_no_grupo): mudar os dois lados juntos. */
+const BSP_DOC_CARGOS = [
+  ['cargo:medicos', 'Médicos', /(m[eé]dic|director cl[ií]nico|pediatra)/i],
+  ['cargo:radiologistas', 'Radiologistas', /radiolog/i],
+  ['cargo:enfermeiros', 'Enfermeiros', /enferm/i],
+  ['cargo:tecnicos', 'Técnicos (laboratório e farmácia)', /(t[eé]cnic|analista)/i],
+  ['cargo:chefes', 'Chefes e supervisores', /(chefe|supervisor|director)/i],
+  ['cargo:recepcao', 'Recepção', /recep/i],
+  ['cargo:administrativos', 'Administrativos', /(administrativ|\brh\b|recursos humanos)/i],
+  ['cargo:motorista', 'Motorista', /motorista/i]];
+function bspDocCamadas() {
+  const cs = bspCamadas() || {};
+  return Object.keys(cs).filter(n => !(cs[n] && cs[n].soNumeros) && n !== 'Sócio').sort(bspCompararTexto).map(n => ['camada:' + n, n]);
+}
+function bspNosGrupos(u, grupos) {
+  if (!u || bspESocio(u)) return false;
+  const g = grupos && grupos.length ? grupos : ['todos'];
+  if (g.indexOf('todos') !== -1) return true;
+  if (g.indexOf('camada:' + (u.accessLevel || '')) !== -1) return true;
+  return BSP_DOC_CARGOS.some(c => g.indexOf(c[0]) !== -1 && c[2].test(String(u.role || '')));
+}
+function bspDocGruposTexto(d) {
+  return bspDocGrupos(d).map(k => k === 'todos' ? 'Toda a equipa' : k.indexOf('camada:') === 0 ? 'camada ' + k.slice(7)
+    : (BSP_DOC_CARGOS.find(c => c[0] === k) || [k, k])[1]).join(', ');
+}
 function bspDocGrupos(d) {
   const g = d && Array.isArray(d.grupos) && d.grupos.length ? d.grupos : ['todos'];
   return g;
 }
 function bspDocParaTodos(d) { return bspDocGrupos(d).indexOf('todos') !== -1; }
-function bspNosGrupos(u, grupos) {
-  if (!u) return false;
-  const g = grupos && grupos.length ? grupos : ['todos'];
-  if (g.indexOf('todos') !== -1 || g.indexOf(u.id) !== -1) return true;
-  if (g.indexOf(bspAreaChave(u.dept)) !== -1) return true;
-  if (g.indexOf('direccao-clinica') !== -1 && BSP_DIRECCAO_CLINICA_IDS.indexOf(u.id) !== -1) return true;
-  const c = bspCamada(u);
-  return g.indexOf('gestao') !== -1 && !!(c && c.podeGerirUtilizadores);
-}
-function bspDocGruposTexto(d) {
-  return bspDocGrupos(d).map(k => (BSP_DOC_GRUPOS.find(x => x[0] === k) || [k, (window.userById(k) || {}).name || k])[1]).join(', ');
-}
 function bspPublicaDocumentos(u) {
   if (!u || bspESocio(u)) return false;
   return bspGereMarcacoes(u) || BSP_DIRECCAO_CLINICA_IDS.indexOf(u.id) !== -1 || bspAreaChave(u.dept) === 'administracao';
@@ -24216,7 +24228,13 @@ function DocPublicarModal({ open, substituir, editar, onClose }) {
         BSP_DOC_CATEGORIAS.map(c => React.createElement("button", { key: c[0], type: 'button', onClick: () => setF(x => Object.assign({}, x, { categoria: c[0] })), style: bspEscChip(f.categoria === c[0]) }, c[1])))),
     React.createElement("div", null, bspTranspRot('Para quem'),
       React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
-        BSP_DOC_GRUPOS.map(c => React.createElement("button", { key: c[0], type: 'button', onClick: () => mudarGrupo(c[0]), style: bspEscChip((f.grupos || []).indexOf(c[0]) !== -1) }, c[1]))),
+        [['todos', 'Toda a equipa']].map(c => React.createElement("button", { key: c[0], type: 'button', onClick: () => mudarGrupo(c[0]), style: bspEscChip((f.grupos || []).indexOf(c[0]) !== -1) }, c[1]))),
+      React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', margin: '10px 0 4px' } }, 'Ou por camada:'),
+      React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+        bspDocCamadas().map(c => React.createElement("button", { key: c[0], type: 'button', onClick: () => mudarGrupo(c[0]), style: bspEscChip((f.grupos || []).indexOf(c[0]) !== -1) }, c[1]))),
+      React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', margin: '10px 0 4px' } }, 'Ou por cargo:'),
+      React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+        BSP_DOC_CARGOS.map(c => React.createElement("button", { key: c[0], type: 'button', onClick: () => mudarGrupo(c[0]), style: bspEscChip((f.grupos || []).indexOf(c[0]) !== -1) }, c[1]))),
       (f.grupos || []).indexOf('todos') === -1 && React.createElement("p", { style: { margin: '8px 0 0', fontSize: 12.5, color: 'var(--text-3)' } },
         'Só estes grupos o vêem e recebem o aviso. A Direcção, a Coordenação e quem publica documentos vêem sempre.' + (f.categoria === 'comunicado' ? ' Não vai para o Feed nem para o #avisos.' : ''))),
     campo('titulo', 'Título', 'Ex.: Regulamento interno da clínica'),
