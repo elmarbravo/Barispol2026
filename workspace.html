@@ -21,6 +21,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <!-- iPhone: «Adicionar ao ecrã principal» fica com o ícone da Barispol e abre em ecrã inteiro (24-09-2026). -->
 <link rel="apple-touch-icon" href="assets/icone-app.png">
+<!-- Manifesto (02-10-2026): no iPhone, as notificações com o Workspace fechado
+     (Web Push) só funcionam numa aplicação web no ecrã principal. -->
+<link rel="manifest" href="workspace.webmanifest">
 <link rel="icon" type="image/png" href="assets/icone-app.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -3686,10 +3689,102 @@ function bspToqueChamada(tipo) {
     else tocar();
   } catch (e) {}
 }
-function bspIncoming(title, body) {
+/* coberto = o servidor tambem manda este aviso por Web Push (mensagens
+   directas, grupos, mencoes, Feed, tarefas atribuidas, documentos). Com o
+   push activo neste aparelho, o aviso do sistema sai so pelo push, para
+   nao aparecer duas vezes. */
+function bspIncoming(title, body, coberto) {
   bspPlayChime();
+  if (coberto && window.__bspPushActivo) return;
   bspBrowserNotify(title, body);
 }
+/* NOTIFICACOES COM O WORKSPACE FECHADO (02-10-2026, pedido do Elmar: «as 3
+   ideias implementa»). Web Push: o aparelho regista-se no servidor
+   (bsp_push_registar) com o service worker sw.js; a Edge Function
+   push-enviar manda os avisos (notificacoes-push.sql). Cada aparelho diz
+   tambem se as notificacoes estao activas (bsp_notif_estado), para a
+   gestao ver quem falta em Admin -> Notificacoes. */
+function bspEmApp() {
+  try { return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); } catch (e) { return false; }
+}
+function bspIos() {
+  const ua = navigator.userAgent || '';
+  return /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+}
+function bspStandalone() {
+  try { return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch (e) { return false; }
+}
+function bspPushSuportado() {
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && !bspEmApp();
+}
+function bspPlataforma() {
+  const ua = navigator.userAgent || '';
+  const so = /iPhone|iPod/.test(ua) ? 'iPhone' : bspIos() ? 'iPad' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Macintosh/.test(ua) ? 'Mac' : /Linux/.test(ua) ? 'Linux' : 'Outro';
+  const nav = /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'navegador';
+  return so + (bspEmApp() ? ' · app' : ' · ' + nav + (bspStandalone() ? ' (ecrã principal)' : ''));
+}
+function bspAparelhoId() {
+  try {
+    let id = localStorage.getItem('bsp-aparelho');
+    if (!id) {
+      id = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2));
+      localStorage.setItem('bsp-aparelho', id);
+    }
+    return id;
+  } catch (e) { return ''; }
+}
+function bspPermissaoNotif() {
+  if (bspEmApp()) return 'app';
+  return 'Notification' in window ? Notification.permission : 'unsupported';
+}
+function bspDeB64u(s) {
+  const t = String(s).replace(/-/g, '+').replace(/_/g, '/');
+  const bin = atob(t + '='.repeat((4 - t.length % 4) % 4));
+  return Uint8Array.from(bin, c => c.charCodeAt(0));
+}
+async function bspPushActivar() {
+  try {
+    if (!bspPushSuportado() || Notification.permission !== 'granted' || bspEmVerComo()) return false;
+    const cl = bspGetClient();
+    if (!cl) return false;
+    const reg = await navigator.serviceWorker.register('sw.js');
+    await navigator.serviceWorker.ready;
+    const { data: publica } = await cl.rpc('bsp_vapid_publica');
+    if (!publica) return false;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bspDeB64u(publica) });
+    const j = sub.toJSON();
+    const r = await cl.rpc('bsp_push_registar', { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth, p_plataforma: bspPlataforma() });
+    window.__bspPushActivo = !r.error && r.data === true;
+    return window.__bspPushActivo;
+  } catch (e) {
+    window.__bspPushActivo = false;
+    return false;
+  }
+}
+function bspNotifRegistarEstado() {
+  try {
+    if (bspEmVerComo()) return;
+    const cl = bspGetClient();
+    if (!cl) return;
+    cl.rpc('bsp_notif_estado', { p_aparelho: bspAparelhoId(), p_permissao: bspPermissaoNotif(), p_push: !!window.__bspPushActivo, p_plataforma: bspPlataforma() }).then(() => {}, () => {});
+  } catch (e) {}
+}
+/* Toque num aviso com o Workspace ja aberto: o service worker pede para ir
+   ao sitio certo (o mesmo formato dos enderecos dos e-mails). */
+function bspIrPara(url) {
+  const h = String(url || '').replace(/^#\/?/, '');
+  if (!h) return;
+  const partes = h.split('/');
+  if (partes[0] === 'chat' && partes[1] && typeof window.bspAbrirConversa === 'function') { window.bspAbrirConversa(decodeURIComponent(partes.slice(1).join('/'))); return; }
+  const ecra = { tarefas: 'tasks', agenda: 'calendar', notificacoes: 'notifications' }[partes[0]] || partes[0];
+  if (typeof window.bspIrParaEcra === 'function') window.bspIrParaEcra(ecra);
+}
+try {
+  if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data && e.data.tipo === 'bsp-abrir') bspIrPara(e.data.url);
+  });
+} catch (e) {}
 const BSP_TEAM_EMAIL = 'empresa@barispol.com';
 const BSP_EMAIL_FN = 'bright-worker';
 /* O testemunho de quem esta ligado neste aparelho.
@@ -3883,7 +3978,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico'];
+const BSP_RPC_LEITURA = ['bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -4928,7 +5023,8 @@ function StoreProvider({
         text: isDm ? 'enviou-lhe uma mensagem direta' : 'enviou uma mensagem ' + where,
         preview: bspTextoResumo(m.text).slice(0, 90)
       }));
-      bspIncoming(name + (isDm ? ' (direta)' : ' · ' + where), bspTextoResumo(m.text).slice(0, 90));
+      const grupoCn = !isDm && (window.CHANNELS || []).find(c => c.id === chave && c.membros && c.membros.length);
+      bspIncoming(name + (isDm ? ' (direta)' : ' · ' + where), bspTextoResumo(m.text).slice(0, 90), isDm || !!grupoCn || mencionado);
     };
     const notifPost = p => {
       if (!p || p.user_id === window.CURRENT_USER_ID) return;
@@ -4940,7 +5036,7 @@ function StoreProvider({
         text: 'publicou no Feed',
         preview: String(p.title || p.body || '').slice(0, 90)
       }));
-      bspIncoming((u ? u.name : 'Equipa') + ' · Feed', String(p.title || p.body || '').slice(0, 90));
+      bspIncoming((u ? u.name : 'Equipa') + ' · Feed', String(p.title || p.body || '').slice(0, 90), true);
     };
     const applyState = row => {
       if (!row) return;
@@ -4965,7 +5061,7 @@ function StoreProvider({
               type: 'task',
               text: 'Foi-lhe atribuída a tarefa “' + tk.title + '”'
             })));
-            bspIncoming('Nova tarefa atribuída', mine[0].title);
+            bspIncoming('Nova tarefa atribuída', mine[0].title, true);
           }, 0);
         } catch (e) {}
         lastPushedRef.current = JSON.stringify({
@@ -5328,6 +5424,12 @@ function StoreProvider({
         };
         sinalPresenca();
         syncRef.current.presenca = setInterval(sinalPresenca, 60000);
+        /* Notificacoes com o Workspace fechado (02-10-2026): regista este
+           aparelho e diz ao servidor se as notificacoes estao activas. */
+        if (!bspEmVerComo()) setTimeout(() => {
+          if (cancelled) return;
+          bspPushActivar().then(() => bspNotifRegistarEstado(), () => bspNotifRegistarEstado());
+        }, 2500);
         document.addEventListener('visibilitychange', syncRef.current.aoVoltar);
         window.addEventListener('focus', syncRef.current.aoVoltar);
         window.addEventListener('online', syncRef.current.aoVoltar);
@@ -5538,7 +5640,7 @@ function StoreProvider({
           preview: bspDocCategoria(d.categoria) + ' · leitura obrigatória',
           ts: d.publicado_em || new Date().toISOString()
         }));
-        bspIncoming('Documento novo', d.titulo);
+        bspIncoming('Documento novo', d.titulo, true);
       }).subscribe();
     };
     const t0 = setTimeout(ligar, 3000);
@@ -16251,7 +16353,8 @@ function NotificationsScreen({
       setPerm(p);
       if (p === 'granted') {
         bspPlayChime();
-      }
+        bspPushActivar().then(() => bspNotifRegistarEstado(), () => bspNotifRegistarEstado());
+      } else bspNotifRegistarEstado();
     });
   }
   function toggleSound() {
@@ -16333,7 +16436,7 @@ function NotificationsScreen({
     }
   }, React.createElement(I.Check, {
     size: 14
-  }), " Ativas neste dispositivo") : perm === 'denied' ? React.createElement("div", {
+  }), window.__bspPushActivo ? " Activas neste dispositivo, também com o Workspace fechado" : " Activas neste dispositivo") : perm === 'denied' ? React.createElement("div", {
     style: {
       fontSize: 12,
       color: 'var(--text-3)',
@@ -16584,6 +16687,111 @@ function NotificationsScreen({
     }, "\u00d7"));
   }))));
 }
+/* Pedido das notificacoes em ecra inteiro (ideia A, 02-10-2026, pedido do
+   Elmar). Enquanto o navegador nao tiver resposta («default»), fica a
+   frente de tudo, so com o botao «Activar notificacoes». Bloqueadas ou no
+   iPhone fora do ecra principal: explica o que fazer, uma vez por dia, e
+   deixa continuar. Na app Android nao aparece (la e o Firebase, ideia C). */
+function PedidoNotificacoes({ currentUser }) {
+  const [perm, setPerm] = React.useState(bspPermissaoNotif());
+  const [hoje] = React.useState(() => new Date().toISOString().slice(0, 10));
+  const [dispensado, setDispensado] = React.useState(() => { try { return localStorage.getItem('bsp-notif-aviso') === new Date().toISOString().slice(0, 10); } catch (e) { return false; } });
+  const [aPedir, setAPedir] = React.useState(false);
+  React.useEffect(() => {
+    const f = () => setPerm(bspPermissaoNotif());
+    window.addEventListener('focus', f);
+    document.addEventListener('visibilitychange', f);
+    return () => { window.removeEventListener('focus', f); document.removeEventListener('visibilitychange', f); };
+  }, []);
+  if (!currentUser || !currentUser.id || currentUser.id === 'self' || bspEmVerComo() || bspEmApp()) return null;
+  const iphoneFora = perm === 'unsupported' && bspIos() && !bspStandalone();
+  const modo = perm === 'default' ? 'pedir' : perm === 'denied' ? 'bloqueadas' : iphoneFora ? 'iphone' : null;
+  if (!modo || (modo !== 'pedir' && dispensado)) return null;
+  const dispensar = () => { try { localStorage.setItem('bsp-notif-aviso', hoje); } catch (e) {} setDispensado(true); bspNotifRegistarEstado(); };
+  const pedir = () => {
+    if (!('Notification' in window)) return;
+    setAPedir(true);
+    Promise.resolve(Notification.requestPermission()).then(p => {
+      setAPedir(false);
+      setPerm(p);
+      if (p === 'granted') {
+        bspPlayChime();
+        bspPushActivar().then(() => bspNotifRegistarEstado(), () => bspNotifRegistarEstado());
+      } else bspNotifRegistarEstado();
+    }, () => setAPedir(false));
+  };
+  const nome = String(currentUser.name || '').split(' ')[0];
+  const passo = (n, t) => React.createElement("div", { style: { display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 14, lineHeight: 1.5, color: 'var(--text-1)' } },
+    React.createElement("b", { style: { minWidth: 22, height: 22, borderRadius: 999, background: 'var(--accent-soft)', color: 'var(--accent-d)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 } }, n),
+    React.createElement("span", null, t));
+  const corpo = modo === 'pedir' ? [
+    React.createElement("p", { key: 'a', style: { margin: '0 0 12px', fontSize: 15, lineHeight: 1.55, color: 'var(--text-1)' } }, 'O Workspace avisa-o das mensagens, das tarefas, dos convites e dos documentos novos, mesmo com o Workspace fechado. Sem notificações, os colegas ficam à sua espera.'),
+    React.createElement("p", { key: 'b', style: { margin: '0 0 18px', fontSize: 14, lineHeight: 1.55, color: 'var(--text-2)' } }, 'Carregue no botão e, a seguir, em «Permitir».'),
+    React.createElement(Button, { key: 'c', variant: 'primary', full: true, onClick: pedir, disabled: aPedir, icon: React.createElement(I.Bell, { size: 15 }) }, aPedir ? 'À espera da sua resposta…' : 'Activar notificações')
+  ] : modo === 'bloqueadas' ? [
+    React.createElement("p", { key: 'a', style: { margin: '0 0 12px', fontSize: 15, lineHeight: 1.55, color: 'var(--text-1)' } }, 'As notificações estão bloqueadas neste navegador. Assim não recebe avisos das mensagens nem das tarefas.'),
+    React.createElement("div", { key: 'b', style: { display: 'flex', flexDirection: 'column', gap: 8, margin: '0 0 18px' } },
+      passo(1, 'Carregue no cadeado (ou no ícone de definições) ao lado do endereço barispol.com.'),
+      passo(2, 'Em «Notificações», escolha «Permitir».'),
+      passo(3, 'Volte aqui e carregue em «Já activei».')),
+    React.createElement("div", { key: 'c', style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+      React.createElement(Button, { variant: 'primary', onClick: () => { const p = bspPermissaoNotif(); setPerm(p); if (p === 'granted') bspPushActivar().then(() => bspNotifRegistarEstado(), () => bspNotifRegistarEstado()); } }, 'Já activei'),
+      React.createElement(Button, { variant: 'ghost', onClick: dispensar }, 'Continuar sem notificações'))
+  ] : [
+    React.createElement("p", { key: 'a', style: { margin: '0 0 12px', fontSize: 15, lineHeight: 1.55, color: 'var(--text-1)' } }, 'No iPhone, as notificações só funcionam com o Workspace no ecrã principal.'),
+    React.createElement("div", { key: 'b', style: { display: 'flex', flexDirection: 'column', gap: 8, margin: '0 0 18px' } },
+      passo(1, 'No Safari, carregue no botão Partilhar (o quadrado com a seta para cima).'),
+      passo(2, 'Escolha «Adicionar ao ecrã principal» e depois «Adicionar».'),
+      passo(3, 'Abra o Workspace pelo ícone da Barispol e active as notificações.')),
+    React.createElement(Button, { key: 'c', variant: 'primary', full: true, onClick: dispensar }, 'Entendi')
+  ];
+  return ReactDOM.createPortal(React.createElement("div", {
+    role: 'dialog', 'aria-modal': true,
+    style: { position: 'fixed', inset: 0, zIndex: 100001, background: 'rgba(18,22,44,.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }
+  }, React.createElement("div", {
+    style: { width: '100%', maxWidth: 440, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '26px 22px', boxShadow: '0 20px 60px rgba(0,0,0,.25)' }
+  }, React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 } },
+      React.createElement("span", { style: { width: 40, height: 40, borderRadius: 999, background: 'var(--accent-soft)', color: 'var(--accent-d)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' } }, React.createElement(I.Bell, { size: 20 })),
+      React.createElement("div", null,
+        React.createElement("div", { style: { fontSize: 12, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent-d)' } }, nome ? 'Olá, ' + nome : 'Notificações'),
+        React.createElement("div", { style: { fontSize: 19, fontWeight: 700, color: 'var(--navy-texto)' } }, modo === 'bloqueadas' ? 'Notificações bloqueadas' : 'Active as notificações'))),
+    corpo)), document.body);
+}
+/* Admin -> Notificacoes (ideia A): quem tem as notificacoes activas, por
+   pessoa, com os aparelhos (bsp_notif_estado_lista, so a gestao). */
+function AdminNotificacoes() {
+  const [linhas, setLinhas] = React.useState(null);
+  const [erro, setErro] = React.useState('');
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) { setErro('O servidor não está ligado.'); return; }
+    cl.rpc('bsp_notif_estado_lista').then(r => {
+      if (r.error) setErro(r.error.message || 'Erro'); else setLinhas(r.data || []);
+    }, e => setErro(String(e)));
+  }, []);
+  if (erro) return React.createElement("div", { style: { padding: 20, color: 'var(--perigo)' } }, 'Não foi possível carregar: ' + erro);
+  if (!linhas) return React.createElement("div", { style: { padding: 20, color: 'var(--text-3)' } }, 'A carregar…');
+  const comPush = linhas.filter(l => l.com_push > 0).length;
+  const activas = linhas.filter(l => l.activas > 0).length;
+  const estado = l => l.com_push > 0 ? ['Activas, também com o Workspace fechado', 'var(--sucesso)']
+    : l.activas > 0 ? ['Activas só com o Workspace aberto', 'var(--accent-d)']
+    : l.bloqueadas > 0 ? ['Bloqueadas no navegador', 'var(--perigo)']
+    : l.aparelhos > 0 ? ['Ainda não activou', 'var(--perigo)'] : ['Ainda não entrou desde a mudança', 'var(--text-3)'];
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 12 } },
+    React.createElement("div", { style: { fontSize: 13.5, color: 'var(--text-2)', lineHeight: 1.55 } },
+      React.createElement("b", { style: { color: 'var(--text-1)' } }, comPush + ' de ' + linhas.length), ' pessoas recebem avisos com o Workspace fechado; ',
+      React.createElement("b", { style: { color: 'var(--text-1)' } }, String(activas)), ' têm as notificações activas em pelo menos um aparelho. Cada pessoa aparece aqui depois de abrir o Workspace.'),
+    React.createElement(Card, { pad: 0 }, React.createElement("div", { style: { overflowX: 'auto' } }, React.createElement("table", { style: { width: '100%', borderCollapse: 'collapse', fontSize: 13 } },
+      React.createElement("thead", null, React.createElement("tr", null, ['Pessoa', 'Estado', 'Aparelhos', 'Último acesso'].map(h => React.createElement("th", { key: h, style: { textAlign: 'left', padding: '10px 12px', fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--text-3)', borderBottom: '1px solid var(--border)' } }, h)))),
+      React.createElement("tbody", null, linhas.map(l => {
+        const [t, cor] = estado(l);
+        return React.createElement("tr", { key: l.user_id },
+          React.createElement("td", { style: { padding: '9px 12px', borderBottom: '1px solid var(--border)', color: 'var(--text-1)', fontWeight: 600 } }, l.nome),
+          React.createElement("td", { style: { padding: '9px 12px', borderBottom: '1px solid var(--border)', color: cor, fontWeight: 600 } }, t),
+          React.createElement("td", { style: { padding: '9px 12px', borderBottom: '1px solid var(--border)', color: 'var(--text-2)' } }, l.plataformas || '—'),
+          React.createElement("td", { style: { padding: '9px 12px', borderBottom: '1px solid var(--border)', color: 'var(--text-2)', whiteSpace: 'nowrap' } }, l.ultimo ? bspDataExacta(new Date(l.ultimo)) : '—'));
+      }))))));
+}
 function AdminScreen({
   currentUser
 }) {
@@ -16600,6 +16808,9 @@ function AdminScreen({
   }, {
     id: 'activity',
     l: 'Registo'
+  }, {
+    id: 'notificacoes',
+    l: 'Notificações'
   }, {
     id: 'system',
     l: 'Sistema'
@@ -16637,7 +16848,7 @@ function AdminScreen({
       flex: 1,
       overflow: 'auto'
     }
-  }, tab === 'overview' && React.createElement(AdminOverview, null), tab === 'users' && React.createElement(AdminUsers, null), tab === 'roles' && React.createElement(AdminRoles, null), tab === 'activity' && React.createElement(AdminActivity, null), tab === 'system' && React.createElement(AdminSystem, null)));
+  }, tab === 'overview' && React.createElement(AdminOverview, null), tab === 'notificacoes' && React.createElement(AdminNotificacoes, null), tab === 'users' && React.createElement(AdminUsers, null), tab === 'roles' && React.createElement(AdminRoles, null), tab === 'activity' && React.createElement(AdminActivity, null), tab === 'system' && React.createElement(AdminSystem, null)));
 }
 function AdminOverview() {
   const {
@@ -24239,6 +24450,7 @@ const BSP_GUIA_FICHAS = [
       ['Crie contas e defina', 'área, cargo, camada e superior de cada pessoa.'],
       ['Ajuste as permissões', 'de cada camada.'],
       ['Consulte o registo', 'e o estado do sistema.'],
+      ['Veja em «Notificações»', 'quem já as activou e quem falta.'],
       ['Use «Ver como»', 'para ver o ecrã de outra pessoa, só em leitura.']
     ],
     quem: 'Direcção e Coordenação.',
@@ -26423,7 +26635,7 @@ function App() {
   }), pg === 'meetings' && React.createElement(MeetingsScreen, null), pg === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), (pg === 'seguimento' || pg === 'marcacoes') && (bspVeCrm(currentUser) || bspVeMarcacoes(currentUser) ? React.createElement(CrmScreen, { key: pg, inicial: pg === 'marcacoes' ? 'marcacoes' : null }) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'stock' && (bspVeStock(currentUser) ? React.createElement(StockScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'painel-clinico' && (bspVePainelClinico(currentUser) ? React.createElement(PainelClinicoScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(AvisoVersaoNova, null), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(EquipaScreen, null), pg === 'avarias' && (!bspESocio(currentUser) ? React.createElement(AvariasScreen, null) : null), pg === 'admin' && React.createElement(AdminScreen, {
+  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), (pg === 'seguimento' || pg === 'marcacoes') && (bspVeCrm(currentUser) || bspVeMarcacoes(currentUser) ? React.createElement(CrmScreen, { key: pg, inicial: pg === 'marcacoes' ? 'marcacoes' : null }) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'stock' && (bspVeStock(currentUser) ? React.createElement(StockScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'painel-clinico' && (bspVePainelClinico(currentUser) ? React.createElement(PainelClinicoScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(AvisoVersaoNova, null), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(PedidoNotificacoes, { currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(EquipaScreen, null), pg === 'avarias' && (!bspESocio(currentUser) ? React.createElement(AvariasScreen, null) : null), pg === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
   }), pg === 'notifications' && React.createElement(NotificationsScreen, {
     onAbrir: abrirNotificacao

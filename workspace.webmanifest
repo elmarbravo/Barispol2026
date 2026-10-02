@@ -1,0 +1,14 @@
+{
+  "name": "Barispol Workspace",
+  "short_name": "Barispol",
+  "description": "Intranet da equipa da Clínica Barispol, Lda.",
+  "lang": "pt-PT",
+  "start_url": "workspace.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#292F58",
+  "icons": [
+    { "src": "assets/icone-app.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

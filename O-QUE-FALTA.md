@@ -1721,7 +1721,10 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   mantém a aplicação aberta no telemóvel.
 - Comunicado isolado de hoje, assinado «Recursos Humanos», com resposta
   para a Arlete (RH, u2): pré-visualização enviada ao Elmar a 02-10-2026.
-  [ ] Envio a toda a equipa depois da aprovação do Elmar (regra 3).
+  [x] Enviado a 02-10-2026 a 23 pessoas (aprovação do Elmar), com as
+  respostas para rh@barispol.com. A Resend recusou 13 por excesso de
+  velocidade (10 por segundo); reenviados em lotes de 5, todos aceites.
+  Envios em massa pela base de dados: no máximo 5 por pedido.
 - Botão do sino: «Activar notificações» (antes «Ativar», fora da regra 5).
 
 ## 3-ct. Relatório de Imagiologia para a Direcção Clínica (02-10-2026)
@@ -1858,3 +1861,39 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   Ecografias, Cardiologia; Enfermagem (actos e utentes), Farmácia
   (unidades e utentes), Exames enviados para fora. Números do MetaGest
   (`bsp_srv_clinico_dados`), sem valores.
+
+## 3-cz. Notificações: as 3 ideias (02-10-2026)
+
+- Pedido do Elmar: «As 3 ideias implementa» (A, B e C da proposta das
+  notificações).
+- **A. Pedido em ecrã inteiro** (`PedidoNotificacoes`): enquanto o
+  navegador não tiver resposta, fica à frente de tudo, só com «Activar
+  notificações». Bloqueadas: explica o cadeado, com «Já activei» e
+  «Continuar sem notificações» (uma vez por dia). iPhone fora do ecrã
+  principal: explica «Adicionar ao ecrã principal» (uma vez por dia). Na
+  app Android não aparece (é a C). Cada aparelho grava o estado
+  (`notificacoes_estado`, `bsp_notif_estado`). Admin → «Notificações»
+  (`AdminNotificacoes`, `bsp_notif_estado_lista`, só a gestão): quem tem
+  activas, com o Workspace fechado, bloqueadas ou por activar.
+- **B. Web Push** (`notificacoes-push.sql`, aplicado; Edge Function
+  `push-enviar` versão 1, verificação de JWT desligada; `sw.js` na raiz;
+  `workspace.webmanifest` para o iPhone):
+  - Chaves VAPID criadas no servidor e guardadas no cofre
+    (`bsp_vapid_publica`, `bsp_vapid_privada`). A privada nunca saiu do
+    servidor.
+  - O aparelho regista-se ao entrar (`bspPushActivar` →
+    `bsp_push_registar`).
+  - Avisos: mensagens directas, grupos com membros, menções (só em canais
+    que a pessoa vê; nunca em directas, grupos privados nem tarefas
+    privadas), Feed, tarefas da equipa atribuídas, tarefas privadas
+    delegadas ou partilhadas, documentos novos e convites da agenda.
+  - Nunca: recibos e edições, históricos do WhatsApp, mensagens com mais de
+    10 minutos, o próprio autor.
+  - Com o push activo, o Workspace não repete o aviso do sistema para o
+    mesmo caso (`bspIncoming(..., coberto)`). O `sw.js` cala-se quando o
+    Workspace está à frente (menos no Safari, que o exige).
+  - Testado: a cifra decifra na biblioteca de referência (`http_ece`), a
+    assinatura VAPID confere, o `sw.js` mostra o aviso (CDP), os gatilhos
+    produzem os pedidos certos (testes desfeitos no fim). Falta: um aviso
+    real entregue a um telemóvel (o contentor não chega à Google).
+- **C. App Android:** ver 3-da.
