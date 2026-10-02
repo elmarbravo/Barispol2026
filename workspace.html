@@ -24005,21 +24005,26 @@ function DocPublicarModal({ open, substituir, onClose }) {
   const ref = React.useRef(null);
   React.useEffect(() => { if (open) { setF(vazio()); setFicheiro(null); setAGravar(false); } }, [open]);
   if (!open) return null;
-  const erro = !f.titulo.trim() ? 'Escreva o título.' : !ficheiro ? 'Escolha o ficheiro (PDF, de preferência).' : '';
+  /* Um comunicado pode ser só texto (Elmar, 02-10-2026): sem ficheiro, o
+     texto é obrigatório e é o que a equipa lê e confirma. */
+  const soTexto = f.categoria === 'comunicado';
+  const erro = !f.titulo.trim() ? 'Escreva o título.'
+    : !ficheiro && !soTexto ? 'Escolha o ficheiro (PDF, de preferência).'
+    : !ficheiro && !f.descricao.trim() ? 'Escreva o texto do comunicado ou escolha um ficheiro.' : '';
   const campo = (k, rot, ph, tipo) => React.createElement("label", null, bspTranspRot(rot),
     React.createElement("input", { type: tipo || 'text', value: f[k], onChange: e => setF(x => Object.assign({}, x, { [k]: e.target.value })), placeholder: ph, style: bspTranspCampo }));
   const publicar = async () => {
     if (erro || aGravar) return;
     setAGravar(true);
     try {
-      const caminho = await bspUploadToStorage(ficheiro, 'documentos/' + f.categoria);
+      const caminho = ficheiro ? await bspUploadToStorage(ficheiro, 'documentos/' + f.categoria) : '';
       const r = await bspGetClient().from('documentos').insert({
         categoria: f.categoria, titulo: f.titulo.trim(), numero: f.numero.trim(), descricao: f.descricao.trim(),
-        caminho, nome_ficheiro: ficheiro.name, tamanho: ficheiro.size, em_vigor_desde: f.vigor || bspDataLocalISO(new Date()),
+        caminho, nome_ficheiro: ficheiro ? ficheiro.name : '', tamanho: ficheiro ? ficheiro.size : null, em_vigor_desde: f.vigor || bspDataLocalISO(new Date()),
         substitui: substituir ? substituir.id : null
       });
       if (r.error) throw r.error;
-      toast('Documento publicado. A equipa foi avisada por e-mail e no sino.');
+      toast('Documento publicado. A equipa foi avisada no sino e no telemóvel.');
       bspDocsCarregar();
       onClose();
     } catch (e) {
@@ -24039,15 +24044,15 @@ function DocPublicarModal({ open, substituir, onClose }) {
     campo('titulo', 'Título', 'Ex.: Regulamento interno da clínica'),
     React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 } },
       campo('numero', 'Número (opcional)', 'Ex.: NI 03/2026'), campo('vigor', 'Em vigor desde', '', 'date')),
-    React.createElement("label", null, bspTranspRot('Resumo (opcional, vai no e-mail)'),
-      React.createElement("textarea", { value: f.descricao, onChange: e => setF(x => Object.assign({}, x, { descricao: e.target.value })), rows: 3, style: Object.assign({}, bspTranspCampo, { height: 'auto', padding: '10px 12px' }) })),
-    React.createElement("div", null, bspTranspRot('Ficheiro'),
+    React.createElement("label", null, bspTranspRot(soTexto ? (ficheiro ? 'Texto do comunicado (opcional com ficheiro)' : 'Texto do comunicado') : 'Resumo (opcional)'),
+      React.createElement("textarea", { value: f.descricao, onChange: e => setF(x => Object.assign({}, x, { descricao: e.target.value })), rows: soTexto ? 6 : 3, style: Object.assign({}, bspTranspCampo, { height: 'auto', padding: '10px 12px' }) })),
+    React.createElement("div", null, bspTranspRot(soTexto ? 'Ficheiro (opcional)' : 'Ficheiro'),
       React.createElement("input", { ref, type: 'file', accept: '.pdf,image/*,.doc,.docx,.xls,.xlsx', style: { display: 'none' }, onChange: e => { const x = e.target.files && e.target.files[0]; e.target.value = ''; if (x) setFicheiro(x); } }),
       React.createElement("button", { type: 'button', onClick: () => ref.current && ref.current.click(), style: bspEscBotao(false) }, React.createElement(I.Upload, { size: 15 }), ficheiro ? 'Trocar ficheiro' : 'Escolher ficheiro'),
       ficheiro && React.createElement("span", { style: { marginLeft: 10, fontSize: 12.5, color: 'var(--sucesso)' } }, '✓ ' + ficheiro.name)),
     substituir && React.createElement("p", { style: { margin: 0, fontSize: 12.5, color: 'var(--text-3)' } }, 'A versão anterior passa para o arquivo. A leitura volta a ser pedida a toda a equipa.'),
-    React.createElement("p", { style: { margin: 0, fontSize: 12.5, color: 'var(--text-3)' } }, 'Ao publicar, a equipa recebe logo um e-mail e um aviso no sino, e tem de confirmar a leitura.'),
-    erro && (f.titulo || ficheiro) && React.createElement("div", { role: 'alert', style: { fontSize: 13, color: 'var(--perigo)' } }, erro)));
+    React.createElement("p", { style: { margin: 0, fontSize: 12.5, color: 'var(--text-3)' } }, 'Ao publicar, a equipa recebe logo um aviso no sino e no telemóvel, e o documento segue no e-mail das novidades da manhã. Cada pessoa tem de confirmar a leitura.'),
+    erro && (f.titulo || ficheiro || f.descricao) && React.createElement("div", { role: 'alert', style: { fontSize: 13, color: 'var(--perigo)' } }, erro)));
 }
 function DocumentosScreen({ currentUser }) {
   const toast = useToast();
@@ -24141,11 +24146,12 @@ function DocumentosScreen({ currentUser }) {
           lido ? React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: 'var(--sucesso)', marginTop: 8 } }, '✓ Leu e tomou conhecimento a ' + bspDataExacta(new Date(lido)))
             : (!meu && !d.arquivado && d.leitura_obrigatoria) ? React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: 'var(--perigo)', marginTop: 8 } }, 'Leitura obrigatória por confirmar') : null),
         React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' } },
-          React.createElement("button", { onClick: () => abrir(d), style: Object.assign(bspEscBotao(false), { height: 40 }) }, React.createElement(I.Eye, { size: 15 }), 'Abrir'),
+          d.caminho && React.createElement("button", { onClick: () => abrir(d), style: Object.assign(bspEscBotao(false), { height: 40 }) }, React.createElement(I.Eye, { size: 15 }), 'Abrir'),
+          /* Comunicado só com texto: o texto está no cartão, não há nada para abrir. */
           !lido && !meu && !d.arquivado && React.createElement("button", {
-            onClick: () => abertos[d.id] ? confirmar(d) : toast('Abra primeiro o documento.'),
-            title: abertos[d.id] ? '' : 'Abra primeiro o documento',
-            style: Object.assign(bspEscBotao(!!abertos[d.id]), { height: 40, opacity: abertos[d.id] ? 1 : .55 })
+            onClick: () => (abertos[d.id] || !d.caminho) ? confirmar(d) : toast('Abra primeiro o documento.'),
+            title: (abertos[d.id] || !d.caminho) ? '' : 'Abra primeiro o documento',
+            style: Object.assign(bspEscBotao(!!(abertos[d.id] || !d.caminho)), { height: 40, opacity: (abertos[d.id] || !d.caminho) ? 1 : .55 })
           }, React.createElement(I.Check, { size: 15 }), 'Li e tomei conhecimento'),
           !d.arquivado && !bspEmVerComo() && React.createElement("button", {
             onClick: () => { setEnviar(v => v === d.id ? null : d.id); setDestino(''); },
@@ -24474,10 +24480,11 @@ const BSP_GUIA_FICHAS = [
       ['Confirme a leitura', 'com «Li e tomei conhecimento».'],
       ['Procure', 'pelo título ou pelo número.'],
       ['Envie para o Chat', 'com «Enviar para o Chat»: a conversa recebe o botão «Abrir o documento».'],
-      ['Quem publica vê quem leu', 'e pode pôr uma nova versão.']
+      ['Quem publica vê quem leu', 'e pode pôr uma nova versão.'],
+      ['Um comunicado pode ser só texto:', 'escreva-o em «Texto do comunicado» e não precisa de ficheiro.']
     ],
     quem: 'Toda a equipa lê. Publicam Direcção, Coordenação, Direcção Clínica e Administração.',
-    dica: 'Um documento novo chega no mesmo instante, por e-mail e no sino.' },
+    dica: 'Um documento novo chega no mesmo instante, no sino e no telemóvel, e segue no e-mail das novidades da manhã.' },
   { icone: 'Shield', nome: 'Admin',
     serve: 'A gestão das pessoas e dos acessos ao Workspace.',
     faz: [

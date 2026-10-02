@@ -410,6 +410,8 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   obrigatória (`documentos_leituras`). Desde 02-10-2026 o aviso vai por
   `novidades` (e-mail das 05h00), sino e telemóvel; a Edge Function
   `documento-aviso` já não se chama (`emails-pausa.sql`).
+  Um comunicado pode ser só texto (`caminho` vazio): sem «Abrir», e a
+  leitura confirma-se no cartão.
 - «A minha actividade» (30-09-2026, `minha-actividade.sql`): médicos vêem
   só a sua produção (`bsp_minha_actividade`, sem notas de crédito, igual ao
   Painel). Ligação pelo campo `metagest` (códigos `ref_practitioner`) na

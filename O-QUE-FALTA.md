@@ -2004,3 +2004,15 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   o das 08h00. O mosaico passa a «Documentos ontem».
 - [ ] 03-10-2026: confirmar em `emails_registo` que o dia fica abaixo dos
   95 e que não há envios com `pausado` depois da meia-noite.
+
+## 3-de. Comunicado só com texto (02-10-2026)
+
+- O Elmar não conseguia publicar o comunicado «Migração do sistema
+  MetaGest»: a janela «Publicar documento» exigia sempre um ficheiro.
+- `DocPublicarModal`: nos comunicados o ficheiro é opcional. Sem ficheiro,
+  o «Texto do comunicado» é obrigatório e grava-se com `caminho` e
+  `nome_ficheiro` vazios.
+- `DocumentosScreen`: sem ficheiro, o cartão não mostra «Abrir» e a leitura
+  confirma-se logo, porque o texto está no próprio cartão.
+- A janela e a ficha do guia já não dizem que sai um e-mail no instante
+  (ver 3-dd).
