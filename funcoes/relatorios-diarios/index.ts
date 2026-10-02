@@ -8,7 +8,8 @@
 //     da API do MetaGest (erp.sales_invoice), iguais aos do Painel.
 //   · "areas" (07h15, bsp-relatorio-areas): a cada chefe de área
 //     (bsp_escalas_responsaveis) o que é da sua área, sem valores, com
-//     adm@barispol.com em cópia.
+//     adm@barispol.com em cópia. A Imagiologia vai para a Direcção
+//     Clínica (u14), e não para o responsável da área (Elmar, 02-10-2026).
 // Utentes nunca com nome. Um envio por relatório, dia e destino
 // (relatorios_enviados). {"previa": true} devolve os e-mails sem enviar;
 // {"dia": "AAAA-MM-DD"} escolhe o dia; {"forcar": true} volta a enviar.
@@ -419,11 +420,15 @@ Deno.serve(async (req) => {
       },
     };
     const ADM = "adm@barispol.com";
+    /* Áreas cujo relatório vai para outra pessoa que não o responsável da
+       escala: a Imagiologia vai para a Direcção Clínica (Elmar, 02-10-2026). */
+    const PARA_AREA: Record<string, string[]> = { radiologia: ["u14"] };
     const envios: any[] = [];
     for (const r of (resp || []) as any[]) {
       const a = AREAS[r.area];
       if (!a || !a.tem()) continue;
-      const chefes = equipa.filter((u: any) => (r.ids || []).includes(u.id) && daClinica(u.email) && !socio(u)).map((u: any) => String(u.email));
+      const ids: string[] = PARA_AREA[r.area] || r.ids || [];
+      const chefes = equipa.filter((u: any) => ids.includes(u.id) && daClinica(u.email) && !socio(u)).map((u: any) => String(u.email));
       const html = envelope(a.titulo + " · " + curta(dia),
         paragrafo("O que a sua área fez ontem, " + longa(dia) + ", segundo o MetaGest. Sem valores.") +
           alertasHtml(alertas.filter((x) => x.area === r.area)) + a.corpo(),

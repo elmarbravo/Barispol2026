@@ -1723,3 +1723,12 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   para a Arlete (RH, u2): pré-visualização enviada ao Elmar a 02-10-2026.
   [ ] Envio a toda a equipa depois da aprovação do Elmar (regra 3).
 - Botão do sino: «Activar notificações» (antes «Ativar», fora da regra 5).
+
+## 3-ct. Relatório de Imagiologia para a Direcção Clínica (02-10-2026)
+
+- Pedido do Elmar: o relatório diário de Imagiologia (07h15) vai para o
+  Director Clínico, Osvaldo Pacheco (u14), com adm@barispol.com em cópia.
+  Antes ia para a Arlete (u2), responsável da área nas escalas.
+- `relatorios-diarios` versão 3: `PARA_AREA` (`radiologia` → `u14`). As
+  outras áreas continuam com o responsável da escala
+  (`bsp_escalas_responsaveis`).
