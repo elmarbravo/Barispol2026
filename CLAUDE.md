@@ -361,6 +361,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `AusenciasPainel`, `FormacoesPainel`), `AvariasScreen`
   (`bspTrataAvarias` = gestão + Serviços Gerais), Stock →
   `PedidosCompraPainel` (só a gestão aprova).
+  Mapa de férias (02-10-2026, `ferias-mapa.sql`): `bsp_mapa_ferias(ano)` /
+  `MapaFerias`; toda a equipa vê só as férias aprovadas (pessoa e datas). Os
+  outros tipos de ausência nunca entram no mapa.
 - Relatórios diários (02-10-2026, `relatorios-diarios.sql`, Edge Function
   `relatorios-diarios`): Direcção 06h50 (sócios + Director, com valores) e
   áreas 07h15 (chefes, sem valores, adm@barispol.com em cópia), em vez do

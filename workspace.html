@@ -4029,7 +4029,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista'];
+const BSP_RPC_LEITURA = ['bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -24719,9 +24719,10 @@ const BSP_GUIA_FICHAS = [
       ['Procure um colega', 'e ligue ou escreva-lhe.'],
       ['Peça férias ou uma ausência;', 'decide o seu superior, o chefe da área ou a Direcção, e recebe o aviso.'],
       ['Veja quem vai estar fora', 'nos próximos 30 dias.'],
+      ['Consulte o mapa de férias', 'de toda a equipa, mês a mês, com aviso quando a mesma área fica com duas pessoas fora.'],
       ['Registe as suas formações;', 'os certificados a caducar aparecem em destaque.']
     ],
-    quem: 'Toda a equipa. Cada pessoa vê os seus pedidos e formações; os chefes vêem os da sua área.',
+    quem: 'Toda a equipa. Cada pessoa vê os seus pedidos e formações; os chefes vêem os da sua área. O mapa de férias aprovadas é de todos.',
     dica: 'Peça as férias com antecedência: o chefe precisa de acertar a escala.' },
   { icone: 'Cog', nome: 'Avarias e património',
     serve: 'O registo das avarias e dos danos em todo o património (equipamento, lâmpadas, portas, mobiliário, canalização…) até estarem resolvidos.',
@@ -25237,6 +25238,59 @@ const bspRegCaixa = { padding: 14, border: '1px solid var(--border)', borderRadi
 function bspDiasEntre(a, b) { return Math.round((bspDataDe(b) - bspDataDe(a)) / 86400000) + 1; }
 
 /* ───────────── Ferias e ausencias ───────────── */
+/* Mapa de férias da equipa (02-10-2026, ferias-mapa.sql, Elmar: «pode estar
+   lá todo mapa de quem vai de férias quando na equipa?»). Toda a equipa vê
+   as férias aprovadas de todos (pessoa e datas), mês a mês, para o plano
+   anual do RI-6.1. Doença, faltas, licenças, notas e pedidos por decidir
+   ficam privados. Quando duas pessoas da mesma área estão fora ao mesmo
+   tempo, o mês mostra o aviso. */
+const BSP_MESES_LONGOS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+function MapaFerias() {
+  const anoActual = new Date().getFullYear();
+  const [ano, setAno] = React.useState(anoActual);
+  const [linhas, setLinhas] = React.useState(null);
+  const [erro, setErro] = React.useState('');
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    setLinhas(null); setErro('');
+    cl.rpc('bsp_mapa_ferias', { p_ano: ano }).then(r => {
+      if (!vivo) return;
+      if (r.error) { setErro(/function|does not exist|schema cache/i.test(String(r.error.message)) ? 'O mapa ainda não está activo no servidor.' : r.error.message); setLinhas([]); return; }
+      setLinhas(r.data || []);
+    });
+    return () => { vivo = false; };
+  }, [ano]);
+  const meses = BSP_MESES_LONGOS.map((nome, i) => {
+    const ini = ano + '-' + String(i + 1).padStart(2, '0') + '-01';
+    const fim = bspDataLocalISO(new Date(ano, i + 1, 0));
+    const doMes = (linhas || []).filter(a => a.inicio <= fim && a.fim >= ini);
+    /* Sobreposições na mesma área. */
+    const choques = [];
+    doMes.forEach((a, k) => doMes.slice(k + 1).forEach(b => {
+      const ua = window.userById(a.user_id), ub = window.userById(b.user_id);
+      if (ua && ub && a.user_id !== b.user_id && bspAreaChave(ua.dept) && bspAreaChave(ua.dept) === bspAreaChave(ub.dept) && a.inicio <= b.fim && b.inicio <= a.fim)
+        choques.push(bspNomeCurto(a.user_id) + ' e ' + bspNomeCurto(b.user_id) + ' (' + (ua.dept || '') + ')');
+    }));
+    return { nome, doMes, choques };
+  });
+  const total = (linhas || []).length;
+  return React.createElement("div", { style: bspRegCaixa },
+    React.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' } },
+      React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)' } }, 'Mapa de férias da equipa'),
+      React.createElement("div", { style: { display: 'flex', gap: 6 } },
+        [anoActual, anoActual + 1].map(a => React.createElement("button", { key: a, type: 'button', onClick: () => setAno(a), style: bspEscChip(ano === a) }, String(a))))),
+    React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginTop: 4 } }, 'Férias aprovadas de toda a equipa. Os outros tipos de ausência não aparecem aqui.'),
+    erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13, marginTop: 8 } }, erro)
+      : linhas === null ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)', marginTop: 8 } }, 'A carregar…')
+      : !total ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)', marginTop: 8 } }, 'Ainda não há férias aprovadas em ' + ano + '.')
+      : meses.filter(m => m.doMes.length).map(m => React.createElement("div", { key: m.nome, style: { padding: '10px 0', borderTop: '1px solid var(--border)', marginTop: 8 } },
+          React.createElement("div", { style: { fontSize: 13.5, fontWeight: 700, color: 'var(--navy-texto)' } }, m.nome + ' · ' + m.doMes.length + (m.doMes.length === 1 ? ' pessoa' : ' pessoas')),
+          m.doMes.map(a => { const u = window.userById(a.user_id); return React.createElement("div", { key: a.user_id + a.inicio, style: { fontSize: 13, color: 'var(--text-2)', marginTop: 4 } },
+            React.createElement("b", { style: { color: 'var(--text-1)' } }, u ? u.name : 'Antigo colaborador'), (u && u.dept ? ' · ' + u.dept : '') + ' · ' + bspDataCurta(a.inicio) + ' a ' + bspDataCurta(a.fim) + ' (' + bspDiasEntre(a.inicio, a.fim) + ' dias)'); }),
+          m.choques.length > 0 && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--perigo)', marginTop: 6 } }, 'Ao mesmo tempo na mesma área: ' + m.choques.join('; ') + '.'))));
+}
 const BSP_AUSENCIA_TIPOS = ['Férias', 'Doença', 'Falta justificada', 'Formação', 'Licença', 'Outro'];
 function AusenciasPainel() {
   const toast = useToast();
@@ -25300,6 +25354,7 @@ function AusenciasPainel() {
     ausentes.length > 0 && React.createElement("div", { style: bspRegCaixa },
       React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)' } }, 'Quem vai estar fora (próximos 30 dias)'),
       ausentes.map(a => linha(a, null))),
+    React.createElement(MapaFerias, null),
     React.createElement("div", { style: bspRegCaixa },
       React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)' } }, 'Os meus pedidos'),
       !meus.length ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)', marginTop: 6 } }, t.linhas ? 'Ainda sem pedidos.' : 'A carregar…')

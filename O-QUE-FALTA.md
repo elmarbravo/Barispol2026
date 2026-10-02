@@ -2099,3 +2099,20 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
     enfermeiros 4, técnicos 3, chefes 6, recepção 3.
   - Um cargo novo com um nome diferente fica fora das famílias: rever
     `bsp_cargo_grupos` e `BSP_DOC_CARGOS` juntos.
+
+## 3-di. Mapa de férias da equipa (02-10-2026)
+
+- Pedido do Elmar: «nas férias, quem vê? pode estar lá todo mapa de quem vai
+  de férias quando na equipa?».
+- Antes: cada pessoa via os seus pedidos, o chefe os da sua equipa
+  (`bsp_chefe_de`) e a gestão todos. Não havia mapa geral.
+- `ferias-mapa.sql` (aplicado): `bsp_mapa_ferias(ano)` devolve só as férias
+  aprovadas (pessoa, início, fim) a toda a equipa, sem sócios. Doença,
+  faltas, licenças, notas e pedidos por decidir continuam privados
+  (`ausencias_ler`).
+- Ecrã: `MapaFerias` em Equipa → Férias e ausências, por mês, com o ano
+  actual e o seguinte. Avisa quando duas pessoas da mesma área estão fora
+  ao mesmo tempo. Serve o plano anual do RI-6.1.
+- [ ] Ainda não há pedidos de férias gravados: o mapa começa vazio. O plano
+  anual de cada pessoa entra como pedido de férias e é aprovado pelo
+  superior.
