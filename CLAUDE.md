@@ -313,6 +313,16 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `AusenciasPainel`, `FormacoesPainel`), `AvariasScreen`
   (`bspTrataAvarias` = gestão + Serviços Gerais), Stock →
   `PedidosCompraPainel` (só a gestão aprova).
+- Relatórios diários (02-10-2026, `relatorios-diarios.sql`, Edge Function
+  `relatorios-diarios`): Direcção 06h50 (sócios + Director, com valores) e
+  áreas 07h15 (chefes, sem valores, adm@barispol.com em cópia), em vez do
+  Zapier. Endereços extra só no servidor (`relatorios_diarios_destinos`;
+  `relatorios_destinos` é dos relatórios por área, outra coisa).
+  Painel clínico: `PainelClinicoScreen` / `bsp_painel_clinico` sobre
+  `erp.clinico_dados`; nunca Kz nem nomes de utentes.
+- Pessoas invisíveis (02-10-2026): `oculto: true` na equipa (o sócio
+  Francisco Pinheiro). Esconder só no ecrã com `bspSemOcultos`/`bspOculto`;
+  nunca tirar da `state.team`, que se grava inteira.
 - Sócios (27-09-2026, `socios.sql`): camada «Sócio» (`soNumeros`), só o
   Painel. Servidor: `bsp_e_socio`, `bsp_membro_e_socio`; ecrã: `bspESocio`,
   `bspVePainel`. Nunca usar a camada de sócio como camada de recurso.

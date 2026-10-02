@@ -1610,3 +1610,43 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   branco encostava às letras «CENTRO MÉDICO» e «BARISPOL». `BarispolLogo`
   passa a ter sempre 13% de margem (`--bsp-logo-pad`), também na regra do
   modo escuro. Confirmado em capturas a 390 e 1366 px, claro e escuro.
+
+## 3-cp. Relatórios do Zapier no Supabase, sócio invisível e Painel clínico (02-10-2026)
+
+- **O que parou.** Os relatórios enviados por info@barispol.ao através do
+  Zapier pararam a 28-09-2026 às 08h21: o plano ficou sem tarefas (aviso
+  de 08h16) e as tarefas agendadas foram depois apagadas. Pararam também,
+  pelo Gmail, «Resumo diário das caixas» (24-09), «Contactos de pacientes»
+  para adm@ (22-09), o pipeline da Evolutiva (18-09) e os relatórios
+  diários da Quinta do Pinhão (28-09). Os dois do MetaGest (Direcção às
+  05h e actividade clínica às 07h) continuam.
+- **Novo: `relatorios-diarios.sql` + Edge Function `relatorios-diarios`**
+  (verificação de JWT desligada, mesma autenticação da resumo-matinal):
+  - `erp.direccao_dados(dia)` e `erp.clinico_dados(de, ate)`, só com a
+    chave do servidor (atalhos `bsp_srv_*`).
+  - 06h50 (`bsp-relatorio-direccao`): resumo do dia anterior aos sócios,
+    com o Director em cópia, mais `relatorios_diarios_destinos` (o Gmail
+    do Director, guardado só no servidor). Números iguais ao Painel: o
+    relatório do MetaGest conta duas vezes o POS da farmácia.
+  - 07h15 (`bsp-relatorio-areas`): a cada chefe de área
+    (`bsp_escalas_responsaveis`) o da sua área, sem valores, com
+    adm@barispol.com em cópia. Imagiologia só com actos; Serviços Gerais
+    só com alertas de stock.
+  - Um envio por dia e destino (`relatorios_enviados`); `{"previa": true}`
+    mostra sem enviar; `{"dia": "AAAA-MM-DD"}`; `{"forcar": true}`.
+- **Sócio invisível:** Francisco Pinheiro (`u1790922653166`, camada
+  «Sócio», `oculto: true` em `shared_state.team`). Recebe o resumo da
+  Direcção e vê só o Painel. Não aparece a ninguém (`bspOculto`,
+  `bspSemOcultos`; `USERS` sem ocultos); em Admin → Utilizadores só o
+  Elmar (u1) o vê. A equipa grava-se sempre inteira.
+- [ ] **Elmar:** criar o acesso do sócio em Admin → Utilizadores →
+  Francisco Pinheiro (palavra-passe escolhida pelo Elmar).
+- **Painel clínico** (menu «Painel clínico», `PainelClinicoScreen`;
+  Início `PainelClinicoCartao`): números sem valores e alertas (esgotados,
+  lotes caducados ou a caducar em 30 dias, a acabar em 7 dias, facturas
+  sem médico, marcações por confirmar, dia 30% abaixo da média).
+  `bsp_painel_clinico(de, ate)`: cada pessoa recebe a sua área (e as que
+  chefia; a Clínica também Laboratório e Recepção); gestão, Painel e
+  Direcção Clínica vêem todas. Em `BSP_ECRAS_SENSIVEIS` e no guia.
+- Fica de fora (precisava de ler as caixas de correio): o relatório das
+  16h30 com os pendentes da Arlete e o «Resumo diário das caixas».

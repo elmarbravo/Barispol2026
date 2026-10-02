@@ -1476,6 +1476,18 @@ function bspESocio(u){
   if (!u) return false;
   return u.accessLevel === 'Sócio' || !!bspCamada(u).soNumeros;
 }
+/* Pessoas invisíveis (02-10-2026, pedido do Elmar): o sócio fica na equipa
+   gravada (recebe o resumo da Direcção e entra no Painel), mas não aparece
+   a ninguém, nem à Arlete: directório, chat, menções, listas, «Ver como».
+   Só a própria pessoa se vê; em Admin → Pessoas, só o Elmar (u1), para lhe
+   criar o acesso. A equipa grava-se sempre inteira (state.team): esconde-se
+   só no ecrã, com bspSemOcultos. */
+function bspOculto(u) {
+  return !!(u && u.oculto && u.id !== window.CURRENT_USER_ID);
+}
+function bspSemOcultos(lista) {
+  return (lista || []).filter(u => !bspOculto(u));
+}
 /* Quem ve o Painel (decisao do Elmar, 27-09-2026): o Elmar (u1), o
    departamento Financeiro e os socios. A gestao, por si so, nao. O
    servidor aplica a mesma regra (bsp_ve_painel). */
@@ -2768,6 +2780,13 @@ const NAV_ITEMS = [{
   badge: null,
   painelOnly: true
 }, {
+  /* Painel clinico (02-10-2026): numeros sem valores, por area, e alertas. */
+  id: 'painel-clinico',
+  label: 'Painel clínico',
+  icon: 'Heart',
+  badge: null,
+  clinicoOnly: true
+}, {
   id: 'relatorios',
   label: 'Relatórios',
   icon: 'File',
@@ -2956,6 +2975,7 @@ function Sidebar({
     if (item.transporteOnly && !bspVeTransporte(currentUser)) return null;
     if (item.stockOnly && !bspVeStock(currentUser)) return null;
     if (item.actividadeOnly && !bspVeActividade(currentUser)) return null;
+    if (item.clinicoOnly && !bspVePainelClinico(currentUser)) return null;
     if (bspESocio(currentUser) && item.id !== 'painel') return null;
     const active = current === item.id || (item.id === 'seguimento' && current === 'marcacoes');
     const IconComp = I[item.icon];
@@ -3183,6 +3203,7 @@ function Topbar({
     transporte: 'Transporte',
     stock: 'Stock',
     painel: 'Painel financeiro',
+    'painel-clinico': 'Painel clínico',
     relatorios: 'Relatórios do dia',
     documentos: 'Documentos da clínica',
     actividade: 'A minha actividade',
@@ -3862,7 +3883,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros'];
+const BSP_RPC_LEITURA = ['bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -5405,7 +5426,7 @@ function StoreProvider({
     const team = state.team;
     if (!team || !team.length) return;
     USERS.length = 0;
-    team.slice().sort(bspPorNome).forEach(u => USERS.push(u));
+    bspSemOcultos(team).sort(bspPorNome).forEach(u => USERS.push(u));
   }, [state.team]);
   const nextId = prefix => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   const nowTime = () => {
@@ -7074,6 +7095,8 @@ function DashboardScreen({
     onAbrir: () => onSwitch && onSwitch('painel')
   }), bspVeStock(currentUser) && React.createElement(StockAlertaCartao, {
     onAbrir: () => onSwitch && onSwitch('stock')
+  }), bspVePainelClinico(currentUser) && React.createElement(PainelClinicoCartao, {
+    onAbrir: () => onSwitch && onSwitch('painel-clinico')
   }), bspVeActividade(currentUser) && React.createElement(ActividadeAtalho, {
     currentUser: currentUser,
     onAbrir: () => onSwitch && onSwitch('actividade')
@@ -7818,7 +7841,7 @@ function ChatScreen({
   }, [alvo]);
   const isDM = !!dmId;
   const activeChannel = !isDM ? CHANNELS.find(c => c.id === channelId) || CHANNELS[0] : null;
-  const equipaToda = (state.team && state.team.length) ? state.team : USERS;
+  const equipaToda = bspSemOcultos((state.team && state.team.length) ? state.team : USERS);
   const nMembros = activeChannel ? bspMembrosCanal(activeChannel, equipaToda).length : 0;
   /* Quantas mensagens de outra pessoa chegaram desde a ultima vez que
      abri esta conversa. Os contadores ao lado dos nomes ja estavam
@@ -9422,7 +9445,7 @@ function ChannelInfo({
   const {
     state
   } = useStore();
-  const equipa = state.team && state.team.length ? state.team : USERS;
+  const equipa = bspSemOcultos(state.team && state.team.length ? state.team : USERS);
   const team = bspMembrosCanal(channel, equipa);
   const files = (state.driveFiles || []).slice(0, 5);
   return React.createElement("div", null, React.createElement(Section, {
@@ -17111,7 +17134,7 @@ function AdminUsers() {
     actions
   } = useStore();
   const toast = useToast();
-  const equipaToda = state.team && state.team.length ? state.team : USERS;
+  const equipaToda = (state.team && state.team.length ? state.team : USERS).filter(u => !bspOculto(u) || window.CURRENT_USER_ID === 'u1');
   const [modal, setModal] = React.useState(null);
   const meId = window.CURRENT_USER_ID;
   /* Ordem e pesquisa na lista de utilizadores (25-09-2026). */
@@ -17622,7 +17645,7 @@ function AdminRoles() {
   const cruas = state.camadas || CAMADAS;
   const cs = {};
   Object.keys(cruas).forEach(n => { cs[n] = bspNormalizarCamada(n, cruas[n]); });
-  const equipa = (state.team && state.team.length) ? state.team : USERS;
+  const equipa = bspSemOcultos((state.team && state.team.length) ? state.team : USERS);
   const podeEditar = bspCamada(bspResolveUser(null, equipa)).podeVerSistema;
   const todosCanais = CHANNELS.concat(state.extraChannels || []);
   /* Desde 25-09-2026 o canal de area vem do departamento de cada pessoa,
@@ -18850,6 +18873,7 @@ function MobileTopbar({
     seguimento: 'Utentes',
     marcacoes: 'Utentes',
     painel: 'Painel',
+    'painel-clinico': 'Painel clínico',
     relatorios: 'Relatórios',
     documentos: 'Documentos',
     actividade: 'A minha actividade',
@@ -19189,6 +19213,10 @@ function MobileMore({
     label: 'Painel',
     icon: 'TrendUp'
   }, {
+    id: 'painel-clinico',
+    label: 'Painel clínico',
+    icon: 'Heart'
+  }, {
     id: 'relatorios',
     label: 'Relatórios',
     icon: 'File'
@@ -19220,6 +19248,10 @@ function MobileMore({
   }
   if (!vePainel) {
     const k = items.findIndex(x => x.id === 'painel');
+    if (k !== -1) items.splice(k, 1);
+  }
+  if (!bspVePainelClinico(window.userById(window.CURRENT_USER_ID))) {
+    const k = items.findIndex(x => x.id === 'painel-clinico');
     if (k !== -1) items.splice(k, 1);
   }
   if (!bspVeActividade(window.userById(window.CURRENT_USER_ID))) {
@@ -23820,7 +23852,7 @@ function ActividadeAtalho({ currentUser, onAbrir }) {
    cliques. Nao impede o print (no navegador nao ha forma), mas quem o
    tirou fica escrito nele. Na app Android os prints estao bloqueados
    (FLAG_SECURE na MainActivity). */
-const BSP_ECRAS_SENSIVEIS = ['painel', 'actividade', 'seguimento', 'marcacoes'];
+const BSP_ECRAS_SENSIVEIS = ['painel', 'painel-clinico', 'actividade', 'seguimento', 'marcacoes'];
 function MarcaDagua({ forte }) {
   const [agora, setAgora] = React.useState(() => new Date());
   React.useEffect(() => {
@@ -24036,9 +24068,19 @@ const BSP_GUIA_FICHAS = [
       ['Quem trata regista', 'o responsável, o custo e o que se fez.']
     ],
     quem: 'Toda a equipa reporta. A Direcção e os Serviços Gerais tratam.',
-    dica: 'Quem reportou recebe o aviso quando a avaria fica resolvida.' }
+    dica: 'Quem reportou recebe o aviso quando a avaria fica resolvida.' },
+  { icone: 'Heart', nome: 'Painel clínico',
+    serve: 'O trabalho de cada área, em números e sem valores: utentes, consultas, exames, actos e stock.',
+    faz: [
+      ['Escolha o período:', 'ontem, hoje, 7 dias, 30 dias ou o mês.'],
+      ['Veja os alertas da sua área:', 'esgotados, lotes caducados ou a caducar, facturas sem médico e marcações por confirmar.'],
+      ['Consulte os actos mais feitos', 'de cada área e, na Clínica, as consultas por médico.'],
+      ['Receba o mesmo resumo por e-mail', 'todas as manhãs às 07h15, se chefia a área.']
+    ],
+    quem: 'Toda a equipa vê a sua área. A Direcção, a Coordenação e a Direcção Clínica vêem todas.',
+    dica: 'Nunca mostra valores em Kz nem nomes de utentes.' }
 ];
-const BSP_GUIA_IDS = ['dashboard', 'chat', 'feed', 'drive', 'calendar', 'tasks', 'escalas', 'transporte', 'seguimento', 'marcacoes', 'painel', 'relatorios', 'actividade', 'documentos', 'admin', 'stock', 'directory', 'avarias'];
+const BSP_GUIA_IDS = ['dashboard', 'chat', 'feed', 'drive', 'calendar', 'tasks', 'escalas', 'transporte', 'seguimento', 'marcacoes', 'painel', 'relatorios', 'actividade', 'documentos', 'admin', 'stock', 'directory', 'avarias', 'painel-clinico'];
 const BSP_GUIA = {};
 BSP_GUIA_IDS.forEach((id, i) => { BSP_GUIA[id] = BSP_GUIA_FICHAS[i]; });
 function bspGuiaVistos(uid) {
@@ -24974,6 +25016,135 @@ function PainelCobrancas() {
         devs.length > 8 && React.createElement("button", { onClick: () => setTodos(v => !v), style: { marginTop: 8, border: 0, background: 'transparent', color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', padding: 0 } }, todos ? 'Mostrar menos' : 'Ver os ' + devs.length))));
 }
 
+/* PAINEL CLINICO (02-10-2026, relatorios-diarios.sql, pedido do Elmar):
+   para quem e da area, os numeros do MetaGest sem valores (utentes,
+   consultas, exames, actos, stock) e os alertas da sua area. Cada pessoa so
+   recebe as suas areas (bsp_painel_clinico no servidor); Direccao,
+   Coordenacao e Direccao Clinica vem todas. Nunca Kz nem nomes de utentes. */
+function bspVePainelClinico(u) {
+  return !!u && !bspESocio(u);
+}
+const BSP_CLINICO_AREAS = { recepcao: 'Recepção', clinica: 'Clínica', laboratorio: 'Laboratório', farmacia: 'Farmácia', enfermagem: 'Enfermagem', radiologia: 'Imagiologia', 'servicos gerais': 'Serviços Gerais' };
+const BSP_CLINICO_NIVEL = { perigo: 'var(--perigo)', aviso: 'var(--accent-d)', info: 'var(--text-2)' };
+function bspFrase(t) { const x = String(t || '').trim().toLowerCase(); return x ? x.charAt(0).toUpperCase() + x.slice(1) : ''; }
+function usePainelClinico(de, ate) {
+  const [estado, setEstado] = React.useState({ dados: null, erro: '', aCarregar: false });
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) { setEstado({ dados: null, erro: 'O servidor não está ligado neste aparelho.', aCarregar: false }); return; }
+    let vivo = true;
+    setEstado(s => Object.assign({}, s, { aCarregar: true }));
+    cl.rpc('bsp_painel_clinico', { p_de: de, p_ate: ate }).then(r => {
+      if (!vivo) return;
+      if (r.error) setEstado({ dados: null, erro: r.error.message || 'Não foi possível carregar.', aCarregar: false });
+      else setEstado({ dados: r.data, erro: '', aCarregar: false });
+    });
+    return () => { vivo = false; };
+  }, [de, ate]);
+  return estado;
+}
+function PainelClinicoAlertas({ alertas, max }) {
+  const lista = (alertas || []).slice(0, max || 99);
+  if (!lista.length) return null;
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
+    lista.map((a, i) => React.createElement("div", { key: i, style: { display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 13, lineHeight: 1.45 } },
+      React.createElement("span", { style: { flex: 'none', fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: BSP_CLINICO_NIVEL[a.nivel] || 'var(--text-2)' } }, BSP_CLINICO_AREAS[a.area] || a.area),
+      React.createElement("span", { style: { color: a.nivel === 'perigo' ? 'var(--perigo)' : 'var(--text-1)', minWidth: 0, overflowWrap: 'anywhere' } }, bspFrase(a.texto)))));
+}
+function PainelClinicoCartao({ onAbrir }) {
+  const ontem = bspSomarDias(bspDataLocalISO(new Date()), -1);
+  const { dados } = usePainelClinico(ontem, ontem);
+  if (!dados) return null;
+  const n = dados.numeros || {};
+  const al = dados.alertas || [];
+  const num = (rotulo, valor) => React.createElement("div", { style: { minWidth: 0 } },
+    React.createElement("div", { style: { fontSize: 11.5, fontWeight: 600, color: 'var(--text-3)' } }, rotulo),
+    React.createElement("div", { style: { fontSize: 20, fontWeight: 700, color: 'var(--text-1)' } }, Number(valor || 0).toLocaleString('pt-PT')));
+  return React.createElement(Card, { pad: 16, style: { marginBottom: 16, borderLeft: '4px solid ' + (al.some(a => a.nivel === 'perigo') ? 'var(--perigo)' : 'var(--accent)') } },
+    React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' } },
+      React.createElement("div", { style: { flex: '1 1 160px' } },
+        React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)' } }, 'Painel clínico'),
+        React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2 } }, 'Ontem, ' + bspMarcDataPt(ontem) + ' · MetaGest, sem valores')),
+      num('Utentes', n.utentes), num('Consultas', n.consultas), num('Exames', n.exames_lab),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: onAbrir }, 'Abrir')),
+    al.length > 0 && React.createElement("div", { style: { marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' } },
+      React.createElement(PainelClinicoAlertas, { alertas: al, max: 4 }),
+      al.length > 4 && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 6 } }, 'E mais ' + (al.length - 4) + (al.length - 4 === 1 ? ' alerta.' : ' alertas.'))));
+}
+function PainelClinicoScreen() {
+  const hoje = bspDataLocalISO(new Date());
+  const periodos = [
+    ['ontem', 'Ontem', bspSomarDias(hoje, -1), bspSomarDias(hoje, -1)],
+    ['hoje', 'Hoje', hoje, hoje],
+    ['7', 'Últimos 7 dias', bspSomarDias(hoje, -6), hoje],
+    ['30', 'Últimos 30 dias', bspSomarDias(hoje, -29), hoje],
+    ['mes', 'Este mês', hoje.slice(0, 8) + '01', hoje]
+  ];
+  const [periodo, setPeriodo] = React.useState(() => { try { return localStorage.getItem('bsp-clinico-periodo') || 'ontem'; } catch (e) { return 'ontem'; } });
+  React.useEffect(() => { try { localStorage.setItem('bsp-clinico-periodo', periodo); } catch (e) {} }, [periodo]);
+  const p = periodos.find(x => x[0] === periodo) || periodos[0];
+  const { dados: d, erro, aCarregar } = usePainelClinico(p[2], p[3]);
+  const chip = on => ({ height: 32, padding: '0 12px', borderRadius: 999, border: '1px solid ' + (on ? 'var(--accent-d)' : 'var(--border)'), background: on ? 'var(--accent-soft)' : 'var(--surface)', color: on ? 'var(--accent-d)' : 'var(--text-2)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' });
+  const tit = t => React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 12 } }, t);
+  const qtd = v => Number(v || 0).toLocaleString('pt-PT');
+  const n = d && d.numeros || {};
+  const areas = d && d.areas || [];
+  const tem = a => areas.indexOf(a) !== -1;
+  const top = k => (d && d.top && d.top[k] || []).map(x => ({ rotulo: bspFrase(x.nome), valor: Number(x.n) }));
+  const barras = (titulo, k, cor) => top(k).length ? React.createElement(Card, { pad: 16 }, tit(titulo), React.createElement(PainelBarras, { dados: top(k), formatar: qtd, cor: cor })) : null;
+  const marc = d && d.marcacoes || {};
+  const stock = d && d.stock || {};
+  const stockCard = k => {
+    const s = stock[k];
+    if (!s) return null;
+    const linhas = [].concat(
+      (s.esgotados || []).map(x => [bspFrase(x), 'Esgotado', 'perigo']),
+      (s.caducados || []).map(x => [bspFrase(x.nome), 'Lote caducado a ' + bspMarcDataPt(x.validade) + ' (' + qtd(x.qtd) + ')', 'perigo']),
+      (s.a_acabar || []).map(x => [bspFrase(x.nome), 'Acaba em ' + qtd(x.dias) + (Number(x.dias) === 1 ? ' dia' : ' dias'), 'aviso']),
+      (s.a_caducar || []).map(x => [bspFrase(x.nome), 'Caduca a ' + bspMarcDataPt(x.validade) + ' (' + qtd(x.qtd) + ')', 'aviso']));
+    if (!linhas.length) return null;
+    return React.createElement(Card, { pad: 16 }, tit('Stock · ' + BSP_CLINICO_AREAS[k]),
+      React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 320, overflow: 'auto' } },
+        linhas.map((l, i) => React.createElement("div", { key: i, style: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 10, fontSize: 13, borderBottom: '1px solid var(--border)', paddingBottom: 5 } },
+          React.createElement("span", { style: { color: 'var(--text-1)', overflowWrap: 'anywhere' } }, l[0]),
+          React.createElement("span", { style: { color: BSP_CLINICO_NIVEL[l[2]], fontWeight: 600, whiteSpace: 'nowrap' } }, l[1])))));
+  };
+  const serie = (d && d.serie || []).map(x => ({ rotulo: bspDiaExtenso(x.dia + 'T12:00:00'), curto: x.dia.slice(8, 10) + '/' + x.dia.slice(5, 7), valor: Number(x.utentes), extra: x.consultas + ' consultas · ' + x.exames + ' exames' }));
+  const grelha = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: 14 };
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 14, height: '100%', overflow: 'auto', paddingBottom: 12 } },
+    React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', flex: 'none' } },
+      periodos.map(x => React.createElement("button", { key: x[0], onClick: () => setPeriodo(x[0]), style: chip(periodo === x[0]) }, x[1])),
+      React.createElement("span", { style: { flex: 1 } }),
+      React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, aCarregar ? 'A actualizar…' : 'MetaGest · sem valores')),
+    erro && React.createElement(Card, { pad: 16 }, React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, 'Não foi possível carregar o painel. ' + erro)),
+    !d && !erro && React.createElement(Card, { pad: 16 }, React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'A carregar…')),
+    d && React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 14, opacity: aCarregar ? 0.6 : 1 } },
+      (d.alertas || []).length > 0 && React.createElement(Card, { pad: 16, style: { borderLeft: '4px solid var(--perigo)' } }, tit('Alertas'), React.createElement(PainelClinicoAlertas, { alertas: d.alertas })),
+      React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 } },
+        React.createElement(PainelTile, { rotulo: 'Utentes atendidos', valor: qtd(n.utentes), nota: qtd(n.novos) + ' novos' }),
+        React.createElement(PainelTile, { rotulo: 'Consultas', valor: qtd(n.consultas) }),
+        React.createElement(PainelTile, { rotulo: 'Exames de laboratório', valor: qtd(n.exames_lab), nota: qtd(n.utentes_lab) + ' utentes' + (Number(n.exames_externos) ? ' · ' + qtd(n.exames_externos) + ' externos' : '') }),
+        React.createElement(PainelTile, { rotulo: 'Actos de enfermagem', valor: qtd(n.actos_enfermagem) }),
+        React.createElement(PainelTile, { rotulo: 'Imagiologia', valor: qtd(Number(n.raiox || 0) + Number(n.ecografias || 0) + Number(n.cardiologia || 0)), nota: qtd(n.raiox) + ' raio-X · ' + qtd(n.ecografias) + ' eco · ' + qtd(n.cardiologia) + ' cardio' }),
+        React.createElement(PainelTile, { rotulo: 'Farmácia', valor: qtd(n.unidades_farmacia), nota: 'unidades · ' + qtd(n.produtos_farmacia) + ' produtos' })),
+      serie.length > 1 && React.createElement(Card, { pad: 16 }, tit('Utentes por dia'), React.createElement(PainelColunas, { dados: serie, formatar: v => qtd(v) + (v === 1 ? ' utente' : ' utentes'), altura: 200 })),
+      tem('recepcao') && React.createElement(Card, { pad: 16 }, tit('Recepção'),
+        React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, fontSize: 13, color: 'var(--text-2)' } },
+          [['Marcações hoje', marc.hoje], ['Por confirmar hoje', marc.por_confirmar], ['Marcações amanhã', marc.amanha], ['Faltas no período', marc.faltas_periodo], ['Facturas sem médico', d.sem_medico]].map((x, i) => React.createElement("div", { key: i },
+            React.createElement("div", { style: { fontSize: 20, fontWeight: 700, color: (i === 4 && Number(x[1])) ? 'var(--perigo)' : 'var(--text-1)' } }, qtd(x[1])), x[0])))),
+      React.createElement("div", { style: grelha },
+        (tem('clinica') || tem('recepcao')) && barras('Consultas por especialidade', 'consulta', '--serie-1'),
+        tem('clinica') && (d.medicos || []).length > 0 && React.createElement(Card, { pad: 16 }, tit('Consultas por médico'),
+          React.createElement(PainelBarras, { dados: d.medicos.map(m => ({ rotulo: m.nome, valor: Number(m.consultas), extra: m.utentes + ' utentes' })), formatar: v => qtd(v) + (v === 1 ? ' consulta' : ' consultas'), cor: '--serie-1' })),
+        tem('laboratorio') && barras('Exames de laboratório', 'laboratorio', '--serie-2'),
+        tem('enfermagem') && barras('Actos de enfermagem', 'enfermagem', '--serie-3'),
+        tem('farmacia') && barras('Farmácia: mais vendidos', 'farmacia', '--serie-4'),
+        tem('radiologia') && barras('Raio-X', 'raiox', '--serie-2'),
+        tem('radiologia') && barras('Ecografias', 'ecografia', '--serie-2'),
+        tem('radiologia') && barras('Cardiologia', 'cardiologia', '--serie-2'),
+        ['laboratorio', 'farmacia', 'enfermagem', 'servicos gerais'].filter(tem).map(k => React.createElement(React.Fragment, { key: k }, stockCard(k)))),
+      React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, 'Áreas: ' + (areas.map(a => BSP_CLINICO_AREAS[a] || a).join(', ') || 'só os números gerais') + '. Facturas anuladas por nota de crédito não contam.')));
+}
 function PainelScreen() {
   const hoje = bspDataLocalISO(new Date());
   const inicioMes = hoje.slice(0, 8) + '01';
@@ -26026,7 +26197,7 @@ function App() {
   }), pg === 'meetings' && React.createElement(MeetingsScreen, null), pg === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), (pg === 'seguimento' || pg === 'marcacoes') && (bspVeCrm(currentUser) || bspVeMarcacoes(currentUser) ? React.createElement(CrmScreen, { key: pg, inicial: pg === 'marcacoes' ? 'marcacoes' : null }) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'stock' && (bspVeStock(currentUser) ? React.createElement(StockScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(AvisoVersaoNova, null), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(EquipaScreen, null), pg === 'avarias' && (!bspESocio(currentUser) ? React.createElement(AvariasScreen, null) : null), pg === 'admin' && React.createElement(AdminScreen, {
+  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), (pg === 'seguimento' || pg === 'marcacoes') && (bspVeCrm(currentUser) || bspVeMarcacoes(currentUser) ? React.createElement(CrmScreen, { key: pg, inicial: pg === 'marcacoes' ? 'marcacoes' : null }) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'stock' && (bspVeStock(currentUser) ? React.createElement(StockScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'painel-clinico' && (bspVePainelClinico(currentUser) ? React.createElement(PainelClinicoScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(AvisoVersaoNova, null), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(EquipaScreen, null), pg === 'avarias' && (!bspESocio(currentUser) ? React.createElement(AvariasScreen, null) : null), pg === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
   }), pg === 'notifications' && React.createElement(NotificationsScreen, {
     onAbrir: abrirNotificacao
