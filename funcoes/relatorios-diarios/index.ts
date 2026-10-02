@@ -388,6 +388,14 @@ Deno.serve(async (req) => {
       const v = (a - b) / b * 100;
       return '<b style="color:' + (v < 0 ? "#B42318" : "#1D7A46") + '">' + (v > 0 ? "+" : "") + v.toLocaleString("pt-PT", { maximumFractionDigits: 0 }) + "%</b> face aos 7 dias anteriores";
     };
+    /* Diferença em números reais e em percentagem: «+12 (+5%)». */
+    const dif = (a: unknown, b: unknown) => {
+      const x = Number(a || 0), y = Number(b || 0), d = x - y;
+      const cor = d < 0 ? "#B42318" : d > 0 ? "#1D7A46" : SUAVE;
+      return '<span style="color:' + cor + '">' + (d > 0 ? "+" : "") + n0(d) + (y ? " (" + (d > 0 ? "+" : "") + (d / y * 100).toLocaleString("pt-PT", { maximumFractionDigits: 0 }) + "%)" : "") + "</span>";
+    };
+    const subt = (t: string) => '<p style="margin:14px 0 4px;font-family:' + FONTE + ';font-size:14px;font-weight:700;color:' + MARINHO + '">' + t + "</p>";
+    const DIAS_SEM = ["", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
     const gestaoClinica = () => {
       if (!gc) return "";
       const ac = gc.acesso || {}, co = gc.continuidade || {}, to = gc.totais || {}, ra = gc.rastreio || {}, te = gc.tendencia || {}, go = gc.governacao || {};
@@ -409,16 +417,64 @@ Deno.serve(async (req) => {
           ["Espera até à consulta", num1(ac.espera_mediana) + " d", "mediana · média " + num1(ac.espera_media) + " d"]]) +
         '<p style="margin:14px 0 4px;font-family:' + FONTE + ';font-size:14px;font-weight:700;color:' + MARINHO + '">Continuidade de cuidados</p>' +
         mosaicos([["Utentes novos", pc1(co.novos_pc), n0(co.novos) + " de " + n0(co.utentes)],
-          ["Reconsulta em 7 dias", pc1(co.reconsulta_7), "de " + n0(co.base) + " consultas"],
-          ["Reconsulta em 30 dias", pc1(co.reconsulta_30), "seguimento"]]) +
+          ["Reconsulta em 7 dias", pc1(co.reconsulta_7), n0(co.voltaram_7) + " de " + n0(co.base) + " utentes"],
+          ["Reconsulta em 30 dias", pc1(co.reconsulta_30), n0(co.voltaram_30) + " de " + n0(co.base) + " utentes"]]) +
         '<p style="margin:14px 0 4px;font-family:' + FONTE + ';font-size:14px;font-weight:700;color:' + MARINHO + '">Prática clínica e rastreabilidade</p>' +
         mosaicos([["Exames por consulta", num1(to.lab_por_consulta), n0(to.lab) + " exames · " + n0(to.consultas) + " consultas"],
           ["Imagem por 100 consultas", num1(to.imagem_por_100), n0(to.imagem) + " exames de imagem"],
           ["Com médico solicitante", pc1(ra.pc), n0(ra.com_medico) + " de " + n0(ra.total) + " · ref. 100%"]]) +
-        paragrafo("Últimos 7 dias: " + n0(te.utentes) + " atendimentos e " + n0(te.consultas) + " consultas" + (variacao(Number(te.consultas), Number(te.consultas_antes)) ? " (consultas " + variacao(Number(te.consultas), Number(te.consultas_antes)) + ")" : "") + ". Exames enviados para fora: " + pc1(to.externos_pc) + ".") +
+        paragrafo("Últimos 7 dias: " + n0(te.utentes) + " atendimentos e " + n0(te.consultas) + " consultas" + (variacao(Number(te.consultas), Number(te.consultas_antes)) ? " (consultas " + variacao(Number(te.consultas), Number(te.consultas_antes)) + ")" : "") + ". Exames enviados para fora: " + n0(to.externos) + " de " + n0(Number(to.lab || 0) + Number(to.externos || 0)) + " (" + pc1(to.externos_pc) + ").") +
         ((gc.pratica || []).length ? '<p style="margin:14px 0 4px;font-family:' + FONTE + ';font-size:14px;font-weight:700;color:' + MARINHO + '">Pedidos por médico (30 dias)</p>' +
-          tabela(["Médico", "Consultas", "Laboratório", "Por consulta", "Imagem"], (gc.pratica as any[]).slice(0, 20).map((m) => [escapar(m.nome), n0(m.consultas), n0(m.lab), m.lab_por_consulta == null ? "—" : num1(m.lab_por_consulta), n0(m.imagem)])) : "") +
+          tabela(["Médico", "Consultas", "Dias", "Por dia", "Laboratório", "Por consulta", "Imagem"], (gc.pratica as any[]).slice(0, 20).map((m) => [escapar(m.nome), n0(m.consultas), n0(m.dias), m.por_dia == null ? "—" : num1(m.por_dia), n0(m.lab), m.lab_por_consulta == null ? "—" : num1(m.lab_por_consulta), n0(m.imagem)])) : "") +
+        comparacaoHtml() + afluenciaHtml() + especialidadesHtml() + examesHtml() + faltasHtml() + financiadorHtml() +
         '<p style="margin:14px 0 4px;font-family:' + FONTE + ';font-size:14px;font-weight:700;color:' + MARINHO + '">Governação clínica</p>' + lista(gov);
+    };
+    /* Secções com números reais (pedido do Elmar, 02-10-2026). */
+    const comparacaoHtml = () => {
+      const c = gc && gc.comparacao;
+      if (!c) return "";
+      const linhas: [string, unknown, unknown][] = [
+        ["Atendimentos", c.utentes, c.utentes_antes], ["Consultas", c.consultas, c.consultas_antes],
+        ["Exames de laboratório", c.lab, c.lab_antes], ["Exames de imagem", c.imagem, c.imagem_antes],
+        ["Exames enviados para fora", c.externos, c.externos_antes], ["Marcações", c.marcacoes, c.marcacoes_antes],
+        ["Faltas", c.faltou, c.faltou_antes], ["Cancelamentos", c.cancelou, c.cancelou_antes],
+        ["Dias com actividade", c.dias, c.dias_antes]];
+      return subt("Comparação com os 30 dias anteriores") +
+        tabela(["Indicador", "Últimos 30 dias", "30 dias antes", "Diferença"], linhas.map(([r, a, b]) => [r, n0(a), n0(b), dif(a, b)]));
+    };
+    const afluenciaHtml = () => {
+      const sem: any[] = (gc && gc.semana) || [];
+      const hrs: any[] = (gc && gc.horas) || [];
+      if (!sem.length && !hrs.length) return "";
+      const topo = hrs.slice().sort((a, b) => Number(b.n) - Number(a.n)).slice(0, 3).map((h) => String(h.hora).padStart(2, "0") + "h");
+      return subt("Afluência (atendimentos, 30 dias)") +
+        (sem.length ? tabela(["Dia da semana", "Atendimentos", "Dias", "Média por dia"], sem.map((d) => [DIAS_SEM[Number(d.dow)] || String(d.dow), n0(d.n), n0(d.dias), num1(d.media)])) : "") +
+        (hrs.length ? paragrafo("Horas de maior movimento: <b>" + topo.join(", ") + "</b>.") +
+          barras(hrs.map((h) => ({ r: String(h.hora).padStart(2, "0") + "h", v: Number(h.n), t: n0(h.n) }))) : "");
+    };
+    const especialidadesHtml = () => {
+      const l: any[] = (gc && gc.especialidades) || [];
+      return l.length ? subt("Consultas por tipo (30 dias)") +
+        tabela(["Consulta", "Últimos 30 dias", "30 dias antes", "Diferença"], l.map((e) => [escapar(frase(e.nome)), n0(e.n), n0(e.antes), dif(e.n, e.antes)])) : "";
+    };
+    const examesHtml = () => {
+      const ex2 = (gc && gc.exames) || {};
+      const t = (k: string, titulo: string) => ((ex2[k] || []) as any[]).length
+        ? subt(titulo) + tabela(["Exame", "Qtd"], (ex2[k] as any[]).map((e) => [escapar(frase(e.nome)), n0(e.n)])) : "";
+      return t("laboratorio", "Exames de laboratório mais pedidos (30 dias)") + t("imagem", "Exames de imagem mais pedidos (30 dias)") + t("lab_externo", "Exames enviados para fora (30 dias)");
+    };
+    const faltasHtml = () => {
+      const l: any[] = ((gc && gc.faltas_medico) || []).filter((m: any) => Number(m.marcacoes) > 0);
+      return l.length ? subt("Marcações por médico (30 dias)") +
+        tabela(["Médico", "Marcações", "Compareceu", "Faltou", "Cancelou"], l.slice(0, 15).map((m) => [escapar(m.nome), n0(m.marcacoes), n0(m.compareceu), n0(m.faltou), n0(m.cancelou)])) : "";
+    };
+    const financiadorHtml = () => {
+      const fi = (gc && gc.financiador) || {};
+      const tipos: any[] = fi.tipos || [];
+      const tot = tipos.reduce((a, x) => a + Number(x.utentes || 0), 0);
+      return tipos.length ? subt("Utentes por financiador (30 dias)") +
+        tabela(["Financiador", "Utentes", "%"], tipos.map((x) => [escapar(x.tipo), n0(x.utentes), pc1(tot ? Number(x.utentes) / tot * 100 : null)])) +
+        (((fi.seguradoras || []) as any[]).length ? tabela(["Seguradora", "Utentes"], (fi.seguradoras as any[]).map((x) => [escapar(x.nome), n0(x.utentes)])) : "") : "";
     };
     const AREAS: Record<string, { titulo: string; corpo: () => string; tem: () => boolean }> = {
       recepcao: {

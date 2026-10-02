@@ -1759,3 +1759,17 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   - cumprimento de protocolos.
   Os relatórios de turno das áreas médicas (menu Relatórios) nunca foram
   preenchidos.
+- **Números reais** (02-10-2026, pedido do Elmar: «além de % coloque
+  números reais»). `relatorios-diarios` versão 5. Cada percentagem leva a
+  contagem ao lado («6 de 235 utentes»). Secções novas no relatório da
+  Clínica, todas com contagens e sem valores:
+  - comparação com os 30 dias anteriores (atendimentos, consultas,
+    exames, imagem, marcações, faltas, cancelamentos), com a diferença
+    em números e em %;
+  - afluência por dia da semana (total e média por dia) e por hora;
+  - consultas por tipo (30 dias contra os anteriores);
+  - exames de laboratório, de imagem e enviados para fora mais pedidos;
+  - marcações por médico (compareceu, faltou, cancelou);
+  - utentes por financiador (particular, seguradora, empresa) e por
+    seguradora;
+  - dias com consultas e consultas por dia de cada médico.
