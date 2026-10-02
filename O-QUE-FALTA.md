@@ -2267,3 +2267,20 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   ficha do guia actualizada.
 - Testado no servidor com desfazer: Elmar e Serviços Gerais vêem as 6;
   Recepção e Clínica, 0 (as 6 foram reportadas pelos Serviços Gerais).
+
+## 3-dq. Avarias: Emmanuel conclui, só a Direcção apaga (02-10-2026)
+
+- Pedido do Elmar: o Emmanuel lê todas as avarias e dá-as como concluídas;
+  uma avaria criada só o director apaga.
+- Servidor (`avarias-apagar-direccao.sql`, aplicado):
+  - `bsp_trata_avarias` passa a incluir o u22 pelo id, além da área;
+  - `bsp_avaria_apagar` só aceita a camada Direcção (`bsp_e_direccao()`);
+  - quem reportou deixa de poder apagar na primeira hora e pode só
+    cancelar.
+- Ecrã: `bspTrataAvarias` com o u22, `bspApagaAvarias` (camada Direcção),
+  botão «Concluída» para quem trata, «Apagar as repetidas» só para a
+  Direcção. Ficha do guia actualizada.
+- Testado no servidor com desfazer: o Emmanuel lê 6 e conclui; a Arlete
+  (Coordenação) é recusada ao apagar; o Elmar apaga. Testado no ecrã com
+  servidor simulado: Emmanuel com Tratar/Concluída, Elmar também com
+  Apagar, uma médica só com Editar/Cancelar na sua.

@@ -365,7 +365,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   separador Marcações. Directório no menu como «Equipa».
 - Avarias e património (02-10-2026, `avarias-patrimonio.sql`): `categoria`
   (`BSP_AVARIA_CATEGORIAS`), repetidos bloqueados no servidor
-  (`bsp_avaria_0_repetida`), apagar só por `bsp_avaria_apagar`.
+  (`bsp_avaria_0_repetida`), apagar só por `bsp_avaria_apagar` e só a camada
+  Direcção (`bsp_e_direccao`/`bspApagaAvarias`; quem reportou cancela). O
+  Emmanuel (u22) trata e conclui todas (`avarias-apagar-direccao.sql`).
 - Registos da equipa (01-10-2026, `equipa-registos.sql`): `ausencias`,
   `formacoes`, `avarias`, `pedidos_compra`. Quem decide: `bsp_chefe_de`
   (gestão, superior, chefe da área). Ecrãs: `EquipaScreen` (Contactos,

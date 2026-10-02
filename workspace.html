@@ -25085,9 +25085,10 @@ const BSP_GUIA_FICHAS = [
       ['Reporte uma avaria ou dano:', 'o tipo, o que precisa de reparação, onde e a prioridade.'],
       ['Corrija o que escreveu', 'com «Editar», enquanto a avaria está aberta.'],
       ['Acompanhe o estado:', 'Aberta, Em reparação, Resolvida.'],
-      ['Quem trata regista', 'o responsável, o custo e o que se fez.']
+      ['Quem trata regista', 'o responsável, o custo e o que se fez, e carrega em «Concluída» no fim.'],
+      ['Enganou-se?', 'Cancele a avaria. Uma avaria criada só a Direcção apaga.']
     ],
-    quem: 'Toda a equipa reporta. Cada pessoa vê as avarias reportadas pela sua área. A Direcção e os Serviços Gerais vêem todas e tratam.',
+    quem: 'Toda a equipa reporta. Cada pessoa vê as avarias reportadas pela sua área. A Direcção, os Serviços Gerais e o Emmanuel vêem todas e tratam.',
     dica: 'Carregue uma só vez em «Reportar»: o mesmo texto repetido não cria outra avaria. A Direcção apaga as repetidas.' },
   { icone: 'Heart', nome: 'Painel clínico',
     serve: 'O trabalho de cada área, em números e sem valores: utentes, consultas, exames, actos e stock.',
@@ -25795,8 +25796,15 @@ function EquipaScreen() {
 }
 
 /* ───────────── Avarias ───────────── */
+/* O Emmanuel (u22) trata e conclui todas, mesmo que mude de área (Elmar,
+   02-10-2026). No servidor, bsp_trata_avarias. */
 function bspTrataAvarias(u) {
-  return !!u && (bspGereMarcacoes(u) || bspAreaChave(u.dept) === 'servicos gerais');
+  return !!u && (bspGereMarcacoes(u) || bspAreaChave(u.dept) === 'servicos gerais' || u.id === 'u22');
+}
+/* Uma avaria criada só a Direcção apaga (Elmar, 02-10-2026); quem reportou
+   pode cancelá-la. No servidor, bsp_avaria_apagar com bsp_e_direccao. */
+function bspApagaAvarias(u) {
+  return !!u && !bspESocio(u) && u.accessLevel === 'Direcção';
 }
 /* Todo o património (02-10-2026, pedido do Elmar: «há lâmpadas, portas…»):
    cada avaria leva a categoria do bem. avarias-patrimonio.sql. */
@@ -25818,7 +25826,7 @@ function AvariasScreen() {
   const eu = window.CURRENT_USER_ID;
   const euU = window.userById(eu);
   const trata = bspTrataAvarias(euU);
-  const gestor = !!(euU && bspCamada(euU).podeGerirUtilizadores);
+  const director = bspApagaAvarias(euU);
   const t = useTabela('avarias', 'criado_em');
   const [filtro, setFiltro] = React.useState('abertas');
   const [cat, setCat] = React.useState('');
@@ -25859,7 +25867,7 @@ function AvariasScreen() {
     if (ok) toast(ok === 1 ? 'Avaria apagada.' : ok + ' avarias apagadas.');
     t.recarregar();
   }
-  const podeApagar = a => gestor || (a.criado_por === eu && a.estado === 'Aberta' && !a.responsavel && Date.now() - new Date(a.criado_em).getTime() < 3600e3);
+  const podeApagar = () => director;
   const podeEditar = a => trata || (a.criado_por === eu && a.estado === 'Aberta');
   const linhas = t.linhas || [];
   /* Repetidas: a mesma pessoa, o mesmo texto, ainda abertas. Fica a primeira. */
@@ -25893,7 +25901,7 @@ function AvariasScreen() {
     t.erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, t.erro) : null,
     /* Cada área vê só as suas (02-10-2026, avarias-por-area.sql). */
     !trata && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Vê as avarias reportadas pela sua área. A Direcção e os Serviços Gerais vêem todas.'),
-    gestor && repetidas.length > 0 && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { borderLeft: '4px solid var(--perigo)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }) },
+    director && repetidas.length > 0 && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { borderLeft: '4px solid var(--perigo)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }) },
       React.createElement("div", { style: { flex: '1 1 220px', fontSize: 13.5, color: 'var(--text-1)' } }, React.createElement("b", null, repetidas.length === 1 ? 'Há uma avaria repetida' : 'Há ' + repetidas.length + ' avarias repetidas'), ' (a mesma pessoa, o mesmo texto). Fica a primeira de cada.'),
       React.createElement("button", { onClick: () => apagar(repetidas, 'Apagar ' + repetidas.length + ' avaria(s) repetida(s)? Fica a primeira de cada.'), style: bspEscBotao(true) }, 'Apagar as repetidas')),
     aberto && React.createElement("div", { style: bspRegCaixa },
@@ -25912,9 +25920,10 @@ function AvariasScreen() {
             a.resolucao ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--sucesso)', marginTop: 3 } }, a.resolucao) : null),
           bspEstadoEtiqueta(a.estado),
           trata && a.estado !== 'Resolvida' && a.estado !== 'Cancelada' && React.createElement("button", { onClick: () => { setEdTexto(null); setEd(ed && ed.id === a.id ? null : { id: a.id, estado: a.estado, responsavel: a.responsavel, custo: a.custo || '', resolucao: a.resolucao }); }, style: bspEscBotao(false) }, 'Tratar'),
+          trata && a.estado !== 'Resolvida' && a.estado !== 'Cancelada' && React.createElement("button", { onClick: () => window.confirm('Dar «' + a.equipamento + '» como concluída?') && mudar(a, { estado: 'Resolvida' }, 'Avaria concluída.'), style: bspEscBotao(true) }, 'Concluída'),
           podeEditar(a) && React.createElement("button", { onClick: () => { setEd(null); setEdTexto(edTexto && edTexto.id === a.id ? null : { id: a.id, categoria: a.categoria || 'Outro', equipamento: a.equipamento, local: a.local, area: a.area, prioridade: a.prioridade, descricao: a.descricao }); }, style: bspEscBotao(false) }, 'Editar'),
           podeApagar(a) && React.createElement("button", { onClick: () => apagar([a], 'Apagar «' + a.equipamento + '»? Não se pode desfazer.'), style: Object.assign(bspEscBotao(false), { color: 'var(--perigo)' }) }, 'Apagar'),
-          !trata && a.criado_por === eu && a.estado === 'Aberta' && !podeApagar(a) && React.createElement("button", { onClick: () => window.confirm('Cancelar esta avaria?') && mudar(a, { estado: 'Cancelada' }), style: bspEscBotao(false) }, 'Cancelar')),
+          !trata && a.criado_por === eu && a.estado === 'Aberta' && React.createElement("button", { onClick: () => window.confirm('Cancelar esta avaria?') && mudar(a, { estado: 'Cancelada' }), style: bspEscBotao(false) }, 'Cancelar')),
         edTexto && edTexto.id === a.id && React.createElement("div", { style: { marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' } },
           campos(edTexto, setEdTexto, trata),
           React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 } },
