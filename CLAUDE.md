@@ -442,6 +442,12 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   só a sua produção (`bsp_minha_actividade`, sem notas de crédito, igual ao
   Painel). Ligação pelo campo `metagest` (códigos `ref_practitioner`) na
   pessoa; menu só com `bspVeActividade`. Nunca abrir `erp.*` a quem entra.
+  A Direcção Clínica, a gestão e quem vê o Painel escolhem o médico
+  (`bspEscolheMedicoActividade`, `bsp_metagest_medicos`, membro
+  `mg:<código>`), 02-10-2026.
+  Painel clínico (02-10-2026, `painel-clinico-acesso.sql`): só gestão, Painel,
+  Direcção Clínica e chefes de área (só a sua); a produção por médico só a
+  quem vê tudo.
 - Prints de ecrã (30-09-2026): a app Android tem `FLAG_SECURE` na
   `MainActivity`. No navegador, `ProteccaoEcra` em todos os ecrãs: marca de
   água (`MarcaDagua`, uma só linha ao centro, nunca repetida), PrintScreen escurece e regista em `capturas_ecra`,
