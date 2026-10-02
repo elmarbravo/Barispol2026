@@ -2284,3 +2284,37 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   (Coordenação) é recusada ao apagar; o Elmar apaga. Testado no ecrã com
   servidor simulado: Emmanuel com Tratar/Concluída, Elmar também com
   Apagar, uma médica só com Editar/Cancelar na sua.
+
+## 3-dr. Revisão geral do sistema (02-10-2026)
+
+Verificado:
+- Agendamentos (29): nenhuma falha em 24 h. Os relatórios diários, o resumo
+  pessoal e o texto dos documentos foram criados hoje depois da sua hora:
+  confirmar a 03-10 que correm (06h50, 07h15, 06h30, 05h20).
+- E-mails: 11 tentativas hoje, todas barradas pela pausa (até 00h00 de
+  Luanda). Nenhum saiu. Os 5 envios da escala da Clínica (17h14) não se
+  repetem.
+- Sincronização: volta a gravar o `shared_state` desde a correcção (3-dn).
+- Escala da Clínica de Outubro em vigor, com o visto do Dr. Osvaldo (17h14),
+  e a separação Ludmila / Luidmila mantida.
+- Ecrã: todos os menus abrem sem erros como Elmar (computador) e como
+  médica (telemóvel 390 px), sem nada a passar da largura.
+
+Corrigido:
+- 10 funções privilegiadas abertas a visitantes sem sessão
+  (`seguranca-anon.sql`, aplicado). Nenhuma fica aberta.
+
+Por fazer (Elmar, no painel do Supabase):
+- Authentication → Passwords: ligar «Leaked password protection» (recusa
+  palavras-passe que já apareceram em fugas de dados).
+- Edge Functions: apagar `mig-recebe` e `bsp-crm-patch` (restos da
+  migração, já desligados; a ferramenta não as consegue apagar).
+
+Por fazer (menor):
+- 16 funções sem `search_path` fixo (aviso do consultor, risco baixo).
+- A lista embutida `USERS` não tem os códigos MetaGest: se o servidor não
+  responder, os médicos perdem «A minha actividade» até recarregar.
+- Escalas: Enfermagem de Outubro em falta; Ginecologia por decidir;
+  rascunhos de Novembro (Clínica e Recepção).
+- Nunca testado: chamada entre dois aparelhos reais; importação de um CSV
+  do MetaGest.
