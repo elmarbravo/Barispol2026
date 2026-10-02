@@ -1585,3 +1585,12 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
 - Confirmado em capturas a 390 e a 1366 px: nada passa da largura do ecrã.
 - Secções 3-b a 3-am, 4-b e 4-c passaram para `historico-2026-09.md`; as
   tarefas por fazer ficaram em «Pendentes de Setembro» (acima).
+
+## 3-cm. Mesmas fontes em todas as páginas do site (02-10-2026)
+
+- Contacto, Ecografia, Gestor, Outubro Rosa e Privacidade passam a usar a
+  ordem da página de início: Dax, Titillium Web, Segoe UI, Arial. A
+  Privacidade (antes só Arial) carrega a Titillium Web do Google Fonts.
+- A Dax só aparece em aparelhos que a tenham instalada: o site não tem os
+  ficheiros. Para a mostrar a todos, falta a licença web da Dax (ficheiros
+  `.woff2`) — a pedir ao Elmar.
