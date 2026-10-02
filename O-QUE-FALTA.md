@@ -2200,3 +2200,11 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   gráfico mostra doentes por mês. Cada médico na sua actividade, a gestão e
   quem vê o Painel continuam com os valores. Testado no servidor (u14 sem
   valores, u1 com valores).
+- Medicina geral de Outubro (PowerPoint do Director Clínico, 02-10-2026):
+  carregada na escala da Clínica (id 12), com os 31 dias. Turnos t1 manhã
+  07:00–15:45 e t2 tarde 15:45–22:00 (segunda a sexta), t3 fim-de-semana
+  07:00–22:00 (Dra. Creusa ao sábado, Dra. Luidmila ao domingo). Os turnos
+  da Pediatria (p1–p3) ficaram. Dr. Pedro Feliciano, Dr. Edgar e Dr.
+  Gabriel entram como «x:Nome» (sem conta). «Dra. Egdar» (dia 6) lido como
+  Dr. Edgar; no dia 28 o Dr. Edgar faz manhã e tarde, como no ficheiro.
+  Visto de u14, em vigor.
