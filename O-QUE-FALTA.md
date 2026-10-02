@@ -2148,3 +2148,24 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
 - Testado com uma apresentação de 3 diapositivos (título, lista, forma,
   imagem, tabela): tudo no sítio, sem erros. As marcas de lista que vêm só
   do diapositivo-mestre não aparecem.
+
+## 3-dl. Escalas de Pediatria e Ginecologia de Outubro (02-10-2026)
+
+- O Elmar enviou os PowerPoint do Director Clínico (Pediatria, três cópias
+  iguais, e Ginecologia e Obstetrícia) e pediu «coloca as escalas em vigor,
+  o director é que enviou».
+- Pediatria: entrou na escala da Clínica de Outubro (id 12) como turnos
+  opcionais p1 (terça 13–19h, u7), p2 (quarta e quinta 10–16h, «x:Dra.
+  Alaide Diogo» e «x:Dr. Joia Manuel», sem conta no Workspace) e p3
+  (sexta 14–20h, u7). As quartas levam a nota «só com marcação». A escala
+  ficou publicada com o visto de u14 (`bsp.visto = '1'`), em vigor. Os
+  dias de manhã e de tarde que o Director tinha começado (só 3 dias)
+  ficaram como estavam.
+- [ ] Ginecologia e Obstetrícia: falta saber em que dias são as duas
+  sessões das 14h da Dra. Conceição (o diapositivo não o diz) e se a
+  Dra. Géssica entra só «por marcação/chamada». O título interno diz
+  «Setembro».
+- Em falta (02-10-2026): Outubro de Administração e Enfermagem (não
+  existem), Serviços Gerais (rascunho completo, sem visto) e a escala
+  geral da Clínica (só 3 dias). Novembro: só a Recepção começou
+  (rascunho).
