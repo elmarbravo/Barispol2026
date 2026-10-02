@@ -4061,10 +4061,23 @@ function bspGetClient() {
   const cfg = bspGetCfg();
   if (!cfg || !cfg.url || !cfg.key) return null;
   if (!window.supabase || !window.supabase.createClient) return null;
+  /* Sessão só enquanto o separador ou a app estão abertos (02-10-2026,
+     Elmar: «contas a abrirem sem início de sessão»). Antes ficava no
+     localStorage e entrava sozinha para sempre: num computador partilhado
+     abria a conta de outra pessoa. As sessões antigas guardadas apagam-se. */
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.indexOf('sb-') === 0 && k.indexOf('-auth-token') !== -1) localStorage.removeItem(k);
+    }
+  } catch (e) {}
+  let armazem;
+  try { armazem = window.sessionStorage; } catch (e) { armazem = undefined; }
   __bspClient = window.supabase.createClient(cfg.url, cfg.key, {
     auth: {
       persistSession: true,
-      autoRefreshToken: true
+      autoRefreshToken: true,
+      storage: armazem
     }
   });
   if (bspEmVerComo()) return __bspClienteLeitura || (__bspClienteLeitura = bspClienteSoLeitura(__bspClient));
@@ -26770,7 +26783,9 @@ class EcraSeguro extends React.Component {
 function App() {
   const [authed, setAuthed] = React.useState(false);
   const [authedEmail, setAuthedEmail] = React.useState(null);
-  /* Ao recarregar a página, a sessão guardada volta a entrar sozinha. */
+  /* Ao recarregar a página no mesmo separador, a sessão volta a entrar
+     sozinha. Ao fechar o navegador ou a app, pede outra vez a palavra-passe
+     (bspGetClient guarda a sessão no sessionStorage). */
   React.useEffect(() => {
     const c = bspGetClient();
     if (!c) return;

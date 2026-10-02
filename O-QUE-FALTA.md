@@ -2116,3 +2116,21 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
 - [ ] Ainda não há pedidos de férias gravados: o mapa começa vazio. O plano
   anual de cada pessoa entra como pedido de férias e é aprovado pelo
   superior.
+
+## 3-dj. Sessão só enquanto o Workspace está aberto (02-10-2026)
+
+- Pedido do Elmar: «tem contas a abrirem sem início de sessão, podes tirar
+  isso de iniciar sozinho?».
+- Antes: a sessão ficava no `localStorage` e entrava sozinha sem prazo. Num
+  computador partilhado abria a conta de outra pessoa.
+- Agora `bspGetClient` guarda a sessão no `sessionStorage`. Recarregar a
+  página no mesmo separador mantém a sessão; fechar o navegador ou a app
+  pede outra vez o e-mail e a palavra-passe. As sessões antigas
+  (`sb-…-auth-token` no `localStorage`) apagam-se ao abrir.
+- Um separador novo (por exemplo, aberto por uma notificação com o
+  Workspace fechado) também pede a palavra-passe.
+- Os avisos do telemóvel e do navegador continuam a chegar ao aparelho
+  onde a pessoa os activou, mesmo depois de a sessão terminar.
+- Recibos: a Joice aparecia como «viu» estando offline. Estava certo: leu
+  às 12h02 e às 12h05 e fechou às 12h06. «Visto» é leitura em algum
+  momento, e não estar ligado agora.
