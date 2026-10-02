@@ -2194,3 +2194,9 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
     (`bsp_metagest_medicos`, 52 com facturas desde 2025), também os que não
     têm conta no Workspace (valor `mg:<código>`).
   - A actividade mostra o valor facturado (Kz) de cada médico.
+- Decisão do Elmar no mesmo dia: «quantidades apenas». Quando a Direcção
+  Clínica vê outro médico, `bsp_minha_actividade` tira os valores
+  (`sem_valores: true`): só doentes, consultas, exames, facturas e actos. O
+  gráfico mostra doentes por mês. Cada médico na sua actividade, a gestão e
+  quem vê o Painel continuam com os valores. Testado no servidor (u14 sem
+  valores, u1 com valores).

@@ -24759,26 +24759,30 @@ function ActividadeScreen({ currentUser }) {
   else if (!d.ligado) corpo = vazio(proprio ? 'A sua conta ainda não está ligada ao seu nome no MetaGest. Peça à Administração.' : 'Este médico ainda não está ligado ao seu nome no MetaGest.');
   else {
     const r = d.resumo || {};
+    /* Sem valores (Direcção Clínica a ver outro médico, 02-10-2026): só
+       quantidades; o gráfico mostra doentes por mês. */
+    const semValores = !!d.sem_valores;
     const meses = (d.meses || []).map(m => ({
       rotulo: bspMesExtenso(m.mes + '-01'), curto: BSP_MESES_CURTOS[Number(m.mes.slice(5, 7)) - 1],
-      valor: Number(m.valor || 0), extra: m.consultas + ' consultas · ' + m.exames + ' só exames'
+      valor: semValores ? Number(m.consultas || 0) + Number(m.exames || 0) : Number(m.valor || 0), extra: m.consultas + ' consultas · ' + m.exames + ' só exames'
     }));
     corpo = React.createElement(React.Fragment, null,
       React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } },
         tile('Doentes', Number(r.doentes || 0).toLocaleString('pt-PT'), intervalo[2]),
         tile('Consultas', Number(r.consultas || 0).toLocaleString('pt-PT'), 'Doente por dia com consulta'),
         tile('Só exames', Number(r.exames || 0).toLocaleString('pt-PT'), 'Doente por dia sem consulta'),
-        tile(proprio ? 'Valor facturado dos seus actos' : 'Valor facturado dos actos', bspPainelKz(r.valor), (r.facturas || 0) + ((r.facturas === 1) ? ' factura' : ' facturas'))),
+        semValores ? tile('Facturas', Number(r.facturas || 0).toLocaleString('pt-PT'), 'Sem notas de crédito')
+          : tile(proprio ? 'Valor facturado dos seus actos' : 'Valor facturado dos actos', bspPainelKz(r.valor), (r.facturas || 0) + ((r.facturas === 1) ? ' factura' : ' facturas'))),
       React.createElement(Card, { pad: 16 },
         React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } }, 'Actos por grupo · ' + intervalo[2]),
         !(d.grupos || []).length ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Sem actos neste período.')
           : (d.grupos || []).map(g => React.createElement("div", { key: g.grupo, style: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto auto', gap: 14, padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 13.5, color: 'var(--text-1)' } },
             React.createElement("span", { style: { minWidth: 0 } }, bspGrupoActo(g.grupo)),
             React.createElement("span", { style: { color: 'var(--text-2)', fontVariantNumeric: 'tabular-nums' } }, Number(g.qtd || 0).toLocaleString('pt-PT') + (Number(g.qtd) === 1 ? ' acto' : ' actos')),
-            React.createElement("b", { style: { fontVariantNumeric: 'tabular-nums' } }, bspPainelKz(g.valor))))),
+            semValores ? React.createElement("span", null) : React.createElement("b", { style: { fontVariantNumeric: 'tabular-nums' } }, bspPainelKz(g.valor))))),
       React.createElement(Card, { pad: 16 },
-        React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } }, (proprio ? 'Valor facturado dos seus actos' : 'Valor facturado dos actos') + ' · últimos 12 meses'),
-        meses.length ? React.createElement(PainelColunas, { dados: meses, formatar: v => bspPainelKz(v), cor: '--serie-1', altura: 200 }) : React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Sem dados.')),
+        React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } }, (semValores ? 'Doentes por mês' : proprio ? 'Valor facturado dos seus actos' : 'Valor facturado dos actos') + ' · últimos 12 meses'),
+        meses.length ? React.createElement(PainelColunas, { dados: meses, formatar: v => semValores ? Number(v).toLocaleString('pt-PT') : bspPainelKz(v), cor: '--serie-1', altura: 200 }) : React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Sem dados.')),
       React.createElement("p", { style: { margin: 0, fontSize: 12, color: 'var(--text-3)' } },
         'Dados do MetaGest' + (d.actualizado ? ', actualizados a ' + bspDataExacta(new Date(d.actualizado)) : '') + '. As facturas anuladas por nota de crédito não contam.' + (escolhe ? '' : ' Só vê a sua própria actividade.')));
   }

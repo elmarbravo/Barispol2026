@@ -13,7 +13,9 @@
 --     · a tabela «Por médico» (produção de cada médico) só vai a quem vê tudo.
 --   bsp_minha_actividade(de, ate, membro)
 --     · a Direcção Clínica também escolhe o médico (antes: gestão e Painel);
---     · membro «mg:<código MetaGest>» lê um médico sem conta no Workspace.
+--     · membro «mg:<código MetaGest>» lê um médico sem conta no Workspace;
+--     · quem não é gestão nem vê o Painel recebe os outros médicos sem
+--       valores (sem_valores: true), só quantidades (Elmar, 02-10-2026).
 --   bsp_metagest_medicos()
 --     · lista dos médicos do MetaGest também para a Direcção Clínica e para
 --       quem vê o Painel.

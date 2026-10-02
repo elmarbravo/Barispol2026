@@ -444,7 +444,8 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   pessoa; menu só com `bspVeActividade`. Nunca abrir `erp.*` a quem entra.
   A Direcção Clínica, a gestão e quem vê o Painel escolhem o médico
   (`bspEscolheMedicoActividade`, `bsp_metagest_medicos`, membro
-  `mg:<código>`), 02-10-2026.
+  `mg:<código>`), 02-10-2026. A Direcção Clínica vê os outros médicos só
+  com quantidades, sem Kz (`sem_valores`, decisão do Elmar).
   Painel clínico (02-10-2026, `painel-clinico-acesso.sql`): só gestão, Painel,
   Direcção Clínica e chefes de área (só a sua); a produção por médico só a
   quem vê tudo.
