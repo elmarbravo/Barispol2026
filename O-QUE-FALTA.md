@@ -1603,3 +1603,10 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   (`radial-gradient(circle,#fff 70.5%,transparent 71%)`) com mais margem, e a
   imagem nunca se recorta. Confirmado em capturas, claro e escuro.
 - Regra: nunca pôr `border-radius` na imagem do logotipo.
+
+## 3-co. Logotipo cortado no Workspace (02-10-2026)
+
+- No modo escuro (margem de 2 px) e sobre fundo marinho (10%), o círculo
+  branco encostava às letras «CENTRO MÉDICO» e «BARISPOL». `BarispolLogo`
+  passa a ter sempre 13% de margem (`--bsp-logo-pad`), também na regra do
+  modo escuro. Confirmado em capturas a 390 e 1366 px, claro e escuro.

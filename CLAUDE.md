@@ -135,7 +135,8 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   conversas. `bspAbrirFicheiro` escolhe sozinho.
 - Logotipo (02-10-2026): `BarispolLogo` com `sm` 38, `md` 64, `lg` 104 px;
   no site, 72 px no cabeçalho (60 no telemóvel). Nunca voltar a tamanhos
-  menores (pedido do Elmar).
+  menores (pedido do Elmar). Círculo branco sempre com 13% de margem
+  (`--bsp-logo-pad`) e nunca `border-radius` na própria imagem: cortava as letras.
 - Sem zoom no telemóvel (30-09-2026): `viewport` com `maximum-scale=1,
   user-scalable=no`, `gesturestart` bloqueado e caixas de escrita com 16 px
   (abaixo disso o iPhone amplia). Nada pode passar da largura do ecrã.
