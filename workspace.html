@@ -1066,6 +1066,18 @@ const USERS = [{
   accessLevel: 'Clínica',
   bio: ''
 }, {
+  id: 'u1790954656000',
+  name: "Ludmila Da Silva",
+  short: 'LS',
+  role: "Médica",
+  dept: "Clínica",
+  email: "lud.tiomillas@gmail.com",
+  metagest: ['HLC-PRAC-2026-00001'],
+  phone: '',
+  status: 'offline',
+  accessLevel: 'Clínica',
+  bio: ''
+}, {
   id: 'u7',
   name: "Arlete Siomara Pires Mafuta Lombo",
   short: 'AL',
@@ -5173,7 +5185,16 @@ function StoreProvider({
     let client;
     try {
       if (!/^https?:\/\/[^\s]+$/i.test(cleanUrl)) throw new Error('URL inválido. Use https://xxxx.supabase.co (sem espaços).');
-      client = window.supabase.createClient(cleanUrl, String(cfg.key || '').trim());
+      /* A sessão está no sessionStorage (bspGetClient, 02-10-2026). Sem
+         isto, este cliente procurava-a no localStorage, ficava à espera para
+         sempre e o Workspace não lia nem gravava a equipa, não recebia em
+         tempo real nem dava sinal de presença. */
+      bspGetClient();
+      let armazem;
+      try { armazem = window.sessionStorage; } catch (e) { armazem = undefined; }
+      client = window.supabase.createClient(cleanUrl, String(cfg.key || '').trim(), {
+        auth: { persistSession: true, autoRefreshToken: true, storage: armazem }
+      });
     } catch (err) {
       setSync({
         status: 'error',

@@ -2208,3 +2208,25 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   Gabriel entram como «x:Nome» (sem conta). «Dra. Egdar» (dia 6) lido como
   Dr. Edgar; no dia 28 o Dr. Edgar faz manhã e tarde, como no ficheiro.
   Visto de u14, em vigor.
+
+## 3-dn. Workspace sem sincronização depois da sessão no sessionStorage (02-10-2026)
+
+- Sintoma: «A dra Ludmila não vê a actividade dela». A conta da Dra.
+  Ludmila Da Silva (criada às 16h24) ficou sem ficha na equipa.
+- Causa: desde a mudança da sessão (12h44), o `bspGetClient` guarda a sessão
+  no `sessionStorage`, mas o cliente da sincronização (o que lê e grava o
+  `shared_state`, recebe em tempo real e dá o sinal de presença) procurava-a
+  no `localStorage` e ficava à espera para sempre. Quem recarregou o
+  Workspace desde então não gravou nada no estado partilhado: a ficha nova
+  ficou só no aparelho do Elmar. Nenhuma gravação do `shared_state` entre
+  as 12h44 e a correcção.
+- Correcção: o cliente da sincronização usa o mesmo `sessionStorage`.
+  Testado com servidor simulado: antes não lia nada; agora lê mensagens e
+  estado e grava a presença.
+- Dra. Ludmila Da Silva acrescentada à equipa no servidor (Clínica, camada
+  Clínica, MetaGest `HLC-PRAC-2026-00001`) e à lista `USERS`. Não confundir
+  com a Dra. Luidmila Verónica Chitata (u6, `HLC-PRAC-2025-00002`).
+- Simulado no servidor: `bsp_minha_actividade` com a sessão dela devolve
+  `ligado: true`.
+- Alterações feitas hoje à equipa ou às tarefas da equipa depois das 12h44
+  podem não ter ficado gravadas: confirmar e refazer.
