@@ -304,6 +304,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   Viagens de outros dias (30-09-2026): «Data da viagem» no
   `TranspIniciarModal` (viagem inteira de uma vez); abastecimento com data e
   hora. Percurso «origem → destino» por `bspTranspPercurso`.
+  Fotografias (02-10-2026): só 4 por dia, na primeira saída de cada turno
+  (`bspTranspPrimeiraDoTurno`) e no «Cheguei a casa». Os km são sempre
+  obrigatórios.
 - «Ver como» (28-09-2026): `bspEmVerComo()` é só leitura. Qualquer escrita
   nova ao servidor tem de passar por `bspGetClient()` (que a bloqueia) ou
   verificar `bspEmVerComo()`; funções RPC novas que só lêem vão para
@@ -421,6 +424,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   leitura confirma-se no cartão.
   «Alterar» (`DocPublicarModal` com `editar`) muda título, número, data e
   descrição sem pedir nova leitura.
+  Para quem (02-10-2026, `documentos-destino.sql`): coluna `grupos` (grupos
+  das novidades); `bsp_ve_documento` no servidor e `bspNosGrupos` no ecrã,
+  mudar os dois juntos. Fora de «todos», nada vai para o Feed nem #avisos.
 - «A minha actividade» (30-09-2026, `minha-actividade.sql`): médicos vêem
   só a sua produção (`bsp_minha_actividade`, sem notas de crédito, igual ao
   Painel). Ligação pelo campo `metagest` (códigos `ref_practitioner`) na

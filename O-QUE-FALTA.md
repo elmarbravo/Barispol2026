@@ -2060,3 +2060,30 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
     aberta num separador de fundo marcava como lido o que ninguém viu.
   - Ao abrir uma conversa, o ecrã pede todos os recibos dela (um por
     pessoa), além das 300 mensagens mais recentes.
+
+## 3-dh. Fotografias do Transporte e documentos por destinatário (02-10-2026)
+
+- Transporte. Pedido do Elmar: fotografias «apenas 4 vezes por dia». O
+  motorista tirava cerca de 20 por dia (nunca foram obrigatórias, mas o campo
+  aparecia em todas as viagens).
+  - Fotografia obrigatória na primeira saída da manhã e na primeira da
+    noite (a partir das 19h00, `bspTranspPrimeiraDoTurno`), e em cada
+    «Cheguei a casa».
+  - «Terminar viagem» e as outras saídas já não mostram o campo.
+  - Os km continuam obrigatórios em todos os registos.
+  - O recibo do abastecimento continua opcional.
+- Documentos. Pedido do Elmar: «faça um filtro de quem pode ver, tenho uns
+  de médicos».
+  - `documentos-destino.sql` (aplicado): coluna `grupos` (os grupos das
+    novidades; por omissão, `{todos}`). A regra `documentos_ler` passa a ser
+    `bsp_ve_documento`: vêem os grupos, quem publica documentos e quem o
+    publicou.
+  - Fora de «todos», não sai publicação no Feed nem no #avisos; a novidade
+    e o aviso do telemóvel vão só aos grupos.
+  - Ecrã: «Para quem» na janela de publicar e de alterar (`BSP_DOC_GRUPOS`,
+    `bspNosGrupos`). As leituras contam só entre os destinatários.
+    «Enviar para o Chat» de um documento restrito não leva o texto.
+  - Testado no servidor: a Recepção deixou de ver um documento só para a
+    Clínica, e a Clínica viu-o (transacção desfeita no fim).
+  - O ficheiro no armazenamento não tem regra própria: quem não vê o
+    documento não sabe o endereço, mas ele não está fechado por área.

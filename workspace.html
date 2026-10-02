@@ -23472,6 +23472,19 @@ async function bspVerFotoTransp(caminho) {
 }
 const bspTranspCampo = { height: 44, padding: '0 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 15, width: '100%', boxSizing: 'border-box' };
 const bspTranspRot = t => React.createElement("span", { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 6 } }, t);
+/* Fotografias do conta-quilómetros só 4 vezes por dia (02-10-2026, Elmar:
+   «está a ser chato tirar fotografias sempre»): na primeira saída da manhã,
+   no «Cheguei a casa» da tarde, na primeira saída da noite (a partir das
+   19h00) e no «Cheguei a casa» depois da rota da noite. As outras viagens
+   não pedem fotografia: os km do meio conferem-se pela diferença. */
+function bspTranspPeriodo(d) {
+  const h = (d instanceof Date ? d : new Date(d)).getHours();
+  return h >= 19 || h < 5 ? 'noite' : 'dia';
+}
+function bspTranspPrimeiraDoTurno(viagens, dia) {
+  const agora = bspTranspPeriodo(new Date());
+  return !(viagens || []).some(v => v.data === dia && v.hora_inicio && v.tipo !== 'ligacao' && v.tipo !== 'casa' && bspTranspPeriodo(v.hora_inicio) === agora);
+}
 function CampoFoto({ valor, onMudar, rotulo }) {
   const ref = React.useRef(null);
   return React.createElement("div", null, bspTranspRot(rotulo || 'Fotografia do conta-quilómetros'),
@@ -23524,6 +23537,7 @@ function TranspIniciarModal({ open, tipo, diaInicial, ultimoKm, zonas, saidas, v
   const [saidasDia, setSaidasDia] = React.useState(null);
   const [aGravar, setAGravar] = React.useState(false);
   const antigo = dia < hojeServ;
+  const fotoObrig = !antigo && bspTranspPrimeiraDoTurno(viagens, dia);
   React.useEffect(() => {
     if (!open) return;
     const d0 = diaInicial && diaInicial < hojeServ ? diaInicial : hojeServ;
@@ -23563,7 +23577,8 @@ function TranspIniciarModal({ open, tipo, diaInicial, ultimoKm, zonas, saidas, v
       : tipoAct !== 'casa' && !ini ? 'Escreva a hora de saída.' : !bspTranspInstante(dia, horaFim) ? 'Escreva a hora de chegada.'
       : tipoAct !== 'pessoal' && tipoAct !== 'casa' && !destino.trim() ? 'Diga o destino.' : '';
   } else {
-    erro = !n ? 'Escreva os km do conta-quilómetros.' : ultimoKm && n < ultimoKm ? 'Os km não podem ser menos do que no fim da última viagem (' + bspKm(ultimoKm) + ').' : dif && !motivo.trim() ? 'Diga o que o carro fez nestes ' + dif + ' km.' : tipoAct !== 'pessoal' && !destino.trim() ? 'Diga o destino.' : '';
+    erro = !n ? 'Escreva os km do conta-quilómetros.' : ultimoKm && n < ultimoKm ? 'Os km não podem ser menos do que no fim da última viagem (' + bspKm(ultimoKm) + ').' : dif && !motivo.trim() ? 'Diga o que o carro fez nestes ' + dif + ' km.' : tipoAct !== 'pessoal' && !destino.trim() ? 'Diga o destino.'
+      : fotoObrig && !foto ? 'Tire a fotografia do conta-quilómetros: é a primeira saída do turno.' : '';
   }
   const gravarAntigo = async () => {
     const cl = bspGetClient();
@@ -23645,7 +23660,7 @@ function TranspIniciarModal({ open, tipo, diaInicial, ultimoKm, zonas, saidas, v
       React.createElement(EscalaPessoas, { area: '', escolhidas: quem, onMudar: setQuem, extras: Object.keys(zonas).filter(k => k.indexOf('x:') === 0) })),
     antigo && React.createElement("label", null, bspTranspRot('Nota (opcional)'),
       React.createElement("input", { value: nota, onChange: e => setNota(e.target.value), placeholder: 'Ex.: tirado do caderno', style: bspTranspCampo })),
-    React.createElement(CampoFoto, { valor: foto, onMudar: setFoto }),
+    fotoObrig && React.createElement(CampoFoto, { valor: foto, onMudar: setFoto, rotulo: 'Fotografia do conta-quilómetros (início do turno)' }),
     erro && (km || kmFim) && React.createElement("div", { role: 'alert', style: { fontSize: 13, color: 'var(--perigo)' } }, erro)));
 }
 function TranspKmModal({ open, titulo, minimo, pedirFoto, pedirNota, onClose, onGravar }) {
@@ -23656,7 +23671,8 @@ function TranspKmModal({ open, titulo, minimo, pedirFoto, pedirNota, onClose, on
   React.useEffect(() => { if (open) { setKm(''); setFoto(null); setNota(''); setAGravar(false); } }, [open]);
   if (!open) return null;
   const n = parseInt(String(km).replace(/\D/g, ''), 10);
-  const erro = !n ? 'Escreva os km do conta-quilómetros.' : n < minimo ? 'Tem de ser pelo menos ' + bspKm(minimo) + ' km.' : '';
+  const erro = !n ? 'Escreva os km do conta-quilómetros.' : n < minimo ? 'Tem de ser pelo menos ' + bspKm(minimo) + ' km.'
+    : pedirFoto && !foto ? 'Tire a fotografia do conta-quilómetros: é o fim do turno.' : '';
   return React.createElement(Modal, {
     open, onClose, width: 460, title: titulo,
     footer: React.createElement(React.Fragment, null,
@@ -23666,10 +23682,10 @@ function TranspKmModal({ open, titulo, minimo, pedirFoto, pedirNota, onClose, on
     React.createElement("label", null, bspTranspRot('Km no conta-quilómetros'),
       React.createElement("input", { value: km, onChange: e => setKm(e.target.value), inputMode: 'numeric', placeholder: minimo ? 'A partir de ' + bspKm(minimo) : '', style: bspTranspCampo }),
       n > minimo && minimo ? React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-2)', display: 'block', marginTop: 6 } }, '= ' + (n - minimo) + ' km') : null),
-    pedirFoto && React.createElement(CampoFoto, { valor: foto, onMudar: setFoto }),
+    pedirFoto && React.createElement(CampoFoto, { valor: foto, onMudar: setFoto, rotulo: 'Fotografia do conta-quilómetros (fim do turno)' }),
     pedirNota && React.createElement("label", null, bspTranspRot('Ocorrências (opcional)'),
       React.createElement("input", { value: nota, onChange: e => setNota(e.target.value), placeholder: 'Trânsito, avaria, atraso…', style: bspTranspCampo })),
-    erro && km && React.createElement("div", { role: 'alert', style: { fontSize: 13, color: 'var(--perigo)' } }, erro)));
+    erro && (km || foto) && React.createElement("div", { role: 'alert', style: { fontSize: 13, color: 'var(--perigo)' } }, erro)));
 }
 function TranspAbastModal({ open, ultimoKm, anteriores, onClose, onFeito, onAvisar }) {
   const toast = useToast();
@@ -24028,7 +24044,7 @@ function TransporteScreen({ currentUser }) {
   }
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'auto', paddingBottom: 12 } },
     React.createElement(TranspIniciarModal, { open: modal === 'iniciar', tipo: tipoNovo, diaInicial: diaNovo, ultimoKm, zonas: t.zonas, saidas: tipoNovo === 'pessoal' ? saidas : [], viagens: t.viagens, onClose: () => setModal(''), onFeito: t.recarregar, onAvisar: avisarChat }),
-    aberta && React.createElement(TranspKmModal, { open: modal === 'terminar', titulo: 'Terminar viagem', minimo: aberta.km_inicio, pedirFoto: true, pedirNota: true, onClose: () => setModal(''), onGravar: terminar }),
+    aberta && React.createElement(TranspKmModal, { open: modal === 'terminar', titulo: 'Terminar viagem', minimo: aberta.km_inicio, pedirFoto: false, pedirNota: true, onClose: () => setModal(''), onGravar: terminar }),
     React.createElement(TranspKmModal, { open: modal === 'casa', titulo: 'Cheguei a casa', minimo: ultimoKm, pedirFoto: true, onClose: () => setModal(''), onGravar: casa }),
     React.createElement(TranspAbastModal, { open: modal === 'abast', ultimoKm, anteriores: t.abast, onClose: () => setModal(''), onFeito: t.recarregar, onAvisar: avisarChat }),
     React.createElement(TranspManutModal, { open: modal === 'manut', ultimoKm, onClose: () => setModal(''), onFeito: t.recarregar, onAvisar: avisarChat }),
@@ -24046,6 +24062,29 @@ function TransporteScreen({ currentUser }) {
    publicacao: e-mail (documento-aviso) e sino em tempo real. */
 const BSP_DOC_CATEGORIAS = [['regulamento', 'Regulamento interno'], ['nota', 'Notas internas'], ['comunicado', 'Comunicados'], ['procedimento', 'Procedimentos e protocolos'], ['formulario', 'Formulários e minutas']];
 const bspDocCategoria = c => (BSP_DOC_CATEGORIAS.find(x => x[0] === c) || [c, 'Documento'])[1];
+/* Para quem é cada documento (02-10-2026, documentos-destino.sql): os grupos
+   das novidades. A mesma regra no servidor (bsp_ve_documento com
+   bsp_membro_nos_grupos): mudar os dois lados juntos. */
+const BSP_DOC_GRUPOS = [['todos', 'Toda a equipa'], ['clinica', 'Médicos (Clínica)'], ['direccao-clinica', 'Direcção Clínica'], ['enfermagem', 'Enfermagem'],
+  ['laboratorio', 'Laboratório'], ['farmacia', 'Farmácia'], ['radiologia', 'Imagiologia'], ['recepcao', 'Recepção'], ['administracao', 'Administração'],
+  ['servicos gerais', 'Serviços Gerais'], ['gestao', 'Direcção e Coordenação']];
+function bspDocGrupos(d) {
+  const g = d && Array.isArray(d.grupos) && d.grupos.length ? d.grupos : ['todos'];
+  return g;
+}
+function bspDocParaTodos(d) { return bspDocGrupos(d).indexOf('todos') !== -1; }
+function bspNosGrupos(u, grupos) {
+  if (!u) return false;
+  const g = grupos && grupos.length ? grupos : ['todos'];
+  if (g.indexOf('todos') !== -1 || g.indexOf(u.id) !== -1) return true;
+  if (g.indexOf(bspAreaChave(u.dept)) !== -1) return true;
+  if (g.indexOf('direccao-clinica') !== -1 && BSP_DIRECCAO_CLINICA_IDS.indexOf(u.id) !== -1) return true;
+  const c = bspCamada(u);
+  return g.indexOf('gestao') !== -1 && !!(c && c.podeGerirUtilizadores);
+}
+function bspDocGruposTexto(d) {
+  return bspDocGrupos(d).map(k => (BSP_DOC_GRUPOS.find(x => x[0] === k) || [k, (window.userById(k) || {}).name || k])[1]).join(', ');
+}
 function bspPublicaDocumentos(u) {
   if (!u || bspESocio(u)) return false;
   return bspGereMarcacoes(u) || BSP_DIRECCAO_CLINICA_IDS.indexOf(u.id) !== -1 || bspAreaChave(u.dept) === 'administracao';
@@ -24108,8 +24147,14 @@ function DocsPorLerCartao({ currentUser, onAbrir }) {
 function DocPublicarModal({ open, substituir, editar, onClose }) {
   const toast = useToast();
   const vazio = () => editar
-    ? { categoria: editar.categoria, titulo: editar.titulo || '', numero: editar.numero || '', descricao: editar.descricao || '', vigor: editar.em_vigor_desde || bspDataLocalISO(new Date()) }
-    : ({ categoria: substituir ? substituir.categoria : 'comunicado', titulo: substituir ? substituir.titulo : '', numero: '', descricao: '', vigor: bspDataLocalISO(new Date()) });
+    ? { categoria: editar.categoria, titulo: editar.titulo || '', numero: editar.numero || '', descricao: editar.descricao || '', vigor: editar.em_vigor_desde || bspDataLocalISO(new Date()), grupos: bspDocGrupos(editar) }
+    : ({ categoria: substituir ? substituir.categoria : 'comunicado', titulo: substituir ? substituir.titulo : '', numero: '', descricao: '', vigor: bspDataLocalISO(new Date()), grupos: substituir ? bspDocGrupos(substituir) : ['todos'] });
+  const mudarGrupo = k => setF(x => {
+    if (k === 'todos') return Object.assign({}, x, { grupos: ['todos'] });
+    const sem = (x.grupos || []).filter(g => g !== 'todos');
+    const g = sem.indexOf(k) !== -1 ? sem.filter(y => y !== k) : sem.concat([k]);
+    return Object.assign({}, x, { grupos: g.length ? g : ['todos'] });
+  });
   const [f, setF] = React.useState(vazio);
   const [ficheiro, setFicheiro] = React.useState(null);
   const [aGravar, setAGravar] = React.useState(false);
@@ -24130,7 +24175,7 @@ function DocPublicarModal({ open, substituir, editar, onClose }) {
     setAGravar(true);
     if (editar) {
       try {
-        const mud = { categoria: f.categoria, titulo: f.titulo.trim(), numero: f.numero.trim(), descricao: f.descricao.trim(), em_vigor_desde: f.vigor || editar.em_vigor_desde };
+        const mud = { categoria: f.categoria, titulo: f.titulo.trim(), numero: f.numero.trim(), descricao: f.descricao.trim(), em_vigor_desde: f.vigor || editar.em_vigor_desde, grupos: f.grupos };
         if (ficheiro) Object.assign(mud, { caminho: await bspUploadToStorage(ficheiro, 'documentos/' + f.categoria), nome_ficheiro: ficheiro.name, tamanho: ficheiro.size });
         const r = await bspGetClient().from('documentos').update(mud).eq('id', editar.id).select('id');
         if (r.error) throw r.error;
@@ -24149,7 +24194,7 @@ function DocPublicarModal({ open, substituir, editar, onClose }) {
       const r = await bspGetClient().from('documentos').insert({
         categoria: f.categoria, titulo: f.titulo.trim(), numero: f.numero.trim(), descricao: f.descricao.trim(),
         caminho, nome_ficheiro: ficheiro ? ficheiro.name : '', tamanho: ficheiro ? ficheiro.size : null, em_vigor_desde: f.vigor || bspDataLocalISO(new Date()),
-        substitui: substituir ? substituir.id : null
+        substitui: substituir ? substituir.id : null, grupos: f.grupos
       });
       if (r.error) throw r.error;
       toast('Documento publicado. A equipa foi avisada no sino e no telemóvel.');
@@ -24169,6 +24214,11 @@ function DocPublicarModal({ open, substituir, editar, onClose }) {
     React.createElement("div", null, bspTranspRot('Tipo'),
       React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
         BSP_DOC_CATEGORIAS.map(c => React.createElement("button", { key: c[0], type: 'button', onClick: () => setF(x => Object.assign({}, x, { categoria: c[0] })), style: bspEscChip(f.categoria === c[0]) }, c[1])))),
+    React.createElement("div", null, bspTranspRot('Para quem'),
+      React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+        BSP_DOC_GRUPOS.map(c => React.createElement("button", { key: c[0], type: 'button', onClick: () => mudarGrupo(c[0]), style: bspEscChip((f.grupos || []).indexOf(c[0]) !== -1) }, c[1]))),
+      (f.grupos || []).indexOf('todos') === -1 && React.createElement("p", { style: { margin: '8px 0 0', fontSize: 12.5, color: 'var(--text-3)' } },
+        'Só estes grupos o vêem e recebem o aviso. A Direcção, a Coordenação e quem publica documentos vêem sempre.' + (f.categoria === 'comunicado' ? ' Não vai para o Feed nem para o #avisos.' : ''))),
     campo('titulo', 'Título', 'Ex.: Regulamento interno da clínica'),
     React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 } },
       campo('numero', 'Número (opcional)', 'Ex.: NI 03/2026'), campo('vigor', 'Em vigor desde', '', 'date')),
@@ -24244,7 +24294,7 @@ function DocumentosScreen({ currentUser }) {
   const enviarParaChat = d => {
     if (!destino || bspEmVerComo()) return;
     const linhas = ['📄 Documento: ' + d.titulo + (d.numero ? ' (' + d.numero + ')' : '')];
-    const desc = String(d.descricao || '').trim();
+    const desc = bspDocParaTodos(d) ? String(d.descricao || '').trim() : '';
     if (desc) linhas.push(desc.length > 280 ? desc.slice(0, 280) + '…' : desc);
     linhas.push(bspDocCategoria(d.categoria) + ' · em vigor desde ' + bspDataCurta(d.em_vigor_desde) + (d.leitura_obrigatoria ? ' · leitura obrigatória' : ''));
     linhas.push('[documento:' + d.id + ']');
@@ -24266,12 +24316,13 @@ function DocumentosScreen({ currentUser }) {
     const meu = d.publicado_por === eu;
     const quemLeu = docs.leituras.filter(l => l.documento_id === d.id);
     const leram = equipa.filter(u => quemLeu.some(l => l.user_id === u.id));
-    const faltam = equipa.filter(u => u.id !== d.publicado_por && !quemLeu.some(l => l.user_id === u.id));
+    const faltam = equipa.filter(u => u.id !== d.publicado_por && bspNosGrupos(u, bspDocGrupos(d)) && !quemLeu.some(l => l.user_id === u.id));
     return React.createElement(Card, { key: d.id, pad: 16, style: { borderLeft: '4px solid ' + (!d.arquivado && d.leitura_obrigatoria && !lido && !meu ? 'var(--perigo)' : 'var(--border)') } },
       React.createElement("div", { style: { display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' } },
         React.createElement("div", { style: { flex: '1 1 260px', minWidth: 0 } },
           React.createElement("div", { style: { fontSize: 11.5, fontWeight: 700, color: 'var(--accent-d)', textTransform: 'uppercase', letterSpacing: '.06em' } }, bspDocCategoria(d.categoria) + (d.numero ? ' · ' + d.numero : '')),
           React.createElement("div", { style: { fontSize: 16, fontWeight: 700, color: 'var(--text-1)', marginTop: 2 } }, d.titulo),
+          !bspDocParaTodos(d) && React.createElement("div", { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--accent-d)', marginTop: 2 } }, 'Para: ' + bspDocGruposTexto(d)),
           React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginTop: 2 } }, 'Em vigor desde ' + bspDataCurta(d.em_vigor_desde) + ' · publicado por ' + nomeDe(d.publicado_por) + ' a ' + bspDataExacta(new Date(d.publicado_em)) + (d.arquivado ? ' · arquivado' : '')),
           d.descricao && React.createElement("div", { style: { fontSize: 13.5, color: 'var(--text-2)', marginTop: 8, whiteSpace: 'pre-wrap' } }, d.descricao),
           lido ? React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: 'var(--sucesso)', marginTop: 8 } }, '✓ Leu e tomou conhecimento a ' + bspDataExacta(new Date(lido)))
@@ -24551,6 +24602,7 @@ const BSP_GUIA_FICHAS = [
       ['Registe viagens de dia', '(amostras, compras) e a chegada a casa.'],
       ['Lance abastecimentos e manutenção,', 'com fotografia do recibo ou do orçamento.'],
       ['Registe viagens de outros dias', 'com a data certa.'],
+      ['Fotografia do conta-quilómetros só 4 vezes por dia:', 'na primeira saída da manhã e da noite, e em cada «Cheguei a casa».'],
       ['Veja o histórico e as contas:', 'km, consumo e custo por km.']
     ],
     quem: 'O motorista e a Direcção e Coordenação.',
@@ -24616,7 +24668,8 @@ const BSP_GUIA_FICHAS = [
       ['Envie para o Chat', 'com «Enviar para o Chat»: a conversa recebe o botão «Abrir o documento».'],
       ['Quem publica vê quem leu', 'e pode pôr uma nova versão.'],
       ['Um comunicado pode ser só texto:', 'escreva-o em «Texto do comunicado» e não precisa de ficheiro.'],
-      ['Corrija um documento', 'com «Alterar»: título, número, data, descrição e tipo, sem pedir nova leitura.']
+      ['Corrija um documento', 'com «Alterar»: título, número, data, descrição e tipo, sem pedir nova leitura.'],
+      ['Escolha para quem é:', 'toda a equipa ou só algumas áreas (por exemplo, só os médicos).']
     ],
     quem: 'Toda a equipa lê. Publicam Direcção, Coordenação, Direcção Clínica e Administração.',
     dica: 'Um documento novo chega no mesmo instante, no sino e no telemóvel, e segue no e-mail das novidades da manhã.' },
