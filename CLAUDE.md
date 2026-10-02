@@ -360,8 +360,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   de cada percentagem (pedido do Elmar). Endereços extra só no servidor (`relatorios_diarios_destinos`;
   `relatorios_destinos` é dos relatórios por área, outra coisa).
   O da Recepção mede a qualidade do atendimento por colaborador
-  (`recepcao-qualidade.sql`, `bsp_srv_recepcao_qualidade`: WhatsApp, facturação,
-  marcações, Workspace aberto, relatório de turno).
+  (`recepcao-qualidade.sql`, `bsp_srv_recepcao_qualidade`: facturação,
+  marcações, relatório de turno). Desde a versão 11 sem WhatsApp nem
+  «Workspace aberto»: estão só no e-mail das 08h00 (`wa_resumo_8h`).
   Painel clínico: `PainelClinicoScreen` / `bsp_painel_clinico` sobre
   `erp.clinico_dados`; nunca Kz nem nomes de utentes. Os quadros da
   Recepção, Farmácia e Laboratório vêm de `erp.clinico_extra` (campo
@@ -406,8 +407,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
 - Documentos da clínica (30-09-2026, `documentos.sql`): menu «Documentos»
   (`DocumentosScreen`). Publicam Direcção, Coordenação, Direcção Clínica e
   Administração (`bspPublicaDocumentos` / `bsp_publica_documentos`); leitura
-  obrigatória (`documentos_leituras`). O aviso sai no instante: Edge
-  Function `documento-aviso` (gatilho) e sino em tempo real.
+  obrigatória (`documentos_leituras`). Desde 02-10-2026 o aviso vai por
+  `novidades` (e-mail das 05h00), sino e telemóvel; a Edge Function
+  `documento-aviso` já não se chama (`emails-pausa.sql`).
 - «A minha actividade» (30-09-2026, `minha-actividade.sql`): médicos vêem
   só a sua produção (`bsp_minha_actividade`, sem notas de crédito, igual ao
   Painel). Ligação pelo campo `metagest` (códigos `ref_practitioner`) na
