@@ -1812,3 +1812,39 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   (`BotaoDocumento`). O ficheiro não se copia para o Chat: abre sempre a
   versão em vigor e a leitura continua a contar em Documentos.
 - Ficha do guia de Documentos actualizada.
+
+## 3-cx. Qualidade clínica: as 5 etapas (02-10-2026)
+
+- Pedido do Elmar: «avance com as 5 etapas» (o que faltava no relatório
+  da Direcção Clínica para o modelo internacional).
+- Relatórios de turno (`BSP_RELATORIOS`, campos de `BSP_CAMPOS_AREA`):
+  1. Incidentes: `incidentes`, `quase_erros`, `incidente_tipo` (todas as
+     áreas).
+  2. Satisfação: `satisf_resp`, `satisf_ok`, `reclamacoes` (Recepção).
+  3. Espera: `espera_min`, `espera_30` (Recepção).
+  4. Laboratório: `amostras`, `amostras_rejeitadas`,
+     `resultados_entregues`, `resultados_atraso`, `tat_horas` (este é
+     opcional, campo `opcional: true`).
+  5. Protocolos: `prot_verificados`, `prot_conformes`, `prot_falhas`
+     (Farmácia, Laboratório, Imagiologia, Enfermagem).
+  A parte nunca passa do todo (o ecrã recusa). Só números, sem nomes.
+- `qualidade-clinica.sql` (aplicado): `erp.qualidade_clinica_dados(dia)`,
+  30 dias e os 30 anteriores, com alertas (incidentes com dano; satisfação
+  abaixo de 85%; mais de 20% com espera acima de 30 min; resultados no
+  prazo abaixo de 95%; amostras rejeitadas a partir de 2%; protocolos
+  abaixo de 95%). `bsp_srv_direccao_clinica` junta a chave `qualidade`.
+  Os ids dos campos são lidos pelo servidor: mudar os dois lados juntos.
+- Espera pelo MetaGest: não há hora de chegada. A permanência (primeira à
+  última factura do mesmo utente no mesmo dia, só com mais de uma) dá
+  uma aproximação: mediana de 20 min em 30 dias (28 nos 30 anteriores),
+  30 de 116 utentes acima de 1 h. A hora das marcações não serve: só uma
+  marcação «Compareceu» tem a ficha ligada.
+- O Drive tem a lista de contactos de utentes do WhatsApp (nomes,
+  telefones, datas). Não tem respostas de satisfação. Não entra no
+  repositório. A satisfação conta-se pela Recepção no relatório de turno.
+- `relatorios-diarios` versão 7: secção «Qualidade e segurança do utente»
+  no relatório da Clínica (Direcção Clínica), com «Sem dados ainda»
+  enquanto as áreas não preencherem. Novidade às áreas de saúde, à
+  Recepção, à Direcção Clínica e à gestão.
+- Por fazer: notificação individual de incidentes, com análise da causa
+  (ficha própria), se a Direcção Clínica a quiser.

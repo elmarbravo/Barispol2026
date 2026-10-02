@@ -352,6 +352,12 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `erp.clinico_dados`; nunca Kz nem nomes de utentes. Os quadros da
   Recepção, Farmácia e Laboratório vêm de `erp.clinico_extra` (campo
   `extra`, filtrado por área no `bsp_painel_clinico`).
+- Qualidade clínica (02-10-2026, `qualidade-clinica.sql`): campos dos
+  relatórios de turno em `BSP_CAMPOS_AREA` (incidentes, satisfação, espera,
+  laboratório, protocolos), somados por `erp.qualidade_clinica_dados` e
+  juntos em `bsp_srv_direccao_clinica` (chave `qualidade`). Mudar os ids
+  dos dois lados juntos. Campo de relatório com `opcional: true` não é
+  obrigatório.
 - Pessoas invisíveis (02-10-2026): `oculto: true` na equipa (o sócio
   Francisco Pinheiro). Esconder só no ecrã com `bspSemOcultos`/`bspOculto`;
   nunca tirar da `state.team`, que se grava inteira.

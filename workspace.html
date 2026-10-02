@@ -15257,6 +15257,48 @@ const BSP_RELATORIOS = [{
     { id: 'obs', tipo: 'texto', rotulo: 'Observação (opcional, sem nomes de utentes)' }
   ]
 }];
+/* Qualidade clinica (02-10-2026, pedido do Elmar: «avance com as 5
+   etapas»). Os campos abaixo entram nos formularios e o servidor soma-os
+   em erp.qualidade_clinica_dados (qualidade-clinica.sql), que sai no
+   relatorio diario da Direccao Clinica. So numeros, nunca nomes. Os ids
+   sao lidos pelo servidor: mudar os dois lados juntos. */
+const BSP_CAMPOS_INCIDENTES = [
+  { id: 'incidentes', tipo: 'numero', rotulo: 'Incidentes com dano ao utente (eventos adversos)' },
+  { id: 'quase_erros', tipo: 'numero', rotulo: 'Quase-erros (detectados antes de chegar ao utente)' },
+  { id: 'incidente_tipo', tipo: 'varias', rotulo: 'Tipo de incidente ou quase-erro', opcoes: ['Nenhum', 'Erro de identificação do utente', 'Erro de medicação', 'Amostra trocada ou perdida', 'Queda', 'Reacção adversa', 'Atraso crítico de resultado', 'Agressão ou conflito', 'Outro (ver observação)'] }
+];
+const BSP_CAMPOS_PROTOCOLOS = [
+  { id: 'prot_verificados', tipo: 'numero', rotulo: 'Actos verificados com a lista de protocolos' },
+  { id: 'prot_conformes', tipo: 'numero', rotulo: 'Desses, cumpriram todos os passos' },
+  { id: 'prot_falhas', tipo: 'varias', rotulo: 'Passos que falharam', opcoes: ['Nenhum', 'Identificação do utente com 2 dados', 'Higiene das mãos', 'Consentimento informado', 'Registo no processo / MetaGest', 'Resíduos e cortantes', 'Cadeia de frio', 'Outro (ver observação)'] }
+];
+const BSP_CAMPOS_AREA = {
+  rececao: [
+    { id: 'espera_min', tipo: 'numero', rotulo: 'Tempo médio de espera na sala, da chegada ao atendimento (minutos)' },
+    { id: 'espera_30', tipo: 'numero', rotulo: 'Utentes que esperaram mais de 30 minutos' },
+    { id: 'satisf_resp', tipo: 'numero', rotulo: 'Inquéritos de satisfação respondidos (WhatsApp, papel ou balcão)' },
+    { id: 'satisf_ok', tipo: 'numero', rotulo: 'Desses, satisfeitos ou muito satisfeitos' },
+    { id: 'reclamacoes', tipo: 'numero', rotulo: 'Reclamações registadas (livro ou verbais)' }
+  ].concat(BSP_CAMPOS_INCIDENTES),
+  farmacia: BSP_CAMPOS_INCIDENTES.concat(BSP_CAMPOS_PROTOCOLOS),
+  laboratorio: [
+    { id: 'amostras', tipo: 'numero', rotulo: 'Amostras colhidas' },
+    { id: 'amostras_rejeitadas', tipo: 'numero', rotulo: 'Amostras rejeitadas ou a repetir (colheita, hemólise, identificação)' },
+    { id: 'resultados_entregues', tipo: 'numero', rotulo: 'Resultados entregues hoje' },
+    { id: 'resultados_atraso', tipo: 'numero', rotulo: 'Desses, fora do prazo combinado com o utente' },
+    { id: 'tat_horas', tipo: 'numero', opcional: true, rotulo: 'Tempo médio da colheita ao resultado (horas, se souber)' }
+  ].concat(BSP_CAMPOS_INCIDENTES, BSP_CAMPOS_PROTOCOLOS),
+  imagiologia: BSP_CAMPOS_INCIDENTES.concat(BSP_CAMPOS_PROTOCOLOS),
+  enfermagem: BSP_CAMPOS_INCIDENTES.concat(BSP_CAMPOS_PROTOCOLOS)
+};
+BSP_RELATORIOS.forEach(a => {
+  const extra = BSP_CAMPOS_AREA[a.id];
+  if (!extra) return;
+  let i = a.campos.findIndex(c => c.id === 'ocorrencias');
+  if (i === -1) i = a.campos.findIndex(c => c.id === 'obs');
+  if (i === -1) i = a.campos.length;
+  a.campos.splice.apply(a.campos, [i, 0].concat(extra));
+});
 /* Quem le (decisao do Elmar, 24-09-2026). A regra verdadeira esta no
    servidor (relatorios-area.sql); isto so decide o que o ecra mostra.
    · Direccao e Coordenacao: todas as areas.
@@ -15371,7 +15413,7 @@ function RelatoriosScreen() {
     if (/^Nenhu/.test(nada)) nov = op === nada ? (nov.indexOf(nada) !== -1 ? [nada] : []) : nov.filter(x => x !== nada);
     return Object.assign({}, r, { [campo.id]: nov });
   });
-  const obrigatorios = def ? def.campos.filter(c => c.tipo !== 'texto') : [];
+  const obrigatorios = def ? def.campos.filter(c => c.tipo !== 'texto' && !c.opcional) : [];
   const faltam = obrigatorios.filter(c => {
     const v = resp[c.id];
     return v == null || v === '' || (Array.isArray(v) && !v.length);
@@ -15379,13 +15421,24 @@ function RelatoriosScreen() {
   const enviar = async () => {
     if (aEnviar || !def) return;
     if (faltam.length) { toast('Falta responder: ' + faltam.map(c => c.rotulo).slice(0, 3).join(', ') + (faltam.length > 3 ? '…' : '') + '.'); return; }
+    /* A parte nunca passa do todo (qualidade clinica, 02-10-2026). */
+    const nr = k => parseInt(resp[k], 10) || 0;
+    const tem = k => def.campos.some(c => c.id === k);
+    const erroParte = [['prot_conformes', 'prot_verificados'], ['satisf_ok', 'satisf_resp'], ['resultados_atraso', 'resultados_entregues'], ['amostras_rejeitadas', 'amostras'], ['espera_30', 'utentes']]
+      .find(([p, t]) => tem(p) && tem(t) && nr(p) > nr(t));
+    if (erroParte) {
+      const rot = k => (def.campos.find(c => c.id === k) || {}).rotulo;
+      toast('«' + rot(erroParte[0]) + '» não pode passar de «' + rot(erroParte[1]) + '».');
+      return;
+    }
     const cl = bspGetClient();
     if (!cl) { toast('O servidor não está ligado.'); return; }
     setAEnviar(true);
     const limpo = {};
     def.campos.forEach(c => {
       const v = resp[c.id];
-      if (c.tipo === 'numero') limpo[c.id] = Math.max(0, parseInt(v, 10) || 0);
+      if (c.tipo === 'numero' && c.opcional && (v == null || String(v).trim() === '')) return;
+      if (c.tipo === 'numero') limpo[c.id] = Math.max(0, c.opcional ? Math.round((parseFloat(String(v).replace(',', '.')) || 0) * 10) / 10 : (parseInt(v, 10) || 0));
       else if (c.tipo === 'texto') { if (String(v || '').trim()) limpo[c.id] = String(v).trim().slice(0, 1000); }
       else limpo[c.id] = v;
     });
@@ -24155,6 +24208,7 @@ const BSP_GUIA_FICHAS = [
     faz: [
       ['Escolha a área e o turno', 'e responda às perguntas.'],
       ['Registe ocorrências, faltas de material', 'e equipamentos avariados.'],
+      ['Conte os incidentes e quase-erros,', 'a espera, a satisfação, os resultados do laboratório e os protocolos cumpridos.'],
       ['Veja os relatórios recebidos', 'de cada dia.']
     ],
     quem: 'Todos preenchem. Lêem: Direcção e Coordenação (tudo) e Direcção Clínica (áreas médicas).',

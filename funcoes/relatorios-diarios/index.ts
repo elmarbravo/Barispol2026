@@ -13,6 +13,9 @@
 //     O da Clínica leva também os indicadores de gestão clínica dos últimos
 //     30 dias (direccao-clinica.sql, modelo JCI/OMS: acesso, continuidade,
 //     prática clínica, rastreabilidade e governação).
+//     Versão 7 (02-10-2026, qualidade-clinica.sql): mais a qualidade e
+//     segurança do utente (incidentes, satisfação, espera, laboratório e
+//     protocolos), a partir dos relatórios de turno.
 // Utentes nunca com nome. Um envio por relatório, dia e destino
 // (relatorios_enviados). {"previa": true} devolve os e-mails sem enviar;
 // {"dia": "AAAA-MM-DD"} escolhe o dia; {"forcar": true} volta a enviar.
@@ -410,7 +413,7 @@ Deno.serve(async (req) => {
       ];
       return sec("Gestão clínica · " + curta(gc.de) + " a " + curta(gc.dia)) +
         paragrafo("Indicadores dos últimos 30 dias, no modelo usado pela JCI e pela OMS. Sem valores e sem nomes de utentes.") +
-        ((gc.alertas || []).length ? lista((gc.alertas as any[]).map((a) => '<span style="color:' + (COR_NIVEL[a.nivel] || TEXTO) + '">' + escapar(a.texto) + "</span>")) : "") +
+        ((gc.alertas || []).concat((gc.qualidade && gc.qualidade.alertas) || []).length ? lista(((gc.alertas || []) as any[]).concat((gc.qualidade && gc.qualidade.alertas) || []).map((a) => '<span style="color:' + (COR_NIVEL[a.nivel] || TEXTO) + '">' + escapar(a.texto) + "</span>")) : "") +
         '<p style="margin:14px 0 4px;font-family:' + FONTE + ';font-size:14px;font-weight:700;color:' + MARINHO + '">Acesso</p>' +
         mosaicos([["Faltas", pc1(ac.taxa_faltas), n0(ac.faltou) + " de " + n0(Number(ac.compareceu || 0) + Number(ac.faltou || 0)) + " · ref. < 10%"],
           ["Cancelamentos", pc1(ac.taxa_cancel), n0(ac.cancelou) + " de " + n0(ac.marcacoes) + " marcações"],
@@ -426,8 +429,46 @@ Deno.serve(async (req) => {
         paragrafo("Últimos 7 dias: " + n0(te.utentes) + " atendimentos e " + n0(te.consultas) + " consultas" + (variacao(Number(te.consultas), Number(te.consultas_antes)) ? " (consultas " + variacao(Number(te.consultas), Number(te.consultas_antes)) + ")" : "") + ". Exames enviados para fora: " + n0(to.externos) + " de " + n0(Number(to.lab || 0) + Number(to.externos || 0)) + " (" + pc1(to.externos_pc) + ").") +
         ((gc.pratica || []).length ? '<p style="margin:14px 0 4px;font-family:' + FONTE + ';font-size:14px;font-weight:700;color:' + MARINHO + '">Pedidos por médico (30 dias)</p>' +
           tabela(["Médico", "Consultas", "Dias", "Por dia", "Laboratório", "Por consulta", "Imagem"], (gc.pratica as any[]).slice(0, 20).map((m) => [escapar(m.nome), n0(m.consultas), n0(m.dias), m.por_dia == null ? "—" : num1(m.por_dia), n0(m.lab), m.lab_por_consulta == null ? "—" : num1(m.lab_por_consulta), n0(m.imagem)])) : "") +
+        qualidadeHtml() +
         comparacaoHtml() + afluenciaHtml() + especialidadesHtml() + examesHtml() + faltasHtml() + financiadorHtml() +
         '<p style="margin:14px 0 4px;font-family:' + FONTE + ';font-size:14px;font-weight:700;color:' + MARINHO + '">Governação clínica</p>' + lista(gov);
+    };
+    /* Qualidade clínica, as 5 etapas (02-10-2026, qualidade-clinica.sql):
+       incidentes, satisfação, espera, laboratório e protocolos. Os dados vêm
+       dos relatórios de turno; sem eles, diz o que falta. */
+    const qualidadeHtml = () => {
+      const q = gc && gc.qualidade;
+      if (!q) return "";
+      const inc = q.incidentes || {}, sa = q.satisfacao || {}, es = q.espera || {}, la = q.laboratorio || {}, pr = q.protocolos || {};
+      const semDados = (de: string) => '<span style="color:' + SUAVE + '">Sem dados ainda. Estes números chegam com os relatórios de turno ' + de + ".</span>";
+      const tipos = (l: any[]) => l.length ? paragrafo(l.map((x) => escapar(x.nome) + ": <b>" + n0(x.n) + "</b>").join(" · ")) : "";
+      return subt("Qualidade e segurança do utente (30 dias)") +
+        paragrafo("Os 5 indicadores que faltavam no modelo internacional. Vêm dos relatórios de turno de cada área (menu Relatórios); a permanência vem do MetaGest.") +
+        subt("1. Incidentes e eventos adversos") +
+        (Number(inc.relatorios) ? mosaicos([["Com dano ao utente", n0(inc.incidentes), "30 dias antes: " + n0(inc.incidentes_antes)],
+          ["Quase-erros", n0(inc.quase_erros), "30 dias antes: " + n0(inc.quase_erros_antes)],
+          ["Relatórios com o registo", n0(inc.relatorios), "turnos"]]) + tipos(inc.tipos || []) : paragrafo(semDados("de todas as áreas"))) +
+        subt("2. Satisfação do utente") +
+        (Number(sa.respostas) || Number(sa.reclamacoes) ? mosaicos([["Satisfeitos", pc1(sa.pc), n0(sa.satisfeitos) + " de " + n0(sa.respostas) + " · ref. ≥ 85%"],
+          ["Reclamações", n0(sa.reclamacoes), "30 dias antes: " + n0(sa.reclamacoes_antes)],
+          ["Inquéritos", n0(sa.respostas), sa.pc_antes == null ? "" : "antes: " + pc1(sa.pc_antes) + " satisfeitos"]]) : paragrafo(semDados("da Recepção"))) +
+        subt("3. Tempo de espera") +
+        mosaicos([["Espera na sala", Number(es.relatorios) ? num1(es.media_min) + " min" : "—", Number(es.relatorios) ? "média de " + n0(es.relatorios) + " relatórios" : "sem relatórios da Recepção"],
+          ["Mais de 30 min", Number(es.relatorios) ? pc1(es.pc_mais_30) : "—", Number(es.relatorios) ? n0(es.mais_30) + " de " + n0(es.utentes) + " utentes · ref. < 20%" : ""],
+          ["Permanência (MetaGest)", es.permanencia_mediana == null ? "—" : n0(es.permanencia_mediana) + " min",
+            "mediana de " + n0(es.permanencia_n) + " utentes · " + n0(es.permanencia_mais_60) + " acima de 1 h" + (es.permanencia_mediana_antes == null ? "" : " · antes " + n0(es.permanencia_mediana_antes) + " min")]]) +
+        paragrafo('<span style="color:' + SUAVE + '">Permanência: da primeira à última factura do mesmo utente no mesmo dia, só para quem teve mais do que uma (consulta e exames, por exemplo). Não mede a hora de chegada.</span>') +
+        subt("4. Resultados do laboratório") +
+        (Number(la.relatorios) ? mosaicos([["Entregues no prazo", pc1(la.pc_no_prazo), n0(Number(la.entregues || 0) - Number(la.atraso || 0)) + " de " + n0(la.entregues) + " · ref. ≥ 95%"],
+          ["Tempo até ao resultado", la.tat_horas == null ? "—" : num1(la.tat_horas) + " h", "média da colheita ao resultado"],
+          ["Amostras rejeitadas", pc1(la.pc_rejeitadas), n0(la.rejeitadas) + " de " + n0(la.amostras) + " · ref. < 2%"]]) : paragrafo(semDados("do Laboratório"))) +
+        subt("5. Cumprimento de protocolos") +
+        (Number(pr.relatorios) ? mosaicos([["Conformes", pc1(pr.pc), n0(pr.conformes) + " de " + n0(pr.verificados) + " actos · ref. ≥ 95%"],
+          ["30 dias antes", pc1(pr.pc_antes), ""],
+          ["Relatórios com o registo", n0(pr.relatorios), "turnos"]]) +
+          (((pr.por_area || []) as any[]).length ? tabela(["Área", "Verificados", "Conformes", "%"], (pr.por_area as any[]).map((x) => [escapar(frase(String(x.area))), n0(x.verificados), n0(x.conformes), pc1(x.pc)])) : "") +
+          (((pr.falhas || []) as any[]).length ? paragrafo("Passos que falharam: " + (pr.falhas as any[]).map((x) => escapar(x.nome) + " (" + n0(x.n) + ")").join(", ") + ".") : "")
+          : paragrafo(semDados("das áreas de saúde")));
     };
     /* Secções com números reais (pedido do Elmar, 02-10-2026). */
     const comparacaoHtml = () => {
