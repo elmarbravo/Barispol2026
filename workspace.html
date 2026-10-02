@@ -2817,7 +2817,7 @@ const NAV_ITEMS = [{
   /* Avarias (01-10-2026, auditoria): toda a equipa reporta; a gestao e os
      Servicos Gerais tratam (equipa-registos.sql). */
   id: 'avarias',
-  label: 'Avarias',
+  label: 'Avarias e património',
   icon: 'Cog',
   badge: null
 }, {
@@ -3211,7 +3211,7 @@ function Topbar({
     documentos: 'Documentos da clínica',
     actividade: 'A minha actividade',
     directory: 'Equipa',
-    avarias: 'Avarias',
+    avarias: 'Avarias e património',
     admin: 'Painel de Administração',
     notifications: 'Notificações'
   };
@@ -19286,7 +19286,7 @@ function MobileTopbar({
     admin: 'Admin',
     notifications: 'Notificações',
     directory: 'Equipa',
-    avarias: 'Avarias',
+    avarias: 'Avarias e património',
     escalas: 'Escalas',
     transporte: 'Transporte',
     stock: 'Stock'
@@ -19604,7 +19604,7 @@ function MobileMore({
     icon: 'Users'
   }, {
     id: 'avarias',
-    label: 'Avarias',
+    label: 'Avarias e património',
     icon: 'Cog'
   }, {
     id: 'escalas',
@@ -24510,15 +24510,16 @@ const BSP_GUIA_FICHAS = [
     ],
     quem: 'Toda a equipa. Cada pessoa vê os seus pedidos e formações; os chefes vêem os da sua área.',
     dica: 'Peça as férias com antecedência: o chefe precisa de acertar a escala.' },
-  { icone: 'Cog', nome: 'Avarias',
-    serve: 'O registo das avarias e o seu seguimento até estarem resolvidas.',
+  { icone: 'Cog', nome: 'Avarias e património',
+    serve: 'O registo das avarias e dos danos em todo o património (equipamento, lâmpadas, portas, mobiliário, canalização…) até estarem resolvidos.',
     faz: [
-      ['Reporte uma avaria:', 'o que avariou, onde e a prioridade.'],
+      ['Reporte uma avaria ou dano:', 'o tipo, o que precisa de reparação, onde e a prioridade.'],
+      ['Corrija o que escreveu', 'com «Editar», enquanto a avaria está aberta.'],
       ['Acompanhe o estado:', 'Aberta, Em reparação, Resolvida.'],
       ['Quem trata regista', 'o responsável, o custo e o que se fez.']
     ],
     quem: 'Toda a equipa reporta. A Direcção e os Serviços Gerais tratam.',
-    dica: 'Quem reportou recebe o aviso quando a avaria fica resolvida.' },
+    dica: 'Carregue uma só vez em «Reportar»: o mesmo texto repetido não cria outra avaria. A Direcção apaga as repetidas.' },
   { icone: 'Heart', nome: 'Painel clínico',
     serve: 'O trabalho de cada área, em números e sem valores: utentes, consultas, exames, actos e stock.',
     faz: [
@@ -25174,56 +25175,110 @@ function EquipaScreen() {
 function bspTrataAvarias(u) {
   return !!u && (bspGereMarcacoes(u) || bspAreaChave(u.dept) === 'servicos gerais');
 }
+/* Todo o património (02-10-2026, pedido do Elmar: «há lâmpadas, portas…»):
+   cada avaria leva a categoria do bem. avarias-patrimonio.sql. */
+const BSP_AVARIA_CATEGORIAS = ['Equipamento médico', 'Informática e impressoras', 'Electricidade e iluminação', 'Ar condicionado e ventilação', 'Portas, janelas e fechaduras', 'Canalização e casas de banho', 'Mobiliário', 'Paredes, tectos e pintura', 'Viatura', 'Outro'];
+const BSP_AVARIA_EXEMPLOS = {
+  'Equipamento médico': 'Ex.: ecógrafo, centrífuga, balança',
+  'Informática e impressoras': 'Ex.: computador, impressora, TPA',
+  'Electricidade e iluminação': 'Ex.: lâmpada, tomada, quadro eléctrico',
+  'Ar condicionado e ventilação': 'Ex.: ar condicionado, ventoinha, extractor',
+  'Portas, janelas e fechaduras': 'Ex.: porta, fechadura, janela, estore',
+  'Canalização e casas de banho': 'Ex.: torneira, autoclismo, esquentador',
+  'Mobiliário': 'Ex.: cadeira, marquesa, armário',
+  'Paredes, tectos e pintura': 'Ex.: infiltração, tecto, pintura',
+  'Viatura': 'Ex.: pneu, travões, luzes',
+  'Outro': 'O que precisa de reparação'
+};
 function AvariasScreen() {
   const toast = useToast();
   const eu = window.CURRENT_USER_ID;
-  const trata = bspTrataAvarias(window.userById(eu));
+  const euU = window.userById(eu);
+  const trata = bspTrataAvarias(euU);
+  const gestor = !!(euU && bspCamada(euU).podeGerirUtilizadores);
   const t = useTabela('avarias', 'criado_em');
   const [filtro, setFiltro] = React.useState('abertas');
+  const [cat, setCat] = React.useState('');
   const [aberto, setAberto] = React.useState(false);
-  const vazio = { equipamento: '', local: '', area: '', prioridade: 'Normal', descricao: '' };
+  const [aEnviar, setAEnviar] = React.useState(false);
+  const vazio = { categoria: '', equipamento: '', local: '', area: '', prioridade: 'Normal', descricao: '' };
   const [f, setF] = React.useState(vazio);
   const [ed, setEd] = React.useState(null);
+  const [edTexto, setEdTexto] = React.useState(null);
   async function reportar() {
-    if (!f.equipamento.trim()) { toast('Diga que equipamento ou coisa avariou.'); return; }
-    const r = await bspGetClient().from('avarias').insert({ equipamento: f.equipamento.trim(), local: f.local.trim(), area: f.area, prioridade: f.prioridade, descricao: f.descricao.trim() });
+    if (aEnviar) return;
+    if (!f.categoria) { toast('Escolha o tipo (categoria).'); return; }
+    if (!f.equipamento.trim()) { toast('Diga o que precisa de reparação.'); return; }
+    /* Um só envio, mesmo com toques repetidos ou rede lenta: o botao fica
+       parado e o servidor ignora o mesmo texto da mesma pessoa em 10 min. */
+    setAEnviar(true);
+    const r = await bspGetClient().from('avarias').insert({ categoria: f.categoria, equipamento: f.equipamento.trim(), local: f.local.trim(), area: f.area, prioridade: f.prioridade, descricao: f.descricao.trim() });
+    setAEnviar(false);
     if (r.error) { toast('Não foi possível reportar: ' + r.error.message); return; }
-    toast('Avaria reportada. A gestão e os Serviços Gerais recebem o aviso.');
+    toast('Reportado. A gestão e os Serviços Gerais recebem o aviso.');
     setF(vazio); setAberto(false); t.recarregar();
   }
-  async function mudar(a, campos) {
+  async function mudar(a, campos, msg) {
     const r = await bspGetClient().from('avarias').update(campos).eq('id', a.id).select('id');
-    if (r.error || !r.data || !r.data.length) { toast('Não foi possível guardar' + (r.error ? ': ' + r.error.message : '.')); return; }
-    toast('Avaria actualizada.');
-    setEd(null); t.recarregar();
+    if (r.error || !r.data || !r.data.length) { toast('Não foi possível guardar' + (r.error ? ': ' + r.error.message : '.')); return false; }
+    toast(msg || 'Avaria actualizada.');
+    setEd(null); setEdTexto(null); t.recarregar();
+    return true;
   }
+  async function apagar(lista, pergunta) {
+    if (!window.confirm(pergunta)) return;
+    let ok = 0;
+    for (const a of lista) {
+      const r = await bspGetClient().rpc('bsp_avaria_apagar', { p_id: a.id });
+      if (!r.error && r.data === true) ok++;
+      else if (r.error) { toast('Não foi possível apagar: ' + r.error.message); break; }
+    }
+    if (ok) toast(ok === 1 ? 'Avaria apagada.' : ok + ' avarias apagadas.');
+    t.recarregar();
+  }
+  const podeApagar = a => gestor || (a.criado_por === eu && a.estado === 'Aberta' && !a.responsavel && Date.now() - new Date(a.criado_em).getTime() < 3600e3);
+  const podeEditar = a => trata || (a.criado_por === eu && a.estado === 'Aberta');
   const linhas = t.linhas || [];
+  /* Repetidas: a mesma pessoa, o mesmo texto, ainda abertas. Fica a primeira. */
+  const chaveRep = a => [a.criado_por, String(a.equipamento).trim().toLowerCase(), String(a.descricao).trim().toLowerCase()].join('|');
+  const primeiras = {};
+  linhas.slice().sort((a, b) => String(a.criado_em).localeCompare(String(b.criado_em))).forEach(a => { if (a.estado === 'Aberta' && !primeiras[chaveRep(a)]) primeiras[chaveRep(a)] = a.id; });
+  const repetidas = linhas.filter(a => a.estado === 'Aberta' && primeiras[chaveRep(a)] !== a.id);
   const abertas = linhas.filter(a => a.estado === 'Aberta' || a.estado === 'Em reparação');
-  const lista = (filtro === 'abertas' ? abertas : filtro === 'resolvidas' ? linhas.filter(a => a.estado === 'Resolvida') : linhas)
+  const base = filtro === 'abertas' ? abertas : filtro === 'resolvidas' ? linhas.filter(a => a.estado === 'Resolvida') : linhas;
+  const lista = base.filter(a => !cat || (a.categoria || 'Outro') === cat)
     .slice().sort((a, b) => ({ Urgente: 0, Alta: 1, Normal: 2 }[a.prioridade] - { Urgente: 0, Alta: 1, Normal: 2 }[b.prioridade]) || String(b.criado_em).localeCompare(String(a.criado_em)));
   const rot = bspTranspRot;
   const corPrio = { Urgente: 'var(--perigo)', Alta: 'var(--serie-4)', Normal: 'var(--text-3)' };
+  const campos = (v, set, comPrio) => React.createElement(React.Fragment, null,
+    React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10 } },
+      React.createElement("label", null, rot('Tipo'), React.createElement("select", { value: v.categoria, onChange: e => set(Object.assign({}, v, { categoria: e.target.value })), style: bspTranspCampo }, React.createElement("option", { value: '' }, 'Escolha…'), BSP_AVARIA_CATEGORIAS.map(x => React.createElement("option", { key: x, value: x }, x)))),
+      React.createElement("label", null, rot('O que precisa de reparação'), React.createElement("input", { value: v.equipamento, onChange: e => set(Object.assign({}, v, { equipamento: e.target.value })), placeholder: BSP_AVARIA_EXEMPLOS[v.categoria] || 'Ex.: lâmpada, porta, ar condicionado', style: bspTranspCampo })),
+      React.createElement("label", null, rot('Onde'), React.createElement("input", { value: v.local, onChange: e => set(Object.assign({}, v, { local: e.target.value })), placeholder: 'Ex.: sala de colheitas, corredor', style: bspTranspCampo })),
+      React.createElement("label", null, rot('Área'), React.createElement("select", { value: v.area, onChange: e => set(Object.assign({}, v, { area: e.target.value })), style: bspTranspCampo }, React.createElement("option", { value: '' }, '—'), bspEscalaAreas().map(a => React.createElement("option", { key: a.chave, value: a.chave }, a.nome)))),
+      comPrio && React.createElement("label", null, rot('Prioridade'), React.createElement("select", { value: v.prioridade, onChange: e => set(Object.assign({}, v, { prioridade: e.target.value })), style: bspTranspCampo }, ['Urgente', 'Alta', 'Normal'].map(x => React.createElement("option", { key: x, value: x }, x))))),
+    React.createElement("label", { style: { display: 'block', marginTop: 10 } }, rot('O que se passa'), React.createElement("textarea", { rows: 3, value: v.descricao, onChange: e => set(Object.assign({}, v, { descricao: e.target.value })), style: Object.assign({}, bspTranspCampo, { height: 'auto', padding: 10, resize: 'vertical' }) })));
+  const usadas = BSP_AVARIA_CATEGORIAS.filter(c => base.some(a => (a.categoria || 'Outro') === c));
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'auto', paddingBottom: 12 } },
     React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } },
       React.createElement("button", { onClick: () => setFiltro('abertas'), style: bspEscChip(filtro === 'abertas') }, 'Por resolver ' + abertas.length),
       React.createElement("button", { onClick: () => setFiltro('resolvidas'), style: bspEscChip(filtro === 'resolvidas') }, 'Resolvidas'),
       React.createElement("button", { onClick: () => setFiltro('todas'), style: bspEscChip(filtro === 'todas') }, 'Todas'),
+      usadas.length > 1 && React.createElement("select", { value: cat, onChange: e => setCat(e.target.value), style: Object.assign({}, bspTranspCampo, { width: 'auto', height: 36 }) }, React.createElement("option", { value: '' }, 'Todos os tipos'), usadas.map(c => React.createElement("option", { key: c, value: c }, c))),
       React.createElement("span", { style: { flex: 1 } }),
-      React.createElement("button", { onClick: () => setAberto(a => !a), style: bspEscBotao(true) }, aberto ? 'Fechar' : 'Reportar avaria')),
+      React.createElement("button", { onClick: () => setAberto(a => !a), style: bspEscBotao(true) }, aberto ? 'Fechar' : 'Reportar avaria ou dano')),
     t.erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, t.erro) : null,
+    gestor && repetidas.length > 0 && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { borderLeft: '4px solid var(--perigo)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }) },
+      React.createElement("div", { style: { flex: '1 1 220px', fontSize: 13.5, color: 'var(--text-1)' } }, React.createElement("b", null, repetidas.length === 1 ? 'Há uma avaria repetida' : 'Há ' + repetidas.length + ' avarias repetidas'), ' (a mesma pessoa, o mesmo texto). Fica a primeira de cada.'),
+      React.createElement("button", { onClick: () => apagar(repetidas, 'Apagar ' + repetidas.length + ' avaria(s) repetida(s)? Fica a primeira de cada.'), style: bspEscBotao(true) }, 'Apagar as repetidas')),
     aberto && React.createElement("div", { style: bspRegCaixa },
-      React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10 } },
-        React.createElement("label", null, rot('O que avariou'), React.createElement("input", { value: f.equipamento, onChange: e => setF(Object.assign({}, f, { equipamento: e.target.value })), placeholder: 'Ex.: ar condicionado, impressora', style: bspTranspCampo })),
-        React.createElement("label", null, rot('Onde'), React.createElement("input", { value: f.local, onChange: e => setF(Object.assign({}, f, { local: e.target.value })), placeholder: 'Ex.: sala de colheitas', style: bspTranspCampo })),
-        React.createElement("label", null, rot('Área'), React.createElement("select", { value: f.area, onChange: e => setF(Object.assign({}, f, { area: e.target.value })), style: bspTranspCampo }, React.createElement("option", { value: '' }, '—'), bspEscalaAreas().map(a => React.createElement("option", { key: a.chave, value: a.chave }, a.nome)))),
-        React.createElement("label", null, rot('Prioridade'), React.createElement("select", { value: f.prioridade, onChange: e => setF(Object.assign({}, f, { prioridade: e.target.value })), style: bspTranspCampo }, ['Urgente', 'Alta', 'Normal'].map(x => React.createElement("option", { key: x, value: x }, x))))),
-      React.createElement("label", { style: { display: 'block', marginTop: 10 } }, rot('O que se passa'), React.createElement("textarea", { rows: 3, value: f.descricao, onChange: e => setF(Object.assign({}, f, { descricao: e.target.value })), style: Object.assign({}, bspTranspCampo, { height: 'auto', padding: 10, resize: 'vertical' }) })),
-      React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', marginTop: 12 } }, React.createElement("button", { onClick: reportar, style: bspEscBotao(true) }, 'Reportar'))),
-    !lista.length ? React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, t.linhas ? (filtro === 'abertas' ? 'Nenhuma avaria por resolver.' : 'Sem avarias.') : 'A carregar…')
+      campos(f, setF, true),
+      React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', marginTop: 12 } }, React.createElement("button", { onClick: reportar, disabled: aEnviar, style: Object.assign(bspEscBotao(true), { opacity: aEnviar ? .6 : 1 }) }, aEnviar ? 'A enviar…' : 'Reportar'))),
+    !lista.length ? React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, t.linhas ? (filtro === 'abertas' ? 'Nada por resolver.' : 'Sem avarias.') : 'A carregar…')
       : lista.map(a => React.createElement("div", { key: a.id, style: Object.assign({}, bspRegCaixa, { borderLeft: '4px solid ' + (corPrio[a.prioridade] || 'var(--border)') }) },
         React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' } },
           React.createElement("div", { style: { flex: '1 1 240px', minWidth: 0 } },
-            React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: corPrio[a.prioridade] } }, a.prioridade.toUpperCase() + (a.area ? ' · ' + bspEscalaAreaNome(a.area) : '') + (a.local ? ' · ' + a.local : '')),
+            React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: corPrio[a.prioridade] } }, a.prioridade.toUpperCase() + ' · ' + (a.categoria || 'Outro') + (a.area ? ' · ' + bspEscalaAreaNome(a.area) : '') + (a.local ? ' · ' + a.local : '')),
             React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)' } }, a.equipamento),
             a.descricao ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 3, whiteSpace: 'pre-wrap' } }, a.descricao) : null,
             React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 4 } }, 'Reportada por ' + bspNomeDe(a.criado_por) + ' a ' + bspQuando(a.criado_em)
@@ -25231,8 +25286,15 @@ function AvariasScreen() {
               + (a.resolvido_em ? ' · resolvida a ' + bspQuando(a.resolvido_em) : '')),
             a.resolucao ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--sucesso)', marginTop: 3 } }, a.resolucao) : null),
           bspEstadoEtiqueta(a.estado),
-          trata && a.estado !== 'Resolvida' && a.estado !== 'Cancelada' && React.createElement("button", { onClick: () => setEd(ed && ed.id === a.id ? null : { id: a.id, estado: a.estado, responsavel: a.responsavel, custo: a.custo || '', resolucao: a.resolucao }), style: bspEscBotao(false) }, 'Tratar'),
-          !trata && a.criado_por === eu && a.estado === 'Aberta' && React.createElement("button", { onClick: () => window.confirm('Cancelar esta avaria?') && mudar(a, { estado: 'Cancelada' }), style: bspEscBotao(false) }, 'Cancelar')),
+          trata && a.estado !== 'Resolvida' && a.estado !== 'Cancelada' && React.createElement("button", { onClick: () => { setEdTexto(null); setEd(ed && ed.id === a.id ? null : { id: a.id, estado: a.estado, responsavel: a.responsavel, custo: a.custo || '', resolucao: a.resolucao }); }, style: bspEscBotao(false) }, 'Tratar'),
+          podeEditar(a) && React.createElement("button", { onClick: () => { setEd(null); setEdTexto(edTexto && edTexto.id === a.id ? null : { id: a.id, categoria: a.categoria || 'Outro', equipamento: a.equipamento, local: a.local, area: a.area, prioridade: a.prioridade, descricao: a.descricao }); }, style: bspEscBotao(false) }, 'Editar'),
+          podeApagar(a) && React.createElement("button", { onClick: () => apagar([a], 'Apagar «' + a.equipamento + '»? Não se pode desfazer.'), style: Object.assign(bspEscBotao(false), { color: 'var(--perigo)' }) }, 'Apagar'),
+          !trata && a.criado_por === eu && a.estado === 'Aberta' && !podeApagar(a) && React.createElement("button", { onClick: () => window.confirm('Cancelar esta avaria?') && mudar(a, { estado: 'Cancelada' }), style: bspEscBotao(false) }, 'Cancelar')),
+        edTexto && edTexto.id === a.id && React.createElement("div", { style: { marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' } },
+          campos(edTexto, setEdTexto, trata),
+          React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 } },
+            React.createElement("button", { onClick: () => setEdTexto(null), style: bspEscBotao(false) }, 'Cancelar'),
+            React.createElement("button", { onClick: () => { if (!edTexto.equipamento.trim()) { toast('Diga o que precisa de reparação.'); return; } mudar(a, Object.assign({ categoria: edTexto.categoria || 'Outro', equipamento: edTexto.equipamento.trim(), local: edTexto.local.trim(), area: edTexto.area, descricao: edTexto.descricao.trim() }, trata ? { prioridade: edTexto.prioridade } : {}), 'Avaria corrigida.'); }, style: bspEscBotao(true) }, 'Guardar'))),
         ed && ed.id === a.id && React.createElement("div", { style: { marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' } },
           React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 } },
             React.createElement("label", null, rot('Estado'), React.createElement("select", { value: ed.estado, onChange: e => setEd(Object.assign({}, ed, { estado: e.target.value })), style: bspTranspCampo }, ['Aberta', 'Em reparação', 'Resolvida', 'Cancelada'].map(x => React.createElement("option", { key: x, value: x }, x)))),

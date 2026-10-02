@@ -1952,3 +1952,23 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   - Versão 10: sem médico, marcações passadas por fechar e rascunhos ficam
     só nos alertas do topo (antes repetiam-se no fim).
 - Nomes da equipa, nunca de utentes.
+
+## 3-dc. Avarias e património (02-10-2026)
+
+- Pedidos do Elmar: apagar as avarias repetidas do Emmanuel (a mesma, 8
+  vezes, por falha de rede) e alargar as avarias a todo o património.
+- `avarias-patrimonio.sql` (aplicado):
+  - coluna `categoria`;
+  - gatilho `bsp_avaria_0_repetida`: a mesma pessoa com o mesmo texto em 10
+    minutos não cria outra avaria. Tem um bloqueio para toques simultâneos,
+    e corre antes de `bsp_avaria_carimbo`, que cria a novidade;
+  - `bsp_avaria_apagar(id)`: a gestão apaga; quem reportou apaga a sua na
+    primeira hora, enquanto ninguém lhe pegou.
+- Ecrã «Avarias e património» (`AvariasScreen`):
+  - tipo do bem (`BSP_AVARIA_CATEGORIAS`) e filtro por tipo;
+  - «Editar»: quem reportou, enquanto está aberta; a gestão e os Serviços
+    Gerais, sempre;
+  - «Apagar», e para a gestão «Apagar as repetidas» (fica a primeira);
+  - o botão «Reportar» fica parado enquanto envia.
+- [ ] As 7 cópias de «2 ventoinhas» (02-10-2026, 09:02) ficaram para o
+  Elmar apagar com «Apagar as repetidas».

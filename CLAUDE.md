@@ -334,6 +334,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
 - Menu «Utentes» (01-10-2026): CRM + Marcações num só item (`seguimento`,
   separadores em `CrmScreen({ inicial })`); a rota `marcacoes` abre o
   separador Marcações. Directório no menu como «Equipa».
+- Avarias e património (02-10-2026, `avarias-patrimonio.sql`): `categoria`
+  (`BSP_AVARIA_CATEGORIAS`), repetidos bloqueados no servidor
+  (`bsp_avaria_0_repetida`), apagar só por `bsp_avaria_apagar`.
 - Registos da equipa (01-10-2026, `equipa-registos.sql`): `ausencias`,
   `formacoes`, `avarias`, `pedidos_compra`. Quem decide: `bsp_chefe_de`
   (gestão, superior, chefe da área). Ecrãs: `EquipaScreen` (Contactos,
