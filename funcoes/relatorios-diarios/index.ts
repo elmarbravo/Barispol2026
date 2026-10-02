@@ -26,6 +26,11 @@
 //     (está no da Clínica) e a dos tipos de documento.
 //     Versão 10 (02-10-2026): o da Recepção deixa de repetir o que os
 //     alertas do topo já dizem (sem médico, marcações passadas, rascunhos).
+//     Versão 11 (02-10-2026, pedido do Elmar: «se tiver redundância, elimine
+//     os dados de um deles»): o WhatsApp (pedidos, tempos de resposta, preço,
+//     tabela por colaborador) e o «Workspace aberto ontem» saem do da
+//     Recepção. Estão no e-mail «WhatsApp de ontem» das 08h00
+//     (wa_resumo_8h), que fica como a única fonte desses números.
 // Utentes nunca com nome. Um envio por relatório, dia e destino
 // (relatorios_enviados). {"previa": true} devolve os e-mails sem enviar;
 // {"dia": "AAAA-MM-DD"} escolhe o dia; {"forcar": true} volta a enviar.
@@ -478,37 +483,20 @@ Deno.serve(async (req) => {
        nunca de utentes. */
     const qualidadeRecepcaoHtml = () => {
       if (!rq) return "";
-      const wo = (rq.whatsapp && rq.whatsapp.ontem) || {}, ws = (rq.whatsapp && rq.whatsapp.semana) || {};
-      const pcN = (a: unknown, b: unknown) => Number(b) ? pc1(Number(a) / Number(b) * 100) : "—";
-      const min = (v: unknown) => v == null ? "—" : n0(v) + " min";
       const verm = (t: string) => '<span style="color:#B42318">' + t + "</span>";
       const mo = (rq.marcacoes && rq.marcacoes.ontem) || {}, ma = (rq.marcacoes && rq.marcacoes.amanha) || {};
       const tu = rq.turno || {};
       const fa: any[] = rq.facturacao || [];
-      const pres: any[] = rq.presenca || [];
       const reg: any[] = rq.marcacoes_registadas || [];
-      const wp: any[] = rq.whatsapp_pessoas || [];
       /* Pontos de atenção: o que pede uma acção hoje. */
       const atencao: string[] = [];
       if (!Number(tu.relatorios)) atencao.push("O relatório de turno da Recepção de ontem não foi entregue (menu Relatórios).");
-      if (wo.mediana_min != null && Number(wo.mediana_min) > 15) atencao.push("WhatsApp: a primeira resposta levou " + min(wo.mediana_min) + " (mediana). A referência é até 15 min.");
-      if (Number(wo.mais60)) atencao.push(n0(wo.mais60) + " pedido(s) do WhatsApp esperaram mais de 1 hora pela primeira resposta.");
-      if (Number(wo.pediu_preco) > Number(wo.preco_dado)) atencao.push(n0(Number(wo.pediu_preco) - Number(wo.preco_dado)) + " utente(s) pediram o preço no WhatsApp e não o receberam.");
       const nc = fa.reduce((a, x) => a + Number(x.notas_credito || 0), 0);
       if (nc) atencao.push(n0(nc) + " nota(s) de crédito ontem: cada uma é uma factura anulada. Confirme o motivo.");
-      const semAbrir = pres.filter((x) => !x.primeira).map((x) => escapar(x.nome));
-      if (semAbrir.length) atencao.push("Não abriram o Workspace ontem: " + semAbrir.join(", ") + ".");
       if (Number(mo.em_aberto)) atencao.push(n0(mo.em_aberto) + " marcação(ões) de ontem continuam em aberto: marque Compareceu, Faltou, Cancelou ou Remarcado.");
       if (Number(ma.sem_contacto)) atencao.push(n0(ma.sem_contacto) + " marcação(ões) de amanhã sem telefone nem e-mail.");
       return sec("Qualidade do atendimento") +
         (atencao.length ? lista(atencao.map(verm)) : paragrafo('<span style="color:#1D7A46">Sem pontos de atenção ontem.</span>')) +
-        subt("WhatsApp") +
-        mosaicos([["Primeira resposta", min(wo.mediana_min), "mediana de ontem · 7 dias: " + min(ws.mediana_min)],
-          ["Em 15 minutos", pcN(wo.ate15, wo.com_resposta), n0(wo.ate15) + " de " + n0(wo.com_resposta) + " · ref. 80% ou mais"],
-          ["Preço dado", pcN(wo.preco_dado, wo.pediu_preco), n0(wo.preco_dado) + " de " + n0(wo.pediu_preco) + " que pediram"]]) +
-        paragrafo("Ontem: " + n0(wo.pedidos) + " pedidos, " + n0(wo.com_resposta) + " respondidos por uma pessoa, " + n0(wo.fora_horario) + " fora do horário, " + n0(wo.marcou) + " marcados na própria conversa. Nos 7 dias: " + n0(ws.pedidos) + " pedidos, " + n0(ws.marcou) + " marcados.") +
-        (wp.length ? tabela(["Colaborador (7 dias)", "Pedidos", "1.ª resposta", "Em 15 min", "Preço dado", "Marcou"],
-          wp.map((x) => [escapar(x.nome), n0(x.pedidos), min(x.mediana_min), n0(x.ate15) + " de " + n0(x.com_resposta), n0(x.preco_dado) + " de " + n0(x.pediu_preco), n0(x.marcou)])) : "") +
         subt("Facturação de ontem, por colaborador") +
         (fa.length ? tabela(["Colaborador", "Documentos", "Sem médico", "Notas de crédito", "Rascunhos"],
           fa.map((x) => [escapar(x.nome), n0(x.documentos), Number(x.sem_medico) ? verm(n0(x.sem_medico)) : "0", Number(x.notas_credito) ? verm(n0(x.notas_credito)) : "0", Number(x.rascunhos) ? verm(n0(x.rascunhos)) : "0"])) +
@@ -522,15 +510,16 @@ Deno.serve(async (req) => {
         (reg.length ? tabela(["Registadas ontem no Workspace", "Marcações", "Com telefone", "Com e-mail", "Ligadas à ficha"],
           reg.map((x) => [escapar(x.nome), n0(x.marcacoes), n0(x.com_telefone), n0(x.com_email), n0(x.com_ficha)]))
           : paragrafo(verm("Nenhuma marcação foi registada ontem no Workspace.") + " As marcações do WhatsApp e do telefone entram em Utentes → Marcações.")) +
-        subt("Workspace aberto ontem") +
-        (pres.length ? tabela(["Colaborador", "Entrou", "Saiu", "Horas"], pres.map((x) => [escapar(x.nome), x.primeira || verm("não abriu"), x.ultima || "—", x.horas == null ? "—" : num1(x.horas) + " h"])) : "") +
         subt("Relatório de turno") +
         (Number(tu.relatorios) ? lista([
           "Espera na sala: " + (tu.espera_min == null ? "—" : n0(tu.espera_min) + " min em média") + " · " + n0(tu.espera_30) + " utentes esperaram mais de 30 min.",
           "Satisfação: " + n0(tu.satisf_ok) + " satisfeitos em " + n0(tu.satisf_resp) + " inquéritos · " + n0(tu.reclamacoes) + " reclamações.",
           "Incidentes: " + n0(tu.incidentes) + " · quase-erros: " + n0(tu.quase_erros) + "." + (Number(tu.fecho_caixa_por_enviar) ? " " + verm("Fecho de caixa por enviar.") : ""),
         ]) : paragrafo(verm("Não foi entregue."))) +
-        (Number(rq.site) ? paragrafo("Pedidos pela caixa de contacto do site: <b>" + n0(rq.site) + "</b>.") : "");
+        (Number(rq.site) ? paragrafo("Pedidos pela caixa de contacto do site: <b>" + n0(rq.site) + "</b>.") : "") +
+        /* O WhatsApp e as entradas no Workspace estão só no e-mail das 08h00
+           (versão 11): não se repetem aqui. */
+        paragrafo('<span style="color:' + SUAVE + '">O atendimento no WhatsApp (tempos de resposta, preço, conversas por rever) e as entradas no Workspace vêm no e-mail «WhatsApp de ontem», às 08h00.</span>');
     };
     /* Secções com números reais (pedido do Elmar, 02-10-2026). */
     const comparacaoHtml = () => {
@@ -584,9 +573,9 @@ Deno.serve(async (req) => {
         titulo: "Recepção",
         tem: () => true,
         corpo: () => {
-          const wo = (rq && rq.whatsapp && rq.whatsapp.ontem) || {};
+          const docs = ((rq && rq.facturacao) || [] as any[]).reduce((a: number, x: any) => a + Number(x.documentos || 0), 0);
           return mosaicos([["Utentes atendidos", n0(nm.utentes), n0(nm.novos) + " novos"],
-              ["WhatsApp ontem", n0(wo.pedidos), n0(wo.ate15) + " de " + n0(wo.com_resposta) + " respondidos em 15 min"],
+              ["Documentos ontem", n0(docs), "emitidos no MetaGest"],
               ["Marcações hoje", n0(marc.hoje), n0(marc.por_confirmar) + " por confirmar"]]) +
             /* Sem médico, marcações passadas e rascunhos ja vêm nos alertas do
                topo: não se repetem (versão 10). */

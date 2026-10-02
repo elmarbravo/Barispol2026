@@ -1972,3 +1972,35 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   - o botão «Reportar» fica parado enquanto envia.
 - [ ] As 7 cópias de «2 ventoinhas» (02-10-2026, 09:02) ficaram para o
   Elmar apagar com «Apagar as repetidas».
+
+## 3-dd. Menos e-mails: plano gratuito da Resend (02-10-2026)
+
+- Pedido do Elmar: «Não envie emails hoje, amanhã apenas. Vamos diminuir o
+  número de emails desnecessários.» A Resend contou 121 a 02-10-2026. O
+  plano gratuito dá 100 por dia e 3000 por mês.
+- A causa principal: cada documento novo mandava um e-mail por pessoa
+  (`documento-aviso`). Foram 6 documentos para cerca de 22 pessoas, ou
+  seja, cerca de 130 e-mails.
+- `emails-pausa.sql` (aplicado):
+  - `emails_pausa`: pausa até 03-10-2026, 00h00 de Luanda. A `bright-worker`
+    (versão 7) responde `{"pausado": true}` e não envia;
+  - `emails_registo`: cada envio (assunto, número de destinatários,
+    resultado), sem endereços;
+  - tecto: com 95 destinatários servidos no dia, nada mais sai até à
+    meia-noite (`bsp_emails_pausa_ate`);
+  - documento novo: entra como novidade (`bsp_documentos_publicado`). Vai
+    no e-mail das 05h00, no sino e no aviso do telemóvel, e já não sai um
+    e-mail por pessoa;
+  - colectivo das 12h00 (`bsp-aviso-coletivo`) desligado.
+- `resumo-matinal` versão 14:
+  - o lembrete das 07h30 só vai a quem não abriu o Workspace nos 2 dias
+    anteriores (`presenca_dias`);
+  - o aviso de mensagem por ler não vai por e-mail a quem tem avisos no
+    telemóvel (`push_subscricoes` vista nos últimos 14 dias).
+- `relatorios-diarios` versão 11: o relatório da Recepção repetia os
+  números do e-mail «WhatsApp de ontem» das 08h00 (`wa_resumo_8h`). Saíram
+  dele o WhatsApp (mosaico, tempos de resposta, preço, tabela por
+  colaborador) e o «Workspace aberto ontem». Fica uma linha a remeter para
+  o das 08h00. O mosaico passa a «Documentos ontem».
+- [ ] 03-10-2026: confirmar em `emails_registo` que o dia fica abaixo dos
+  95 e que não há envios com `pausado` depois da meia-noite.

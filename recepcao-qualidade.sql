@@ -7,6 +7,8 @@
 --   erp.recepcao_qualidade(dia)          os números do dia (e 7 dias)
 --   public.bsp_srv_recepcao_qualidade(dia)  atalho só para a chave do servidor
 -- Sai no relatório da Recepção das 07h15 (relatorios-diarios versão 9).
+-- Desde a versão 11 o relatório já não mostra o WhatsApp nem a presença:
+-- estão no e-mail «WhatsApp de ontem» das 08h00 (wa_resumo_8h).
 --
 -- Por colaborador (nomes da equipa, nunca de utentes):
 --   · WhatsApp (crm.caixa): pedidos, tempo até à primeira resposta de uma

@@ -25,7 +25,7 @@
 // mandar "to" como lista e usar "cc"/"bcc" (relatorios de area e avisos
 // do atendimento do WhatsApp).
 //
-// Este ficheiro e a copia da versao publicada (versao 6, 02-10-2026). O
+// Este ficheiro e a copia da versao publicada (versao 7, 02-10-2026). O
 // lembrete da marcacao ao paciente usa o "cc" para rececao@barispol.com.
 // RESPONDER PARA (versao 4, 30-09-2026): so o servidor pode mandar
 // "reply_to" (relatorio semanal da viatura -> Administracao).
@@ -34,6 +34,11 @@
 // com um endereco (guia do Workspace, confirmacao para o RH).
 // CONVITE DE CALENDARIO (versao 6, 02-10-2026): so o servidor, um anexo
 // .ics em base64 com content_type text/calendar (agenda-avisos).
+// PAUSA E REGISTO (versao 7, 02-10-2026, emails-pausa.sql, pedido do Elmar:
+// «Não envie emails hoje»; plano gratuito da Resend, 100 por dia): antes de
+// enviar, consulta emails_pausa; com pausa, responde {"pausado": true} e nao
+// envia. Cada envio (ou pausa) fica em emails_registo, sem enderecos nem
+// texto, para contar o dia.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -193,6 +198,22 @@ Deno.serve(async (req) => {
     }
   }
 
+  /* Pausa e registo (versao 7). */
+  const URL_REG = Deno.env.get("SUPABASE_URL") || "";
+  const admReg = URL_REG && chaveServidor() ? createClient(URL_REG, chaveServidor(), { auth: { persistSession: false } }) : null;
+  const nDest = paraLista.length + cc.length + bcc.length;
+  const registar = async (estado: number | null, pausado: boolean) => {
+    try { if (admReg) await admReg.from("emails_registo").insert({ assunto: String(subject || "").slice(0, 200), destinatarios: nDest, estado, pausado }); } catch { /* o registo nunca impede o envio */ }
+  };
+  if (admReg) {
+    const { data: pausaAte } = await admReg.rpc("bsp_emails_pausa_ate");
+    if (pausaAte) {
+      await registar(null, true);
+      return new Response(JSON.stringify({ pausado: true, ate: pausaAte }),
+        { status: 200, headers: { ...cors, "Content-Type": "application/json" } });
+    }
+  }
+
   try {
     let key = Deno.env.get("RESEND_API_KEY") || "";
     if (!key) {
@@ -222,6 +243,7 @@ Deno.serve(async (req) => {
       }),
     });
     const data = await r.json();
+    await registar(r.status, false);
     return new Response(JSON.stringify(data),
       { status: r.status, headers: { ...cors, "Content-Type": "application/json" } });
   } catch (e) {

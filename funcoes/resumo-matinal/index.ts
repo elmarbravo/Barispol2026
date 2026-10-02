@@ -69,6 +69,12 @@
 // lembrete com a data, a hora, o acto e o link do GPS, sempre com
 // rececao@barispol.com em copia. Um por marcacao (marcacoes-lembrete.sql).
 //
+// MENOS E-MAILS (02-10-2026, versao 14, pedido do Elmar: plano gratuito da
+// Resend, 100 por dia): o lembrete diario so vai a quem nao abriu o
+// Workspace nos dois dias anteriores (presenca_dias); o aviso de mensagem
+// directa por e-mail nao vai a quem tem avisos no aparelho
+// (push_subscricoes): esses ja o receberam no instante.
+//
 // WORKSPACE ABERTO TODO O DIA (02-10-2026, versao 13, pedido do Elmar): o
 // lembrete diario e o aviso colectivo dizem que o Workspace e uma
 // ferramenta de trabalho e fica aberto no computador todo o dia.
@@ -696,6 +702,11 @@ Deno.serve(async (req) => {
     const { data: presencas } = await admin.from("presenca").select("user_id, visto_em");
     const vistoEm = new Map((presencas || []).map((r: any) => [r.user_id, new Date(r.visto_em).getTime()]));
     const online = (id: string) => (vistoEm.get(id) || 0) > agoraMs - 2 * 60000;
+    /* Com avisos no aparelho (Web Push ou app), a mensagem ja chegou no
+       instante: sem e-mail (versao 14). */
+    const { data: comPush } = await admin.from("push_subscricoes").select("user_id")
+      .gte("visto_em", new Date(agoraMs - 14 * 86400000).toISOString());
+    const temPush = new Set(((comPush || []) as any[]).map((r) => r.user_id));
 
     const grupos = new Map<string, any[]>();
     const semAviso: number[] = [];
@@ -706,6 +717,7 @@ Deno.serve(async (req) => {
       const viu = (depois || []).some((d: any) => d.conv_key === m.conv_key && d.user_id === para && d.id > m.id);
       if (viu) { semAviso.push(m.id); continue; }
       if (online(para)) continue; // ainda pode responder; volta a ver no minuto seguinte
+      if (temPush.has(para)) { semAviso.push(m.id); continue; }
       const chave = para + "|" + m.conv_key;
       if (!grupos.has(chave)) grupos.set(chave, []);
       grupos.get(chave)!.push(m);
@@ -758,6 +770,18 @@ Deno.serve(async (req) => {
   if (lembrete) {
     let lembrados = 0;
     const falhasLembrete: string[] = [];
+    /* Versao 14: o lembrete so vai a quem nao abriu o Workspace nos dois
+       dias anteriores. Quem o usa todos os dias ja nao precisa dele. */
+    let alvo = destinatarios;
+    let poupados = 0;
+    if (tipo === "lembrete") {
+      const base = Date.parse(hoje + "T12:00:00Z");
+      const dias = [1, 2].map((n) => new Date(base - n * 86400000).toISOString().slice(0, 10));
+      const { data: pd } = await admin.from("presenca_dias").select("user_id").in("dia", dias);
+      const usaram = new Set(((pd || []) as any[]).map((r) => r.user_id));
+      alvo = destinatarios.filter((u: any) => !usaram.has(u.id));
+      poupados = destinatarios.length - alvo.length;
+    }
     /* Mudanca de servidor (25-09 a 01-10-2026): pedir que cada pessoa
        termine a sessao e volte a entrar. */
     const mudanca = hoje <= "2026-10-01"
@@ -782,7 +806,7 @@ Deno.serve(async (req) => {
       "Aviso a toda a equipa.",
       "Aviso à equipa"
     );
-    for (const u of destinatarios) {
+    for (const u of alvo) {
       const nome = String(u.name || "").split(" ")[0];
       const ok = tipo === "coletivo"
         ? await enviar(u.email, "Equipa Barispol: o Workspace é o nosso canal", coletivo)
@@ -808,6 +832,7 @@ Deno.serve(async (req) => {
       dia: hoje,
       tipo,
       lembrados,
+      poupados,
       falhas: falhasLembrete.length ? falhasLembrete : undefined,
       fonte_chave: fonteChaveServidor(),
     });

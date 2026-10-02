@@ -81,6 +81,14 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
     perguntas a cada 5 horas por pessoa (`assistente.sql`); verificação de
     JWT desligada, autenticação própria; chave `ANTHROPIC_API_KEY` nos
     segredos das funções (colada pelo Elmar). Painel `AssistentePainel`.
+  - Orçamento de e-mails (02-10-2026, `emails-pausa.sql`): plano gratuito da
+    Resend (100 por dia). A `bright-worker` versão 7 consulta
+    `bsp_emails_pausa_ate()` (pausa marcada ou tecto de 95 por dia) e
+    regista cada envio em `emails_registo`. Nada novo manda um e-mail por
+    pessoa: documentos e avisos gerais vão por `novidades` (um e-mail às
+    05h00), sino e telemóvel. A `documento-aviso` já não se chama; o
+    colectivo das 12h00 está desligado. O WhatsApp está só no e-mail das
+    08h00 (`wa_resumo_8h`), nunca no relatório da Recepção.
   - `contacto-site` (caixa de contacto do site): versão 5 (26-09-2026),
     para rececao@barispol.com com geral@barispol.com em cópia; aspecto
     igual ao site. Verificação de JWT desligada, só aceita barispol.com.
