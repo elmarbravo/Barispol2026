@@ -3,7 +3,15 @@
 // Pedido do Elmar: lembretes nos eventos, à escolha, e e-mail sempre que
 // alguém é convidado. Pelo campo "qual" do corpo:
 //   · "convite" (gatilho bsp_agenda_convite_aviso, no instante): e-mail a
-//     cada pessoa nova em convidados ({"evento": id, "ids": [...]}).
+//     quem fica com o evento na agenda: o dono e cada convidado novo
+//     ({"evento": id, "ids": [...]}, ou {"eventos": [ids]} para juntar
+//     vários num só e-mail, com "nota" opcional).
+//   · "actualizado": a hora, o dia, o título ou o local mudaram.
+//   · "cancelado": o evento foi apagado ou a pessoa saiu dele (o gatilho
+//     manda os dados, porque a linha já não existe).
+//   Todos levam o convite de calendário (.ics, 02-10-2026, pedido do Elmar:
+//   «tudo que for evento de um funcionário … faça convite no seu e-mail»),
+//   para o evento aparecer no Outlook, Gmail ou iPhone de cada pessoa.
 //   · "lembretes" (cron bsp-agenda-lembretes, de 5 em 5 minutos): e-mail
 //     com os lembretes que vencem agora (bsp_srv_agenda_lembretes, que os
 //     marca como enviados antes de os devolver).
@@ -46,6 +54,13 @@ const LOGOTIPO = "https://barispol.com/assets/logo-barispol.png";
    Aspecto de todos os e-mails (26-09-2026): o do site novo — fundo
    branco, linhas finas, cantos rectos, marinho e azul da marca. */
 const SITIO = "https://barispol.com/workspace.html";
+/* Texto em base64 (UTF-8), para o anexo do convite. */
+const base64 = (t: string) => {
+  const b = new TextEncoder().encode(t);
+  let s = "";
+  for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000));
+  return btoa(s);
+};
 const TEXTO = "#1C2033";
 const SUAVE = "#4E5366";
 const LINHA = "#DDDBD6";
@@ -194,7 +209,7 @@ Deno.serve(async (req) => {
   }
 
   const corpo = await req.json().catch(() => ({} as any));
-  const qual = corpo && corpo.qual === "convite" ? "convite" : "lembretes";
+  const qual = corpo && ["convite", "actualizado", "cancelado"].includes(corpo.qual) ? String(corpo.qual) : "lembretes";
 
   const { data: linha } = await admin.from("shared_state").select("team").eq("id", 1).single();
   const equipa: any[] = Array.isArray(linha && linha.team) ? linha.team : [];
@@ -220,47 +235,155 @@ Deno.serve(async (req) => {
   const linhaDado = (rotulo: string, valor: string) =>
     '<tr><td style="padding:6px 16px 6px 0;font-family:' + FONTE + ';font-size:15px;font-weight:700;color:' + MARINHO + ';vertical-align:top;white-space:nowrap">' + rotulo + '</td><td style="padding:6px 0;font-family:' + FONTE + ';font-size:15px;color:' + TEXTO + '">' + valor + "</td></tr>";
   const tabela = (linhas: string) => '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 16px;border-top:1px solid ' + LINHA + ';border-bottom:1px solid ' + LINHA + '">' + linhas + "</table>";
-  const enviar = async (para: string, assunto: string, html: string) => {
+  const previa = corpo && corpo.previa === true;
+  const enviar = async (para: string, assunto: string, html: string, ics?: string) => {
+    if (previa) return true;
     const r = await fetch(URL_SB.replace(/\/$/, "") + "/functions/v1/bright-worker", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + CHAVE_SERVICO },
-      body: JSON.stringify({ to: para, subject: assunto, html }),
+      body: JSON.stringify({
+        to: para, subject: assunto, html,
+        ...(ics ? { attachments: [{ filename: "convite.ics", content: base64(ics), content_type: "text/calendar; charset=utf-8; method=" + (/METHOD:CANCEL/.test(ics) ? "CANCEL" : "REQUEST") }] } : {}),
+      }),
     }).catch(() => null);
     return !!(r && r.ok);
   };
 
-  if (qual === "convite") {
-    const id = Number(corpo.evento);
+  /* O convite de calendario (RFC 5545). Hora de Luanda (sem horario de
+     verao); UID fixo por evento e SEQUENCE a subir a cada mudanca, para o
+     calendario de cada pessoa actualizar o mesmo evento em vez de criar
+     outro. Semanais: a partir da data de inicio (ou de hoje), todas as
+     semanas no mesmo dia; mensais: no mesmo dia do mes. */
+  const DIAS_ICS = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+  const hojeLuanda = luandaDe(new Date().toISOString()).iso;
+  const somarDias = (iso: string, n: number) => new Date(Date.parse(iso + "T12:00:00Z") + n * 86400000).toISOString().slice(0, 10);
+  const primeiraData = (e: any) => {
+    const base = e.data && (e.dia != null || e.dia_mes) ? (e.data > hojeLuanda ? e.data : hojeLuanda) : (e.data || hojeLuanda);
+    if (e.dia_mes) { for (let i = 0; i < 400; i++) { const d = somarDias(base, i); if (Number(d.slice(8, 10)) === Number(e.dia_mes)) return d; } }
+    if (e.dia != null && !e.dia_mes) { for (let i = 0; i < 7; i++) { const d = somarDias(base, i); if ((new Date(d + "T12:00:00Z").getUTCDay() + 6) % 7 === Number(e.dia)) return d; } }
+    return base;
+  };
+  const icsTexto = (t: unknown) => String(t ?? "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+  const dobrar = (l: string) => {
+    const enc = new TextEncoder();
+    const partes: string[] = [];
+    let atual = "", bytes = 0;
+    for (const c of l) {
+      const n = enc.encode(c).length;
+      if (bytes + n > (partes.length ? 73 : 74)) { partes.push(atual); atual = ""; bytes = 0; }
+      atual += c; bytes += n;
+    }
+    partes.push(atual);
+    return partes.join("\r\n ");
+  };
+  const carimbo = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const vevent = (e: any, uid: string, cancelado: boolean) => {
+    const dia = primeiraData(e);
+    const [hh, mm] = String(e.hora || "09:00").split(":").map(Number);
+    const ini = new Date(Date.UTC(+dia.slice(0, 4), +dia.slice(5, 7) - 1, +dia.slice(8, 10), hh, mm));
+    const fim = new Date(ini.getTime() + Math.max(5, Number(e.duracao) || 60) * 60000);
+    const local = (d: Date) => carimbo(d).replace(/Z$/, "");
+    const dono = pessoa(e.dono);
+    const participantes = [e.dono].concat(e.convidados || []).filter((x: string, i: number, a: string[]) => x && a.indexOf(x) === i)
+      .map((x: string) => pessoa(x)).filter((u: any) => emailDe(u));
+    const meus = e.lembretes_pessoa && Array.isArray(e.lembretes_pessoa[uid]) ? e.lembretes_pessoa[uid] : (e.lembretes || []);
+    const linhas = [
+      "BEGIN:VEVENT",
+      "UID:agenda-" + e.id + "@barispol.com",
+      "SEQUENCE:" + (Number(e.ics_seq) || 0),
+      "DTSTAMP:" + carimbo(new Date()),
+      "DTSTART;TZID=Africa/Luanda:" + local(ini),
+      "DTEND;TZID=Africa/Luanda:" + local(fim),
+      ...(e.dia_mes ? ["RRULE:FREQ=MONTHLY;BYMONTHDAY=" + Number(e.dia_mes)] : e.dia != null ? ["RRULE:FREQ=WEEKLY;BYDAY=" + DIAS_ICS[Number(e.dia)]] : []),
+      "SUMMARY:" + icsTexto(e.titulo),
+      ...(e.local ? ["LOCATION:" + icsTexto(e.local)] : []),
+      "DESCRIPTION:" + icsTexto((e.descricao ? e.descricao + "\n\n" : "") + "Agenda do Workspace: " + SITIO + "#/calendar"),
+      "ORGANIZER;CN=" + icsTexto(dono ? dono.name : "Centro Médico Barispol") + ":mailto:geral@barispol.com",
+      ...participantes.map((u: any) => "ATTENDEE;CN=" + icsTexto(u.name) + ";ROLE=REQ-PARTICIPANT;PARTSTAT=" + (u.id === e.dono ? "ACCEPTED" : "NEEDS-ACTION") + ";RSVP=FALSE:mailto:" + emailDe(u)),
+      "STATUS:" + (cancelado ? "CANCELLED" : "CONFIRMED"),
+      ...(e.privado ? ["CLASS:PRIVATE"] : []),
+      ...(cancelado ? [] : (meus as number[]).slice(0, 5).flatMap((m) => ["BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:" + icsTexto(e.titulo), "TRIGGER:-PT" + Math.max(0, Number(m) || 0) + "M", "END:VALARM"])),
+      "END:VEVENT",
+    ];
+    return linhas;
+  };
+  const calendario = (eventos: any[], uid: string, cancelado: boolean) =>
+    ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Clinica Barispol Lda//Workspace//PT", "CALSCALE:GREGORIAN", "METHOD:" + (cancelado ? "CANCEL" : "REQUEST"),
+      "BEGIN:VTIMEZONE", "TZID:Africa/Luanda", "BEGIN:STANDARD", "DTSTART:19700101T000000", "TZOFFSETFROM:+0100", "TZOFFSETTO:+0100", "TZNAME:WAT", "END:STANDARD", "END:VTIMEZONE",
+      ...eventos.flatMap((e) => vevent(e, uid, cancelado)), "END:VCALENDAR"].map(dobrar).join("\r\n") + "\r\n";
+  const duracaoTxt = (m: number) => m >= 60 && m % 60 === 0 ? (m / 60) + (m === 60 ? " hora" : " horas") : m >= 60 ? Math.floor(m / 60) + " h " + (m % 60) + " min" : m + " minutos";
+  const dadosEvento = (e: any) => tabela(
+    linhaDado("Evento", escapar(e.titulo)) +
+    linhaDado("Quando", escapar(quandoTexto(e))) +
+    (e.duracao ? linhaDado("Duração", escapar(duracaoTxt(Number(e.duracao)))) : "") +
+    (e.local ? linhaDado("Local", escapar(e.local)) : "") +
+    (e.descricao ? linhaDado("Notas", escapar(e.descricao).replace(/\n/g, "<br>")) : "") +
+    linhaDado("Agenda", e.privado ? "Privada (só quem está no evento a vê)" : "De toda a equipa"));
+  const NOTA_ICS = "O convite segue em anexo (convite.ics): abra-o para o evento ficar também no calendário do seu e-mail ou do telemóvel.";
+
+  if (qual === "convite" || qual === "actualizado") {
+    const idsEv: number[] = (Array.isArray(corpo.eventos) ? corpo.eventos : [corpo.evento]).map(Number).filter(Boolean);
     const ids: string[] = Array.isArray(corpo.ids) ? corpo.ids.map(String) : [];
-    if (!id || !ids.length) return responder({ ok: true, qual, enviados: 0 });
-    const { data: e, error: eE } = await admin.from("agenda_eventos").select("*").eq("id", id).single();
-    if (eE || !e) return responder({ erro: "Evento não encontrado." }, 404);
-    const quem = pessoa(e.criado_por || e.dono);
+    if (!idsEv.length || !ids.length) return responder({ ok: true, qual, enviados: 0 });
+    const { data: evs, error: eE } = await admin.from("agenda_eventos").select("*").in("id", idsEv).order("dia").order("id");
+    if (eE || !evs || !evs.length) return responder({ erro: "Evento não encontrado." }, 404);
+    const e0: any = evs[0];
+    const quem = pessoa(e0.criado_por || e0.dono);
     const quemNome = quem ? String(quem.name) : "Um colega";
+    const nota = typeof corpo.nota === "string" ? corpo.nota.trim().slice(0, 1500) : "";
+    const titulo = evs.length > 1 ? String(e0.titulo) + " — " + (evs as any[]).map((e) => e.dia != null && !e.dia_mes ? ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"][Number(e.dia)] : dataCurta(e.data || hojeLuanda)).join(", ") + (e0.hora ? ", " + e0.hora : "")
+      : String(e0.titulo) + " — " + quandoTexto(e0);
     let enviados = 0;
     const falhas: string[] = [];
+    const previas: any[] = [];
+    for (const uid of ids) {
+      const u = pessoa(uid);
+      const para = emailDe(u);
+      if (!para) continue;
+      const doDono = (evs as any[]).every((e) => e.dono === uid);
+      const proprio = quem && quem.id === uid;
+      const abertura = qual === "actualizado"
+        ? "Um evento da sua agenda no Workspace mudou. Os dados novos:"
+        : proprio ? "O evento ficou na sua agenda do Workspace:"
+        : doDono ? "<b>" + escapar(quemNome) + "</b> pôs " + (evs.length > 1 ? "estes eventos" : "este evento") + " na sua agenda do Workspace:"
+        : "Tem um convite de <b>" + escapar(quemNome) + "</b> para " + (evs.length > 1 ? "estes eventos" : "um evento") + " na Agenda do Workspace:";
+      const html = envelope(
+        "Olá, " + escapar(primeiro(u)) + ".",
+        (nota ? paragrafo(escapar(nota).replace(/\n/g, "<br>")) : "") +
+          paragrafo(abertura) + (evs as any[]).map(dadosEvento).join("") +
+          paragrafo(NOTA_ICS) +
+          paragrafo(doDono || qual === "actualizado" ? "No próprio evento pode escolher quando quer ser lembrado." : "Responda «Vou», «Talvez» ou «Não vou» no próprio evento. Lá pode também escolher quando quer ser lembrado.", true),
+        "calendar", doDono ? "Abrir a Agenda" : "Responder na Agenda",
+        qual === "actualizado" ? "Evento alterado." : "Evento na Agenda.", qual === "actualizado" ? "Evento alterado" : doDono ? "Agenda" : "Convite", "Agenda"
+      );
+      const ics = calendario(evs as any[], uid, false);
+      const assunto = (qual === "actualizado" ? "Evento alterado: " : doDono ? "Na sua agenda: " : "Convite: ") + titulo;
+      if (previa) previas.push({ para, assunto, html, ics });
+      const ok = await enviar(para, assunto, html, ics);
+      ok ? enviados++ : falhas.push(uid);
+    }
+    return responder({ ok: true, qual, eventos: idsEv, enviados, falhas: falhas.length ? falhas : undefined, ...(previa ? { previa: true, previas } : {}) });
+  }
+
+  if (qual === "cancelado") {
+    const e: any = corpo.dados || null;
+    const ids: string[] = Array.isArray(corpo.ids) ? corpo.ids.map(String) : [];
+    if (!e || !e.id || !ids.length) return responder({ ok: true, qual, enviados: 0 });
+    e.ics_seq = (Number(e.ics_seq) || 0) + 1;
+    let enviados = 0;
     for (const uid of ids) {
       const u = pessoa(uid);
       const para = emailDe(u);
       if (!para) continue;
       const html = envelope(
         "Olá, " + escapar(primeiro(u)) + ".",
-        paragrafo("<b>" + escapar(quemNome) + "</b> convidou-o para um evento na Agenda do Workspace:") +
-          tabela(
-            linhaDado("Evento", escapar(e.titulo)) +
-            linhaDado("Quando", escapar(quandoTexto(e))) +
-            (e.duracao ? linhaDado("Duração", escapar(e.duracao >= 60 && e.duracao % 60 === 0 ? (e.duracao / 60) + (e.duracao === 60 ? " hora" : " horas") : e.duracao + " minutos")) : "") +
-            (e.local ? linhaDado("Local", escapar(e.local)) : "") +
-            (e.descricao ? linhaDado("Notas", escapar(e.descricao).replace(/\n/g, "<br>")) : "") +
-            linhaDado("Agenda", e.privado ? "Privada (só os convidados vêem)" : "De toda a equipa")
-          ) +
-          paragrafo("Responda «Vou», «Talvez» ou «Não vou» no próprio evento. Lá pode também escolher quando quer ser lembrado.", true),
-        "calendar", "Responder na Agenda", "Convite para um evento.", "Convite", "Agenda"
+        paragrafo(corpo.saiu ? "Já não está neste evento da Agenda do Workspace:" : "Este evento foi retirado da Agenda do Workspace:") + dadosEvento(e) +
+          paragrafo("O anexo (convite.ics) tira-o também do calendário do seu e-mail ou do telemóvel.", true),
+        "calendar", "Abrir a Agenda", "Evento cancelado.", "Evento cancelado", "Agenda"
       );
-      const ok = await enviar(para, "Convite: " + String(e.titulo) + " — " + quandoTexto(e), html);
-      ok ? enviados++ : falhas.push(uid);
+      if (await enviar(para, "Cancelado: " + String(e.titulo) + " — " + quandoTexto(e), html, calendario([e], uid, true))) enviados++;
     }
-    return responder({ ok: true, qual, evento: id, enviados, falhas: falhas.length ? falhas : undefined });
+    return responder({ ok: true, qual, enviados });
   }
 
   // Lembretes que vencem agora.

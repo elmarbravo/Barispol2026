@@ -1685,3 +1685,29 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   No e-mail das 07h15 (`relatorios-diarios` versão 2) e no Painel clínico.
 - Não se refaz: ocorrências e fechos de turno (vinham do correio) e as
   listas com nomes de utentes (fichas por corrigir, exames por lançar).
+
+## 3-cr. Eventos no calendário do e-mail e «Solicitação de material» (02-10-2026)
+
+- **Pedido do Elmar:** «Tudo que for evento de um funcionário coloque no
+  seu email ou faça convite no seu Email». Novo `agenda-convites-email.sql`
+  (aplicado): cada evento da Agenda (`agenda_eventos`) manda por e-mail o
+  convite de calendário `convite.ics` a quem está nele.
+  - Criar: o dono e os convidados (Edge Function `agenda-avisos`,
+    `qual` «convite»; o dono recebe «Na sua agenda»).
+  - Mudar hora, dia, data, duração, título ou local: `ics_seq` sobe
+    (gatilho `bsp_agenda_ics_seq`) e quem está no evento recebe «Evento
+    alterado» com o mesmo UID (`agenda-<id>@barispol.com`).
+  - Sair do evento ou apagá-lo: «Cancelado» com `METHOD:CANCEL`.
+  - Para gravar sem e-mail: `select set_config('bsp.sem_convite', '1', true)`
+    na mesma transacção.
+  - `bright-worker` versão 6: aceita um anexo `.ics` em base64
+    (`text/calendar`), só do servidor.
+- **«Solicitação de material»** (pedido do Elmar, era um evento do iPhone da
+  Arlete): evento, e não tarefa, porque tem hora fixa e repete-se. Três
+  eventos na agenda da Arlete (u2), com a Solange Orlando (u17)
+  convidada: segunda, quarta e sexta, 08h00–10h30, na Clínica, lembrete
+  30 min antes (ids 10, 11 e 12). As duas receberam um só e-mail com o
+  aviso de que passa a estar no Workspace e o convite.
+- [ ] A Arlete pode apagar o evento antigo do iPhone, para não o ter a
+  dobrar.
+- Os eventos antigos da equipa (`state.todayEvents`) não mandam convite.

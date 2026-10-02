@@ -25,13 +25,15 @@
 // mandar "to" como lista e usar "cc"/"bcc" (relatorios de area e avisos
 // do atendimento do WhatsApp).
 //
-// Este ficheiro e a copia da versao publicada (versao 5, 30-09-2026). O
+// Este ficheiro e a copia da versao publicada (versao 6, 02-10-2026). O
 // lembrete da marcacao ao paciente usa o "cc" para rececao@barispol.com.
 // RESPONDER PARA (versao 4, 30-09-2026): so o servidor pode mandar
 // "reply_to" (relatorio semanal da viatura -> Administracao).
 // CONFIRMACAO DE LEITURA (versao 5, 30-09-2026): so o servidor pode mandar
 // "headers", e so Disposition-Notification-To e Return-Receipt-To, cada um
 // com um endereco (guia do Workspace, confirmacao para o RH).
+// CONVITE DE CALENDARIO (versao 6, 02-10-2026): so o servidor, um anexo
+// .ics em base64 com content_type text/calendar (agenda-avisos).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -141,15 +143,25 @@ Deno.serve(async (req) => {
     }
   }
 
-  /* Anexos: so do servidor, so do proprio site. */
-  let anexos: { filename: string; path: string }[] | undefined;
+  /* Anexos: so do servidor, so do proprio site. A excepcao e o convite de
+     calendario (.ics, 02-10-2026): vem escrito pela agenda-avisos, em
+     base64, e so pode ser text/calendar. */
+  let anexos: Record<string, string>[] | undefined;
   if (Array.isArray(pedido && pedido.attachments) && pedido.attachments.length) {
     if (!doServidor) return recusar("Só o servidor envia anexos.", 403);
     anexos = [];
     for (const a of pedido.attachments.slice(0, 3)) {
+      const nome = String(a && a.filename || "anexo").slice(0, 120);
+      if (a && typeof a.content === "string") {
+        if (!/\.ics$/i.test(nome) || !/^text\/calendar/i.test(String(a.content_type || "")) || a.content.length > 300000) {
+          return recusar("Só convites de calendário (.ics) podem ir sem endereço.", 403);
+        }
+        anexos.push({ filename: nome, content: a.content, content_type: String(a.content_type) });
+        continue;
+      }
       const caminho = String(a && a.path || "");
       if (caminho.indexOf(SITIO_ANEXOS) !== 0) return recusar("Anexos só do site barispol.com.", 403);
-      anexos.push({ filename: String(a.filename || "anexo").slice(0, 120), path: caminho });
+      anexos.push({ filename: nome, path: caminho });
     }
   }
 

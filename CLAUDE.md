@@ -201,6 +201,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `bspLembretesDevidos`); e-mail pela Edge Function `agenda-avisos`
   (lembretes de 5 em 5 min e convite no instante, gatilho
   `bsp_agenda_convite_aviso`).
+  Convite de calendário (02-10-2026, `agenda-convites-email.sql`): criar,
+  mudar e apagar um evento manda `convite.ics` por e-mail ao dono e aos
+  convidados (UID `agenda-<id>@barispol.com`, `ics_seq`). Para gravar sem
+  e-mail: `set_config('bsp.sem_convite', '1', true)`.
 - Tarefas privadas partilhadas: coluna `partilhada_com` em
   `tarefas_pessoais` (`tarefas-partilhadas.sql`). Editar uma tarefa
   privada vai por `pess.actualizar`, nunca por `actions.updateTask`. A edição
