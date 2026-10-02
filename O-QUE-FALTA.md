@@ -1711,3 +1711,15 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
 - [ ] A Arlete pode apagar o evento antigo do iPhone, para não o ter a
   dobrar.
 - Os eventos antigos da equipa (`state.todayEvents`) não mandam convite.
+
+## 3-cs. O Workspace aberto todo o dia (02-10-2026)
+
+- **Pedido do Elmar:** o e-mail diário deve dizer que o Workspace fica
+  aberto no computador todo o dia, porque é uma ferramenta de trabalho.
+  `resumo-matinal` versão 13: o lembrete das 07h30 e o aviso colectivo
+  (seg/qua/sex, 12h00) levam essa frase. Quem não trabalha ao computador
+  mantém a aplicação aberta no telemóvel.
+- Comunicado isolado de hoje, assinado «Recursos Humanos», com resposta
+  para a Arlete (RH, u2): pré-visualização enviada ao Elmar a 02-10-2026.
+  [ ] Envio a toda a equipa depois da aprovação do Elmar (regra 3).
+- Botão do sino: «Activar notificações» (antes «Ativar», fora da regra 5).

@@ -69,6 +69,10 @@
 // lembrete com a data, a hora, o acto e o link do GPS, sempre com
 // rececao@barispol.com em copia. Um por marcacao (marcacoes-lembrete.sql).
 //
+// WORKSPACE ABERTO TODO O DIA (02-10-2026, versao 13, pedido do Elmar): o
+// lembrete diario e o aviso colectivo dizem que o Workspace e uma
+// ferramenta de trabalho e fica aberto no computador todo o dia.
+//
 // FIM DOS GRUPOS DE WHATSAPP (28-09-2026): o lembrete diario e o aviso
 // colectivo dizem que a 1 de Outubro de 2026 os grupos de WhatsApp deixam
 // de existir e que se usam so o Workspace e os e-mails.
@@ -765,9 +769,12 @@ Deno.serve(async (req) => {
       : hoje === "2026-10-01"
         ? "<b>A partir de hoje, 1 de Outubro, os grupos de WhatsApp da equipa deixam de existir.</b> Usem apenas o Workspace e os e-mails da clínica."
         : "<b>Os grupos de WhatsApp da equipa já não existem.</b> Usem apenas o Workspace e os e-mails da clínica.";
+    /* Workspace aberto todo o dia (pedido do Elmar, 02-10-2026). */
+    const aberto = paragrafo("<b>O Workspace é uma ferramenta de trabalho: deixe-o aberto no computador durante todo o dia.</b> É assim que recebe no instante as mensagens, as tarefas e os avisos. Quem não trabalha ao computador mantém a aplicação aberta no telemóvel.");
     const coletivo = envelope(
       "Olá, equipa.",
       paragrafo("O Workspace é o nosso ponto de encontro. Entrem todos os dias: é lá que estão as mensagens, as tarefas e a agenda da clínica.") +
+        paragrafo("<b>O Workspace é uma ferramenta de trabalho: fica aberto no computador durante todo o dia.</b> Quem não trabalha ao computador mantém a aplicação aberta no telemóvel.") +
         paragrafo(whatsapp + " Para falar com os colegas e com as equipas, usem o Chat do Workspace.") +
         paragrafo("Se tiverem dificuldade em entrar, falem com a Administração.", true),
       "chat",
@@ -785,6 +792,7 @@ Deno.serve(async (req) => {
           envelope(
             "Bom dia, " + escapar(nome) + ".",
             paragrafo("Antes de começar o dia, entre no Workspace. Veja as mensagens, as tarefas e a agenda de hoje.") +
+              aberto +
               mudanca +
               paragrafo(whatsapp, true),
             "chat",
