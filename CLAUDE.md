@@ -101,7 +101,8 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `resumo-matinal`. Texto escrito por alguém passa por `bspEmailTexto`
   (sem HTML, com mudanças de linha, sem cortes).
 - A `resumo-matinal` tem três tipos (campo `tipo` do corpo): resumo
-  (06h30, seg–sáb), `lembrete` (07h30, todos os dias, um por pessoa pelo
+  (06h30, seg–sáb; desde 02-10-2026 sai pela Edge Function `resumo-pessoal`,
+  com as tarefas privadas, e o cron `bsp-resumo-matinal` chama-a), `lembrete` (07h30, todos os dias, um por pessoa pelo
   nome) e `coletivo` (12h00, seg/qua/sex, «Olá, equipa»). Registos por
   dia: `resumos_enviados`, `lembretes_enviados`, `coletivos_enviados`.
   Desde 30-09-2026 (versão 10, decisão do Elmar) vão para toda a equipa
@@ -195,6 +196,11 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   antigos (`state.todayEvents`) têm `origem: 'equipa'`. Qualquer consumidor
   novo da agenda junta os dois e filtra com `bspEventoNaAgenda`.
   Mensais: `dia_mes` (início em `data`), no ecrã `e.diaMes`/`e.desde`.
+  Lembretes (02-10-2026, `agenda-lembretes.sql`): `lembretes` do evento e
+  `lembretes_pessoa` por pessoa (`bsp_evento_lembretes`, `BSP_LEMBRETES`,
+  `bspLembretesDevidos`); e-mail pela Edge Function `agenda-avisos`
+  (lembretes de 5 em 5 min e convite no instante, gatilho
+  `bsp_agenda_convite_aviso`).
 - Tarefas privadas partilhadas: coluna `partilhada_com` em
   `tarefas_pessoais` (`tarefas-partilhadas.sql`). Editar uma tarefa
   privada vai por `pess.actualizar`, nunca por `actions.updateTask`. A edição
@@ -319,7 +325,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   Zapier. Endereços extra só no servidor (`relatorios_diarios_destinos`;
   `relatorios_destinos` é dos relatórios por área, outra coisa).
   Painel clínico: `PainelClinicoScreen` / `bsp_painel_clinico` sobre
-  `erp.clinico_dados`; nunca Kz nem nomes de utentes.
+  `erp.clinico_dados`; nunca Kz nem nomes de utentes. Os quadros da
+  Recepção, Farmácia e Laboratório vêm de `erp.clinico_extra` (campo
+  `extra`, filtrado por área no `bsp_painel_clinico`).
 - Pessoas invisíveis (02-10-2026): `oculto: true` na equipa (o sócio
   Francisco Pinheiro). Esconder só no ecrã com `bspSemOcultos`/`bspOculto`;
   nunca tirar da `state.team`, que se grava inteira.

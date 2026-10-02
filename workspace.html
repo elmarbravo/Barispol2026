@@ -5486,6 +5486,36 @@ function StoreProvider({
     const iv = setInterval(ver, 10 * 60000);
     return () => { vivo = false; clearTimeout(t0); clearInterval(iv); };
   }, []);
+  /* Lembretes da Agenda (02-10-2026): sino e som neste aparelho. */
+  React.useEffect(() => {
+    let vivo = true;
+    let linhas = [];
+    const eu = () => window.CURRENT_USER_ID;
+    const ler = async () => {
+      const cl = bspGetClient();
+      if (!cl || !eu() || bspEmVerComo()) return;
+      const r = await cl.from('agenda_eventos').select('id, titulo, hora, data, dia, dia_mes, local, dono, convidados, respostas, lembretes, lembretes_pessoa');
+      if (vivo && !r.error && Array.isArray(r.data)) linhas = r.data;
+    };
+    const verificar = () => {
+      if (!eu() || bspEmVerComo()) return;
+      const chave = 'bsp-lembretes-vistos-' + eu();
+      let vistos = [];
+      try { vistos = JSON.parse(localStorage.getItem(chave) || '[]'); } catch (e) {}
+      const devidos = bspLembretesDevidos(linhas, eu(), new Date(), 10 * 60000).filter(x => vistos.indexOf(x.chave) === -1);
+      if (!devidos.length) return;
+      devidos.forEach(x => {
+        const quando = (x.iso === bspDataLocalISO(new Date()) ? 'Hoje' : bspDiaExtenso(x.iso + 'T12:00:00')) + ' às ' + x.a.hora + (x.a.local ? ' · ' + x.a.local : '');
+        setState(s => pushNotif(s, { type: 'sistema', destino: 'calendar', text: 'Lembrete: ' + x.a.titulo, preview: quando }));
+        bspIncoming('Lembrete: ' + x.a.titulo, quando);
+      });
+      try { localStorage.setItem(chave, JSON.stringify(vistos.concat(devidos.map(x => x.chave)).slice(-200))); } catch (e) {}
+    };
+    const t0 = setTimeout(() => ler().then(verificar), 5000);
+    const ivLer = setInterval(ler, 5 * 60000);
+    const ivVer = setInterval(verificar, 30000);
+    return () => { vivo = false; clearTimeout(t0); clearInterval(ivLer); clearInterval(ivVer); };
+  }, []);
   /* Documento novo (30-09-2026): o sino toca no instante em que alguem
      publica, a toda a equipa (menos quem publicou). O e-mail sai pela
      funcao documento-aviso. A lista recarrega a cada 5 minutos. */
@@ -11308,7 +11338,8 @@ function bspAgendaParaEvento(a) {
     cat: CAT_COLORS[a.categoria] ? a.categoria : 'reuniao', time: a.hora || '09:00', dur: Number(a.duracao) || 60,
     day: a.data ? (bspDataDe(a.data).getDay() + 6) % 7 : Number(a.dia), privado: !!a.privado, dono: a.dono,
     criadoPor: a.criado_por || a.dono, convidados: Array.isArray(a.convidados) ? a.convidados : [], respostas: a.respostas || {},
-    criadoEm: a.criado_em
+    criadoEm: a.criado_em,
+    lembretes: Array.isArray(a.lembretes) ? a.lembretes : [], lembretesPessoa: a.lembretes_pessoa || {}
   };
   if (a.dia_mes) { ev.diaMes = Number(a.dia_mes); ev.desde = a.data || ''; ev.day = null; }
   else if (a.data) ev.data = a.data;
@@ -11335,6 +11366,66 @@ function bspEventoNaAgenda(e, agendaDe) {
   return !e.privado || e.dono === eu || e.criadoPor === eu || e.convidados.indexOf(eu) !== -1;
 }
 const BSP_RESPOSTAS_EVENTO = { sim: 'Vou', talvez: 'Talvez', nao: 'Não vou' };
+/* Lembretes dos eventos (02-10-2026, agenda-lembretes.sql): minutos antes.
+   Quem cria escolhe os do evento; cada pessoa pode mudar os seus
+   (lembretes_pessoa, bsp_evento_lembretes). Chegam no sino deste aparelho
+   (useLembretesAgenda) e por e-mail (Edge Function agenda-avisos). */
+const BSP_LEMBRETES = [[0, 'Na hora'], [5, '5 min'], [15, '15 min'], [30, '30 min'], [60, '1 hora'], [120, '2 horas'], [1440, '1 dia'], [2880, '2 dias'], [10080, '1 semana']];
+function bspLembretesDe(e, uid) {
+  if (!e) return [];
+  const p = e.lembretesPessoa || {};
+  return Object.prototype.hasOwnProperty.call(p, uid) ? (p[uid] || []) : (e.lembretes || []);
+}
+function bspLembreteTexto(m) {
+  const x = BSP_LEMBRETES.find(l => l[0] === m);
+  return x ? (m === 0 ? x[1].toLowerCase() : x[1] + ' antes') : m + ' min antes';
+}
+function LembretesEscolha({ valor, onChange, disabled }) {
+  const v = valor || [];
+  return React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+    BSP_LEMBRETES.map(([m, r]) => {
+      const on = v.indexOf(m) !== -1;
+      return React.createElement("button", { key: m, type: 'button', disabled: disabled, 'aria-pressed': on,
+        onClick: () => onChange(on ? v.filter(x => x !== m) : v.concat(m).sort((a, b) => a - b)),
+        style: { height: 30, padding: '0 10px', borderRadius: 999, border: '1px solid ' + (on ? 'var(--accent-d)' : 'var(--border)'), background: on ? 'var(--accent-soft)' : 'var(--surface)', color: on ? 'var(--accent-d)' : 'var(--text-2)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: disabled ? 'default' : 'pointer' } }, r);
+    }));
+}
+/* O sino e o som dos lembretes, neste aparelho: lê a agenda de 5 em 5
+   minutos e verifica a cada 30 segundos. Cada aviso uma só vez (guardado
+   no aparelho). O e-mail sai do servidor, mesmo com o Workspace fechado. */
+function bspProximasOcorrencias(a, de, ate) {
+  const res = [];
+  if (!a || !/^\d{2}:\d{2}$/.test(a.hora || '')) return res;
+  for (let i = -1; i <= 15; i++) {
+    const iso = bspSomarDias(bspDataLocalISO(de), i);
+    const d = bspDataDe(iso);
+    const ok = a.dia_mes ? (d.getDate() === Number(a.dia_mes) && (!a.data || iso >= a.data))
+      : a.dia != null ? (((d.getDay() + 6) % 7) === Number(a.dia) && (!a.data || iso >= a.data))
+      : iso === a.data;
+    if (!ok) continue;
+    const quando = new Date(iso + 'T' + a.hora + ':00');
+    if (quando >= de && quando <= ate) res.push({ iso: iso, quando: quando });
+  }
+  return res;
+}
+function bspLembretesDevidos(linhas, eu, agora, janelaMs) {
+  const out = [];
+  (linhas || []).forEach(a => {
+    if (!a || (a.dono !== eu && (a.convidados || []).indexOf(eu) === -1)) return;
+    if (a.respostas && a.respostas[eu] === 'nao') return;
+    const ev = { lembretes: a.lembretes || [], lembretesPessoa: a.lembretes_pessoa || {} };
+    const mins = bspLembretesDe(ev, eu);
+    if (!mins.length) return;
+    bspProximasOcorrencias(a, new Date(agora.getTime() - janelaMs), new Date(agora.getTime() + 15 * 864e5)).forEach(o => {
+      mins.forEach(m => {
+        const alvo = o.quando.getTime() - m * 60000;
+        if (alvo <= agora.getTime() && alvo > agora.getTime() - janelaMs && o.quando.getTime() > agora.getTime() - janelaMs)
+          out.push({ chave: a.id + '|' + o.iso + '|' + m, a: a, iso: o.iso, m: m });
+      });
+    });
+  });
+  return out;
+}
 /* Próximos 7 dias da agenda de quem está a ver (Início e Feed): cada
    ocorrência com a sua data, por ordem; o que já passou hoje não conta. */
 function useProximosEventos(n) {
@@ -11405,8 +11496,15 @@ function useAgendaEventos() {
     recarregar();
     return r.error ? (r.error.message || 'Não foi possível responder.') : null;
   }, [recarregar]);
+  const lembretes = React.useCallback(async (id, minutos) => {
+    const cl = bspGetClient();
+    if (!cl) return 'O servidor não está ligado.';
+    const r = await cl.rpc('bsp_evento_lembretes', { p_id: id, p_minutos: minutos });
+    recarregar();
+    return r.error ? (r.error.message || 'Não foi possível gravar os lembretes.') : null;
+  }, [recarregar]);
   const eventos = React.useMemo(() => linhas.map(bspAgendaParaEvento), [linhas]);
-  return { eventos, gravar, apagar, responder, recarregar };
+  return { eventos, gravar, apagar, responder, lembretes, recarregar };
 }
 function bspQuandoEvento(e) {
   const SEM = ['segundas', 'terças', 'quartas', 'quintas', 'sextas', 'sábados', 'domingos'];
@@ -11415,7 +11513,7 @@ function bspQuandoEvento(e) {
   const ate = String(Math.floor(fim / 60) % 24).padStart(2, '0') + ':' + String(fim % 60).padStart(2, '0');
   return (e.diaMes ? 'Todos os meses, no dia ' + e.diaMes : e.data ? bspDiaExtenso(e.data + 'T12:00:00') : 'Todas as ' + SEM[e.day == null ? 0 : e.day]) + ', ' + (e.time || '') + '–' + ate;
 }
-function EventoDetalhe({ evento, onClose, onEditar, onApagar, onResponder }) {
+function EventoDetalhe({ evento, onClose, onEditar, onApagar, onResponder, onLembretes }) {
   const e = evento;
   if (!e) return null;
   const eu = window.CURRENT_USER_ID;
@@ -11452,6 +11550,10 @@ function EventoDetalhe({ evento, onClose, onEditar, onApagar, onResponder }) {
         React.createElement(Avatar, { user: window.userById(id) || { id: id, name: '?' }, size: 22 }),
         React.createElement("span", { style: { flex: 1, color: 'var(--text-1)' } }, nome(id)),
         React.createElement("span", { style: { fontSize: 12.5, fontWeight: 600, color: corResp(e.respostas[id]) } }, BSP_RESPOSTAS_EVENTO[e.respostas[id]] || 'Por responder')))),
+    e.origem === 'agenda' && onLembretes && (e.dono === eu || (convidado && minha !== 'nao')) && React.createElement("div", { style: { marginTop: 16 } },
+      React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: 'var(--text-2)', marginBottom: 6 } }, 'Os meus lembretes'),
+      React.createElement(LembretesEscolha, { valor: bspLembretesDe(e, eu), onChange: v => onLembretes(e, v) }),
+      React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)', marginTop: 6 } }, 'No sino e por e-mail. Só mudam para si.')),
     convidado && React.createElement("div", { style: { marginTop: 16, padding: 12, border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface-2)' } },
       React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 8 } }, minha ? 'A sua resposta: ' + BSP_RESPOSTAS_EVENTO[minha] + '. Pode mudar:' : 'Foi convidado. Vai?'),
       React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
@@ -11482,6 +11584,7 @@ function CalEventModal({
   const [dono, setDono] = React.useState(eu);
   const [local, setLocal] = React.useState('');
   const [descricao, setDescricao] = React.useState('');
+  const [lembretes, setLembretes] = React.useState([30]);
   const [aGravar, setAGravar] = React.useState(false);
   const [erro, setErro] = React.useState('');
   React.useEffect(() => {
@@ -11500,6 +11603,7 @@ function CalEventModal({
     setDono(e && e.dono ? e.dono : eu);
     setLocal(e && e.local || '');
     setDescricao(e && e.descricao || '');
+    setLembretes(e && e.origem === 'agenda' ? (e.lembretes || []) : [30]);
     setErro(''); setAGravar(false);
   }, [open]);
   const submit = async () => {
@@ -11512,7 +11616,7 @@ function CalEventModal({
       dia: repete ? Number(day) : null, data: repete ? null : data,
       dia_mes: !repete && mensal ? Number(data.slice(8, 10)) : null,
       privado: privado, convidados: convidados.filter(x => x !== dono), dono: dono,
-      local: local.trim(), descricao: descricao.trim()
+      local: local.trim(), descricao: descricao.trim(), lembretes: lembretes
     });
     setAGravar(false);
     if (err) { setErro(err); return; }
@@ -11717,6 +11821,8 @@ function CalEventModal({
       }))),
   React.createElement("div", null, rot('Local', '(opcional)'), React.createElement(TextInput, { value: local, onChange: setLocal, placeholder: 'Ex.: Sala de reuniões, Teams' })),
   React.createElement("div", null, rot('Descrição', '(opcional)'), React.createElement(TextArea, { value: descricao, onChange: setDescricao, rows: 3, placeholder: 'Ex.: Ordem de trabalhos, o que levar.' })),
+  React.createElement("div", null, rot('Lembretes', '(para todos os do evento; cada um pode mudar os seus)'), React.createElement(LembretesEscolha, { valor: lembretes, onChange: setLembretes }),
+    React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)', marginTop: 6 } }, lembretes.length ? 'Aviso no sino e por e-mail.' : 'Sem lembretes.')),
   erro && React.createElement("div", { style: { fontSize: 13, color: 'var(--perigo)' } }, erro)));
 }
 /* Os meus turnos no Calendario (01-10-2026, auditoria): das escalas em
@@ -11789,6 +11895,7 @@ function CalendarScreen() {
     agenda.apagar(e.idReal).then(err => { if (err) toast(err); else setDetalheId(null); });
   };
   const responder = (e, r) => agenda.responder(e.idReal, r).then(err => toast(err || 'Resposta enviada: ' + BSP_RESPOSTAS_EVENTO[r] + '.'));
+  const mudarLembretes = (e, v) => agenda.lembretes(e.idReal, v).then(err => { if (err) toast(err); });
   const dayNames = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
   const todayIdx = (new Date().getDay() + 6) % 7;
   const hojeISO = bspDataLocalISO(new Date());
@@ -11835,7 +11942,8 @@ function CalendarScreen() {
     onClose: () => setDetalheId(null),
     onEditar: e => { setDetalheId(null); setEditar(e); },
     onApagar: apagarEvento,
-    onResponder: responder
+    onResponder: responder,
+    onLembretes: mudarLembretes
   }), React.createElement("div", {
     style: {
       display: 'flex',
@@ -17999,7 +18107,7 @@ function AdminServer() {
     setDiagBusy(false);
   }
   const [remBusy, setRemBusy] = React.useState(false);
-  /* O resumo sai sozinho de manhã, pela função "resumo-matinal" agendada
+  /* O resumo sai sozinho de manhã, pela função "resumo-pessoal" agendada
      no servidor. Este botão serve para o ver a acontecer sem esperar
      pelo dia seguinte — e para perceber, se não sair, onde é que pára.
 
@@ -18022,7 +18130,7 @@ function AdminServer() {
         setRemBusy(false);
         return;
       }
-      const r = await fetch(cfg.url.replace(/\/$/, '') + '/functions/v1/resumo-matinal', {
+      const r = await fetch(cfg.url.replace(/\/$/, '') + '/functions/v1/resumo-pessoal', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -18031,7 +18139,7 @@ function AdminServer() {
         body: JSON.stringify({ forcar: true })
       });
       if (r.status === 404) {
-        toast('A função “resumo-matinal” ainda não está instalada no Supabase.');
+        toast('A função “resumo-pessoal” ainda não está instalada no Supabase.');
         setRemBusy(false);
         return;
       }
@@ -18043,7 +18151,7 @@ function AdminServer() {
       }
       const total = (j.pessoais || 0) + (j.deEquipa || 0);
       toast(total
-        ? total + ' e-mail(s) enviados · ' + (j.pendentes || 0) + ' tarefa(s) em aberto.'
+        ? total + ' e-mail(s) enviados · ' + ((j.pendentes || 0) + (j.privadas || 0)) + ' tarefa(s) em aberto.'
         : 'Não há tarefas por fechar — nada a enviar.');
     } catch (e) {
       toast('Não foi possível falar com o servidor.');
@@ -25110,6 +25218,27 @@ function PainelClinicoScreen() {
           React.createElement("span", { style: { color: BSP_CLINICO_NIVEL[l[2]], fontWeight: 600, whiteSpace: 'nowrap' } }, l[1])))));
   };
   const serie = (d && d.serie || []).map(x => ({ rotulo: bspDiaExtenso(x.dia + 'T12:00:00'), curto: x.dia.slice(8, 10) + '/' + x.dia.slice(5, 7), valor: Number(x.utentes), extra: x.consultas + ' consultas · ' + x.exames + ' exames' }));
+  /* O que vinha nos relatórios antigos das áreas (02-10-2026, erp.clinico_extra):
+     cada pessoa só recebe o da sua área (bsp_painel_clinico). */
+  const ex = d && d.extra || {};
+  const tabelaEx = (titulo, cab, linhas, nota) => linhas.length ? React.createElement(Card, { pad: 16 }, tit(titulo),
+    nota && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginTop: -6, marginBottom: 10 } }, nota),
+    React.createElement("div", { style: { maxHeight: 340, overflow: 'auto' } },
+      React.createElement("table", { style: { width: '100%', borderCollapse: 'collapse', fontSize: 13 } },
+        React.createElement("thead", null, React.createElement("tr", null, cab.map((c, i) => React.createElement("th", { key: i, style: { textAlign: i ? 'right' : 'left', padding: '5px 6px', fontSize: 12, color: 'var(--text-3)', fontWeight: 600, borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' } }, c)))),
+        React.createElement("tbody", null, linhas.map((l, j) => React.createElement("tr", { key: j }, l.map((c, i) => React.createElement("td", { key: i, style: { textAlign: i ? 'right' : 'left', padding: '5px 6px', borderBottom: '1px solid var(--border)', color: 'var(--text-1)', whiteSpace: i ? 'nowrap' : 'normal', overflowWrap: 'anywhere' } }, c)))))))) : null;
+  const diasTxt = x => x == null ? '—' : qtd(x) + (Number(x) === 1 ? ' dia' : ' dias');
+  const MESES_C = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const doc = ex.documentos, mf = ex.marcacoes_por_fechar || {}, rasc = ex.rascunhos || {};
+  const extraCards = [
+    doc && tabelaEx('Documentos emitidos', ['Documento', 'Qtd'], [['Factura-recibo (FR)', qtd(doc.fr)], ['Factura (FT)', qtd(doc.ft)], ['Nota de crédito (NC)', qtd(doc.nc)]].concat(Number(doc.outros) ? [['Outros', qtd(doc.outros)]] : []),
+      Number(rasc.total) ? qtd(rasc.total) + ' em rascunho no MetaGest desde Julho: emita-os ou apague-os.' : ''),
+    Number(mf.total) > 0 && tabelaEx('Marcações passadas por fechar', ['Mês', 'Qtd'], (mf.por_mes || []).map(x => [MESES_C[Number(x.mes.slice(5, 7)) - 1] + ' ' + x.mes.slice(0, 4), qtd(x.n)]),
+      qtd(mf.total) + ' ainda em «Agendada» ou «Confirmada». Marque Compareceu, Faltou, Cancelou ou Remarcado.'),
+    tabelaEx('Farmácia: vendido e stock que fica', ['Produto', 'Qtd', 'Fica'], (ex.farmacia_vendido || []).map(x => [bspFrase(x.nome), qtd(x.qtd), x.fica == null ? '—' : qtd(x.fica)])),
+    tabelaEx('Farmácia: stock a repor', ['Produto', 'Stock', 'Saídas 30 d', 'Dá para'], (ex.farmacia_repor || []).map(x => [bspFrase(x.nome), qtd(x.stock), qtd(x.saidas_30d), diasTxt(x.dias)])),
+    tabelaEx('Laboratório: testes e consumíveis', ['Artigo', 'Stock', 'Saídas 30 d', 'Dá para'], (ex.lab_consumiveis || []).map(x => [bspFrase(x.nome), qtd(x.stock), qtd(x.saidas_30d), diasTxt(x.dias)]))
+  ].filter(Boolean);
   const grelha = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: 14 };
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 14, height: '100%', overflow: 'auto', paddingBottom: 12 } },
     React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', flex: 'none' } },
@@ -25142,6 +25271,7 @@ function PainelClinicoScreen() {
         tem('radiologia') && barras('Raio-X', 'raiox', '--serie-2'),
         tem('radiologia') && barras('Ecografias', 'ecografia', '--serie-2'),
         tem('radiologia') && barras('Cardiologia', 'cardiologia', '--serie-2'),
+        extraCards.map((c, i) => React.createElement(React.Fragment, { key: 'ex' + i }, c)),
         ['laboratorio', 'farmacia', 'enfermagem', 'servicos gerais'].filter(tem).map(k => React.createElement(React.Fragment, { key: k }, stockCard(k)))),
       React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, 'Áreas: ' + (areas.map(a => BSP_CLINICO_AREAS[a] || a).join(', ') || 'só os números gerais') + '. Facturas anuladas por nota de crédito não contam.')));
 }

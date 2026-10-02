@@ -353,13 +353,33 @@ Deno.serve(async (req) => {
       (s.a_caducar || []).slice(0, 15).forEach((x: any) => linhas.push(escapar(frase(x.nome)) + " · caduca a " + escapar(String(x.validade).split("-").reverse().join("-")) + " (" + n0(x.qtd) + ")"));
       return linhas.length ? sec("Stock da área") + lista(linhas) + ((s.a_caducar || []).length > 15 ? paragrafo("E mais " + ((s.a_caducar || []).length - 15) + " lotes a caducar em 30 dias: veja o Stock no Workspace.") : "") : "";
     };
+    // O que vinha nos relatórios antigos das áreas e o MetaGest dá (sem nomes de utentes).
+    const ex = d.extra || {};
+    const mesTxt = (m: string) => { const [a, b] = String(m).split("-"); return MESES[Number(b) - 1] + " " + a; };
+    const recepcaoExtra = () => {
+      const doc = ex.documentos || {};
+      const mf = ex.marcacoes_por_fechar || {};
+      const ra = ex.rascunhos || {};
+      return sec("Documentos de ontem") + tabela(["Documento", "Qtd"], [["Factura-recibo (FR)", n0(doc.fr)], ["Factura (FT)", n0(doc.ft)], ["Nota de crédito (NC)", n0(doc.nc)]].concat(Number(doc.outros || 0) ? [["Outros", n0(doc.outros)]] : [])) +
+        (Number(mf.total || 0) ? sec("Marcações passadas por fechar") + paragrafo(n0(mf.total) + " marcações já passaram e continuam «Agendada» ou «Confirmada». Marque Compareceu, Faltou, Cancelou ou Remarcado.") +
+          tabela(["Mês", "Qtd"], ((mf.por_mes || []) as any[]).map((x) => [escapar(mesTxt(x.mes)), n0(x.n)])) : "") +
+        (Number(ra.total || 0) ? paragrafo("<b>" + n0(ra.total) + " documentos em rascunho</b> no MetaGest desde Julho" + (Number(ra.periodo || 0) ? " (" + n0(ra.periodo) + " de ontem)" : "") + ". Emita-os ou apague-os.") : "");
+    };
+    const farmaciaExtra = () =>
+      (((ex.farmacia_vendido || []) as any[]).length ? sec("Vendido ontem e stock que fica") +
+        tabela(["Produto", "Qtd", "Stock que fica"], (ex.farmacia_vendido as any[]).map((x) => [escapar(frase(x.nome)), n0(x.qtd), x.fica == null ? "—" : n0(x.fica)])) : "") +
+      (((ex.farmacia_repor || []) as any[]).length ? sec("Stock a repor") +
+        tabela(["Produto", "Stock", "Saídas 30 dias", "Dá para"], (ex.farmacia_repor as any[]).map((x) => [escapar(frase(x.nome)), n0(x.stock), n0(x.saidas_30d), x.dias == null ? "—" : n0(x.dias) + (Number(x.dias) === 1 ? " dia" : " dias")])) : "");
+    const labExtra = () => ((ex.lab_consumiveis || []) as any[]).length
+      ? sec("Testes e consumíveis") + tabela(["Artigo", "Stock", "Saídas 30 dias", "Dá para"], (ex.lab_consumiveis as any[]).map((x) => [escapar(frase(x.nome)), n0(x.stock), n0(x.saidas_30d), x.dias == null ? "—" : n0(x.dias) + (Number(x.dias) === 1 ? " dia" : " dias")]))
+      : "";
     const AREAS: Record<string, { titulo: string; corpo: () => string; tem: () => boolean }> = {
       recepcao: {
         titulo: "Recepção",
         tem: () => true,
         corpo: () => mosaicos([["Utentes atendidos", n0(nm.utentes), n0(nm.novos) + " novos"], ["Marcações hoje", n0(marc.hoje), n0(marc.por_confirmar) + " por confirmar"], ["Amanhã", n0(marc.amanha), "marcações"]]) +
           (Number(d.sem_medico || 0) ? paragrafo('<b style="color:#8A5A00">' + n0(d.sem_medico) + (Number(d.sem_medico) === 1 ? " factura" : " facturas") + " de ontem sem médico solicitante.</b> Corrija no MetaGest.") : "") +
-          topTab("consulta", "Consultas de ontem"),
+          recepcaoExtra() + topTab("consulta", "Consultas de ontem"),
       },
       clinica: {
         titulo: "Clínica",
@@ -372,13 +392,13 @@ Deno.serve(async (req) => {
         titulo: "Laboratório",
         tem: () => true,
         corpo: () => mosaicos([["Exames facturados", n0(nm.exames_lab), n0(nm.utentes_lab) + " utentes"], ["Externos", n0(nm.exames_externos)]]) +
-          topTab("laboratorio", "Exames de ontem") + stockHtml("laboratorio"),
+          topTab("laboratorio", "Exames de ontem") + labExtra() + stockHtml("laboratorio"),
       },
       farmacia: {
         titulo: "Farmácia",
         tem: () => true,
         corpo: () => mosaicos([["Unidades vendidas", n0(nm.unidades_farmacia), n0(nm.produtos_farmacia) + " produtos"], ["Utentes", n0(nm.utentes_farmacia)]]) +
-          topTab("farmacia", "Mais vendidos ontem") + stockHtml("farmacia"),
+          farmaciaExtra() + topTab("farmacia", "Mais vendidos ontem") + stockHtml("farmacia"),
       },
       enfermagem: {
         titulo: "Enfermagem",

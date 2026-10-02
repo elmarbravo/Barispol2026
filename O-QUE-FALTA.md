@@ -1650,3 +1650,38 @@ menu), 1080×1350, entregues ao Elmar. Não estão no site nem em Documentos.
   Direcção Clínica vêem todas. Em `BSP_ECRAS_SENSIVEIS` e no guia.
 - Fica de fora (precisava de ler as caixas de correio): o relatório das
   16h30 com os pendentes da Arlete e o «Resumo diário das caixas».
+
+## 3-cq. Lembretes nos eventos, convites por e-mail, resumo das tarefas e relatórios das áreas (02-10-2026)
+
+- **Lembretes** (`agenda-lembretes.sql`, aplicado): colunas
+  `agenda_eventos.lembretes` (os de quem cria) e `lembretes_pessoa`
+  (`{id: [minutos]}`, cada pessoa muda os seus por
+  `bsp_evento_lembretes`). Opções em `BSP_LEMBRETES`: na hora, 5, 15 e 30
+  min, 1 e 2 horas, 1 e 2 dias, 1 semana (por omissão, 30 min). Campo
+  «Lembretes» no `CalEventModal`; «Os meus lembretes» no `EventoDetalhe`.
+  Sino e notificação: o Workspace aberto verifica de 30 em 30 s
+  (`bspLembretesDevidos`, vistos em `bsp-lembretes-vistos-<id>`). E-mail:
+  cron `bsp-agenda-lembretes` (5 em 5 min) → Edge Function `agenda-avisos`
+  (`{"qual":"lembretes"}`) → `bsp_srv_agenda_lembretes()`, que marca cada
+  aviso em `agenda_lembretes_enviados` (nunca dois iguais).
+- **Convite por e-mail no instante:** gatilho `bsp_agenda_convite_aviso`
+  (só convidados novos) → `agenda-avisos` (`{"qual":"convite"}`). A
+  novidade do convite fica marcada como enviada para não repetir às 05h00.
+- **Tarefas por e-mail:** o resumo das 06h30 só lia o quadro da equipa,
+  que está vazio; as tarefas privadas ficavam de fora e nada saía. Nova
+  Edge Function `resumo-pessoal` (`resumo-pessoal.sql`: o cron
+  `bsp-resumo-matinal` passa a chamá-la): tarefas da equipa, privadas
+  (dono e `partilhada_com`) e agenda de cada pessoa. A 02-10-2026 saíram 7
+  e-mails. O botão do Admin chama a `resumo-pessoal`. A `resumo-matinal`
+  continua com os outros tipos (lembrete, colectivo, mensagens, etc.).
+- **Relatórios das áreas mais completos** (comparados com os de
+  info@barispol.com de 26 e 27-09): `erp.clinico_extra(de, ate)` dentro de
+  `clinico_dados` e `bsp_painel_clinico` (filtrado por área):
+  - Recepção: documentos FR/FT/NC, marcações passadas por fechar (por
+    mês, alerta), rascunhos no MetaGest desde Julho;
+  - Farmácia: vendido com o stock que fica; stock a repor (stock, saídas
+    em 30 dias, dá para);
+  - Laboratório: testes e consumíveis.
+  No e-mail das 07h15 (`relatorios-diarios` versão 2) e no Painel clínico.
+- Não se refaz: ocorrências e fechos de turno (vinham do correio) e as
+  listas com nomes de utentes (fichas por corrigir, exames por lançar).
