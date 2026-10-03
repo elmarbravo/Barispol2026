@@ -428,6 +428,17 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   servidor). Escrita só por `bsp_produtividade_gravar` / `_estado` / `_pessoa`.
   Ao aprovar, o mês entra em `desempenho_historico` (fonte `apuramento`), que a
   avaliação anual lê. Equipa → `ProdutividadePainel`. Valores nunca no repositório.
+- Pagamento dos médicos (03-10-2026, `pagamento-medicos.sql`): Painel →
+  «Pagamento dos médicos» (`PagamentoMedicosPainel`; o Painel antigo é
+  `PainelFacturacao`). Comissões das facturas do MetaGest pelo
+  `practitioner_name` (= chave do Query Report) e pelas regras de Julho de 2026
+  (`bsp_pagamento_linhas` classifica; cardiologia pelo nome do item);
+  permanências e consultas da ficha lançadas à mão (`pagamento_permanencias`,
+  `pagamento_ajustes`; a ficha prevalece); `bsp_pagamento_calcular`,
+  `bsp_pagamento_fechar` (Fechado → Pago, guarda o mapa). Cadastro com NIF e
+  IBAN só no servidor (`prestadores`). Só `bsp_ve_painel`; sócios só lêem.
+  Farmácia e indicação: base à mão (o MetaGest não as diz). Conferido com
+  Julho de 2026: laboratório e enfermagem iguais ao cêntimo.
 - Integração (03-10-2026, `integracao.sql`, RI-2.2): modelo de passos só no
   servidor (`integracao_modelo`); Equipa → `IntegracaoPainel`. Documentos com
   `revisao_ate` (`documentos-revisao.sql`).

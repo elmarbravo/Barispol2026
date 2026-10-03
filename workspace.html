@@ -4059,7 +4059,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista'];
+const BSP_RPC_LEITURA = ['bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -25258,9 +25258,10 @@ const BSP_GUIA_FICHAS = [
       ['Compare períodos', 'e acompanhe a evolução.'],
       ['Veja por médico e por seguradora.', ''],
       ['Os valores de hoje', 'actualizam-se a cada 5 minutos.'],
-      ['Em «Por receber»,', 'veja o que falta cobrar, o vencido, a antiguidade e quem deve mais. Os utentes contam em conjunto, sem nomes.']
+      ['Em «Por receber»,', 'veja o que falta cobrar, o vencido, a antiguidade e quem deve mais. Os utentes contam em conjunto, sem nomes.'],
+      ['Em «Pagamento dos médicos»,', 'o mapa do mês sai do MetaGest pelas regras em vigor. Lance as permanências e as consultas das fichas assinadas, confira os avisos, feche o mês, imprima e exporte para o banco.']
     ],
-    quem: 'Director Geral, Financeiro e sócios.',
+    quem: 'Director Geral, Financeiro e sócios (os sócios só lêem o pagamento).',
     dica: 'As notas de crédito já estão descontadas em todos os valores.' },
   { icone: 'File', nome: 'Relatórios',
     serve: 'O relatório diário de cada área, em poucos minutos.',
@@ -27741,7 +27742,200 @@ function PainelClinicoScreen() {
         ['laboratorio', 'farmacia', 'enfermagem', 'servicos gerais'].filter(tem).map(k => React.createElement(React.Fragment, { key: k }, stockCard(k)))),
       React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, 'Áreas: ' + (areas.map(a => BSP_CLINICO_AREAS[a] || a).join(', ') || 'só os números gerais') + '. Facturas anuladas por nota de crédito não contam.')));
 }
+/* Pagamento aos médicos prestadores (03-10-2026, pagamento-medicos.sql,
+   Elmar: «Avante o 1»). As comissões saem das facturas do MetaGest pelas
+   regras do mapa de Julho de 2026; as permanências e as consultas da ficha
+   lançam-se aqui (a ficha prevalece). Fechar guarda o mapa; depois «Pago».
+   Só quem vê o Painel (bspVePainel); os sócios só lêem. NIF, IBAN e valores
+   vêm do servidor e nunca ficam no código. */
+const BSP_PAG_RUBRICAS = [
+  ['permanencia', 'Permanência'], ['clinica_geral', 'Clínica Geral'], ['pediatria', 'Pediatria'], ['especialidades', 'Especialidades (50%)'],
+  ['cardiologia', 'Cardiologia, ECG (50%)'], ['laboratorio', 'Laboratório (10%)'], ['observacao', 'Sala de observação (10%)'],
+  ['enfermagem', 'Enfermagem (5%)'], ['ecografia', 'Ecografia'], ['raio_x', 'Raio-X (5%)'], ['farmacia', 'Farmácia (5%)'], ['indicacao', 'Indicação (5%)']];
+const BSP_PAG_REGIMES = { A: 'pró-rata (taxa ÷ 14,5 × horas)', B: 'pediatria (taxa × dias)', C: 'contrato próprio (horas ÷ 6 × taxa)', D: 'fixo (taxa × dias)' };
+const bspPagKz = v => v == null ? '—' : Number(v).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Kz';
+function PagamentoMedicosPainel() {
+  const toast = useToast();
+  const euU = window.userById(window.CURRENT_USER_ID);
+  const escreve = !!euU && !bspESocio(euU);
+  const d0 = new Date(); d0.setDate(1); d0.setMonth(d0.getMonth() - 1);
+  const [mesSel, setMesSel] = React.useState(d0.getFullYear() + '-' + String(d0.getMonth() + 1).padStart(2, '0'));
+  const ano = Number(mesSel.slice(0, 4)), mes = Number(mesSel.slice(5, 7));
+  const [mapa, setMapa] = React.useState(null);
+  const [extra, setExtra] = React.useState({ dias: {}, ajustes: {} });
+  const [erro, setErro] = React.useState('');
+  const [tick, setTick] = React.useState(0);
+  const [aberto, setAberto] = React.useState(null);
+  const [perm, setPerm] = React.useState(null);
+  const [ajuste, setAjuste] = React.useState(null);
+  const [linhas, setLinhas] = React.useState(null);
+  React.useEffect(() => { bspRegistarAcesso('pagamento-medicos', mesSel); }, [mesSel]);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    setMapa(null); setErro('');
+    Promise.all([cl.rpc('bsp_pagamento_calcular', { p_ano: ano, p_mes: mes, p_recalcular: false }), cl.rpc('bsp_pagamento_permanencias_mes', { p_ano: ano, p_mes: mes })]).then(([a, b]) => {
+      if (!vivo) return;
+      if (a.error) { setErro(a.error.message); return; }
+      setMapa(a.data || {}); setExtra((b && b.data) || { dias: {}, ajustes: {} });
+    });
+    return () => { vivo = false; };
+  }, [mesSel, tick]);
+  const fechado = mapa && mapa.estado && mapa.estado !== 'Aberto';
+  const pode = escreve && !fechado;
+  const medicos = (mapa && mapa.medicos) || [];
+  const diasMes = new Date(ano, mes, 0).getDate();
+  const iso = dia => ano + '-' + String(mes).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
+  async function rpc(nome, args, ok) {
+    const r = await bspGetClient().rpc(nome, args);
+    if (r.error) { toast(r.error.message); return false; }
+    if (ok) toast(ok); setTick(t => t + 1); return true;
+  }
+  function abrir(m) {
+    setAberto(aberto === m.id ? null : m.id); setLinhas(null);
+    const dias = (extra.dias || {})[String(m.id)] || {};
+    setPerm(Object.assign({}, dias));
+    const a = (extra.ajustes || {})[String(m.id)] || {};
+    setAjuste({ cg_util: a.cg_util == null ? '' : String(a.cg_util), cg_fds: a.cg_fds == null ? '' : String(a.cg_fds), pediatria: a.pediatria == null ? '' : String(a.pediatria),
+      farmacia_base: a.farmacia_base ? String(a.farmacia_base) : '', indicacao_base: a.indicacao_base ? String(a.indicacao_base) : '', outros: a.outros ? String(a.outros) : '', nota: a.nota || '' });
+  }
+  const num = s => String(s == null ? '' : s).replace(/\s/g, '').replace(',', '.');
+  async function verLinhas(m, rub) {
+    setLinhas({ rub, lista: null });
+    const r = await bspGetClient().rpc('bsp_pagamento_detalhe', { p_prestador: m.id, p_ano: ano, p_mes: mes, p_rubrica: rub });
+    setLinhas({ rub, lista: r.error ? [] : (r.data || []) });
+  }
+  function imprimir() {
+    bspImprimirHtml(bspTabelaImpressao('Pagamento aos prestadores · ' + bspProdMesRotulo(ano, mes),
+      'Clínica Barispol, Lda. · ' + (mapa.estado || 'Aberto') + ' · comissões do MetaGest, permanências das fichas assinadas. IRT 6,5% sobre o bruto.',
+      [{ t: 'Prestador', w: 22 }, { t: 'Permanência', w: 11, dir: true }, { t: 'Consultas', w: 11, dir: true }, { t: 'Outras comissões', w: 12, dir: true }, { t: 'Bruto', w: 12, dir: true }, { t: 'IRT', w: 10, dir: true }, { t: 'Líquido', w: 12, dir: true, nowrap: true }, { t: 'Mês anterior', w: 10, dir: true }],
+      medicos.map(m => {
+        const cons = Number(m.clinica_geral.valor) + Number(m.pediatria.valor) + Number(m.especialidades.valor);
+        return [m.nome, bspPagKz(m.permanencia.valor), bspPagKz(cons), bspPagKz(Number(m.bruto) - Number(m.permanencia.valor) - cons), bspPagKz(m.bruto), bspPagKz(m.irt), { v: bspPagKz(m.liquido), forte: true }, m.anterior == null ? '—' : bspPagKz(m.anterior)];
+      }).concat([[{ v: 'TOTAL', forte: true }, '', '', '', { v: bspPagKz(mapa.bruto), forte: true }, bspPagKz(mapa.irt), { v: bspPagKz(mapa.liquido), forte: true }, mapa.anterior ? bspPagKz(mapa.anterior.liquido) : '—']]),
+      { deitado: true, rodape: 'Documento interno, confidencial' }));
+  }
+  function exportar() {
+    const cab = ['Prestador', 'NIF', 'IBAN', 'Bruto', 'IRT', 'Liquido'];
+    const csv = '﻿' + [cab].concat(medicos.filter(m => Number(m.liquido) > 0).map(m => [m.nome, m.nif, m.iban, m.bruto, m.irt, m.liquido]))
+      .map(l => l.map(x => '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"').join(';')).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = 'pagamento-medicos-' + mesSel + '.csv'; a.click();
+  }
+  const tile = (r, v, s, cor) => React.createElement("div", { style: Object.assign({}, bspRegCaixa, { flex: '1 1 150px' }) },
+    React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-3)' } }, r),
+    React.createElement("div", { style: { fontSize: 20, fontWeight: 700, color: cor || 'var(--text-1)', fontVariantNumeric: 'tabular-nums' } }, v),
+    s && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, s));
+  const pend = (mapa && mapa.pendencias) || {};
+  const avisos = mapa ? [
+    pend.sem_medico && pend.sem_medico.linhas ? pend.sem_medico.linhas + ' linhas facturadas sem médico (' + bspPagKz(pend.sem_medico.valor) + '): comissão que ninguém recebe; corrigir no MetaGest.' : '',
+    (pend.sem_cadastro || []).length ? 'Médicos sem cadastro: ' + pend.sem_cadastro.map(x => x.chave + ' (' + bspPagKz(x.valor) + ')').join(', ') + '.' : '',
+    pend.simbolicos ? pend.simbolicos + ' linhas a valor simbólico (até 1 Kz).' : '',
+    pend.duplicados ? pend.duplicados + (pend.duplicados === 1 ? ' caso' : ' casos') + ' do mesmo acto ao mesmo doente no mesmo dia em facturas diferentes (possível dupla facturação).' : '',
+    pend.eco_nao_imagiologista ? pend.eco_nao_imagiologista + ' ecografias atribuídas a médicos que não são imagiologistas: confirmar se executaram ou só indicaram.' : '',
+    pend.relancados ? pend.relancados + ' actos iguais aos do mês anterior (mesmo doente, acto e valor): confirmar se foram relançados.' : '',
+    'Actos de um mês facturados no seguinte só se vêem nas fichas: desconte-os em «Outros», com nota.',
+    'Farmácia e indicação: o MetaGest não diz o médico em serviço nem quem indicou; lance a base de cada médico.'
+  ].filter(Boolean) : [];
+  const rot = bspTranspRot;
+  const campo = (k, ph) => React.createElement("input", { inputMode: 'decimal', disabled: !pode, value: ajuste[k], placeholder: ph || '', onChange: e => setAjuste(Object.assign({}, ajuste, { [k]: e.target.value })), style: bspTranspCampo });
+  const detalhe = m => {
+    const rubs = BSP_PAG_RUBRICAS.map(([k, t]) => {
+      const x = m[k] || {};
+      const base = k === 'permanencia' ? (m.regime ? x.dias + ' dias · ' + String(x.horas).replace('.', ',') + ' h' : 'sem permanência')
+        : k === 'clinica_geral' ? x.util + ' em dia útil + ' + x.fds + ' ao fim-de-semana' + (x.da_ficha ? ' (ficha; MetaGest ' + x.util_mg + ' + ' + x.fds_mg + ')' : ' (MetaGest)')
+        : k === 'pediatria' ? x.n + ' consultas' + (x.da_ficha ? ' (ficha; MetaGest ' + x.n_mg + ')' : ' (MetaGest)')
+        : k === 'ecografia' ? bspPagKz(x.base) + ' a ' + m.taxa_eco + '%' + (Number(x.base_permanencia) ? ' (' + bspPagKz(x.base_permanencia) + ' na permanência a 25%)' : '')
+        : bspPagKz(x.base);
+      const linhasRub = { clinica_geral: 'clinica_geral', pediatria: 'pediatria', especialidades: 'especialidade', cardiologia: 'cardiologia', laboratorio: 'laboratorio', observacao: 'observacao', enfermagem: 'enfermagem', ecografia: 'ecografia', raio_x: 'raio_x' }[k];
+      if (!Number(x.valor) && !Number(x.base) && !Number(x.n) && !Number(x.util) && !Number(x.fds) && !Number(x.dias)) return null;
+      return React.createElement("tr", { key: k },
+        React.createElement("td", { style: { padding: '5px 6px', color: 'var(--text-1)' } }, t),
+        React.createElement("td", { style: { padding: '5px 6px', color: 'var(--text-2)' } }, base, linhasRub && React.createElement("button", { onClick: () => verLinhas(m, linhasRub), style: { marginLeft: 8, border: 'none', background: 'none', color: 'var(--accent-d)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, padding: 0 } }, 'ver linhas')),
+        React.createElement("td", { style: { padding: '5px 6px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--text-1)' } }, bspPagKz(x.valor)));
+    });
+    return React.createElement("div", { style: { marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 12 } },
+      React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, (m.especialidade || '') + ' · ' + (m.regime ? 'regime ' + m.regime + ', ' + BSP_PAG_REGIMES[m.regime] + ', taxa ' + bspPagKz(m.taxa_permanencia) : 'sem permanência') + ' · NIF ' + (m.nif || 'em falta') + ' · IBAN ' + (m.iban || 'em falta')),
+      React.createElement("div", { style: { overflowX: 'auto' } }, React.createElement("table", { style: { width: '100%', borderCollapse: 'collapse', fontSize: 13 } }, React.createElement("tbody", null, rubs,
+        Number(m.outros) ? React.createElement("tr", null, React.createElement("td", { style: { padding: '5px 6px' } }, 'Outros'), React.createElement("td", { style: { padding: '5px 6px', color: 'var(--text-2)' } }, m.nota || ''), React.createElement("td", { style: { padding: '5px 6px', textAlign: 'right' } }, bspPagKz(m.outros))) : null,
+        React.createElement("tr", null, React.createElement("td", { style: { padding: '6px', fontWeight: 700 } }, 'Bruto · IRT · Líquido'), React.createElement("td", null), React.createElement("td", { style: { padding: '6px', textAlign: 'right', fontWeight: 700 } }, bspPagKz(m.bruto) + ' · −' + bspPagKz(m.irt) + ' · ' + bspPagKz(m.liquido)))))),
+      linhas && React.createElement("div", { style: { maxHeight: 260, overflow: 'auto', fontSize: 12.5, border: '1px solid var(--border)', borderRadius: 8, padding: 8 } },
+        !linhas.lista ? 'A carregar…' : !linhas.lista.length ? 'Sem linhas.' : linhas.lista.map((x, i) => React.createElement("div", { key: i, style: { display: 'flex', gap: 8, color: Number(x.valor) < 0 ? 'var(--perigo)' : 'var(--text-1)' } },
+          React.createElement("span", { style: { width: 86, flex: 'none' } }, bspMarcDataPt(x.dia)), React.createElement("span", { style: { flex: 1 } }, x.item + (Number(x.qtd) !== 1 ? ' × ' + x.qtd : '')), React.createElement("span", null, bspPagKz(x.valor))))),
+      m.regime && React.createElement("div", null,
+        rot(m.regime === 'B' || m.regime === 'D' ? 'Dias assinados na ficha (toque para marcar)' : 'Horas assinadas por dia (fichas)'),
+        React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(62px, 1fr))', gap: 6 } },
+          Array.from({ length: diasMes }, (_, i) => i + 1).map(dia => {
+            const k = iso(dia); const v = perm[k];
+            const fds = [0, 6].indexOf(new Date(k + 'T12:00:00').getDay()) !== -1;
+            if (m.regime === 'B' || m.regime === 'D') return React.createElement("button", { key: k, disabled: !pode, onClick: () => setPerm(Object.assign({}, perm, { [k]: v ? 0 : 1 })), style: Object.assign({}, bspEscChip(!!Number(v)), { minWidth: 0, padding: '6px 0' }) }, (fds ? '· ' : '') + dia);
+            return React.createElement("label", { key: k, style: { display: 'flex', flexDirection: 'column', fontSize: 11, color: fds ? 'var(--accent-d)' : 'var(--text-3)' } }, String(dia),
+              React.createElement("input", { inputMode: 'decimal', disabled: !pode, value: v == null || v === 0 ? '' : String(v).replace('.', ','), onChange: e => setPerm(Object.assign({}, perm, { [k]: num(e.target.value) })), style: Object.assign({}, bspTranspCampo, { padding: '0 6px', height: 34 }) }));
+          })),
+        pode && React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', marginTop: 8 } },
+          React.createElement("button", { onClick: () => rpc('bsp_pagamento_permanencias', { p_prestador: m.id, p_ano: ano, p_mes: mes, p_dias: perm }, 'Permanências guardadas.'), style: bspEscBotao(true) }, 'Guardar permanências'))),
+      React.createElement("div", null,
+        rot('Ajustes do mês (o que a ficha diz prevalece; vazio = MetaGest)'),
+        React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 } },
+          React.createElement("label", null, rot('CG dia útil (ficha)'), campo('cg_util', String(m.clinica_geral.util_mg))),
+          React.createElement("label", null, rot('CG fim-de-semana (ficha)'), campo('cg_fds', String(m.clinica_geral.fds_mg))),
+          React.createElement("label", null, rot('Pediatria (ficha)'), campo('pediatria', String(m.pediatria.n_mg))),
+          React.createElement("label", null, rot('Farmácia: base (Kz)'), campo('farmacia_base', '0')),
+          React.createElement("label", null, rot('Indicação: base (Kz)'), campo('indicacao_base', '0')),
+          React.createElement("label", null, rot('Outros (Kz, pode ser negativo)'), campo('outros', '0'))),
+        React.createElement("label", { style: { display: 'block', marginTop: 8 } }, rot('Nota'), React.createElement("input", { disabled: !pode, value: ajuste.nota, onChange: e => setAjuste(Object.assign({}, ajuste, { nota: e.target.value })), style: bspTranspCampo })),
+        pode && React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', marginTop: 8 } },
+          React.createElement("button", { onClick: () => rpc('bsp_pagamento_ajuste', { p_prestador: m.id, p_ano: ano, p_mes: mes, p_dados: { cg_util: num(ajuste.cg_util), cg_fds: num(ajuste.cg_fds), pediatria: num(ajuste.pediatria), farmacia_base: num(ajuste.farmacia_base), indicacao_base: num(ajuste.indicacao_base), outros: num(ajuste.outros), nota: ajuste.nota } }, 'Ajustes guardados.'), style: bspEscBotao(true) }, 'Guardar ajustes'))));
+  };
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+    React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } },
+      React.createElement("label", { style: { display: 'flex', gap: 8, alignItems: 'center', fontSize: 13.5, fontWeight: 700, color: 'var(--text-1)' } }, 'Mês',
+        React.createElement("input", { type: 'month', value: mesSel, onChange: e => { if (e.target.value) { setMesSel(e.target.value); setAberto(null); } }, style: Object.assign({}, bspTranspCampo, { width: 170 }) })),
+      React.createElement("span", { style: { fontSize: 13.5, color: 'var(--text-2)' } }, bspProdMesRotulo(ano, mes) + (mapa ? ' · ' + (mapa.estado || 'Aberto') : ''))),
+    erro && React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, erro),
+    !mapa && !erro && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, 'A calcular…'),
+    mapa && React.createElement(React.Fragment, null,
+      React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } },
+        tile('Bruto', bspPagKz(mapa.bruto), mapa.anterior ? 'mês anterior ' + bspPagKz(mapa.anterior.bruto) : null),
+        tile('IRT (6,5%)', bspPagKz(mapa.irt)),
+        tile('Líquido a pagar', bspPagKz(mapa.liquido), mapa.anterior ? 'mês anterior ' + bspPagKz(mapa.anterior.liquido) : null, 'var(--accent-d)'),
+        tile('Médicos com valor', String(medicos.filter(m => Number(m.bruto) > 0).length))),
+      React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+        escreve && !fechado && React.createElement("button", { onClick: () => window.confirm('Fechar ' + bspProdMesRotulo(ano, mes) + '? O mapa fica guardado tal como está.') && rpc('bsp_pagamento_fechar', { p_ano: ano, p_mes: mes, p_estado: 'Fechado' }, 'Mês fechado.'), style: bspEscBotao(true) }, 'Fechar o mês'),
+        escreve && mapa.estado === 'Fechado' && React.createElement("button", { onClick: () => window.confirm('Marcar ' + bspProdMesRotulo(ano, mes) + ' como pago?') && rpc('bsp_pagamento_fechar', { p_ano: ano, p_mes: mes, p_estado: 'Pago' }, 'Marcado como pago.'), style: bspEscBotao(true) }, 'Marcar como pago'),
+        escreve && mapa.estado === 'Fechado' && React.createElement("button", { onClick: () => window.confirm('Reabrir o mês para correcções?') && rpc('bsp_pagamento_fechar', { p_ano: ano, p_mes: mes, p_estado: 'Aberto' }, 'Mês reaberto.'), style: bspEscBotao(false) }, 'Reabrir'),
+        React.createElement("button", { onClick: imprimir, style: bspEscBotao(false) }, 'Imprimir mapa'),
+        React.createElement("button", { onClick: exportar, style: bspEscBotao(false) }, 'Exportar para o banco (CSV)')),
+      avisos.length > 0 && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-2)', display: 'flex', flexDirection: 'column', gap: 4 }) },
+        React.createElement("b", { style: { color: 'var(--text-1)' } }, 'A conferir antes de fechar'),
+        avisos.map((t, i) => React.createElement("div", { key: i }, '· ' + t))),
+      medicos.map(m => {
+        const cons = Number(m.clinica_geral.valor) + Number(m.pediatria.valor) + Number(m.especialidades.valor);
+        const dif = m.anterior == null ? null : Number(m.liquido) - Number(m.anterior);
+        return React.createElement("div", { key: m.id, style: Object.assign({}, bspRegCaixa, { padding: 12 }) },
+          React.createElement("div", { onClick: () => abrir(m), style: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline', cursor: 'pointer' } },
+            React.createElement("b", { style: { flex: '1 1 220px', fontSize: 14, color: 'var(--text-1)' } }, bspNomeProprio(m.nome)),
+            React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Permanência ' + bspPagKz(m.permanencia.valor) + ' · consultas ' + bspPagKz(cons)),
+            React.createElement("b", { style: { fontSize: 14, color: 'var(--text-1)', fontVariantNumeric: 'tabular-nums' } }, bspPagKz(m.liquido)),
+            dif != null && React.createElement("span", { style: { fontSize: 12, color: dif < 0 ? 'var(--perigo)' : 'var(--sucesso)' } }, (dif >= 0 ? '+' : '−') + bspPagKz(Math.abs(dif)))),
+          aberto === m.id && perm && ajuste && detalhe(m));
+      })));
+}
+/* Painel com dois separadores (03-10-2026): Facturação e Pagamento dos
+   médicos. Os dois só para quem vê o Painel (bspVePainel). */
 function PainelScreen() {
+  const [aba, setAba] = React.useState(() => { try { return localStorage.getItem('bsp-painel-aba') || 'facturacao'; } catch (e) { return 'facturacao'; } });
+  React.useEffect(() => { try { localStorage.setItem('bsp-painel-aba', aba); } catch (e) {} }, [aba]);
+  const tab = (id, t) => React.createElement("button", { key: id, onClick: () => setAba(id), style: { padding: '9px 16px', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700, background: 'transparent', whiteSpace: 'nowrap', color: aba === id ? 'var(--accent-d)' : 'var(--text-2)', borderBottom: '2px solid ' + (aba === id ? 'var(--accent)' : 'transparent') } }, t);
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' } },
+    React.createElement("div", { style: { display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', flex: 'none', overflowX: 'auto' } },
+      tab('facturacao', 'Facturação'), tab('pagamento', 'Pagamento dos médicos')),
+    React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: 'auto', paddingBottom: 12 } },
+      aba === 'pagamento' ? React.createElement(PagamentoMedicosPainel, null) : React.createElement(PainelFacturacao, null)));
+}
+function PainelFacturacao() {
   const hoje = bspDataLocalISO(new Date());
   const inicioMes = hoje.slice(0, 8) + '01';
   const periodos = [

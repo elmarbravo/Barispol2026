@@ -2791,3 +2791,33 @@ tem. Esse serve para pagar: Apuramento_Subs Produtividade.xlsx.»
   números.
 - Sem ficheiro: Recepção de Janeiro e Fevereiro de 2026 (pastas vazias). As
   áreas de saúde não têm Junho nem Julho de 2026.
+
+## 3-eo. Pagamento dos médicos no Workspace (03-10-2026)
+
+Elmar: «Avante o 1» (o mapa de pagamento aos prestadores).
+
+- `pagamento-medicos.sql` (aplicado). As comissões saem das facturas do
+  MetaGest que já estão no servidor, com as regras do mapa de Julho de
+  2026 (Clínica Geral 2.000/2.500, Pediatria 4.000, especialidades 50%,
+  cardiologia pelo nome do item 50%, laboratório 10%, observação 10%,
+  enfermagem 5%, ecografia 50/30%, raio-X 5%, IRT 6,5%).
+- Permanências: regimes A, B, C e D, lançados por dia a partir das fichas
+  assinadas. As consultas da ficha prevalecem sobre as do MetaGest.
+- Farmácia e indicação: a base lança-se à mão, porque o MetaGest não diz
+  quem estava em serviço nem quem indicou o exame. «Outros» aceita valores
+  negativos, para descontar actos de um mês facturados no seguinte.
+- Cadastro dos 25 prestadores (NIF, IBAN, regime, taxas) carregado só no
+  servidor (`prestadores`).
+- Ecrã: Painel → «Pagamento dos médicos». Tem avisos (linhas sem médico,
+  médicos sem cadastro, valores simbólicos, possíveis duplicados, ecografias
+  de quem não é imagiologista, relançados), «Fechar o mês», «Marcar como
+  pago», «Imprimir mapa» e «Exportar para o banco (CSV)».
+- Conferido com Julho de 2026: laboratório 292 006 (mapa 292 005,90) e
+  enfermagem 34 678 (mapa 34 677,90). Consultas e cardiologia ficam 9 500
+  acima, pelas contagens da ficha. Imagiologia fica 52 150 acima: são as três
+  ecografias de Junho relançadas que o mapa de Julho já tirou.
+- Testado: médica sem acesso, mês fechado não aceita mudanças, permanência
+  pró-rata certa.
+- Falta: lançar as permanências e as fichas de Setembro de 2026 e fechar o
+  mês. Uniformizar a ecografia dos imagiologistas (Elizabeth, Ihandjika,
+  Noémia) está pendente de decisão da Direcção Geral.
