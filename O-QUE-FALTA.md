@@ -2534,3 +2534,9 @@ ignora o `window.print()`.
 - Testado no Chromium com um iPhone simulado: no atalho, abre-se a
   `imprimir.html` com o cartaz e o endereço fica limpo; no Safari,
   imprime como antes; o PDF tem 1 folha. Falta confirmar num iPhone real.
+- Segunda volta (03-10-2026, «Não imprime ainda»): a janela que o atalho
+  abre também pode ignorar a impressão. Se a impressão não abrir em 1,5 s
+  (sem `beforeprint`), a `imprimir.html` mostra a ajuda: «Abrir no Safari»
+  (`x-safari-https://…`, iOS 17 ou mais recente; o Safari imprime sempre)
+  ou «Partilhar → Imprimir». A pré-visualização do Workspace mostra a mesma
+  ajuda depois do toque em «Imprimir».

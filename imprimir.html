@@ -106,11 +106,13 @@ html,body{margin:0;background:#fff;color:#1C2033;font-family:Dax,"Titillium Web"
 #barra button{height:40px;padding:0 16px;border-radius:8px;font:600 16px Dax,"Titillium Web",Arial,sans-serif;border:0;background:#273069;color:#fff;cursor:pointer}
 #aviso{padding:24px 16px;font-size:16px;color:#4E5366}
 iframe{display:block;width:100%;border:0}
-@media print{#barra,#aviso{display:none!important}}
+#ajuda{display:none}
+@media print{#barra,#aviso,#ajuda{display:none!important}}
 </style>
 </head>
 <body>
 <div id="barra"><span>Documento do Workspace</span><button type="button" id="imprimir">Imprimir</button></div>
+<div id="ajuda"><b>A impressão não abriu nesta janela.</b><br>Toque no botão de partilhar (quadrado com a seta para cima) e escolha «Imprimir». Ou abra no Safari e carregue em «Imprimir»:<br><a id="safari" href="#">Abrir no Safari</a></div>
 <div id="aviso">A preparar o documento…</div>
 <script>
 (function () {
@@ -125,15 +127,18 @@ iframe{display:block;width:100%;border:0}
   for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   var corrente = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
   new Response(corrente).text().then(function (html) {
+    var endereco = location.href;
     // Tira o documento do endereço: não fica no histórico nem se partilha por engano.
     try { history.replaceState(null, '', location.pathname); } catch (e) {}
     var titulo = /<title>([^<]*)<\/title>/i.exec(html);
     if (titulo) { document.title = titulo[1]; document.querySelector('#barra span').textContent = titulo[1]; }
     // O documento substitui a página toda; a barra entra por cima e some na impressão.
-    var barra = document.getElementById('barra').outerHTML;
+    var barra = document.getElementById('barra').outerHTML + document.getElementById('ajuda').outerHTML;
     var estilo = '<style>#barra{position:sticky;top:0;z-index:5;display:flex;gap:8px;align-items:center;padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top));background:#fff;border-bottom:1px solid #DDDBD6;font-family:Dax,"Titillium Web",Arial,sans-serif}' +
       '#barra span{flex:1;font-size:14px;color:#4E5366}#barra button{height:40px;padding:0 16px;border-radius:8px;font-weight:600;font-size:16px;border:0;background:#273069;color:#fff}' +
-      '@media print{#barra{display:none!important}}</style>';
+      '#ajuda{display:none;margin:12px;padding:12px 14px;border:1px solid #DDDBD6;border-left:4px solid #2291CE;font:15px/1.45 Dax,"Titillium Web",Arial,sans-serif;color:#1C2033;background:#fff}' +
+      '#ajuda a{display:inline-block;margin-top:8px;padding:9px 14px;border-radius:8px;background:#273069;color:#fff;text-decoration:none;font-weight:600}' +
+      '@media print{#barra,#ajuda{display:none!important}}</style>';
     var fontes = document.querySelector('style').outerHTML;
     html = html.replace(/<script[\s\S]*?<\/script>/gi, '');
     if (/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, fontes + estilo + '</head>');
@@ -141,9 +146,22 @@ iframe{display:block;width:100%;border:0}
     if (/<body[^>]*>/i.test(html)) html = html.replace(/<body[^>]*>/i, function (b) { return b + barra; });
     else html = barra + html;
     document.open(); document.write(html); document.close();
+    // Algumas janelas do iPhone ignoram o window.print() sem aviso. Se a
+    // impressão não abrir em 1,5 s, aparece a ajuda: abrir no Safari (iOS 17
+    // ou mais recente) ou usar Partilhar → Imprimir.
+    var abriu = false;
+    window.addEventListener('beforeprint', function () { abriu = true; });
+    try { window.matchMedia('print').addListener(function (q) { if (q.matches) abriu = true; }); } catch (e) {}
+    function tentar() {
+      abriu = false;
+      try { window.print(); } catch (e) {}
+      setTimeout(function () { if (!abriu) { var a = document.getElementById('ajuda'); if (a) a.style.display = 'block'; } }, 1500);
+    }
     var botao = document.getElementById('imprimir');
-    if (botao) botao.onclick = function () { window.print(); };
-    setTimeout(function () { try { window.print(); } catch (e) {} }, 700);
+    if (botao) botao.onclick = tentar;
+    var safari = document.getElementById('safari');
+    if (safari) safari.href = 'x-safari-' + endereco;
+    setTimeout(tentar, 700);
   }).catch(function () { falha('Não foi possível abrir o documento. Volte ao Workspace e tente de novo.'); });
 })();
 </script>
