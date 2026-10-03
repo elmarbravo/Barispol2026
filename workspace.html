@@ -4054,7 +4054,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista'];
+const BSP_RPC_LEITURA = ['bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -17240,6 +17240,66 @@ function AdminNotificacoes() {
           React.createElement("td", { style: { padding: '9px 12px', borderBottom: '1px solid var(--border)', color: 'var(--text-2)', whiteSpace: 'nowrap' } }, l.ultimo ? bspDataExacta(new Date(l.ultimo)) : '—'));
       }))))));
 }
+/* Saúde do sistema (03-10-2026, vigilancia.sql): o estado das verificações
+   que o servidor faz de 15 em 15 minutos. Uma falha avisa a Direcção no
+   telemóvel; aqui vê-se o detalhe. */
+const BSP_VIGILANCIA_NOMES = { agendamento: 'Tarefas agendadas', funcoes: 'Funções do servidor', presenca: 'Workspace aberto na clínica', metagest: 'Cópia do MetaGest', whatsapp: 'Cópia do WhatsApp', emails: 'E-mails do dia' };
+function AdminSaude() {
+  const [d, setD] = React.useState(null);
+  const [tick, setTick] = React.useState(0);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    cl.rpc('bsp_saude_sistema').then(r => { if (vivo) setD(r.error ? [] : (r.data || [])); });
+    return () => { vivo = false; };
+  }, [tick]);
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 760 } },
+    React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)' } }, 'O servidor verifica-se de 15 em 15 minutos. Se algo falhar, a Direcção recebe um aviso no telemóvel (outro quando se resolve).'),
+    !d ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'A carregar…') :
+    d.map(v => React.createElement("div", { key: v.chave, style: Object.assign({}, bspRegCaixa, { display: 'flex', gap: 12, alignItems: 'center', borderLeft: '4px solid ' + (v.ok ? 'var(--sucesso)' : 'var(--perigo)') }) },
+      React.createElement("b", { style: { color: v.ok ? 'var(--sucesso)' : 'var(--perigo)', fontSize: 13, minWidth: 44 } }, v.ok ? 'Bem' : 'Falha'),
+      React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+        React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)' } }, BSP_VIGILANCIA_NOMES[v.chave] || v.chave),
+        React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, (v.detalhe || '') + ' · verificado a ' + bspDataExacta(new Date(v.verificado_em)) + (v.ok ? '' : ' · desde ' + bspDataExacta(new Date(v.desde))))))),
+    React.createElement("div", null, React.createElement("button", { onClick: () => setTick(t => t + 1), style: bspEscBotao(false) }, 'Actualizar')));
+}
+/* Acessos (03-10-2026, acessos-registo.sql, RI-3.3): quem abriu ecrãs com
+   dados sensíveis e fichas de utentes, nos últimos 30 dias. */
+const BSP_ACESSO_NOMES = { painel: 'Painel financeiro', 'painel-clinico': 'Painel clínico', actividade: 'A minha actividade', seguimento: 'Utentes', marcacoes: 'Marcações', qualidade: 'Qualidade', 'ficha-utente': 'Fichas de utentes' };
+function AdminAcessos() {
+  const [resumo, setResumo] = React.useState(null);
+  const [pessoa, setPessoa] = React.useState('');
+  const [linhas, setLinhas] = React.useState(null);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    cl.rpc('bsp_acessos_resumo', { p_dias: 30 }).then(r => { if (vivo) setResumo(r.error ? [] : (r.data || [])); });
+    return () => { vivo = false; };
+  }, []);
+  React.useEffect(() => {
+    if (!pessoa) { setLinhas(null); return; }
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    cl.from('acessos_registo').select('*').eq('user_id', pessoa).order('criado_em', { ascending: false }).limit(300).then(r => { if (vivo) setLinhas(r.error ? [] : (r.data || [])); });
+    return () => { vivo = false; };
+  }, [pessoa]);
+  const porPessoa = {};
+  (resumo || []).forEach(x => { (porPessoa[x.user_id] = porPessoa[x.user_id] || []).push(x); });
+  const ids = Object.keys(porPessoa).sort((a, b) => bspCompararTexto(bspNomeDe(a), bspNomeDe(b)));
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 860 } },
+    React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)' } }, 'Quem abriu ecrãs com dados sensíveis nos últimos 30 dias (RI-3.3: o acesso é rastreável). Fichas de utentes só pelo número interno. Toque numa pessoa para ver o detalhe.'),
+    !resumo ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'A carregar…') :
+    !ids.length ? React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, 'Ainda sem registos.') :
+    ids.map(id => React.createElement("div", { key: id, onClick: () => setPessoa(pessoa === id ? '' : id), style: Object.assign({}, bspRegCaixa, { cursor: 'pointer' }) },
+      React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' } },
+        React.createElement("b", { style: { fontSize: 14, color: 'var(--text-1)' } }, bspNomeDe(id)),
+        React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-2)' } }, porPessoa[id].map(x => (BSP_ACESSO_NOMES[x.ecra] || x.ecra) + ' ' + x.n + (x.fichas ? ' (' + x.fichas + ' diferentes)' : '')).join(' · '))),
+      pessoa === id && React.createElement("div", { style: { marginTop: 8, fontSize: 12.5, color: 'var(--text-2)', display: 'flex', flexDirection: 'column', gap: 2, maxHeight: 280, overflow: 'auto' } },
+        !linhas ? 'A carregar…' : linhas.map(l => React.createElement("span", { key: l.id }, bspDataExacta(new Date(l.criado_em)) + ' · ' + (BSP_ACESSO_NOMES[l.ecra] || l.ecra) + (l.detalhe ? ' · ' + l.detalhe : '')))))));
+}
 function AdminScreen({
   currentUser
 }) {
@@ -17259,6 +17319,12 @@ function AdminScreen({
   }, {
     id: 'notificacoes',
     l: 'Notificações'
+  }, {
+    id: 'saude',
+    l: 'Saúde do sistema'
+  }, {
+    id: 'acessos',
+    l: 'Acessos'
   }, {
     id: 'system',
     l: 'Sistema'
@@ -17296,7 +17362,7 @@ function AdminScreen({
       flex: 1,
       overflow: 'auto'
     }
-  }, tab === 'overview' && React.createElement(AdminOverview, null), tab === 'notificacoes' && React.createElement(AdminNotificacoes, null), tab === 'users' && React.createElement(AdminUsers, null), tab === 'roles' && React.createElement(AdminRoles, null), tab === 'activity' && React.createElement(AdminActivity, null), tab === 'system' && React.createElement(AdminSystem, null)));
+  }, tab === 'overview' && React.createElement(AdminOverview, null), tab === 'notificacoes' && React.createElement(AdminNotificacoes, null), tab === 'users' && React.createElement(AdminUsers, null), tab === 'roles' && React.createElement(AdminRoles, null), tab === 'activity' && React.createElement(AdminActivity, null), tab === 'saude' && React.createElement(AdminSaude, null), tab === 'acessos' && React.createElement(AdminAcessos, null), tab === 'system' && React.createElement(AdminSystem, null)));
 }
 function AdminOverview() {
   const {
@@ -25071,6 +25137,8 @@ const BSP_GUIA_FICHAS = [
       ['Ajuste as permissões', 'de cada camada.'],
       ['Consulte o registo', 'e o estado do sistema.'],
       ['Veja em «Notificações»', 'quem já as activou e quem falta.'],
+      ['Veja a «Saúde do sistema»:', 'o servidor verifica-se de 15 em 15 minutos e avisa no telemóvel quando algo falha.'],
+      ['Consulte os «Acessos»:', 'quem abriu ecrãs com dados sensíveis e fichas de utentes (RI-3.3).'],
       ['Use «Ver como»', 'para ver o ecrã de outra pessoa, só em leitura.']
     ],
     quem: 'Direcção e Coordenação.',
@@ -25323,10 +25391,23 @@ function AvisoVersaoNova() {
     React.createElement("button", { onClick: () => location.reload(), style: { height: 34, padding: '0 14px', borderRadius: 8, border: 0, background: 'var(--surface)', color: 'var(--navy-texto)', fontFamily: 'inherit', fontWeight: 700, fontSize: 14, cursor: 'pointer' } }, 'Actualizar'),
     React.createElement("button", { onClick: () => setNova(false), title: 'Fechar', style: { border: 0, background: 'transparent', color: 'var(--surface)', fontSize: 18, cursor: 'pointer', padding: '0 4px' } }, '×')), document.body);
 }
+/* Registo de acessos (03-10-2026, acessos-registo.sql, RI-3.3 «acesso
+   rastreável»): os ecrãs de BSP_ECRAS_SENSIVEIS e cada ficha de utente (só
+   o número interno, nunca o nome). O servidor ignora repetidos em 10 min.
+   Nunca durante «Ver como» (bspGetClient bloqueia a escrita). */
+function bspRegistarAcesso(ecra, detalhe) {
+  try {
+    if (bspEmVerComo() || !window.CURRENT_USER_ID || window.CURRENT_USER_ID === 'self') return;
+    const cl = bspGetClient();
+    if (!cl) return;
+    cl.from('acessos_registo').insert({ ecra: String(ecra).slice(0, 40), detalhe: String(detalhe || '').slice(0, 120) }).then(() => {}, () => {});
+  } catch (e) {}
+}
 function ProteccaoEcra({ pg }) {
   const [escuro, setEscuro] = React.useState(false);
   const [tapado, setTapado] = React.useState(false);
   const sensivel = BSP_ECRAS_SENSIVEIS.indexOf(pg) !== -1;
+  React.useEffect(() => { if (sensivel) bspRegistarAcesso(pg, ''); }, [pg]);
   const pgRef = React.useRef(pg);
   pgRef.current = pg;
   React.useEffect(() => {
@@ -27253,6 +27334,7 @@ function CrmFicha({ alvo, onClose }) {
     let vivo = true;
     (async () => {
       const r = await cl.rpc('crm_ficha', { p_tel9: alvo.tel9 || null, p_paciente: alvo.paciente || null });
+      bspRegistarAcesso('ficha-utente', alvo.paciente ? String(alvo.paciente) : 'tel …' + String(alvo.tel9 || '').slice(-3));
       if (!vivo) return;
       if (r.error) { setErro(r.error.message || 'Erro'); return; }
       setDados(r.data || {});
@@ -27798,7 +27880,7 @@ function App() {
          confirmacao de recepcao (GuiaRecepcaoCartao). */
       window.__bspConfirmarGuia = true;
       setPage('dashboard');
-    } else if (['feed', 'tarefas', 'agenda', 'drive', 'seguimento', 'marcacoes', 'escalas', 'transporte', 'painel', 'chat', 'relatorios', 'documentos', 'actividade', 'notificacoes', 'qualidade', 'avarias'].indexOf(onde) !== -1) {
+    } else if (['feed', 'tarefas', 'agenda', 'drive', 'seguimento', 'marcacoes', 'escalas', 'transporte', 'painel', 'chat', 'relatorios', 'documentos', 'actividade', 'notificacoes', 'qualidade', 'avarias', 'admin'].indexOf(onde) !== -1) {
       setPage({ tarefas: 'tasks', agenda: 'calendar', notificacoes: 'notifications' }[onde] || onde);
     } else {
       return;

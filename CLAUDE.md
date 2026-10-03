@@ -382,6 +382,12 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
 - Equipamentos e manutenção preventiva (03-10-2026, `manutencao-preventiva.sql`):
   `equipamentos`, `manutencoes_plano`, `manutencoes_registo`; ecrã Avarias →
   `EquipamentosPainel` (o ecrã antigo chama-se `AvariasLista`).
+- Vigilância (03-10-2026, `vigilancia.sql`): `bsp_vigilancia` de 15 em 15 min,
+  avisa a gestão no telemóvel; Admin → «Saúde do sistema». Uma verificação
+  nova entra em `bsp_vigilancia` e em `BSP_VIGILANCIA_NOMES`.
+- Registo de acessos (03-10-2026, `acessos-registo.sql`, RI-3.3):
+  `bspRegistarAcesso(ecra, detalhe)`; um ecrã novo com dados sensíveis entra
+  em `BSP_ECRAS_SENSIVEIS` e passa a ser registado. Detalhe nunca com nomes.
 - Registos da equipa (01-10-2026, `equipa-registos.sql`): `ausencias`,
   `formacoes`, `avarias`, `pedidos_compra`. Quem decide: `bsp_chefe_de`
   (gestão, superior, chefe da área). Ecrãs: `EquipaScreen` (Contactos,

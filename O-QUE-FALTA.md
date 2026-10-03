@@ -2398,3 +2398,20 @@ Pedido do Elmar: «Avance tudo possível… Coloque lá o feedback de utentes».
 - Por fazer: os Serviços Gerais acrescentam os equipamentos e os planos
   (ecógrafos, analisadores, autoclave, frigoríficos, ar condicionado,
   gerador, extintores).
+
+## 3-dv. Vigilância automática e registo de acessos (03-10-2026)
+
+- Vigilância (`vigilancia.sql`, aplicado, cron `bsp-vigilancia` de 15 em 15
+  min): tarefas agendadas falhadas, funções com erro, Workspace sem sinal em
+  dias úteis 08h–18h (o sintoma de 02-10-2026), cópia do MetaGest e do
+  WhatsApp paradas, 80 e-mails no dia. Uma falha avisa a gestão no
+  telemóvel uma vez (de novo só passadas 6 h) e outra vez quando se resolve.
+  Estado em `vigilancia_estado`; Admin → «Saúde do sistema»
+  (`bsp_saude_sistema`). Testado com desfazer: 80 e-mails falsos → 1 aviso,
+  repetição sem aviso, «resolvido» no fim.
+- Acessos (`acessos-registo.sql`, aplicado, RI-3.3): `acessos_registo`
+  guarda quem abre os ecrãs de `BSP_ECRAS_SENSIVEIS` e cada ficha de utente
+  (`bspRegistarAcesso`; só o número interno). Repetidos em 10 min
+  ignorados; ninguém regista em nome de outro; só a gestão lê (Admin →
+  «Acessos», `bsp_acessos_resumo`); apaga-se ao fim de 1 ano
+  (`bsp-acessos-limpeza`).
