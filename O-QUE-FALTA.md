@@ -2649,3 +2649,17 @@ Elmar: «Faz as auditorias, porque completam a parte clínica pedida pela JCI.»
 - Testado no servidor (desfeito): carro de emergência com 1 falha e 1 N.A.
   → 83,3%, área preenchida, novidade com a falha, próxima a 7 dias. No ecrã
   (telemóvel): não grava sem todas as respostas nem sem a nota do «Não».
+
+## 3-ei. Satisfação e espera no relatório diário da Direcção (03-10-2026)
+
+- `relatorio-direccao-qualidade.sql` (aplicado): `bsp_srv_qualidade_direccao(dia)`
+  (só o servidor): satisfação de 30 dias (média, notas 1–2, elogios,
+  reclamações), reclamações em aberto e fora de prazo, respostas por
+  tratar, espera da véspera e de 30 dias (tempo na clínica e espera pelo
+  médico), incidentes em aberto e auditorias (feitas na véspera, falhas,
+  por fazer ou em atraso).
+- Edge Function `relatorios-diarios` versão 12 (publicada; igual ao
+  repositório): secção «Satisfação e espera» no relatório das 06h50.
+- Pré-visualização de 02-10 (sem envio): 4,14 / 5 em 14 avaliações; 1 h 43
+  na clínica (40% acima de 2 h); ontem 52 min; 2 reclamações em aberto, 1
+  fora do prazo; 7 auditorias por fazer.

@@ -31,6 +31,11 @@
 //     tabela por colaborador) e o «Workspace aberto ontem» saem do da
 //     Recepção. Estão no e-mail «WhatsApp de ontem» das 08h00
 //     (wa_resumo_8h), que fica como a única fonte desses números.
+//     Versão 12 (03-10-2026, relatorio-direccao-qualidade.sql, pedido do
+//     Elmar: «a satisfação e a espera no relatório diário»): o da Direcção
+//     leva a secção «Satisfação e espera» (satisfação e tempo na clínica de
+//     30 dias, espera de ontem, reclamações e incidentes em aberto,
+//     auditorias), por bsp_srv_qualidade_direccao.
 // Utentes nunca com nome. Um envio por relatório, dia e destino
 // (relatorios_enviados). {"previa": true} devolve os e-mails sem enviar;
 // {"dia": "AAAA-MM-DD"} escolhe o dia; {"forcar": true} volta a enviar.
@@ -314,6 +319,24 @@ Deno.serve(async (req) => {
       const totServ = servico.reduce((a, x) => a + Number(x.valor || 0), 0);
       const c = d.clinico || {};
       const mes = d.mes || {};
+      /* Satisfação, espera e auditorias (versão 12, 03-10-2026). */
+      const q: any = (await admin.rpc("bsp_srv_qualidade_direccao", { p_dia: dia })).data || {};
+      const sat = q.satisfacao || {}, ed = q.espera_dia || {}, e30 = q.espera_30 || {}, ad = q.auditorias_dia || {};
+      const minutos = (m: any) => { if (m == null || isNaN(Number(m))) return "—"; const v = Math.round(Number(m)); return v < 60 ? v + " min" : Math.floor(v / 60) + " h " + String(v % 60).padStart(2, "0"); };
+      const qualidadeHtml = q && (q.satisfacao || q.espera_30) ?
+        sec("Satisfação e espera") +
+        mosaicos([
+          ["Satisfação · 30 dias", sat.media != null ? String(sat.media).replace(".", ",") + " / 5" : "—", n0(sat.avaliacoes) + " avaliações · " + n0(sat.baixas) + " com nota 1 ou 2"],
+          ["Tempo na clínica · 30 dias", minutos(e30.estadia), (e30.pc_mais_2h != null ? e30.pc_mais_2h + "% acima de 2 h" : "") + " · " + n0(e30.n) + " utentes"],
+        ]) +
+        lista([
+          "Ontem: " + (Number(ed.n) ? n0(ed.n) + " utentes medidos, mediana " + minutos(ed.estadia) + " na clínica" + (Number(ed.mais_2h) ? " (" + n0(ed.mais_2h) + " acima de 2 h)" : "") + (Number(ed.consultas) ? "; espera pelo médico " + minutos(ed.consulta) : "") : "sem triagens registadas no MetaGest"),
+          "Espera pelo médico · 30 dias: mediana " + minutos(e30.consulta) + " (só as consultas abertas no MetaGest)",
+          n0(sat.do_dia) + " respostas de utentes ontem · " + n0(q.por_tratar) + " por tratar",
+          "Reclamações em aberto: " + n0(q.reclamacoes_abertas) + (Number(q.reclamacoes_fora_prazo) ? ' · <b style="color:#B42318">' + n0(q.reclamacoes_fora_prazo) + " fora do prazo</b>" : ""),
+          "Incidentes em aberto: " + n0(q.incidentes_abertos),
+          "Auditorias: " + (Number(ad.feitas) ? n0(ad.feitas) + " feitas ontem" + (Number(ad.falhas) ? ', <b style="color:#B42318">' + n0(ad.falhas) + " falhas</b>" : ", sem falhas") + " · " : "") + n0(q.auditorias_atraso) + " por fazer ou em atraso",
+        ]) : "";
       const corpoHtml =
         paragrafo("Resumo de " + longa(dia) + ", com os números da API do MetaGest.") +
         mosaicos([
@@ -339,6 +362,7 @@ Deno.serve(async (req) => {
           n0(c.actos_enfermagem) + " actos de enfermagem · " + n0(c.raiox) + " raio-X · " + n0(c.ecografias) + " ecografias · " + n0(c.cardiologia) + " cardiologia",
           n0(c.unidades_farmacia) + " unidades vendidas na farmácia (" + n0(c.produtos_farmacia) + " produtos)",
         ]) +
+        qualidadeHtml +
         (origem.length ? sec("Origem da receita · 7 dias") + barras(origem.map((o) => ({ r: escapar(o.origem), v: Number(o.valor), t: kz(o.valor) + " (" + pc(Number(o.valor), totOrig) + ")", cor: o.origem === "Seguradoras" ? AZUL : MARINHO }))) : "") +
         (servico.length ? sec("Receita por serviço · 7 dias") + barras(servico.map((o) => ({ r: escapar(frase(o.servico)), v: Number(o.valor), t: pc(Number(o.valor), totServ) }))) : "");
       const html = envelope("Resumo do dia " + curta(dia), corpoHtml, "painel", "Abrir o Painel",

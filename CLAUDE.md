@@ -426,6 +426,8 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `bsp_srv_direccao_clinica`, modelo JCI/OMS), sempre com números reais ao lado
   de cada percentagem (pedido do Elmar). Endereços extra só no servidor (`relatorios_diarios_destinos`;
   `relatorios_destinos` é dos relatórios por área, outra coisa).
+  Desde a versão 12 (03-10-2026) o da Direcção leva «Satisfação e espera»
+  (`bsp_srv_qualidade_direccao`).
   O da Recepção mede a qualidade do atendimento por colaborador
   (`recepcao-qualidade.sql`, `bsp_srv_recepcao_qualidade`: facturação,
   marcações, relatório de turno). Desde a versão 11 sem WhatsApp nem
