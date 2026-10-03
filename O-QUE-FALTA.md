@@ -2318,3 +2318,40 @@ Por fazer (menor):
   rascunhos de Novembro (Clínica e Recepção).
 - Nunca testado: chamada entre dois aparelhos reais; importação de um CSV
   do MetaGest.
+
+## 3-ds. Qualidade: feedback de utentes e incidentes (03-10-2026)
+
+Pedido do Elmar: «Avance tudo possível… Coloque lá o feedback de utentes».
+
+- Servidor (`qualidade.sql`, aplicado):
+  - `feedback_utentes` (avaliação 1–5, elogio, sugestão, reclamação; origem
+    página, WhatsApp, Recepção, Livro de Reclamações, telefone, e-mail,
+    redes). Reclamação com prazo de 15 dias (por confirmar com o Elmar).
+  - `ocorrencias`: quase-erro, incidente sem dano, evento adverso, evento
+    sentinela; etapas Notificada → Em análise → Acção correctiva →
+    Verificação → Fechada (causa, acção, responsável, prazo, verificação).
+    Pode ser anónima (`criado_por` fica vazio).
+  - Lêem: gestão e Direcção Clínica tudo (`bsp_ve_qualidade`); chefe da
+    área o da sua (`bsp_edita_escala`); cada pessoa o que registou.
+  - Avisos (`bsp_qualidade_aviso`): reclamação, nota 1–2 e incidente
+    moderado/grave/evento adverso vão já ao telemóvel da gestão, da Direcção
+    Clínica e do chefe da área; tudo entra nas novidades (`destino
+    qualidade`).
+  - Página pública: `bsp_feedback_publico` (única função aberta a
+    visitantes; 300 por dia, o mesmo texto uma vez por hora).
+  - WhatsApp: `bsp_feedback_whatsapp` (cron `bsp-feedback-whatsapp`, 30 em
+    30 min) lê a primeira resposta com 1–5 até 3 dias depois de uma mensagem
+    da clínica com «De 1 a 5… como correu o atendimento». Até hoje o
+    inquérito não saiu por este número: começa a contar quando sair.
+  - `bsp_qualidade_resumo(dias)`: média, % satisfeitos, reclamações por
+    responder e em atraso, incidentes em aberto e graves (só números).
+- Página `avaliar.html` (QR `assets/qr-avaliar.png`, cartaz A4 no botão
+  «Cartaz com QR»): nota, serviço, comentário, contacto opcional. Sem nome.
+- Ecrã `QualidadeScreen` (menu «Qualidade», `#/qualidade`, em
+  `BSP_ECRAS_SENSIVEIS`, ficha do guia).
+- Testado: no servidor com desfazer (visitante grava e não lê; médica não
+  vê o resto; resposta «4» do WhatsApp entra uma vez; Elmar vê tudo); no
+  navegador com servidor simulado (página e ecrã, PC e telemóvel).
+- Por fazer: imprimir o cartaz e pô-lo na recepção; decidir se o
+  inquérito do WhatsApp passa a sair pelo número da clínica ligado ao
+  servidor.

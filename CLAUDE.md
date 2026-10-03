@@ -368,6 +368,13 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   (`bsp_avaria_0_repetida`), apagar só por `bsp_avaria_apagar` e só a camada
   Direcção (`bsp_e_direccao`/`bspApagaAvarias`; quem reportou cancela). O
   Emmanuel (u22) trata e conclui todas (`avarias-apagar-direccao.sql`).
+- Qualidade (03-10-2026, `qualidade.sql`): `feedback_utentes` e `ocorrencias`,
+  ecrã `QualidadeScreen` (`bspVeQualidade`/`bsp_ve_qualidade` = gestão + u14;
+  chefe da área pela `bsp_edita_escala`). Página pública `avaliar.html` só
+  por `bsp_feedback_publico` (a única função aberta a visitantes). Respostas
+  do inquérito no WhatsApp por `bsp_feedback_whatsapp` (texto «De 1 a 5…
+  como correu o atendimento»: não mudar sem mudar a função). Nomes de
+  utentes nunca.
 - Registos da equipa (01-10-2026, `equipa-registos.sql`): `ausencias`,
   `formacoes`, `avarias`, `pedidos_compra`. Quem decide: `bsp_chefe_de`
   (gestão, superior, chefe da área). Ecrãs: `EquipaScreen` (Contactos,

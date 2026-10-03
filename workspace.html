@@ -2850,6 +2850,14 @@ const NAV_ITEMS = [{
   icon: 'Cog',
   badge: null
 }, {
+  /* Qualidade (03-10-2026, qualidade.sql): feedback de utentes, reclamações
+     e incidentes. Toda a equipa regista; a gestão, a Direcção Clínica e o
+     chefe da área tratam. */
+  id: 'qualidade',
+  label: 'Qualidade',
+  icon: 'Star',
+  badge: null
+}, {
   id: 'admin',
   label: 'Admin',
   icon: 'Shield',
@@ -3241,6 +3249,7 @@ function Topbar({
     actividade: 'A minha actividade',
     directory: 'Equipa',
     avarias: 'Avarias e património',
+    qualidade: 'Qualidade',
     admin: 'Painel de Administração',
     notifications: 'Notificações'
   };
@@ -19688,6 +19697,7 @@ function MobileTopbar({
     notifications: 'Notificações',
     directory: 'Equipa',
     avarias: 'Avarias e património',
+    qualidade: 'Qualidade',
     escalas: 'Escalas',
     transporte: 'Transporte',
     stock: 'Stock'
@@ -19811,7 +19821,7 @@ function MobileNav({
       }
     }, n > 99 ? '99+' : n)), it.label);
   }), React.createElement("button", {
-    "data-on": ['calendar', 'stock', 'avarias', 'meetings', 'drive', 'admin', 'notifications', 'directory', 'relatorios', 'escalas', 'transporte', 'seguimento', 'marcacoes', 'painel', 'actividade', 'documentos'].includes(current),
+    "data-on": ['calendar', 'stock', 'avarias', 'meetings', 'drive', 'admin', 'notifications', 'directory', 'relatorios', 'escalas', 'transporte', 'seguimento', 'marcacoes', 'painel', 'actividade', 'documentos', 'qualidade'].includes(current),
     onClick: onMore
   }, React.createElement(I.MoreH, {
     size: 20
@@ -20007,6 +20017,10 @@ function MobileMore({
     id: 'avarias',
     label: 'Avarias e património',
     icon: 'Cog'
+  }, {
+    id: 'qualidade',
+    label: 'Qualidade',
+    icon: 'Star'
   }, {
     id: 'escalas',
     label: 'Escalas',
@@ -24862,7 +24876,7 @@ function ActividadeAtalho({ currentUser, onAbrir }) {
    cliques. Nao impede o print (no navegador nao ha forma), mas quem o
    tirou fica escrito nele. Na app Android os prints estao bloqueados
    (FLAG_SECURE na MainActivity). */
-const BSP_ECRAS_SENSIVEIS = ['painel', 'painel-clinico', 'actividade', 'seguimento', 'marcacoes'];
+const BSP_ECRAS_SENSIVEIS = ['painel', 'painel-clinico', 'actividade', 'seguimento', 'marcacoes', 'qualidade'];
 function MarcaDagua({ forte }) {
   const [agora, setAgora] = React.useState(() => new Date());
   React.useEffect(() => {
@@ -25099,9 +25113,19 @@ const BSP_GUIA_FICHAS = [
       ['Receba o mesmo resumo por e-mail', 'todas as manhãs às 07h15, se chefia a área.']
     ],
     quem: 'A Direcção, a Coordenação e a Direcção Clínica vêem tudo; os chefes de área vêem só a sua. Os médicos vêem a sua produção em «A minha actividade».',
-    dica: 'Nunca mostra valores em Kz nem nomes de utentes.' }
+    dica: 'Nunca mostra valores em Kz nem nomes de utentes.' },
+  { icone: 'Star', nome: 'Qualidade',
+    serve: 'A voz dos utentes (avaliações, elogios, sugestões e reclamações) e os incidentes do dia-a-dia, até estarem resolvidos.',
+    faz: [
+      ['Registe o que o utente disse:', 'a nota de 1 a 5, a área e o comentário. O Livro de Reclamações também entra aqui, com o número da folha.'],
+      ['Notifique um incidente:', 'um quase-erro, um incidente ou um evento adverso, com o que se fez logo. Pode ser sem o seu nome.'],
+      ['Quem trata regista', 'a causa, a acção correctiva, o responsável, o prazo e a verificação, até fechar.'],
+      ['Veja a satisfação:', 'a média dos últimos 30 dias, as reclamações por responder e os incidentes em aberto.']
+    ],
+    quem: 'Toda a equipa regista. A Direcção e a Direcção Clínica vêem tudo; o chefe de cada área vê e trata o da sua; cada pessoa vê o que registou.',
+    dica: 'Nunca escreva nomes de utentes. Uma reclamação tem 15 dias para resposta; notificar um incidente não é acusar ninguém.' }
 ];
-const BSP_GUIA_IDS = ['dashboard', 'chat', 'feed', 'drive', 'calendar', 'tasks', 'escalas', 'transporte', 'seguimento', 'marcacoes', 'painel', 'relatorios', 'actividade', 'documentos', 'admin', 'stock', 'directory', 'avarias', 'painel-clinico'];
+const BSP_GUIA_IDS = ['dashboard', 'chat', 'feed', 'drive', 'calendar', 'tasks', 'escalas', 'transporte', 'seguimento', 'marcacoes', 'painel', 'relatorios', 'actividade', 'documentos', 'admin', 'stock', 'directory', 'avarias', 'painel-clinico', 'qualidade'];
 const BSP_GUIA = {};
 BSP_GUIA_IDS.forEach((id, i) => { BSP_GUIA[id] = BSP_GUIA_FICHAS[i]; });
 function bspGuiaVistos(uid) {
@@ -25793,6 +25817,268 @@ function EquipaScreen() {
       aba === 'contactos' && React.createElement(DirectoryScreen, null),
       aba === 'ausencias' && React.createElement(AusenciasPainel, null),
       aba === 'formacoes' && React.createElement(FormacoesPainel, null)));
+}
+
+/* ───────────── Qualidade ───────────── */
+/* Qualidade (03-10-2026, qualidade.sql, Elmar: «Coloque lá o feedback de
+   utentes»). Dois separadores:
+   - Utentes: avaliações de 1 a 5, elogios, reclamações e sugestões. Entram
+     pela página pública barispol.com/avaliar.html (QR na recepção), pelas
+     respostas ao inquérito no WhatsApp e pelo registo da Recepção (Livro de
+     Reclamações incluído). Reclamação com prazo de 15 dias e aviso ao chefe
+     da área (RI-4.7).
+   - Incidentes: quase-erros, incidentes e eventos adversos (modelo JCI/OMS),
+     com análise da causa, acção correctiva e verificação. Pode ser anónimo.
+   Lêem tudo a gestão e a Direcção Clínica (bspVeQualidade / bsp_ve_qualidade);
+   o chefe de cada área o da sua (bspEditaEscala / bsp_edita_escala); cada
+   pessoa o que registou. Nomes de utentes nunca. */
+const BSP_FEEDBACK_TIPOS = [['avaliacao', 'Avaliação'], ['elogio', 'Elogio'], ['reclamacao', 'Reclamação'], ['sugestao', 'Sugestão']];
+const BSP_FEEDBACK_ORIGENS = [['recepcao', 'Recepção (presencial)'], ['livro', 'Livro de Reclamações'], ['telefone', 'Telefone'], ['email', 'E-mail'], ['redes', 'Redes sociais'], ['pagina', 'Página de avaliação'], ['whatsapp', 'WhatsApp']];
+const BSP_FEEDBACK_ESTADOS = ['Nova', 'Em tratamento', 'Respondida', 'Fechada'];
+const BSP_OCORRENCIA_TIPOS = ['Quase-erro', 'Incidente sem dano', 'Evento adverso', 'Evento sentinela'];
+const BSP_OCORRENCIA_CATEGORIAS = ['Identificação do utente', 'Medicação', 'Quedas', 'Infecção', 'Laboratório e amostras', 'Imagiologia', 'Equipamento', 'Comunicação', 'Atraso no atendimento', 'Segurança e violência', 'Outro'];
+const BSP_GRAVIDADES = ['Sem dano', 'Leve', 'Moderado', 'Grave', 'Morte'];
+const BSP_OCORRENCIA_ESTADOS = ['Notificada', 'Em análise', 'Acção correctiva', 'Verificação', 'Fechada'];
+const BSP_AVALIAR_URL = 'https://barispol.com/avaliar.html';
+function bspVeQualidade(u) {
+  if (!u || bspESocio(u)) return false;
+  const c = bspCamada(u);
+  return !!(c && c.podeGerirUtilizadores) || BSP_DIRECCAO_CLINICA_IDS.indexOf(u.id) !== -1;
+}
+function bspTrataQualidade(u, area) {
+  return bspVeQualidade(u) || (!!area && bspEditaEscala(u, area));
+}
+const bspNomeTipoFeedback = t => (BSP_FEEDBACK_TIPOS.find(x => x[0] === t) || [t, t])[1];
+const bspNomeOrigem = o => (BSP_FEEDBACK_ORIGENS.find(x => x[0] === o) || [o, o])[1];
+const bspEstrelas = n => n ? '★★★★★'.slice(0, n) + '☆☆☆☆☆'.slice(0, 5 - n) : '';
+function bspCorQualidade(estado) {
+  return estado === 'Fechada' || estado === 'Respondida' ? 'var(--sucesso)' : estado === 'Nova' || estado === 'Notificada' ? 'var(--perigo)' : 'var(--accent-d)';
+}
+/* Cartaz com o QR da página de avaliação (assets/qr-avaliar.png), para a
+   recepção. Imprime-se só por bspImprimirHtml. */
+function bspImprimirCartazAvaliar() {
+  const base = location.href.replace(/[^/]*$/, '');
+  bspImprimirHtml('<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><title>Avalie o atendimento</title><style>@page{size:A4;margin:14mm}body{margin:0}</style></head><body><div style="font-family:Dax,\'Titillium Web\',Arial,sans-serif;text-align:center;padding:40px 30px;color:#292F58">' +
+    '<img src="' + base + 'assets/logo-barispol.png" style="width:110px;height:110px;object-fit:contain">' +
+    '<h1 style="font-size:34px;margin:18px 0 6px">Como foi o seu atendimento?</h1>' +
+    '<p style="font-size:19px;margin:0 0 26px;color:#4E5366">Aponte a câmara do telemóvel para o código. Leva 30 segundos.</p>' +
+    '<img src="' + base + 'assets/qr-avaliar.png" style="width:330px;height:330px">' +
+    '<p style="font-size:17px;margin:20px 0 4px;font-weight:700">barispol.com/avaliar.html</p>' +
+    '<p style="font-size:14px;margin:0;color:#4E5366">A sua resposta chega à Direcção. Pode deixar elogios, sugestões ou reclamações.</p>' +
+    '<p style="font-size:12px;margin:40px 0 0;color:#8A8FA3">Clínica Barispol, Lda. · Centro Médico Barispol</p></div></body></html>');
+}
+function QualidadeScreen() {
+  const toast = useToast();
+  const eu = window.CURRENT_USER_ID;
+  const euU = window.userById(eu);
+  const veTudo = bspVeQualidade(euU);
+  const [aba, setAba] = React.useState('utentes');
+  const fb = useTabela('feedback_utentes', 'criado_em');
+  const oc = useTabela('ocorrencias', 'criado_em');
+  const [resumo, setResumo] = React.useState(null);
+  React.useEffect(() => {
+    if (!veTudo) return;
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    cl.rpc('bsp_qualidade_resumo', { p_dias: 30 }).then(r => { if (vivo && !r.error) setResumo(r.data); });
+    return () => { vivo = false; };
+  }, [veTudo, fb.linhas, oc.linhas]);
+  const hoje = bspDataLocalISO(new Date());
+  const rot = bspTranspRot;
+  const areas = bspEscalaAreas().filter(a => a.chave !== 'administracao');
+  const areaSel = (v, set) => React.createElement("select", { value: v, onChange: e => set(e.target.value), style: bspTranspCampo },
+    React.createElement("option", { value: '' }, '—'), areas.map(a => React.createElement("option", { key: a.chave, value: a.chave }, a.nome)));
+  const sel = (v, set, lista) => React.createElement("select", { value: v, onChange: e => set(e.target.value), style: bspTranspCampo },
+    lista.map(x => Array.isArray(x) ? React.createElement("option", { key: x[0], value: x[0] }, x[1]) : React.createElement("option", { key: x, value: x }, x)));
+  const texto = (v, set, ph, linhas) => React.createElement("textarea", { rows: linhas || 3, value: v, placeholder: ph || '', onChange: e => set(e.target.value), style: Object.assign({}, bspTranspCampo, { height: 'auto', padding: 10, resize: 'vertical' }) });
+  const campo = (v, set, ph, tipo) => React.createElement("input", { type: tipo || 'text', value: v, placeholder: ph || '', onChange: e => set(e.target.value), style: bspTranspCampo });
+  const grelha = filhos => React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10 } }, filhos);
+  const etiqueta = (t, cor) => React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: cor || 'var(--text-2)', whiteSpace: 'nowrap' } }, t);
+  const aviso = React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginTop: 8 } }, 'Sem nomes de utentes (RI-3.3). Descreva o que aconteceu, não quem.');
+  async function gravar(tabela, linha, msg) {
+    const r = await bspGetClient().from(tabela).insert(linha);
+    if (r.error) { toast('Não foi possível gravar: ' + r.error.message); return false; }
+    toast(msg); (tabela === 'ocorrencias' ? oc : fb).recarregar(); return true;
+  }
+  async function mudar(tabela, id, campos) {
+    const r = await bspGetClient().from(tabela).update(campos).eq('id', id).select('id');
+    if (r.error || !r.data || !r.data.length) { toast('Não foi possível guardar' + (r.error ? ': ' + r.error.message : '.')); return false; }
+    toast('Guardado.'); (tabela === 'ocorrencias' ? oc : fb).recarregar(); return true;
+  }
+
+  /* ── Feedback de utentes ── */
+  const vazioF = { tipo: 'avaliacao', origem: 'recepcao', nota: 0, area: '', dia_atendimento: hoje, comentario: '', contacto: '', quer_resposta: false, livro_numero: '' };
+  const [novoF, setNovoF] = React.useState(null);
+  const [edF, setEdF] = React.useState(null);
+  const [filtroF, setFiltroF] = React.useState('abertas');
+  const linhasF = fb.linhas || [];
+  const abertasF = linhasF.filter(f => f.estado !== 'Fechada' && f.estado !== 'Respondida' && (f.tipo === 'reclamacao' || f.quer_resposta || (f.nota && f.nota <= 2)));
+  const listaF = filtroF === 'abertas' ? abertasF : filtroF === 'reclamacoes' ? linhasF.filter(f => f.tipo === 'reclamacao') : linhasF;
+  const notasArea = linhasF.filter(f => f.nota);
+  const mediaArea = notasArea.length ? (notasArea.reduce((s, f) => s + f.nota, 0) / notasArea.length).toFixed(2) : null;
+  const formF = novoF && React.createElement("div", { style: bspRegCaixa },
+    grelha([
+      React.createElement("label", { key: 't' }, rot('Tipo'), sel(novoF.tipo, v => setNovoF(Object.assign({}, novoF, { tipo: v })), BSP_FEEDBACK_TIPOS)),
+      React.createElement("label", { key: 'o' }, rot('Como chegou'), sel(novoF.origem, v => setNovoF(Object.assign({}, novoF, { origem: v })), BSP_FEEDBACK_ORIGENS.filter(x => x[0] !== 'pagina' && x[0] !== 'whatsapp'))),
+      React.createElement("label", { key: 'a' }, rot('Área'), areaSel(novoF.area, v => setNovoF(Object.assign({}, novoF, { area: v })))),
+      React.createElement("label", { key: 'd' }, rot('Dia do atendimento'), campo(novoF.dia_atendimento, v => setNovoF(Object.assign({}, novoF, { dia_atendimento: v })), '', 'date')),
+      novoF.origem === 'livro' && React.createElement("label", { key: 'l' }, rot('N.º da folha do Livro'), campo(novoF.livro_numero, v => setNovoF(Object.assign({}, novoF, { livro_numero: v })))),
+      React.createElement("label", { key: 'c' }, rot('Contacto para resposta (opcional)'), campo(novoF.contacto, v => setNovoF(Object.assign({}, novoF, { contacto: v, quer_resposta: !!v.trim() })), 'Telefone ou e-mail'))
+    ]),
+    React.createElement("div", { style: { marginTop: 12 } }, rot('Nota de 1 a 5 (se o utente deu)'),
+      React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } }, [1, 2, 3, 4, 5].map(n => React.createElement("button", { key: n, onClick: () => setNovoF(Object.assign({}, novoF, { nota: novoF.nota === n ? 0 : n })), style: bspEscChip(novoF.nota === n) }, n + ' ★')))),
+    React.createElement("label", { style: { display: 'block', marginTop: 10 } }, rot('O que o utente disse'), texto(novoF.comentario, v => setNovoF(Object.assign({}, novoF, { comentario: v })))),
+    aviso,
+    React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 } },
+      React.createElement("button", { onClick: () => setNovoF(null), style: bspEscBotao(false) }, 'Cancelar'),
+      React.createElement("button", { onClick: async () => {
+        if (!novoF.nota && !novoF.comentario.trim()) { toast('Escolha a nota ou escreva o que o utente disse.'); return; }
+        const ok = await gravar('feedback_utentes', { tipo: novoF.tipo, origem: novoF.origem, nota: novoF.nota || null, area: novoF.area, dia_atendimento: novoF.dia_atendimento || null, comentario: novoF.comentario.trim(), contacto: novoF.contacto.trim(), quer_resposta: !!novoF.contacto.trim(), livro_numero: novoF.livro_numero.trim() }, novoF.tipo === 'reclamacao' ? 'Reclamação registada. Prazo de resposta: 15 dias.' : 'Registado.');
+        if (ok) setNovoF(null);
+      }, style: bspEscBotao(true) }, 'Registar')));
+  const cartaoF = f => {
+    const trata = bspTrataQualidade(euU, f.area);
+    const atrasada = f.tipo === 'reclamacao' && f.prazo && f.prazo < hoje && f.estado !== 'Respondida' && f.estado !== 'Fechada';
+    const aEditar = edF && edF.id === f.id;
+    return React.createElement("div", { key: f.id, style: Object.assign({}, bspRegCaixa, { borderLeft: '4px solid ' + (f.tipo === 'reclamacao' || (f.nota && f.nota <= 2) ? 'var(--perigo)' : f.tipo === 'elogio' || f.nota >= 4 ? 'var(--sucesso)' : 'var(--border)') }) },
+      React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' } },
+        React.createElement("b", { style: { fontSize: 14.5, color: 'var(--text-1)' } }, bspNomeTipoFeedback(f.tipo)),
+        f.nota ? React.createElement("span", { style: { color: 'var(--accent-d)', letterSpacing: 1 }, title: f.nota + ' em 5' }, bspEstrelas(f.nota)) : null,
+        etiqueta(f.estado, bspCorQualidade(f.estado)),
+        React.createElement("span", { style: { flex: 1 } }),
+        React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, bspNomeOrigem(f.origem) + (f.area ? ' · ' + bspEscalaAreaNome(f.area) : '') + ' · ' + bspDataExacta(new Date(f.criado_em)))),
+      f.comentario && React.createElement("div", { style: { fontSize: 14, color: 'var(--text-1)', marginTop: 6, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } }, f.comentario),
+      React.createElement("div", { style: { fontSize: 12.5, color: atrasada ? 'var(--perigo)' : 'var(--text-3)', marginTop: 6 } },
+        [f.prazo && f.tipo === 'reclamacao' ? 'Prazo: ' + bspDataExacta(new Date(f.prazo + 'T12:00:00')).replace(/,.*$/, '') + (atrasada ? ' (em atraso)' : '') : '',
+         f.livro_numero ? 'Livro, folha ' + f.livro_numero : '',
+         f.dia_atendimento ? 'Atendimento a ' + bspDataExacta(new Date(f.dia_atendimento + 'T12:00:00')).replace(/,.*$/, '') : '',
+         trata && f.contacto ? 'Contacto: ' + f.contacto + (f.quer_resposta ? ' (quer resposta)' : '') : '',
+         f.responsavel ? 'Responsável: ' + bspNomeDe(f.responsavel) : ''].filter(Boolean).join(' · ')),
+      f.resposta && React.createElement("div", { style: { fontSize: 13.5, color: 'var(--text-2)', marginTop: 6, paddingLeft: 10, borderLeft: '2px solid var(--accent)' } }, 'Resposta: ' + f.resposta),
+      trata && !aEditar && React.createElement("div", { style: { display: 'flex', gap: 8, marginTop: 10 } },
+        React.createElement("button", { onClick: () => setEdF({ id: f.id, estado: f.estado, responsavel: f.responsavel || eu, resposta: f.resposta || '' }), style: bspEscBotao(false) }, 'Tratar')),
+      aEditar && React.createElement("div", { style: { marginTop: 10 } },
+        grelha([
+          React.createElement("label", { key: 'e' }, rot('Estado'), sel(edF.estado, v => setEdF(Object.assign({}, edF, { estado: v })), BSP_FEEDBACK_ESTADOS)),
+          React.createElement("label", { key: 'r' }, rot('Responsável'), React.createElement("select", { value: edF.responsavel, onChange: e => setEdF(Object.assign({}, edF, { responsavel: e.target.value })), style: bspTranspCampo }, bspSemOcultos(window.USERS || []).map(u => React.createElement("option", { key: u.id, value: u.id }, u.name))))
+        ]),
+        React.createElement("label", { style: { display: 'block', marginTop: 10 } }, rot('O que se respondeu ou fez'), texto(edF.resposta, v => setEdF(Object.assign({}, edF, { resposta: v })))),
+        React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 } },
+          React.createElement("button", { onClick: () => setEdF(null), style: bspEscBotao(false) }, 'Cancelar'),
+          React.createElement("button", { onClick: async () => { if (await mudar('feedback_utentes', f.id, { estado: edF.estado, responsavel: edF.responsavel, resposta: edF.resposta.trim() })) setEdF(null); }, style: bspEscBotao(true) }, 'Guardar'))));
+  };
+
+  /* ── Incidentes ── */
+  const vazioO = { tipo: 'Incidente sem dano', categoria: 'Outro', gravidade: 'Sem dano', area: (bspAreaChave(euU && euU.dept) || '').replace(/^administracao$/, ''), local: '', dia: hoje, hora: '', descricao: '', accao_imediata: '', anonima: false };
+  const [novoO, setNovoO] = React.useState(null);
+  const [edO, setEdO] = React.useState(null);
+  const [filtroO, setFiltroO] = React.useState('abertas');
+  const linhasO = oc.linhas || [];
+  const listaO = filtroO === 'abertas' ? linhasO.filter(o => o.estado !== 'Fechada') : linhasO;
+  const formO = novoO && React.createElement("div", { style: bspRegCaixa },
+    grelha([
+      React.createElement("label", { key: 't' }, rot('Tipo'), sel(novoO.tipo, v => setNovoO(Object.assign({}, novoO, { tipo: v })), BSP_OCORRENCIA_TIPOS)),
+      React.createElement("label", { key: 'c' }, rot('Categoria'), sel(novoO.categoria, v => setNovoO(Object.assign({}, novoO, { categoria: v })), BSP_OCORRENCIA_CATEGORIAS)),
+      React.createElement("label", { key: 'g' }, rot('Dano ao utente'), sel(novoO.gravidade, v => setNovoO(Object.assign({}, novoO, { gravidade: v })), BSP_GRAVIDADES)),
+      React.createElement("label", { key: 'a' }, rot('Área'), areaSel(novoO.area, v => setNovoO(Object.assign({}, novoO, { area: v })))),
+      React.createElement("label", { key: 'l' }, rot('Onde'), campo(novoO.local, v => setNovoO(Object.assign({}, novoO, { local: v })), 'Ex.: sala de colheitas')),
+      React.createElement("label", { key: 'd' }, rot('Dia'), campo(novoO.dia, v => setNovoO(Object.assign({}, novoO, { dia: v })), '', 'date')),
+      React.createElement("label", { key: 'h' }, rot('Hora'), campo(novoO.hora, v => setNovoO(Object.assign({}, novoO, { hora: v })), '', 'time'))
+    ]),
+    React.createElement("label", { style: { display: 'block', marginTop: 10 } }, rot('O que aconteceu'), texto(novoO.descricao, v => setNovoO(Object.assign({}, novoO, { descricao: v })), 'Factos, por ordem. Sem nomes.', 4)),
+    React.createElement("label", { style: { display: 'block', marginTop: 10 } }, rot('O que se fez logo'), texto(novoO.accao_imediata, v => setNovoO(Object.assign({}, novoO, { accao_imediata: v })), '', 2)),
+    React.createElement("label", { style: { display: 'flex', gap: 8, alignItems: 'center', marginTop: 10, fontSize: 13.5, color: 'var(--text-1)' } },
+      React.createElement("input", { type: 'checkbox', checked: novoO.anonima, onChange: e => setNovoO(Object.assign({}, novoO, { anonima: e.target.checked })) }),
+      'Notificar sem o meu nome (depois não a verei na minha lista)'),
+    aviso,
+    React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginTop: 4 } }, 'Notificar não é acusar: serve para corrigir o processo e evitar que se repita.'),
+    React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 } },
+      React.createElement("button", { onClick: () => setNovoO(null), style: bspEscBotao(false) }, 'Cancelar'),
+      React.createElement("button", { onClick: async () => {
+        if (!novoO.descricao.trim()) { toast('Descreva o que aconteceu.'); return; }
+        const ok = await gravar('ocorrencias', Object.assign({}, novoO, { descricao: novoO.descricao.trim(), accao_imediata: novoO.accao_imediata.trim(), local: novoO.local.trim() }), 'Notificado. A Direcção e o chefe da área recebem o aviso.');
+        if (ok) setNovoO(null);
+      }, style: bspEscBotao(true) }, 'Notificar')));
+  const cartaoO = o => {
+    const trata = bspTrataQualidade(euU, o.area);
+    const aEditar = edO && edO.id === o.id;
+    const grave = o.gravidade === 'Grave' || o.gravidade === 'Morte' || o.tipo === 'Evento sentinela';
+    const atrasada = o.prazo && o.prazo < hoje && o.estado !== 'Fechada';
+    return React.createElement("div", { key: o.id, style: Object.assign({}, bspRegCaixa, { borderLeft: '4px solid ' + (grave ? 'var(--perigo)' : o.estado === 'Fechada' ? 'var(--sucesso)' : 'var(--accent)') }) },
+      React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' } },
+        React.createElement("b", { style: { fontSize: 14.5, color: 'var(--text-1)' } }, o.tipo + ' · ' + o.categoria),
+        etiqueta(o.gravidade, grave ? 'var(--perigo)' : 'var(--text-2)'),
+        etiqueta(o.estado, bspCorQualidade(o.estado)),
+        React.createElement("span", { style: { flex: 1 } }),
+        React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, (o.area ? bspEscalaAreaNome(o.area) + ' · ' : '') + bspDataExacta(new Date(o.dia + 'T12:00:00')).replace(/,.*$/, '') + (o.hora ? ', ' + o.hora : ''))),
+      React.createElement("div", { style: { fontSize: 14, color: 'var(--text-1)', marginTop: 6, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } }, o.descricao),
+      o.accao_imediata && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 4 } }, 'Feito logo: ' + o.accao_imediata),
+      React.createElement("div", { style: { fontSize: 12.5, color: atrasada ? 'var(--perigo)' : 'var(--text-3)', marginTop: 6 } },
+        [o.anonima ? 'Notificação anónima' : 'Notificado por ' + bspNomeDe(o.criado_por), o.local, o.responsavel ? 'Responsável: ' + bspNomeDe(o.responsavel) : '',
+         o.prazo ? 'Prazo: ' + bspDataExacta(new Date(o.prazo + 'T12:00:00')).replace(/,.*$/, '') + (atrasada ? ' (em atraso)' : '') : ''].filter(Boolean).join(' · ')),
+      (o.analise || o.accao || o.verificacao) && React.createElement("div", { style: { fontSize: 13.5, color: 'var(--text-2)', marginTop: 6, paddingLeft: 10, borderLeft: '2px solid var(--accent)', display: 'flex', flexDirection: 'column', gap: 3 } },
+        o.analise && React.createElement("span", null, 'Causa: ' + o.analise),
+        o.accao && React.createElement("span", null, 'Acção correctiva: ' + o.accao),
+        o.verificacao && React.createElement("span", null, 'Verificação: ' + o.verificacao)),
+      trata && !aEditar && React.createElement("div", { style: { display: 'flex', gap: 8, marginTop: 10 } },
+        React.createElement("button", { onClick: () => setEdO({ id: o.id, estado: o.estado, analise: o.analise || '', accao: o.accao || '', responsavel: o.responsavel || eu, prazo: o.prazo || '', verificacao: o.verificacao || '' }), style: bspEscBotao(false) }, 'Tratar')),
+      aEditar && React.createElement("div", { style: { marginTop: 10 } },
+        grelha([
+          React.createElement("label", { key: 'e' }, rot('Etapa'), sel(edO.estado, v => setEdO(Object.assign({}, edO, { estado: v })), BSP_OCORRENCIA_ESTADOS)),
+          React.createElement("label", { key: 'r' }, rot('Responsável'), React.createElement("select", { value: edO.responsavel, onChange: e => setEdO(Object.assign({}, edO, { responsavel: e.target.value })), style: bspTranspCampo }, bspSemOcultos(window.USERS || []).map(u => React.createElement("option", { key: u.id, value: u.id }, u.name)))),
+          React.createElement("label", { key: 'p' }, rot('Prazo da acção'), campo(edO.prazo, v => setEdO(Object.assign({}, edO, { prazo: v })), '', 'date'))
+        ]),
+        React.createElement("label", { style: { display: 'block', marginTop: 10 } }, rot('Causa (porque aconteceu)'), texto(edO.analise, v => setEdO(Object.assign({}, edO, { analise: v })), 'Ex.: os 5 porquês', 2)),
+        React.createElement("label", { style: { display: 'block', marginTop: 10 } }, rot('Acção correctiva (o que muda para não se repetir)'), texto(edO.accao, v => setEdO(Object.assign({}, edO, { accao: v })), '', 2)),
+        React.createElement("label", { style: { display: 'block', marginTop: 10 } }, rot('Verificação (a acção resultou?)'), texto(edO.verificacao, v => setEdO(Object.assign({}, edO, { verificacao: v })), '', 2)),
+        React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 } },
+          React.createElement("button", { onClick: () => setEdO(null), style: bspEscBotao(false) }, 'Cancelar'),
+          React.createElement("button", { onClick: async () => {
+            if (edO.estado === 'Fechada' && (!edO.analise.trim() || !edO.accao.trim())) { toast('Para fechar, escreva a causa e a acção correctiva.'); return; }
+            if (await mudar('ocorrencias', o.id, { estado: edO.estado, analise: edO.analise.trim(), accao: edO.accao.trim(), responsavel: edO.responsavel, prazo: edO.prazo || null, verificacao: edO.verificacao.trim() })) setEdO(null);
+          }, style: bspEscBotao(true) }, 'Guardar'))));
+  };
+
+  const tile = (rotulo, valor, sub, cor) => React.createElement("div", { style: Object.assign({}, bspRegCaixa, { flex: '1 1 150px' }) },
+    React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-3)' } }, rotulo),
+    React.createElement("div", { style: { fontSize: 24, fontWeight: 700, color: cor || 'var(--text-1)', fontVariantNumeric: 'tabular-nums' } }, valor),
+    sub && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, sub));
+  const pct = (a, b) => b ? Math.round(100 * a / b) + '%' : '—';
+  const painel = veTudo && resumo ? React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } },
+    tile('Satisfação · 30 dias', resumo.media ? String(resumo.media).replace('.', ',') + ' / 5' : '—', resumo.avaliacoes + (resumo.avaliacoes === 1 ? ' avaliação' : ' avaliações')),
+    tile('Satisfeitos (4 e 5)', pct(resumo.satisfeitos, resumo.avaliacoes), resumo.satisfeitos + ' de ' + resumo.avaliacoes, 'var(--sucesso)'),
+    tile('Reclamações por responder', resumo.reclamacoes_abertas, resumo.reclamacoes_atrasadas ? resumo.reclamacoes_atrasadas + ' em atraso' : 'nenhuma em atraso', resumo.reclamacoes_atrasadas ? 'var(--perigo)' : null),
+    tile('Incidentes em aberto', resumo.ocorrencias_abertas, resumo.ocorrencias_graves + ' graves em 30 dias', resumo.ocorrencias_graves ? 'var(--perigo)' : null))
+    : (!veTudo && mediaArea ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)' } }, 'Satisfação no que vê: ' + mediaArea.replace('.', ',') + ' / 5 em ' + notasArea.length + ' avaliações.') : null);
+
+  const corpo = aba === 'utentes'
+    ? React.createElement(React.Fragment, null,
+        React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } },
+          React.createElement("button", { onClick: () => setFiltroF('abertas'), style: bspEscChip(filtroF === 'abertas') }, 'Por tratar ' + abertasF.length),
+          React.createElement("button", { onClick: () => setFiltroF('reclamacoes'), style: bspEscChip(filtroF === 'reclamacoes') }, 'Reclamações'),
+          React.createElement("button", { onClick: () => setFiltroF('todas'), style: bspEscChip(filtroF === 'todas') }, 'Todas'),
+          React.createElement("span", { style: { flex: 1 } }),
+          veTudo && React.createElement("button", { onClick: bspImprimirCartazAvaliar, style: bspEscBotao(false) }, 'Cartaz com QR'),
+          React.createElement("button", { onClick: () => setNovoF(novoF ? null : vazioF), style: bspEscBotao(true) }, novoF ? 'Fechar' : 'Registar feedback')),
+        veTudo && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Os utentes avaliam em ', React.createElement("a", { href: BSP_AVALIAR_URL, target: '_blank', rel: 'noopener', style: { color: 'var(--accent-d)' } }, 'barispol.com/avaliar.html'), ' (QR na recepção). As respostas com nota ao inquérito no WhatsApp entram sozinhas.'),
+        formF,
+        fb.erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, fb.erro) : null,
+        !listaF.length ? React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, fb.linhas ? (filtroF === 'abertas' ? 'Nada por tratar.' : 'Sem registos.') : 'A carregar…') : listaF.map(cartaoF))
+    : React.createElement(React.Fragment, null,
+        React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } },
+          React.createElement("button", { onClick: () => setFiltroO('abertas'), style: bspEscChip(filtroO === 'abertas') }, 'Em aberto ' + linhasO.filter(o => o.estado !== 'Fechada').length),
+          React.createElement("button", { onClick: () => setFiltroO('todas'), style: bspEscChip(filtroO === 'todas') }, 'Todos'),
+          React.createElement("span", { style: { flex: 1 } }),
+          React.createElement("button", { onClick: () => setNovoO(novoO ? null : vazioO), style: bspEscBotao(true) }, novoO ? 'Fechar' : 'Notificar incidente')),
+        formO,
+        oc.erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, oc.erro) : null,
+        !listaO.length ? React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, oc.linhas ? 'Nada em aberto.' : 'A carregar…') : listaO.map(cartaoO));
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'auto', paddingBottom: 12 } },
+    React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+      React.createElement("button", { onClick: () => setAba('utentes'), style: bspEscChip(aba === 'utentes') }, 'Feedback de utentes'),
+      React.createElement("button", { onClick: () => setAba('incidentes'), style: bspEscChip(aba === 'incidentes') }, 'Incidentes e eventos adversos')),
+    painel, corpo);
 }
 
 /* ───────────── Avarias ───────────── */
@@ -27257,7 +27543,7 @@ function App() {
          confirmacao de recepcao (GuiaRecepcaoCartao). */
       window.__bspConfirmarGuia = true;
       setPage('dashboard');
-    } else if (['feed', 'tarefas', 'agenda', 'drive', 'seguimento', 'marcacoes', 'escalas', 'transporte', 'painel', 'chat', 'relatorios', 'documentos', 'actividade', 'notificacoes'].indexOf(onde) !== -1) {
+    } else if (['feed', 'tarefas', 'agenda', 'drive', 'seguimento', 'marcacoes', 'escalas', 'transporte', 'painel', 'chat', 'relatorios', 'documentos', 'actividade', 'notificacoes', 'qualidade', 'avarias'].indexOf(onde) !== -1) {
       setPage({ tarefas: 'tasks', agenda: 'calendar', notificacoes: 'notifications' }[onde] || onde);
     } else {
       return;
@@ -27369,7 +27655,7 @@ function App() {
   }), pg === 'meetings' && React.createElement(MeetingsScreen, null), pg === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), (pg === 'seguimento' || pg === 'marcacoes') && (bspVeCrm(currentUser) || bspVeMarcacoes(currentUser) ? React.createElement(CrmScreen, { key: pg, inicial: pg === 'marcacoes' ? 'marcacoes' : null }) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'stock' && (bspVeStock(currentUser) ? React.createElement(StockScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'painel-clinico' && (bspVePainelClinico(currentUser) ? React.createElement(PainelClinicoScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(AvisoVersaoNova, null), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(PedidoNotificacoes, { currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(EquipaScreen, null), pg === 'avarias' && (!bspESocio(currentUser) ? React.createElement(AvariasScreen, null) : null), pg === 'admin' && React.createElement(AdminScreen, {
+  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), (pg === 'seguimento' || pg === 'marcacoes') && (bspVeCrm(currentUser) || bspVeMarcacoes(currentUser) ? React.createElement(CrmScreen, { key: pg, inicial: pg === 'marcacoes' ? 'marcacoes' : null }) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'stock' && (bspVeStock(currentUser) ? React.createElement(StockScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'painel-clinico' && (bspVePainelClinico(currentUser) ? React.createElement(PainelClinicoScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(AvisoVersaoNova, null), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(PedidoNotificacoes, { currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(EquipaScreen, null), pg === 'avarias' && (!bspESocio(currentUser) ? React.createElement(AvariasScreen, null) : null), pg === 'qualidade' && (!bspESocio(currentUser) ? React.createElement(QualidadeScreen, null) : null), pg === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
   }), pg === 'notifications' && React.createElement(NotificationsScreen, {
     onAbrir: abrirNotificacao
