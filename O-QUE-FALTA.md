@@ -2861,3 +2861,36 @@ para marcar.»
 - Testado no navegador: o envio, a confirmação, a mensagem de falha, o
   painel e a marcação preenchida. No servidor: nome curto e telefone
   inválido recusados, e o mesmo número não se repete.
+
+## 3-er. Salários só para o Elmar e a Arlete; sem e-mail das 05h00 (03-10-2026)
+
+Elmar: «Anule o e-mail de actualização todas as manhãs às 5h. Na avaliação
+retire imediatamente valores, deixa apenas pontuação. Salários são
+particulares, só eu e a Arlete vimos. Cada funcionário só vê as suas
+coisas! Os superiores vêem da sua equipa.»
+
+- `salarios-privados.sql` (aplicado):
+  - O cron `bsp-novidades` foi apagado e o e-mail das 05h00 deixa de sair.
+    As novidades continuam no sino.
+  - `bsp_ve_salarios()` dá acesso só a u1 e u2.
+  - Na produtividade, as colunas `subsidio` e `total` não se lêem pela
+    tabela; só pela `bsp_produtividade_valores`, e só para u1 e u2.
+  - A ficha (subsídio e objectivos) e o «Pago» ficam só com u1 e u2.
+  - O sócio deixa de ver a produtividade.
+  - O pagamento dos médicos fica só com u1 e u2.
+- Ecrã:
+  - A Produtividade mostra só notas e percentagens a quem não é u1 ou u2.
+    Isto vale para os cartões, os totais, a impressão, o CSV e «A minha
+    produtividade».
+  - O pagamento dos médicos passou do Painel para Equipa → «Pagamento dos
+    médicos», só para u1 e u2.
+- Testado: a chefe de Enfermagem vê só a sua área, sem Kz. A leitura da
+  coluna `total` dá «permission denied», e os valores e o pagamento são
+  recusados. O Elmar vê tudo.
+- Regra «cada um vê o seu; o superior vê a sua equipa»: as tabelas de
+  pessoas (ausências, formações, avaliação, histórico, produtividade,
+  tarefas privadas, ficheiros pessoais) já seguiam a regra. A
+  produtividade estava aberta também ao sócio e mostrava valores aos chefes
+  e ao próprio, e isso ficou corrigido.
+- Por decidir: a conta de teste «Beb» está na camada Direcção e por isso vê
+  o mesmo que a gestão (excepto os salários). Tirá-la da Direcção?

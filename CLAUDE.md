@@ -31,6 +31,16 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
 9. Sempre que se mexe no código, actualizar `O-QUE-FALTA.md` na mesma
    alteração.
 
+## Quem vê o quê (03-10-2026, Elmar: «cada funcionário só vê as suas coisas; os superiores vêem da sua equipa»)
+
+- Dados de pessoas (ausências, formações, avaliação, produtividade, tarefas
+  privadas, ficheiros pessoais): o próprio, o superior (`superior` na
+  equipa), o chefe da área (`bsp_chefe_de` / `bsp_edita_escala`) e a gestão
+  (Director Geral e RH). Nunca «todos os autenticados».
+- Salários e valores pagos: só o Elmar (u1) e a Arlete (u2), `bsp_ve_salarios`.
+- Qualquer tabela nova com dados de uma pessoa segue esta regra no servidor
+  (RLS) e no ecrã.
+
 ## Regulamento interno (02-10-2026)
 
 - O repositório é público: o regulamento e as notas internas nunca entram
@@ -337,9 +347,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
 - Novidades do sistema (27-09-2026, `novidades.sql`): cada alteração que
   muda o trabalho de alguém leva um `insert into public.novidades (titulo,
   texto, grupos, destino)` com os grupos afectados (`todos`, `gestao`,
-  `direccao-clinica`, uma área de `bsp_area_chave` ou um id). Sai por
-  e-mail às 05h00 (`bsp-novidades`, tipo `novidades` da `resumo-matinal`)
-  só quando há, e aparece no sino (tipo `sistema`).
+  `direccao-clinica`, uma área de `bsp_area_chave` ou um id). Aparece no
+  sino (tipo `sistema`). O e-mail das 05h00 foi desligado a 03-10-2026 (Elmar:
+  «Anule o e-mail de actualização todas as manhãs às 5h»; cron `bsp-novidades`
+  apagado): não voltar a agendá-lo.
   No sino (03-10-2026, `novidades-sino.sql`): só por `bsp_novidades_por_ver` /
   `bsp_novidades_vistas` (marcador por pessoa no servidor), logo que é criada;
   nunca voltar a ler a tabela pela ordem antiga nem guardar o «já vi» só no aparelho.
@@ -434,15 +445,20 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   servidor). Escrita só por `bsp_produtividade_gravar` / `_estado` / `_pessoa`.
   Ao aprovar, o mês entra em `desempenho_historico` (fonte `apuramento`), que a
   avaliação anual lê. Equipa → `ProdutividadePainel`. Valores nunca no repositório.
-- Pagamento dos médicos (03-10-2026, `pagamento-medicos.sql`): Painel →
-  «Pagamento dos médicos» (`PagamentoMedicosPainel`; o Painel antigo é
-  `PainelFacturacao`). Comissões das facturas do MetaGest pelo
+  Salários (03-10-2026, `salarios-privados.sql`, Elmar: «Salários são
+  particulares, só eu e a Arlete vimos»): qualquer valor pago (subsídio, total,
+  pagamento dos médicos) só para `bsp_ve_salarios()` / `bspVeSalarios` = u1 e u2,
+  nunca pela camada. As colunas com Kz não se lêem pela tabela (privilégio por
+  coluna); só `bsp_produtividade_valores`. Os outros vêem notas e percentagens.
+- Pagamento dos médicos (03-10-2026, `pagamento-medicos.sql`): Equipa →
+  «Pagamento dos médicos» (`PagamentoMedicosPainel`), só u1 e u2
+  (`bsp_pagamento_acesso` = `bsp_ve_salarios`). Comissões das facturas do MetaGest pelo
   `practitioner_name` (= chave do Query Report) e pelas regras de Julho de 2026
   (`bsp_pagamento_linhas` classifica; cardiologia pelo nome do item);
   permanências e consultas da ficha lançadas à mão (`pagamento_permanencias`,
   `pagamento_ajustes`; a ficha prevalece); `bsp_pagamento_calcular`,
   `bsp_pagamento_fechar` (Fechado → Pago, guarda o mapa). Cadastro com NIF e
-  IBAN só no servidor (`prestadores`). Só `bsp_ve_painel`; sócios só lêem.
+  IBAN só no servidor (`prestadores`).
   Farmácia e indicação: base à mão (o MetaGest não as diz). Conferido com
   Julho de 2026: laboratório e enfermagem iguais ao cêntimo.
 - Integração (03-10-2026, `integracao.sql`, RI-2.2): modelo de passos só no
