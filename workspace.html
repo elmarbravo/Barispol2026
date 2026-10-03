@@ -4054,7 +4054,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista'];
+const BSP_RPC_LEITURA = ['bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -25290,7 +25290,8 @@ const BSP_GUIA_FICHAS = [
       ['Registe o que o utente disse:', 'a nota de 1 a 5, a área e o comentário. O Livro de Reclamações também entra aqui, com o número da folha.'],
       ['Notifique um incidente:', 'um quase-erro, um incidente ou um evento adverso, com o que se fez logo. Pode ser sem o seu nome.'],
       ['Quem trata regista', 'a causa, a acção correctiva, o responsável, o prazo e a verificação, até fechar.'],
-      ['Veja a satisfação:', 'a média dos últimos 30 dias, as reclamações por responder e os incidentes em aberto.']
+      ['Veja a satisfação:', 'a média dos últimos 30 dias, as reclamações por responder e os incidentes em aberto.'],
+      ['Veja o tempo de espera', '(Direcção e Direcção Clínica): tempo na clínica e espera pelo médico, medidos pelo MetaGest, por dia, hora e médico.']
     ],
     quem: 'Toda a equipa regista. A Direcção e a Direcção Clínica vêem tudo; o chefe de cada área vê e trata o da sua; cada pessoa vê o que registou.',
     dica: 'Nunca escreva nomes de utentes. Uma reclamação tem 15 dias para resposta; notificar um incidente não é acusar ninguém.' }
@@ -26239,6 +26240,87 @@ function bspImprimirCartazAvaliar() {
     '<p style="font-size:4mm;color:#4E5366">A sua resposta chega à Direcção. Pode deixar elogios, sugestões ou reclamações.</p>' +
     '<p style="font-size:3.2mm;margin-top:10mm;color:#8A8FA3">Clínica Barispol, Lda. · Centro Médico Barispol</p></div></body></html>', { pdf: 'assets/cartaz-avaliar.pdf' });
 }
+/* Tempo de espera (03-10-2026, qualidade-espera.sql). Medido pelo MetaGest:
+   da triagem à consulta (quando o médico abre o registo) e da triagem à
+   última factura (tempo na clínica). Ao lado, o que a Recepção escreve no
+   relatório de turno. Sem nomes de utentes. */
+const BSP_DIAS_SEMANA_CURTOS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+function bspMinutos(m) {
+  if (m == null || isNaN(m)) return '—';
+  m = Math.round(Number(m));
+  return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0');
+}
+function QualidadeEspera() {
+  const hoje = bspDataLocalISO(new Date());
+  const periodos = [
+    ['7', 'Últimos 7 dias', bspSomarDias(hoje, -6), hoje],
+    ['30', 'Últimos 30 dias', bspSomarDias(hoje, -29), hoje],
+    ['mes', 'Este mês', hoje.slice(0, 8) + '01', hoje],
+    ['90', 'Últimos 90 dias', bspSomarDias(hoje, -89), hoje],
+    ['datas', 'Escolher datas']
+  ];
+  const [periodo, setPeriodo] = React.useState('30');
+  const [livre, setLivre] = React.useState({ de: bspSomarDias(hoje, -29), ate: hoje });
+  const p = periodo === 'datas' ? ['datas', bspPeriodoRotulo(livre.de, livre.ate), livre.de, livre.ate] : periodos.find(x => x[0] === periodo);
+  const [d, setD] = React.useState(null);
+  const [erro, setErro] = React.useState('');
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    setD(null); setErro('');
+    cl.rpc('bsp_qualidade_espera', { p_de: p[2], p_ate: p[3] }).then(r => {
+      if (!vivo) return;
+      if (r.error) setErro(String(r.error.message || r.error)); else setD(r.data || {});
+    });
+    return () => { vivo = false; };
+  }, [p[2], p[3]]);
+  const pc = (a, b) => b ? Math.round(100 * a / b) + '%' : '—';
+  const tendencia = (agora, antes) => agora == null || antes == null ? '' : agora > antes ? ' · subiu de ' + bspMinutos(antes) : agora < antes ? ' · desceu de ' + bspMinutos(antes) : ' · igual ao período anterior';
+  const tile = (rot, val, sub, cor) => React.createElement(Card, { pad: 16, style: { flex: '1 1 170px' } },
+    React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-3)' } }, rot),
+    React.createElement("div", { style: { fontSize: 24, fontWeight: 700, color: cor || 'var(--text-1)', marginTop: 2, fontVariantNumeric: 'tabular-nums' } }, val),
+    sub && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2 } }, sub));
+  const tit = t => React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } }, t);
+  let corpo;
+  if (erro) corpo = React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, 'Não foi possível carregar. ' + erro);
+  else if (!d) corpo = React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, 'A carregar…');
+  else {
+    const e = d.estadia || {}, c = d.consulta || {}, rc = d.recepcao || {};
+    const dias = (d.por_dia || []).map(x => ({ rotulo: bspPeriodoRotulo(x.dia, x.dia), curto: x.dia.slice(8, 10), valor: Number(x.estadia || 0), extra: x.n + ' utentes · espera pelo médico ' + bspMinutos(x.consulta) }));
+    const horas = (d.por_hora || []).map(x => ({ rotulo: 'Chegada às ' + x.hora + 'h', curto: x.hora + 'h', valor: Number(x.estadia || 0), extra: x.n + ' utentes' }));
+    const semana = (d.por_semana || []).map(x => ({ rotulo: BSP_DIAS_SEMANA_CURTOS[x.dow], curto: BSP_DIAS_SEMANA_CURTOS[x.dow], valor: Number(x.estadia || 0), extra: x.n + ' utentes' }));
+    corpo = React.createElement(React.Fragment, null,
+      React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } },
+        tile('Tempo na clínica (mediana)', bspMinutos(e.mediana), 'da triagem à factura · ' + (e.n || 0) + ' utentes' + tendencia(e.mediana, d.estadia_antes), e.mediana > 120 ? 'var(--perigo)' : null),
+        tile('Mais de 2 horas', (e.mais_2h || 0) + ' de ' + (e.n || 0), pc(e.mais_2h || 0, e.n) + ' · mais de 3 h: ' + (e.mais_3h || 0), e.n && e.mais_2h / e.n >= 0.2 ? 'var(--perigo)' : null),
+        tile('Espera pelo médico (mediana)', bspMinutos(c.mediana), 'da triagem à consulta · ' + (c.n || 0) + ' consultas registadas' + tendencia(c.mediana, d.consulta_antes), c.mediana > 30 ? 'var(--perigo)' : null),
+        tile('Esperaram mais de 30 min pelo médico', (c.mais_30 || 0) + ' de ' + (c.n || 0), pc(c.mais_30 || 0, c.n) + ' · mais de 1 h: ' + (c.mais_60 || 0), c.n && c.mais_30 / c.n >= 0.2 ? 'var(--perigo)' : null)),
+      React.createElement(Card, { pad: 16 }, tit('Tempo na clínica por dia (mediana, minutos) · ' + p[1]),
+        dias.length ? React.createElement(PainelColunas, { dados: dias, formatar: v => bspMinutos(v), cor: '--serie-1', altura: 200 }) : React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Sem dados neste período.')),
+      React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: 14 } },
+        React.createElement(Card, { pad: 16 }, tit('Pela hora de chegada'),
+          horas.length ? React.createElement(PainelColunas, { dados: horas, formatar: v => bspMinutos(v), cor: '--serie-2', altura: 180 }) : React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Sem dados.')),
+        React.createElement(Card, { pad: 16 }, tit('Pelo dia da semana'),
+          semana.length ? React.createElement(PainelColunas, { dados: semana, formatar: v => bspMinutos(v), cor: '--serie-3', altura: 180 }) : React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Sem dados.'))),
+      (d.medicos || []).length > 0 && React.createElement(Card, { pad: 16 }, tit('Espera pelo médico, por médico (mediana)'),
+        (d.medicos || []).map(m => React.createElement("div", { key: m.medico, style: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto auto', gap: 14, padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 13.5, color: 'var(--text-1)' } },
+          React.createElement("span", { style: { minWidth: 0 } }, m.medico),
+          React.createElement("span", { style: { color: 'var(--text-2)', fontVariantNumeric: 'tabular-nums' } }, m.n + ' consultas · ' + m.mais_60 + ' acima de 1 h'),
+          React.createElement("b", { style: { fontVariantNumeric: 'tabular-nums', color: m.mediana > 60 ? 'var(--perigo)' : 'var(--text-1)' } }, bspMinutos(m.mediana)))),
+        React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)', marginTop: 8 } }, 'Só médicos com 3 ou mais consultas registadas no MetaGest no período.')),
+      React.createElement(Card, { pad: 16 }, tit('Registado pela Recepção no relatório de turno'),
+        rc.relatorios ? React.createElement("div", { style: { fontSize: 13.5, color: 'var(--text-1)' } }, 'Espera média na sala: ', React.createElement("b", null, bspMinutos(rc.media)), ' · utentes acima de 30 min: ', React.createElement("b", null, String(rc.mais_30 || 0)), ' (' + rc.relatorios + (rc.relatorios === 1 ? ' relatório' : ' relatórios') + ').')
+          : React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Ainda sem relatórios de turno da Recepção com a espera neste período.')),
+      React.createElement("p", { style: { margin: 0, fontSize: 12, color: 'var(--text-3)', lineHeight: 1.5 } },
+        'Como se mede: chegada = hora da triagem no MetaGest; saída = hora da última factura do dia; consulta = hora em que o médico abre o registo da consulta (só ' + pc(c.n || 0, d.triados) + ' dos ' + (d.triados || 0) + ' utentes triados têm esse registo). Referência: abaixo de 30 min pelo médico e menos de 20% acima de 2 h na clínica.' + (d.actualizado ? ' MetaGest lido a ' + bspDataExacta(new Date(d.actualizado)) + '.' : '')));
+  }
+  return React.createElement(React.Fragment, null,
+    React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+      periodos.map(x => React.createElement("button", { key: x[0], onClick: () => setPeriodo(x[0]), style: bspEscChip(periodo === x[0]) }, x[1]))),
+    periodo === 'datas' && React.createElement(DatasLivres, { de: livre.de, ate: livre.ate, maxDias: 400, onMudar: (de, ate) => setLivre({ de, ate }) }),
+    corpo);
+}
 function QualidadeScreen() {
   const toast = useToast();
   const eu = window.CURRENT_USER_ID;
@@ -26424,7 +26506,7 @@ function QualidadeScreen() {
     tile('Incidentes em aberto', resumo.ocorrencias_abertas, resumo.ocorrencias_graves + ' graves em 30 dias', resumo.ocorrencias_graves ? 'var(--perigo)' : null))
     : (!veTudo && mediaArea ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)' } }, 'Satisfação no que vê: ' + mediaArea.replace('.', ',') + ' / 5 em ' + notasArea.length + ' avaliações.') : null);
 
-  const corpo = aba === 'utentes'
+  const corpo = aba === 'espera' ? React.createElement(QualidadeEspera, null) : aba === 'utentes'
     ? React.createElement(React.Fragment, null,
         React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } },
           React.createElement("button", { onClick: () => setFiltroF('abertas'), style: bspEscChip(filtroF === 'abertas') }, 'Por tratar ' + abertasF.length),
@@ -26449,8 +26531,9 @@ function QualidadeScreen() {
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'auto', paddingBottom: 12 } },
     React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
       React.createElement("button", { onClick: () => setAba('utentes'), style: bspEscChip(aba === 'utentes') }, 'Feedback de utentes'),
-      React.createElement("button", { onClick: () => setAba('incidentes'), style: bspEscChip(aba === 'incidentes') }, 'Incidentes e eventos adversos')),
-    painel, corpo);
+      React.createElement("button", { onClick: () => setAba('incidentes'), style: bspEscChip(aba === 'incidentes') }, 'Incidentes e eventos adversos'),
+      veTudo && React.createElement("button", { onClick: () => setAba('espera'), style: bspEscChip(aba === 'espera') }, 'Tempo de espera')),
+    aba !== 'espera' && painel, corpo);
 }
 
 /* Equipamentos e manutenção preventiva (03-10-2026, manutencao-preventiva.sql).

@@ -2565,3 +2565,42 @@ a opção de filtrar datas e filtrar serviços».
   escolhidas ao servidor; o serviço vai em `p_servico`; data final antes
   da inicial dá aviso; nada passa da largura do ecrã.
 - Ficha do guia de «A minha actividade» actualizada.
+
+## 3-ee. Tempo de espera na Qualidade (03-10-2026)
+
+Elmar: «Consegues colocar na qualidade o tempo de espera também?»
+
+- `qualidade-espera.sql` (aplicado): `erp.espera_utente` (um utente por dia,
+  chave md5, sem nome), `erp.sincronizar_espera(de, ate)` a partir do
+  MetaGest (triagem = Vital Signs, consulta = Patient Encounter, saída =
+  última factura do dia), `bsp_qualidade_espera(de, ate)`. Crons
+  `bsp-espera-hoje` (30 em 30 min, 06h–21h) e `bsp-espera` (03h50, últimos
+  7 dias). Histórico carregado desde Janeiro de 2026 (1 874 utentes).
+- Ecrã: Qualidade → «Tempo de espera» (`QualidadeEspera`, só quem vê tudo
+  na Qualidade): tempo na clínica, espera pelo médico, por dia, por hora de
+  chegada, por dia da semana, por médico (gestão e Direcção Clínica, com 3
+  ou mais consultas) e o valor que a Recepção escreve no relatório.
+- Setembro: mediana de 1 h 45 na clínica (Agosto 1 h 23); 74 de 178
+  utentes acima de 2 h; espera pelo médico 1 h 38 (58 consultas
+  registadas, 52 acima de 30 min). Chegadas das 10h–11h esperam mais.
+- Limite: só 1 em cada 3 consultas tem o registo aberto pelo médico no
+  MetaGest. Para medir melhor, os médicos devem abrir a consulta no
+  MetaGest quando chamam o utente.
+
+## 3-ef. Inquéritos: o que está e o que não está no sistema (03-10-2026)
+
+- No sistema: as respostas do WhatsApp (e-mails individuais desde 16-09 e
+  o resumo diário de 02-10), a página `avaliar.html` (1 resposta) e o que a
+  Recepção regista à mão. A partir de agora, o resumo diário entra pelo
+  Zapier (3-eb), quando o Elmar ligar o Outlook.
+- Fora do sistema:
+  - Microsoft Forms «Inquérito de Satisfação pós atendimento» (cerca de 30
+    respostas, Fevereiro de 2025 a Março de 2026). As respostas só estão no
+    Forms: o Elmar abre o formulário → «Abrir no Excel» e guarda o ficheiro
+    na OneDrive; depois importa-se.
+  - Inquéritos em papel digitalizados (2024: Março a Setembro; 2025: quatro
+    lotes até 13-11-2025), em `rececao/INQUÉRITOS 2024` e
+    `DireoeAssistentes/BRSP_ADM/BRSP-ADM - INQUE`. São imagens sem texto:
+    não se lêem por esta via.
+  - O «mapa» Excel da tarefa do WhatsApp fica no computador onde a tarefa
+    corre, não em nenhuma Drive.

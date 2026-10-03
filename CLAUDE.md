@@ -380,6 +380,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   texto)`, com o código do cofre `bsp_feedback_codigo` (nunca mostrar).
   O formato das linhas («N. Nome (tel), consulta a DD-MM: nota X…») está em
   `bsp_feedback_do_texto`: se o e-mail mudar, mudar a função.
+  Tempo de espera (03-10-2026, `qualidade-espera.sql`): `erp.espera_utente`
+  (triagem, consulta e última factura do MetaGest, sem nomes),
+  `bsp_qualidade_espera(de, ate)`, separador `QualidadeEspera`.
 - Médicos e credenciais (03-10-2026, `medicos-credenciais.sql`): `erp.medicos`
   copiado do MetaGest todos os dias; validades em `credenciais` (gestão e
   u14 registam, cada médico lê as suas); avisos por `bsp_credenciais_alertar`
