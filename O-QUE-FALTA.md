@@ -2465,3 +2465,25 @@ Pedido do Elmar: «Avance tudo possível… Coloque lá o feedback de utentes».
 - Imprimir o cartaz com o QR (Qualidade → «Cartaz com QR») para a recepção.
 - Registar validades dos médicos, equipamentos e planos de manutenção.
 - Iniciar a integração da Dra. Ludmila Da Silva.
+
+## 3-ea. Inquéritos dos utentes que chegam por e-mail (03-10-2026)
+
+- O inquérito pós-consulta sai por um WhatsApp que o servidor não copia.
+  As respostas chegam todos os dias por e-mail de info@barispol.ao
+  («Respostas dos pacientes no WhatsApp — DD-MM-AAAA», à Recepção com a
+  Direcção em cópia).
+- `feedback-importar.sql` (aplicado): `bsp_feedback_importar(lista JSON)`,
+  só do servidor; ignora chaves repetidas; `bsp.sem_aviso = '1'` grava sem
+  avisos (alterado `bsp_qualidade_aviso`).
+- Histórico importado (sem avisos): 21 respostas de 02-09 a 02-10-2026
+  (apuramento de 16-09, registo de 21-09, as duas queixas de 17-09 e
+  19-09 e o e-mail diário de 02-10). 14 com nota, média 4,14; 2
+  reclamações em tratamento; 9 por tratar. Comentários sem nomes.
+- Routine «Inquéritos dos utentes para o Workspace»
+  (`trig_01HT5cbhVcQF9RYt95QN1XEE`, todos os dias às 18h47 de Luanda): lê
+  o e-mail do dia e chama `bsp_feedback_importar`. ATENÇÃO: ficou sem
+  ligações (Microsoft 365 e Supabase), porque a organização não deixa
+  juntá-las por esta via. O Elmar tem de as acrescentar em claude.ai →
+  Routines, senão a tarefa corre sem conseguir ler nem gravar.
+- Alternativa definitiva: a tarefa do Cowork que manda o e-mail diário
+  passa também a chamar `bsp_feedback_importar`.
