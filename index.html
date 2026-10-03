@@ -713,6 +713,7 @@ html[data-tema="escuro"] .botao-claro{background:#fff;color:#292F58}
   </div>
 </footer>
 
+<script src="servidor.js"></script>
 <script>
 /* Botão do modo escuro. */
 (function () {
@@ -746,8 +747,9 @@ html[data-tema="escuro"] .botao-claro{background:#fff;color:#292F58}
 })();
 
 /* Formulário: envia a mensagem por e-mail para a recepção (função
-   contacto-site, no servidor da clínica). O WhatsApp fica como
-   alternativa, com o mesmo texto. */
+   contacto-site, no servidor da clínica) e regista-a também no Workspace,
+   em Utentes → Marcações → «Pedidos do site» (bsp_pedido_site, 03-10-2026),
+   para a recepção ligar. O WhatsApp fica como alternativa, com o mesmo texto. */
 (function () {
   var FUNCAO = 'https://gnqleaxrtuerlcrriqqs.supabase.co/functions/v1/contacto-site';
   var WHATSAPP = '244946373631';
@@ -784,6 +786,12 @@ html[data-tema="escuro"] .botao-claro{background:#fff;color:#292F58}
     if (!marca(campo('mensagem'), campo('mensagem').value.trim().length >= 5)) { campo('mensagem').focus(); return; }
     botao.disabled = true; botao.textContent = 'A enviar';
     pronto.className = 'pronto'; pronto.textContent = '';
+    var cfg = window.BSP_SERVIDOR;
+    if (cfg && !campo('empresa').value) fetch(cfg.url + '/rest/v1/rpc/bsp_pedido_site', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': cfg.key },
+      body: JSON.stringify({ p_dados: { pagina: 'inicio', origem: origem, nome: campo('nome').value.trim(), telefone: tel,
+        servico: campo('servico').value, seguro: campo('seguro').value, mensagem: campo('mensagem').value } })
+    }).catch(function () {});
     fetch(FUNCAO, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

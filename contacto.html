@@ -41,6 +41,9 @@ h1,h2,h3{margin:0;text-wrap:balance;letter-spacing:-.015em}
 .btn:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 .btn-wa{background:var(--wa);color:#fff;box-shadow:0 6px 18px rgba(37,211,102,.3)}
 .btn-wa:hover{background:var(--wa-d)}
+.btn-pedir{background:#273069;color:#fff;box-shadow:0 6px 18px rgba(39,48,105,.25)}
+.btn-pedir:hover{background:#292F58}
+.btn-pedir:disabled{opacity:.6;cursor:default;transform:none}
 
 /* formulário próprio */
 .campo{margin-bottom:16px}
@@ -142,7 +145,7 @@ footer a:hover{color:#fff}
     <div class="formbox" id="caixa">
       <form class="formpad" id="formlead" novalidate>
         <h2>Deixe os seus dados</h2>
-        <p class="hint">Quatro campos. Ao enviar, abre o WhatsApp com o pedido já escrito — só tem de carregar em enviar.</p>
+        <p class="hint">Deixe os dados e a recepção liga-lhe para marcar. Não precisa de fazer mais nada.</p>
 
         <div class="campo">
           <label for="nome">Nome completo</label>
@@ -151,9 +154,39 @@ footer a:hover{color:#fff}
         </div>
 
         <div class="campo">
-          <label for="tel">Telefone</label>
+          <label for="tel">Telemóvel para lhe ligarmos</label>
           <input type="tel" id="tel" name="tel" autocomplete="tel" inputmode="tel" placeholder="9XX XXX XXX" required>
           <span class="erro">Escreva um número angolano com nove dígitos, a começar por 9.</span>
+        </div>
+
+        <div class="dois">
+          <div class="campo">
+            <label for="dequem">De quem é este número?</label>
+            <select id="dequem" name="dequem">
+              <option value="">É meu</option>
+              <option value="familiar">De um familiar</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label for="quando">Melhor altura para ligar</label>
+            <select id="quando" name="quando">
+              <option>Qualquer hora</option>
+              <option>Manhã</option>
+              <option>Tarde</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="dois" id="familiar" hidden>
+          <div class="campo">
+            <label for="quem">Quem é</label>
+            <input type="text" id="quem" name="quem" placeholder="Ex.: mãe, marido">
+          </div>
+          <div class="campo">
+            <label for="tel2">Telemóvel do próprio (se tiver)</label>
+            <input type="tel" id="tel2" name="tel2" inputmode="tel" placeholder="9XX XXX XXX">
+            <span class="erro">Nove dígitos, a começar por 9.</span>
+          </div>
         </div>
 
         <div class="dois">
@@ -183,8 +216,10 @@ footer a:hover{color:#fff}
           </div>
         </div>
 
-        <button type="submit" class="btn btn-wa enviar">Enviar pelo WhatsApp</button>
-        <p class="rodape-form">Não guardamos nada nesta página. O pedido segue para o WhatsApp da recepção.</p>
+        <input type="text" id="empresa" name="empresa" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+        <button type="submit" class="btn btn-pedir enviar" id="enviar">Pedir que me liguem</button>
+        <p class="rodape-form" id="falhou" hidden></p>
+        <p class="rodape-form">O pedido fica só no sistema da clínica, para a recepção lhe ligar. <a href="#" id="viawa" target="_blank" rel="noopener" style="color:var(--accent-d);font-weight:700">Prefiro enviar pelo WhatsApp</a></p>
 
         <div class="alt" id="alternativa" hidden>
           Prefere preencher um formulário em vez do WhatsApp? <a href="#" id="linkforms" target="_blank" rel="noopener">Abrir formulário</a>
@@ -193,9 +228,9 @@ footer a:hover{color:#fff}
 
       <div class="feito" id="feito">
         <div class="tick"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m20 6-11 11-5-5"/></svg></div>
-        <h2>Pedido pronto a enviar</h2>
-        <p>Abrimos o WhatsApp com a mensagem escrita. Se não abriu, use o botão abaixo.</p>
-        <a class="btn btn-wa" id="reabrir" href="#" target="_blank" rel="noopener">Abrir o WhatsApp</a>
+        <h2>Recebemos o seu pedido</h2>
+        <p id="feito-txt">A recepção vai ligar-lhe para marcar, no horário de funcionamento. Tenha o telemóvel por perto.</p>
+        <a class="btn btn-wa" id="reabrir" href="#" target="_blank" rel="noopener">Falar já pelo WhatsApp</a>
         <p style="margin-top:18px"><a href="#" id="outro" style="color:var(--accent-d);font-weight:700;text-decoration:none">Fazer outro pedido</a></p>
       </div>
     </div>
@@ -204,7 +239,7 @@ footer a:hover{color:#fff}
       <div class="card">
         <h3>O que acontece a seguir</h3>
         <ul>
-          <li>Recebemos o seu pedido e a recepção liga no horário que indicar.</li>
+          <li>O pedido chega logo à recepção, que lhe liga na altura que indicar.</li>
           <li>Confirmamos o serviço, o preço e a cobertura do seu seguro.</li>
           <li>Fica com dia e hora marcados, sem espera no balcão.</li>
         </ul>
@@ -226,7 +261,7 @@ footer a:hover{color:#fff}
   </div>
 
   <div class="wrap">
-    <p class="privacidade">Pedimos apenas o nome, o telefone, o serviço e o seguro. Não peça nem escreva sintomas, diagnósticos ou resultados de exames neste formulário — esses assuntos são tratados na consulta, com o médico.</p>
+    <p class="privacidade">Pedimos apenas o nome, o telefone, o serviço e o seguro. Guardamos estes dados só no sistema da clínica, para lhe ligar e marcar. Não peça nem escreva sintomas, diagnósticos ou resultados de exames neste formulário — esses assuntos são tratados na consulta, com o médico.</p>
   </div>
 </main>
 
@@ -237,27 +272,23 @@ footer a:hover{color:#fff}
   </div>
 </footer>
 
+<script src="servidor.js"></script>
 <script>
 /* ────────────────────────────────────────────────────────────
-   CAPTAÇÃO DE CONTACTOS
+   PEDIDO DE CONTACTO PARA MARCAR (03-10-2026, pedidos-site.sql)
 
-   Como funciona: o visitante preenche quatro campos e o pedido segue
-   para o WhatsApp da recepção, já escrito e organizado. Não é preciso
-   ligar nada — funciona assim que o site estiver publicado.
+   O visitante deixa o nome, o número para lhe ligarem (seu ou de um
+   familiar), o serviço, o seguro e a melhor altura. O pedido fica no
+   sistema da clínica (bsp_pedido_site) e a recepção recebe logo o aviso no
+   telemóvel; trata-o no Workspace, em Utentes → Marcações → «Pedidos do
+   site». O utente espera a chamada. O WhatsApp fica como alternativa.
 
    Ligações para os patrocínios nas redes:
        https://barispol.com/contacto.html?origem=instagram
        https://barispol.com/contacto.html?origem=facebook
        https://barispol.com/contacto.html?origem=tiktok
-   A origem entra na mensagem do WhatsApp, para saber que rede trouxe
-   cada contacto.
-
-   OPCIONAL — se quiser também a lista em Excel, crie um formulário no
-   Microsoft Forms e cole aqui o identificador que vem a seguir a «/r/».
-   Aparece então uma segunda opção por baixo do botão do WhatsApp.
    ──────────────────────────────────────────────────────────── */
 var WHATSAPP = '244946373631';
-var LEAD_FORM_ID = '';
 var NL = String.fromCharCode(10);
 
 (function () {
@@ -265,54 +296,70 @@ var NL = String.fromCharCode(10);
   var caixa = document.getElementById('caixa');
   var nome = document.getElementById('nome');
   var tel = document.getElementById('tel');
+  var tel2 = document.getElementById('tel2');
+  var dequem = document.getElementById('dequem');
+  var familiar = document.getElementById('familiar');
+  var botao = document.getElementById('enviar');
+  var falhou = document.getElementById('falhou');
   var origem = new URLSearchParams(window.location.search).get('origem') || '';
-
-  if (LEAD_FORM_ID) {
-    var alt = document.getElementById('alternativa');
-    var link = document.getElementById('linkforms');
-    link.href = 'https://forms.office.com/r/' + encodeURIComponent(LEAD_FORM_ID) +
-                (origem ? '?origem=' + encodeURIComponent(origem) : '');
-    alt.hidden = false;
-  }
+  var valor = function (id) { return document.getElementById(id).value; };
 
   function telValido(v) {
     var d = (v || '').replace(/[^0-9]/g, '').replace(/^244/, '');
     return d.length === 9 && d.charAt(0) === '9';
   }
   function marca(campo, ok) { campo.setAttribute('aria-invalid', ok ? 'false' : 'true'); return ok; }
-
-  [nome, tel].forEach(function (c) {
+  [nome, tel, tel2].forEach(function (c) {
     c.addEventListener('input', function () { c.setAttribute('aria-invalid', 'false'); });
   });
+  dequem.addEventListener('change', function () { familiar.hidden = dequem.value !== 'familiar'; });
 
-  form.addEventListener('submit', function (e) {
-    e.preventDefault();
-    var okNome = marca(nome, nome.value.trim().length >= 3);
-    var okTel = marca(tel, telValido(tel.value));
-    if (!okNome) { nome.focus(); return; }
-    if (!okTel) { tel.focus(); return; }
-
+  function textoWhatsApp() {
     var linhas = [
-      'Pedido de contacto pelo site do Barispol.',
-      '',
+      'Pedido de contacto pelo site do Barispol.', '',
       'Nome: ' + nome.value.trim(),
-      'Telefone: ' + tel.value.trim(),
-      'Precisa de: ' + document.getElementById('servico').value,
-      'Seguro: ' + document.getElementById('seguro').value
+      'Telefone: ' + tel.value.trim() + (dequem.value === 'familiar' ? ' (de ' + (valor('quem').trim() || 'um familiar') + ')' : ''),
+      'Precisa de: ' + valor('servico'),
+      'Seguro: ' + valor('seguro'),
+      'Ligar: ' + valor('quando')
     ];
     if (origem) linhas.push('Veio de: ' + origem);
     linhas.push('', 'Agradeço que me liguem para marcar.');
+    return 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(linhas.join(NL));
+  }
+  document.getElementById('viawa').addEventListener('click', function () { this.href = textoWhatsApp(); });
 
-    var url = 'https://wa.me/' + WHATSAPP + '?text=' + encodeURIComponent(linhas.join(NL));
-    document.getElementById('reabrir').href = url;
-    window.open(url, '_blank', 'noopener');
-    caixa.classList.add('pronto');
-    caixa.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var fam = dequem.value === 'familiar';
+    if (!marca(nome, nome.value.trim().length >= 3)) { nome.focus(); return; }
+    if (!marca(tel, telValido(tel.value))) { tel.focus(); return; }
+    if (fam && tel2.value.trim() && !marca(tel2, telValido(tel2.value))) { tel2.focus(); return; }
+    var cfg = window.BSP_SERVIDOR || {};
+    botao.disabled = true; botao.textContent = 'A enviar…'; falhou.hidden = true;
+    fetch(cfg.url + '/rest/v1/rpc/bsp_pedido_site', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': cfg.key },
+      body: JSON.stringify({ p_dados: {
+        pagina: 'contacto', origem: origem, nome: nome.value.trim(), telefone: tel.value.trim(),
+        familiar_quem: fam ? (valor('quem').trim() || 'familiar') : '', telefone_proprio: fam ? tel2.value.trim() : '',
+        servico: valor('servico'), seguro: valor('seguro'), quando_ligar: valor('quando'), empresa: valor('empresa')
+      } })
+    }).then(function (r) {
+      if (!r.ok) return r.json().catch(function () { return {}; }).then(function (j) { throw new Error(j.message || 'Não foi possível enviar.'); });
+      document.getElementById('reabrir').href = textoWhatsApp();
+      caixa.classList.add('pronto');
+      caixa.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }).catch(function (err) {
+      falhou.hidden = false;
+      falhou.textContent = (err && err.message ? err.message + ' ' : '') + 'Pode usar o WhatsApp ou ligar +244 946 373 631.';
+    }).then(function () { botao.disabled = false; botao.textContent = 'Pedir que me liguem'; });
   });
 
   document.getElementById('outro').addEventListener('click', function (e) {
     e.preventDefault();
     form.reset();
+    familiar.hidden = true;
     caixa.classList.remove('pronto');
     nome.focus();
   });

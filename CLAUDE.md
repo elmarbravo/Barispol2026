@@ -274,6 +274,12 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   Lembretes para a Recepção (29-09-2026): 1 h antes e 30 min depois de
   cada marcação de hoje em aberto (`bspMarcLembretes`, `MarcLembretes`,
   sino com `lembrete: true`; no Início, `MarcLembretesInicio`, 30-09-2026).
+  Telemóvel do próprio (`contacto`, de onde sai o `tel9`) e de familiar
+  (`contacto_familiar`, `familiar_quem`), 03-10-2026, `telefones-familiar.sql`.
+  Pedidos do site (03-10-2026, `pedidos-site.sql`): `contacto.html` e a página
+  inicial gravam por `bsp_pedido_site` (aberta a visitantes) em
+  `pedidos_marcacao`; aviso no telemóvel da Recepção; `PedidosSitePainel` em
+  Marcações, tratado por `bsp_pedido_site_tratar`. O utente espera a chamada.
   Cores de aviso nas variáveis `--perigo` e `--sucesso`. A planilha entra e sai por CSV
   (`bspLerCsvLinhas`, `bspMarcDoCsv`, `bspMarcCsv`; o `bspLerCsv` é do CRM e
   devolve `{cabecalho, linhas}`: nunca repetir o nome). Nomes de doentes nunca no

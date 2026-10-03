@@ -22253,9 +22253,9 @@ function bspMarcDoCsv(linhas) {
 }
 function bspMarcCsv(lista, valores) {
   valores = valores || {};
-  const cab = ['DIA QUE CONTACTOU', 'DATA MARCADA', 'HORA', 'SEXO', 'ATO MÉDICO', 'NOME DO(A) PACIENTE', 'CONTACTO', 'E-MAIL', 'MÉDICO(A)', 'ENTIDADE', 'SEGURADORA', 'RECECIONISTA', 'ESTADO', 'OBSERVAÇÕES', 'ORIGEM', 'VALOR PAGO (KZ)'];
+  const cab = ['DIA QUE CONTACTOU', 'DATA MARCADA', 'HORA', 'SEXO', 'ATO MÉDICO', 'NOME DO(A) PACIENTE', 'CONTACTO', 'E-MAIL', 'MÉDICO(A)', 'ENTIDADE', 'SEGURADORA', 'RECECIONISTA', 'ESTADO', 'OBSERVAÇÕES', 'ORIGEM', 'VALOR PAGO (KZ)', 'CONTACTO DE FAMILIAR'];
   const q = v => { const t = String(v == null ? '' : v); return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
-  const linhas = lista.map(m => [bspMarcDataPt(m.dia_contacto), bspMarcDataPt(m.data_marcada), m.hora, m.sexo, m.acto, m.nome, m.contacto, m.email, m.medico, m.entidade, m.seguradora, m.rececionista, m.estado, m.observacoes, m.origem, valores[m.id] ? Math.round(Number(valores[m.id].total || 0)) : ''].map(q).join(';'));
+  const linhas = lista.map(m => [bspMarcDataPt(m.dia_contacto), bspMarcDataPt(m.data_marcada), m.hora, m.sexo, m.acto, m.nome, m.contacto, m.email, m.medico, m.entidade, m.seguradora, m.rececionista, m.estado, m.observacoes, m.origem, valores[m.id] ? Math.round(Number(valores[m.id].total || 0)) : '', m.contacto_familiar ? m.contacto_familiar + (m.familiar_quem ? ' (' + m.familiar_quem + ')' : '') : ''].map(q).join(';'));
   return '﻿' + cab.join(';') + '\r\n' + linhas.join('\r\n') + '\r\n';
 }
 function useMarcacoes(de, ate) {
@@ -22284,7 +22284,7 @@ function useMarcacoes(de, ate) {
   const guardar = React.useCallback(async m => {
     const cl = bspGetClient();
     if (!cl) return 'O servidor não está ligado.';
-    const campos = { dia_contacto: m.dia_contacto || null, data_marcada: m.data_marcada, hora: m.hora || null, sexo: m.sexo || null, acto: m.acto, nome: m.nome, contacto: m.contacto || null, medico: m.medico || null, email: m.email ? String(m.email).trim().toLowerCase() : null, paciente_id: m.paciente_id || null, entidade: m.entidade || null, seguradora: m.entidade && m.entidade !== 'Particular' ? (m.seguradora || null) : null, rececionista: m.rececionista || null, estado: m.estado || 'Agendada', observacoes: m.observacoes || null, origem: m.origem || null };
+    const campos = { dia_contacto: m.dia_contacto || null, data_marcada: m.data_marcada, hora: m.hora || null, sexo: m.sexo || null, acto: m.acto, nome: m.nome, contacto: m.contacto || null, contacto_familiar: m.contacto_familiar || null, familiar_quem: m.contacto_familiar ? (m.familiar_quem || null) : null, medico: m.medico || null, email: m.email ? String(m.email).trim().toLowerCase() : null, paciente_id: m.paciente_id || null, entidade: m.entidade || null, seguradora: m.entidade && m.entidade !== 'Particular' ? (m.seguradora || null) : null, rececionista: m.rececionista || null, estado: m.estado || 'Agendada', observacoes: m.observacoes || null, origem: m.origem || null };
     const r = m.id ? await cl.from('marcacoes').update(campos).eq('id', m.id).select('id') : await cl.from('marcacoes').insert(campos).select('id');
     recarregar();
     if (r.error) return r.error.message || 'Não foi possível gravar.';
@@ -22332,7 +22332,7 @@ function useMarcacoes(de, ate) {
 }
 function MarcacaoModal({ open, inicial, onClose, onGuardar, onApagar, podeApagar }) {
   const eu = window.userById && window.userById(window.CURRENT_USER_ID);
-  const vazio = { data_marcada: bspDataLocalISO(new Date()), hora: '', nome: '', sexo: '', contacto: '', email: '', paciente_id: '', acto: '', medico: '', entidade: 'Particular', seguradora: '', rececionista: eu ? eu.name : '', dia_contacto: bspDataLocalISO(new Date()), origem: 'WhatsApp', estado: 'Agendada', observacoes: '' };
+  const vazio = { data_marcada: bspDataLocalISO(new Date()), hora: '', nome: '', sexo: '', contacto: '', contacto_familiar: '', familiar_quem: '', email: '', paciente_id: '', acto: '', medico: '', entidade: 'Particular', seguradora: '', rececionista: eu ? eu.name : '', dia_contacto: bspDataLocalISO(new Date()), origem: 'WhatsApp', estado: 'Agendada', observacoes: '' };
   const [m, setM] = React.useState(vazio);
   const [aGravar, setAGravar] = React.useState(false);
   React.useEffect(() => { if (open) setM(inicial ? { ...vazio, ...Object.fromEntries(Object.entries(inicial).map(([k, v]) => [k, v == null ? '' : v])) } : vazio); }, [open, inicial]);
@@ -22396,8 +22396,13 @@ function MarcacaoModal({ open, inicial, onClose, onGuardar, onApagar, podeApagar
       m.paciente_id && React.createElement("div", { style: { marginTop: 5, fontSize: 12, color: 'var(--sucesso)', fontWeight: 600, display: 'flex', gap: 8, alignItems: 'center' } }, '✓ Ligado à ficha do MetaGest',
         React.createElement("button", { type: 'button', onClick: () => muda('paciente_id', ''), style: { border: 0, background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, textDecoration: 'underline', padding: 0 } }, 'desligar'))),
     React.createElement("div", { style: grelha },
-      React.createElement("div", null, rot('Contacto'), React.createElement("input", { type: 'tel', value: m.contacto, onChange: e => { muda('contacto', e.target.value); if (!m.paciente_id) setProcura(e.target.value); }, placeholder: '9XX XXX XXX', style: campo })),
+      React.createElement("div", null, rot('Telemóvel do próprio'), React.createElement("input", { type: 'tel', value: m.contacto, onChange: e => { muda('contacto', e.target.value); if (!m.paciente_id) setProcura(e.target.value); }, placeholder: '9XX XXX XXX', style: campo })),
       React.createElement("div", null, rot('Sexo'), React.createElement("div", { style: { display: 'flex', gap: 6 } }, ['F', 'M'].map(x => React.createElement("button", { key: x, type: 'button', onClick: () => muda('sexo', m.sexo === x ? '' : x), style: chip(m.sexo === x) }, x === 'F' ? 'Feminino' : 'Masculino'))))),
+    /* Telemóvel de familiar (03-10-2026, telefones-familiar.sql): à parte do
+       do próprio, para o lembrete e o inquérito irem à pessoa certa. */
+    React.createElement("div", { style: grelha },
+      React.createElement("div", null, rot('Telemóvel de familiar (opcional)'), React.createElement("input", { type: 'tel', value: m.contacto_familiar || '', onChange: e => muda('contacto_familiar', e.target.value), placeholder: '9XX XXX XXX', style: campo })),
+      React.createElement("div", null, rot('De quem é'), React.createElement("input", { value: m.familiar_quem || '', onChange: e => muda('familiar_quem', e.target.value), placeholder: 'Ex.: mãe, marido', style: campo }))),
     React.createElement("div", null, rot('E-mail do(a) paciente'),
       React.createElement("input", { type: 'email', inputMode: 'email', value: m.email, onChange: e => muda('email', e.target.value), placeholder: 'nome@exemplo.com', autoComplete: 'off', style: { ...campo, borderColor: emailMau ? 'var(--perigo)' : 'var(--border)' } }),
       React.createElement("p", { style: { margin: '5px 0 0', fontSize: 12, color: emailMau ? 'var(--perigo)' : 'var(--text-3)' } },
@@ -22459,7 +22464,7 @@ function MarcLembretes({ lista, mudarEstado, onAbrir, estilo }) {
       React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)' } }, m.hora),
       React.createElement("div", { style: { minWidth: 0 } },
         React.createElement("div", { style: { fontSize: 13.5, fontWeight: 600, color: 'var(--text-1)' } }, m.nome, React.createElement("span", { style: { fontWeight: 500, color: bspMarcEstado(m.estado).cor } }, ' · ' + m.estado)),
-        React.createElement("div", { style: { fontSize: 12, color: 'var(--text-2)', marginTop: 1 } }, [m.acto, m.medico ? 'Médico: ' + m.medico : null, m.contacto].filter(Boolean).join(' · '))),
+        React.createElement("div", { style: { fontSize: 12, color: 'var(--text-2)', marginTop: 1 } }, [m.acto, m.medico ? 'Médico: ' + m.medico : null, m.contacto, m.contacto_familiar ? 'familiar' + (m.familiar_quem ? ' (' + m.familiar_quem + ')' : '') + ': ' + m.contacto_familiar : null].filter(Boolean).join(' · '))),
       React.createElement("div", { className: 'bsp-marc-accoes', style: { display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' } },
         tel && React.createElement("a", { href: 'tel:+' + tel244, style: btn('var(--accent-d)') }, 'Ligar'),
         tel && React.createElement("a", { href: 'https://wa.me/' + tel244, target: '_blank', rel: 'noopener', style: btn() }, 'WhatsApp'),
@@ -22484,6 +22489,58 @@ function MarcLembretesInicio({ onAbrir }) {
   const marc = useMarcacoes(hoje, hoje);
   if (marc.estado !== 'pronto') return null;
   return React.createElement(MarcLembretes, { lista: marc.lista, mudarEstado: marc.mudarEstado, onAbrir: onAbrir, estilo: { marginBottom: 16, maxHeight: 'none' } });
+}
+/* Pedidos de marcação pelo site (03-10-2026, pedidos-site.sql, Elmar: «no
+   site o paciente espera ser contactado para marcar»). Chegam de
+   contacto.html e da página inicial; a Recepção recebe o aviso no telemóvel,
+   liga e marca aqui («Marcar» abre a marcação já preenchida, origem
+   «Site»). O número para ligar pode ser de um familiar (familiar_quem); o
+   do próprio vem em telefone_proprio. */
+const BSP_PEDIDO_SITE_ABERTOS = ['Por ligar', 'Sem resposta', 'Contactado'];
+function PedidosSitePainel({ onMarcar }) {
+  const toast = useToast();
+  const t = useTabela('pedidos_marcacao', 'criado_em');
+  const [aberto, setAberto] = React.useState(false);
+  const [todos, setTodos] = React.useState(false);
+  React.useEffect(() => { const iv = setInterval(() => { if (!document.hidden) t.recarregar(); }, 60000); return () => clearInterval(iv); }, []);
+  const lista = (t.linhas || []).filter(p => todos || BSP_PEDIDO_SITE_ABERTOS.indexOf(p.estado) !== -1);
+  const porLigar = (t.linhas || []).filter(p => p.estado === 'Por ligar').length;
+  const abertos = (t.linhas || []).filter(p => BSP_PEDIDO_SITE_ABERTOS.indexOf(p.estado) !== -1).length;
+  if (!t.linhas || (!(t.linhas || []).length)) return null;
+  async function tratar(p, estado) {
+    const nota = estado === 'Desistiu' ? (window.prompt('Porquê? (opcional)') || '') : '';
+    const r = await bspGetClient().rpc('bsp_pedido_site_tratar', { p_id: p.id, p_estado: estado, p_nota: nota });
+    if (r.error) { toast(r.error.message); return; }
+    toast(p.nome.split(' ')[0] + ': ' + estado.toLowerCase() + '.'); t.recarregar();
+  }
+  const tel9 = x => String(x || '').replace(/\D/g, '').replace(/^244/, '').slice(-9);
+  const cor = e => e === 'Por ligar' ? 'var(--perigo)' : e === 'Marcado' ? 'var(--sucesso)' : e === 'Desistiu' ? 'var(--text-3)' : 'var(--accent-d)';
+  return React.createElement("div", { style: Object.assign({}, bspRegCaixa, { flex: 'none', padding: 10, borderLeft: '4px solid ' + (porLigar ? 'var(--perigo)' : 'var(--accent)') }) },
+    React.createElement("button", { onClick: () => setAberto(!aberto), style: { display: 'flex', gap: 8, alignItems: 'center', width: '100%', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0, textAlign: 'left' } },
+      React.createElement("b", { style: { fontSize: 14, color: 'var(--text-1)', flex: 1 } }, 'Pedidos do site · ' + (porLigar ? porLigar + ' por ligar' : abertos ? abertos + ' em aberto' : 'nenhum em aberto')),
+      React.createElement("span", { style: { fontSize: 12.5, color: 'var(--accent-d)', fontWeight: 700 } }, aberto ? 'Fechar' : 'Ver')),
+    aberto && React.createElement("div", { style: { marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '50vh', overflow: 'auto' } },
+      React.createElement("div", { style: { display: 'flex', gap: 6 } },
+        React.createElement("button", { onClick: () => setTodos(false), style: bspEscChip(!todos) }, 'Em aberto'),
+        React.createElement("button", { onClick: () => setTodos(true), style: bspEscChip(todos) }, 'Todos')),
+      !lista.length && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Nenhum pedido em aberto.'),
+      lista.map(p => React.createElement("div", { key: p.id, style: { borderTop: '1px solid var(--border)', paddingTop: 8 } },
+        React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'baseline' } },
+          React.createElement("b", { style: { fontSize: 14, color: 'var(--text-1)' } }, p.nome),
+          React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: cor(p.estado) } }, p.estado + (p.tentativas ? ' · ' + p.tentativas + (p.tentativas === 1 ? ' tentativa' : ' tentativas') : '')),
+          React.createElement("span", { style: { flex: 1 } }),
+          React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, bspDataExacta(new Date(p.criado_em)))),
+        React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 3 } },
+          [p.telefone + (p.familiar_quem ? ' (de ' + p.familiar_quem + ')' : ''), p.telefone_proprio ? 'do próprio: ' + p.telefone_proprio : '', p.servico, p.seguro && p.seguro !== 'Não tenho' ? 'seguro ' + p.seguro : 'sem seguro', p.quando_ligar ? 'ligar: ' + p.quando_ligar.toLowerCase() : '', p.origem ? 'veio de ' + p.origem : ''].filter(Boolean).join(' · ')),
+        p.mensagem && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-1)', marginTop: 3, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } }, p.mensagem),
+        p.nota && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginTop: 3 } }, 'Nota: ' + p.nota),
+        React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 } },
+          React.createElement("a", { href: 'tel:+244' + tel9(p.telefone), style: Object.assign({}, bspEscBotao(true), { textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }) }, 'Ligar'),
+          React.createElement("a", { href: 'https://wa.me/244' + tel9(p.telefone), target: '_blank', rel: 'noopener', style: Object.assign({}, bspEscBotao(false), { textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }) }, 'WhatsApp'),
+          p.estado !== 'Marcado' && React.createElement("button", { onClick: () => onMarcar(p), style: bspEscBotao(false) }, 'Marcar'),
+          BSP_PEDIDO_SITE_ABERTOS.indexOf(p.estado) !== -1 && React.createElement("button", { onClick: () => tratar(p, 'Sem resposta'), style: bspEscBotao(false) }, 'Não atendeu'),
+          BSP_PEDIDO_SITE_ABERTOS.indexOf(p.estado) !== -1 && React.createElement("button", { onClick: () => tratar(p, 'Contactado'), style: bspEscBotao(false) }, 'Falei, sem marcar'),
+          BSP_PEDIDO_SITE_ABERTOS.indexOf(p.estado) !== -1 && React.createElement("button", { onClick: () => tratar(p, 'Desistiu'), style: bspEscBotao(false) }, 'Desistiu'))))));
 }
 function MarcacoesScreen() {
   const toast = useToast();
@@ -22534,7 +22591,7 @@ function MarcacoesScreen() {
   const comEmail = marc.lista.filter(m => m.email).length;
   const chip = (on, cor, fundo) => ({ height: 32, padding: '0 12px', borderRadius: 999, border: '1px solid ' + (on ? (cor || 'var(--accent-d)') : 'var(--border)'), background: on ? (fundo || 'var(--accent-soft)') : 'var(--surface)', color: on ? (cor || 'var(--accent-d)') : 'var(--text-2)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' });
   const botao = principal => ({ height: 36, padding: '0 14px', borderRadius: 6, border: '1px solid ' + (principal ? 'var(--navy)' : 'var(--border)'), background: principal ? 'var(--navy)' : 'var(--surface)', color: principal ? '#fff' : 'var(--text-1)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 });
-  const guardar = async m => { const e = await marc.guardar(m); marcHoje.recarregar(); toast(e ? 'Não foi possível gravar: ' + e : (m.id ? 'Marcação actualizada.' : 'Marcação criada.')); return !e; };
+  const guardar = async m => { const e = await marc.guardar(m); marcHoje.recarregar(); if (!e && m.pedido_id) bspGetClient().rpc('bsp_pedido_site_tratar', { p_id: m.pedido_id, p_estado: 'Marcado', p_nota: 'Marcado para ' + bspMarcDataPt(m.data_marcada) }); toast(e ? 'Não foi possível gravar: ' + e : (m.id ? 'Marcação actualizada.' : 'Marcação criada.')); return !e; };
   const apagar = async m => { if (!window.confirm('Apagar a marcação de ' + m.nome + ' (' + bspMarcDataPt(m.data_marcada) + ')?')) return; const e = await marc.apagar(m.id); marcHoje.recarregar(); toast(e ? 'Não foi possível apagar: ' + e : 'Marcação apagada.'); if (!e) setModal(null); };
   const exportar = () => {
     const blob = new Blob([bspMarcCsv(visiveis, valores)], { type: 'text/csv;charset=utf-8' });
@@ -22572,8 +22629,14 @@ function MarcacoesScreen() {
   const vazio = t => React.createElement("div", { style: { padding: '40px 20px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13.5 } }, t);
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' } },
     ficha && React.createElement(CrmFicha, { alvo: ficha, onClose: () => setFicha(null) }),
-    React.createElement(MarcacaoModal, { open: !!modal, inicial: modal && modal.id ? modal : null, onClose: () => setModal(null), onGuardar: guardar, onApagar: apagar, podeApagar: bspGereMarcacoes(eu) }),
+    React.createElement(MarcacaoModal, { open: !!modal, inicial: modal && (modal.id || modal.pedido_id) ? modal : null, onClose: () => setModal(null), onGuardar: guardar, onApagar: apagar, podeApagar: bspGereMarcacoes(eu) }),
     marcHoje.estado === 'pronto' && React.createElement(MarcLembretes, { lista: marcHoje.lista, mudarEstado: mudarHoje }),
+    React.createElement(PedidosSitePainel, { onMarcar: p => setModal({
+      pedido_id: p.id, nome: p.nome, origem: 'Site', dia_contacto: String(p.criado_em).slice(0, 10),
+      contacto: p.familiar_quem ? (p.telefone_proprio || '') : p.telefone,
+      contacto_familiar: p.familiar_quem ? p.telefone : '', familiar_quem: p.familiar_quem || '',
+      entidade: p.seguro && p.seguro !== 'Não tenho' ? 'Seguro' : 'Particular', seguradora: p.seguro && p.seguro !== 'Não tenho' ? p.seguro : '',
+      observacoes: ['Pedido pelo site', p.servico, p.mensagem].filter(Boolean).join(' · ') }) }),
     React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flex: 'none' } },
       React.createElement("button", { onClick: () => setModal({}), style: botao(true) }, React.createElement(I.Plus, { size: 14 }), 'Nova marcação'),
       React.createElement("span", { style: { flex: 1 } }),
@@ -22618,7 +22681,7 @@ function MarcacoesScreen() {
             React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)' } }, m.hora || '—'),
             React.createElement("div", { style: { minWidth: 0, cursor: 'pointer' }, onClick: () => setModal(m), title: 'Editar' },
               React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: 'var(--text-1)' } }, m.nome, m.sexo ? React.createElement("span", { style: { fontWeight: 500, color: 'var(--text-3)' } }, ' · ' + m.sexo) : null),
-              React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', marginTop: 2 } }, [m.acto, m.medico, m.contacto, m.entidade && m.entidade !== 'Particular' ? (m.seguradora ? m.entidade + ' ' + m.seguradora : m.entidade) : m.entidade].filter(Boolean).join(' · ')),
+              React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', marginTop: 2 } }, [m.acto, m.medico, m.contacto, m.contacto_familiar ? 'familiar' + (m.familiar_quem ? ' (' + m.familiar_quem + ')' : '') + ': ' + m.contacto_familiar : null, m.entidade && m.entidade !== 'Particular' ? (m.seguradora ? m.entidade + ' ' + m.seguradora : m.entidade) : m.entidade].filter(Boolean).join(' · ')),
               m.observacoes && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2, fontStyle: 'italic' } }, m.observacoes),
               React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 3, fontSize: 11.5, fontWeight: 600 } },
                 m.email ? React.createElement("span", { style: { color: 'var(--text-3)', fontWeight: 500 } }, m.email)
@@ -25232,6 +25295,8 @@ const BSP_GUIA_FICHAS = [
     serve: 'As marcações, os pedidos do WhatsApp e o seguimento dos utentes, num só menu.',
     faz: [
       ['Marque e actualize', 'as consultas e exames (separador Marcações).'],
+      ['Ligue aos «Pedidos do site»:', 'quem pede em barispol.com espera a chamada. «Marcar» abre a marcação já preenchida.'],
+      ['Separe os telemóveis:', 'o do próprio (para ligar, lembrar e o inquérito) e o de um familiar, com quem é.'],
       ['Acompanhe os pedidos do WhatsApp:', 'o que pediram e se foram facturados.'],
       ['Ligue a quem está «Por ligar»:', 'ficou sem resposta no WhatsApp. Registe o resultado no pedido.'],
       ['Veja o funil de vendas:', 'quantos escreveram, foram respondidos, marcados e vieram, e onde se perdem.'],

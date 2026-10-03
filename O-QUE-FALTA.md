@@ -2821,3 +2821,43 @@ Elmar: «Avante o 1» (o mapa de pagamento aos prestadores).
 - Falta: lançar as permanências e as fichas de Setembro de 2026 e fechar o
   mês. Uniformizar a ecografia dos imagiologistas (Elizabeth, Ihandjika,
   Noémia) está pendente de decisão da Direcção Geral.
+
+## 3-ep. Telemóvel do próprio e de familiar (03-10-2026)
+
+Elmar: «Avante o 2». Proposta do apuramento de 16-09: em seis casos o número
+do paciente era de um familiar.
+
+- `telefones-familiar.sql` (aplicado): `marcacoes.contacto_familiar` e
+  `familiar_quem`. O `contacto` passa a ser o telemóvel do próprio, e é
+  dele que sai o `tel9` usado para ligar, para o lembrete e para o
+  inquérito.
+- Ecrã: na marcação, «Telemóvel do próprio», «Telemóvel de familiar
+  (opcional)» e «De quem é». O cartão mostra os dois. O CSV ganhou a
+  coluna «CONTACTO DE FAMILIAR», no fim.
+- Falta: a ficha de inscrição em papel e no MetaGest (fora do Workspace)
+  devem ter os dois campos, com confirmação em voz alta no balcão.
+
+## 3-eq. Pedidos de marcação pelo site (03-10-2026)
+
+Elmar: «as marcações no site. Mas no site o paciente espera ser contactado
+para marcar.»
+
+- `pedidos-site.sql` (aplicado): tabela `pedidos_marcacao` e
+  `bsp_pedido_site`, a única porta aberta a visitantes além da avaliação.
+  Tem campo-armadilha para robôs, um tecto de 300 pedidos por dia e não
+  repete o mesmo número em 2 horas. A Recepção recebe um aviso no
+  telemóvel a cada pedido (`bsp_pedido_site_aviso`).
+- `contacto.html`: o pedido fica gravado na clínica, já não abre o
+  WhatsApp. Campos: nome, número para ligar e de quem é (o próprio ou um
+  familiar, com o telemóvel do próprio à parte), serviço, seguro e melhor
+  altura. Confirmação: «A recepção vai ligar-lhe para marcar». O WhatsApp
+  fica como alternativa.
+- `index.html`: a mensagem do formulário entra também nos pedidos, além do
+  e-mail que já saía.
+- Workspace: Utentes → Marcações → «Pedidos do site», com Ligar, WhatsApp e
+  Marcar. «Marcar» abre a marcação já preenchida, com origem «Site», e o
+  pedido fica «Marcado». Há também «Não atendeu», «Falei, sem marcar» e
+  «Desistiu».
+- Testado no navegador: o envio, a confirmação, a mensagem de falha, o
+  painel e a marcação preenchida. No servidor: nome curto e telefone
+  inválido recusados, e o mesmo número não se repete.
