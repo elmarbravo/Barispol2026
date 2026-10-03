@@ -2415,3 +2415,13 @@ Pedido do Elmar: «Avance tudo possível… Coloque lá o feedback de utentes».
   ignorados; ninguém regista em nome de outro; só a gestão lê (Admin →
   «Acessos», `bsp_acessos_resumo`); apaga-se ao fim de 1 ano
   (`bsp-acessos-limpeza`).
+
+## 3-dw. Documentos com prazo de revisão (03-10-2026)
+
+- `documentos-revisao.sql` (aplicado): coluna `revisao_ate`;
+  `bsp_documentos_rever_alertar` (cron `bsp-documentos-revisao`, 04h50 de
+  Luanda) põe nas novidades os documentos a rever em 30 dias e no dia
+  (gestão; nos procedimentos também a Direcção Clínica).
+- Ecrã: «Rever até (opcional)» no `DocPublicarModal` (nos procedimentos
+  propõe 2 anos); no cartão, quem publica vê «Rever até» / «Revisão em
+  atraso».

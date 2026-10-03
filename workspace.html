@@ -24558,8 +24558,8 @@ function DocsPorLerCartao({ currentUser, onAbrir }) {
 function DocPublicarModal({ open, substituir, editar, onClose }) {
   const toast = useToast();
   const vazio = () => editar
-    ? { categoria: editar.categoria, titulo: editar.titulo || '', numero: editar.numero || '', descricao: editar.descricao || '', vigor: editar.em_vigor_desde || bspDataLocalISO(new Date()), grupos: bspDocGrupos(editar) }
-    : ({ categoria: substituir ? substituir.categoria : 'comunicado', titulo: substituir ? substituir.titulo : '', numero: '', descricao: '', vigor: bspDataLocalISO(new Date()), grupos: substituir ? bspDocGrupos(substituir) : ['todos'] });
+    ? { categoria: editar.categoria, titulo: editar.titulo || '', numero: editar.numero || '', descricao: editar.descricao || '', vigor: editar.em_vigor_desde || bspDataLocalISO(new Date()), revisao: editar.revisao_ate || '', grupos: bspDocGrupos(editar) }
+    : ({ categoria: substituir ? substituir.categoria : 'comunicado', titulo: substituir ? substituir.titulo : '', numero: '', descricao: '', vigor: bspDataLocalISO(new Date()), revisao: '', grupos: substituir ? bspDocGrupos(substituir) : ['todos'] });
   const mudarGrupo = k => setF(x => {
     if (k === 'todos') return Object.assign({}, x, { grupos: ['todos'] });
     const sem = (x.grupos || []).filter(g => g !== 'todos');
@@ -24586,7 +24586,7 @@ function DocPublicarModal({ open, substituir, editar, onClose }) {
     setAGravar(true);
     if (editar) {
       try {
-        const mud = { categoria: f.categoria, titulo: f.titulo.trim(), numero: f.numero.trim(), descricao: f.descricao.trim(), em_vigor_desde: f.vigor || editar.em_vigor_desde, grupos: f.grupos };
+        const mud = { categoria: f.categoria, titulo: f.titulo.trim(), numero: f.numero.trim(), descricao: f.descricao.trim(), em_vigor_desde: f.vigor || editar.em_vigor_desde, revisao_ate: f.revisao || null, grupos: f.grupos };
         if (ficheiro) Object.assign(mud, { caminho: await bspUploadToStorage(ficheiro, 'documentos/' + f.categoria), nome_ficheiro: ficheiro.name, tamanho: ficheiro.size });
         const r = await bspGetClient().from('documentos').update(mud).eq('id', editar.id).select('id');
         if (r.error) throw r.error;
@@ -24605,7 +24605,7 @@ function DocPublicarModal({ open, substituir, editar, onClose }) {
       const r = await bspGetClient().from('documentos').insert({
         categoria: f.categoria, titulo: f.titulo.trim(), numero: f.numero.trim(), descricao: f.descricao.trim(),
         caminho, nome_ficheiro: ficheiro ? ficheiro.name : '', tamanho: ficheiro ? ficheiro.size : null, em_vigor_desde: f.vigor || bspDataLocalISO(new Date()),
-        substitui: substituir ? substituir.id : null, grupos: f.grupos
+        substitui: substituir ? substituir.id : null, grupos: f.grupos, revisao_ate: f.revisao || null
       });
       if (r.error) throw r.error;
       toast('Documento publicado. A equipa foi avisada no sino e no telemóvel.');
@@ -24624,7 +24624,7 @@ function DocPublicarModal({ open, substituir, editar, onClose }) {
   }, React.createElement("div", { style: { padding: 20, display: 'flex', flexDirection: 'column', gap: 14 } },
     React.createElement("div", null, bspTranspRot('Tipo'),
       React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
-        BSP_DOC_CATEGORIAS.map(c => React.createElement("button", { key: c[0], type: 'button', onClick: () => setF(x => Object.assign({}, x, { categoria: c[0] })), style: bspEscChip(f.categoria === c[0]) }, c[1])))),
+        BSP_DOC_CATEGORIAS.map(c => React.createElement("button", { key: c[0], type: 'button', onClick: () => setF(x => Object.assign({}, x, { categoria: c[0] }, c[0] === 'procedimento' && !x.revisao ? { revisao: bspSomarMeses(x.vigor || bspDataLocalISO(new Date()), 24) } : {})), style: bspEscChip(f.categoria === c[0]) }, c[1])))),
     React.createElement("div", null, bspTranspRot('Para quem'),
       React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
         [['todos', 'Toda a equipa']].map(c => React.createElement("button", { key: c[0], type: 'button', onClick: () => mudarGrupo(c[0]), style: bspEscChip((f.grupos || []).indexOf(c[0]) !== -1) }, c[1]))),
@@ -24638,7 +24638,8 @@ function DocPublicarModal({ open, substituir, editar, onClose }) {
         'Só estes grupos o vêem e recebem o aviso. A Direcção, a Coordenação e quem publica documentos vêem sempre.' + (f.categoria === 'comunicado' ? ' Não vai para o Feed nem para o #avisos.' : ''))),
     campo('titulo', 'Título', 'Ex.: Regulamento interno da clínica'),
     React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 } },
-      campo('numero', 'Número (opcional)', 'Ex.: NI 03/2026'), campo('vigor', 'Em vigor desde', '', 'date')),
+      campo('numero', 'Número (opcional)', 'Ex.: NI 03/2026'), campo('vigor', 'Em vigor desde', '', 'date'), campo('revisao', 'Rever até (opcional)', '', 'date')),
+    f.categoria !== 'comunicado' && React.createElement("p", { style: { margin: '-6px 0 0', fontSize: 12, color: 'var(--text-3)' } }, 'Com data de revisão, a Direcção recebe o aviso 30 dias antes e no dia. Protocolos e procedimentos: pelo menos de 2 em 2 anos.'),
     React.createElement("label", null, bspTranspRot(soTexto ? (ficheiro ? 'Texto do comunicado (opcional com ficheiro)' : 'Texto do comunicado') : 'Resumo (opcional)'),
       React.createElement("textarea", { value: f.descricao, onChange: e => setF(x => Object.assign({}, x, { descricao: e.target.value })), rows: soTexto ? 6 : 3, style: Object.assign({}, bspTranspCampo, { height: 'auto', padding: '10px 12px' }) })),
     React.createElement("div", null, bspTranspRot(soTexto ? 'Ficheiro (opcional)' : 'Ficheiro'),
@@ -24741,6 +24742,7 @@ function DocumentosScreen({ currentUser }) {
           React.createElement("div", { style: { fontSize: 16, fontWeight: 700, color: 'var(--text-1)', marginTop: 2 } }, d.titulo),
           !bspDocParaTodos(d) && React.createElement("div", { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--accent-d)', marginTop: 2 } }, 'Para: ' + bspDocGruposTexto(d)),
           React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginTop: 2 } }, 'Em vigor desde ' + bspDataCurta(d.em_vigor_desde) + ' · publicado por ' + nomeDe(d.publicado_por) + ' a ' + bspDataExacta(new Date(d.publicado_em)) + (d.arquivado ? ' · arquivado' : '')),
+          publica && d.revisao_ate && !d.arquivado && React.createElement("div", { style: { fontSize: 12.5, fontWeight: 600, marginTop: 2, color: d.revisao_ate < bspDataLocalISO(new Date()) ? 'var(--perigo)' : d.revisao_ate <= bspSomarDias(bspDataLocalISO(new Date()), 30) ? 'var(--serie-4)' : 'var(--text-3)' } }, (d.revisao_ate < bspDataLocalISO(new Date()) ? 'Revisão em atraso desde ' : 'Rever até ') + bspDataCurta(d.revisao_ate)),
           d.descricao && React.createElement("div", { style: { fontSize: 13.5, color: 'var(--text-2)', marginTop: 8, whiteSpace: 'pre-wrap' } }, d.descricao),
           lido ? React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: 'var(--sucesso)', marginTop: 8 } }, '✓ Leu e tomou conhecimento a ' + bspDataExacta(new Date(lido)))
             : (!meu && !d.arquivado && d.leitura_obrigatoria) ? React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: 'var(--perigo)', marginTop: 8 } }, 'Leitura obrigatória por confirmar') : null),
