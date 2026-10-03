@@ -23021,7 +23021,23 @@ function bspEIos() {
    (ProteccaoEcra). O documento abre numa camada própria (#bsp-impressao, com
    Shadow DOM para isolar os estilos); «Imprimir» chama window.print() no
    próprio toque e a regra de impressão deixa ver só essa camada. */
-function bspImprimirIos(html) {
+/* Atalho do Workspace no ecrã principal do iPhone (03-10-2026, Elmar: «Não
+   está imprimir dentro do marcador de iphone»): aí o window.print() não faz
+   nada. O documento vai comprimido depois do «#» para imprimir.html, que abre
+   no navegador do iPhone e imprime. O «#» nunca vai ao servidor. */
+function bspEnderecoImpressao(html) {
+  if (!window.CompressionStream) return Promise.resolve(null);
+  const corrente = new Blob([String(html)]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+  return new Response(corrente).arrayBuffer().then(buf => {
+    const b = new Uint8Array(buf);
+    let bin = '';
+    for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000));
+    const z = btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return location.href.replace(/[#?].*$/, '').replace(/[^/]*$/, '') + 'imprimir.html#z=' + z;
+  }).catch(() => null);
+}
+function bspImprimirIos(html, opc) {
+  const o = opc || {};
   const velho = document.getElementById('bsp-impressao');
   if (velho && velho.bspFechar) velho.bspFechar();
   const estilos = [];
@@ -23060,15 +23076,29 @@ function bspImprimirIos(html) {
   barra.appendChild(botao('Fechar', false, fechar));
   const esp = document.createElement('span'); esp.style.flex = '1'; barra.appendChild(esp);
   if (navigator.share && window.File) {
+    // Com opc.pdf (ex.: o cartaz), partilha-se o PDF pronto: a folha de
+    // partilha do iPhone tem «Imprimir» para PDF.
+    let pdf = null;
+    if (o.pdf) fetch(o.pdf).then(r => r.ok ? r.blob() : null).then(b => { if (b) pdf = new File([b], o.pdf.split('/').pop(), { type: 'application/pdf' }); }).catch(() => {});
     barra.appendChild(botao('Partilhar', false, () => {
       try {
-        const f = new File([html], 'barispol-documento.html', { type: 'text/html' });
+        const f = pdf || new File([html], 'barispol-documento.html', { type: 'text/html' });
         const dados = navigator.canShare && navigator.canShare({ files: [f] }) ? { files: [f], title: 'Documento do Workspace' } : null;
         if (dados) navigator.share(dados).catch(() => {});
       } catch (x) {}
     }));
   }
-  barra.appendChild(botao('Imprimir', true, () => { try { window.print(); } catch (x) {} }));
+  let endereco = null;
+  if (bspStandalone()) bspEnderecoImpressao(html).then(u => { endereco = u; });
+  barra.appendChild(botao('Imprimir', true, () => {
+    if (bspStandalone()) {
+      if (endereco) { window.open(endereco, '_blank'); return; }
+      if (o.pdf) { window.open(o.pdf, '_blank'); return; }
+      try { window.alert('Para imprimir, abra o Workspace no Safari ou use «Partilhar».'); } catch (x) {}
+      return;
+    }
+    try { window.print(); } catch (x) {}
+  }));
   const folha = document.createElement('div');
   folha.style.cssText = 'background:var(--papel);color:var(--papel-texto);margin:0 auto;max-width:1100px';
   const sombra = folha.attachShadow({ mode: 'open' });
@@ -23107,8 +23137,8 @@ function bspTabelaImpressao(titulo, sub, colunas, linhas, opc) {
     linhas.map(l => '<tr>' + colunas.map((c, i) => cel(c, l[i])).join('') + '</tr>').join('') +
     '</tbody></table><p class="rod">' + esc(linhas.length + (linhas.length === 1 ? ' linha' : ' linhas')) + (o.rodape ? ' · ' + esc(o.rodape) : '') + '</p></body></html>';
 }
-function bspImprimirHtml(html) {
-  if (bspEIos()) { bspImprimirIos(html); return; }
+function bspImprimirHtml(html, opc) {
+  if (bspEIos()) { bspImprimirIos(html, opc); return; }
   const f = document.createElement('iframe');
   f.setAttribute('aria-hidden', 'true');
   f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
@@ -26137,15 +26167,21 @@ function bspCorQualidade(estado) {
 /* Cartaz com o QR da página de avaliação (assets/qr-avaliar.png), para a
    recepção. Imprime-se só por bspImprimirHtml. */
 function bspImprimirCartazAvaliar() {
+  /* Medidas em mm, que cabem numa folha A4 também na impressão do iPhone
+     (03-10-2026: com px o cartaz passava para uma segunda folha e o código
+     QR saía cortado). O bloco nunca se parte entre folhas. */
   const base = location.href.replace(/[^/]*$/, '');
-  bspImprimirHtml('<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><title>Avalie o atendimento</title><style>@page{size:A4;margin:14mm}body{margin:0}</style></head><body><div style="font-family:Dax,\'Titillium Web\',Arial,sans-serif;text-align:center;padding:40px 30px;color:#292F58">' +
-    '<img src="' + base + 'assets/logo-barispol.png" style="width:110px;height:110px;object-fit:contain">' +
-    '<h1 style="font-size:34px;margin:18px 0 6px">Como foi o seu atendimento?</h1>' +
-    '<p style="font-size:19px;margin:0 0 26px;color:#4E5366">Aponte a câmara do telemóvel para o código. Leva 30 segundos.</p>' +
-    '<img src="' + base + 'assets/qr-avaliar.png" style="width:330px;height:330px">' +
-    '<p style="font-size:17px;margin:20px 0 4px;font-weight:700">barispol.com/avaliar.html</p>' +
-    '<p style="font-size:14px;margin:0;color:#4E5366">A sua resposta chega à Direcção. Pode deixar elogios, sugestões ou reclamações.</p>' +
-    '<p style="font-size:12px;margin:40px 0 0;color:#8A8FA3">Clínica Barispol, Lda. · Centro Médico Barispol</p></div></body></html>');
+  bspImprimirHtml('<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><title>Avalie o atendimento</title><style>@page{size:A4 portrait;margin:12mm}body{margin:0}' +
+    '.cartaz{font-family:Dax,"Titillium Web","Segoe UI",Arial,sans-serif;text-align:center;color:#292F58;padding:6mm 4mm 0;max-width:170mm;margin:0 auto;break-inside:avoid;page-break-inside:avoid}' +
+    '.cartaz img{display:block;margin:0 auto}.cartaz h1{font-size:9mm;line-height:1.15;margin:6mm 0 2mm}.cartaz p{margin:0}' +
+    '</style></head><body><div class="cartaz">' +
+    '<img src="' + base + 'assets/logo-barispol.png" style="width:30mm;height:30mm;object-fit:contain">' +
+    '<h1>Como foi o seu atendimento?</h1>' +
+    '<p style="font-size:5mm;margin-bottom:7mm;color:#4E5366">Aponte a câmara do telemóvel para o código. Leva 30 segundos.</p>' +
+    '<img src="' + base + 'assets/qr-avaliar.png" style="width:90mm;height:90mm">' +
+    '<p style="font-size:5mm;margin:6mm 0 1.5mm;font-weight:700">barispol.com/avaliar.html</p>' +
+    '<p style="font-size:4mm;color:#4E5366">A sua resposta chega à Direcção. Pode deixar elogios, sugestões ou reclamações.</p>' +
+    '<p style="font-size:3.2mm;margin-top:10mm;color:#8A8FA3">Clínica Barispol, Lda. · Centro Médico Barispol</p></div></body></html>', { pdf: 'assets/cartaz-avaliar.pdf' });
 }
 function QualidadeScreen() {
   const toast = useToast();

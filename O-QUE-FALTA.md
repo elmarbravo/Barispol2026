@@ -2513,3 +2513,24 @@ do Outlook sem mexer na Resend.
   fluxo não pode ser publicado.
 - Para ver se chegou: `select dia, importadas, erro, recebido_em from
   feedback_email_entrada order by id desc limit 5;`
+
+## 3-ec. Imprimir no atalho do iPhone (03-10-2026)
+
+Elmar: «Não está imprimir dentro do marcador de iphone» (cartaz do
+inquérito). No atalho do Workspace no ecrã principal do iPhone, o iOS
+ignora o `window.print()`.
+
+- `imprimir.html` (nova, sem indexação): recebe o documento comprimido
+  depois do «#», mostra-o com o botão «Imprimir» e pede a impressão
+  sozinha. Tira o documento do endereço logo que o abre. O «#» nunca vai
+  ao servidor e a página não guarda nada.
+- `bspImprimirIos`: no atalho (`bspStandalone()`), «Imprimir» abre essa
+  página no navegador do iPhone. O endereço prepara-se ao abrir a
+  pré-visualização (`bspEnderecoImpressao`), para o toque abrir logo.
+  No Safari e no computador nada muda.
+- Cartaz «Como foi o seu atendimento?»: medidas em mm, numa só folha A4
+  e sem se partir. «Partilhar» manda `assets/cartaz-avaliar.pdf`, e a folha
+  de partilha do iPhone tem «Imprimir». Se o cartaz mudar, refazer o PDF.
+- Testado no Chromium com um iPhone simulado: no atalho, abre-se a
+  `imprimir.html` com o cartaz e o endereço fica limpo; no Safari,
+  imprime como antes; o PDF tem 1 folha. Falta confirmar num iPhone real.

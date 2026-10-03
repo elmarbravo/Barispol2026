@@ -494,7 +494,7 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   impressão em branco; nos ecrãs de `BSP_ECRAS_SENSIVEIS` o conteúdo tapa-se
   quando a janela perde o foco. Um ecrã novo com dados sensíveis entra nessa
   lista. Imprimir documentos só por `bspImprimirHtml` (iframe próprio; no iPhone/iPad,
-  camada `bspImprimirIos`, porque o Safari imprime a página principal). Listas em tabela para imprimir: `bspTabelaImpressao`.
+  camada `bspImprimirIos`, porque o Safari imprime a página principal); no atalho do ecrã principal do iPhone o `window.print()` não faz nada, e o «Imprimir» abre `imprimir.html#z=…` com o documento comprimido, `bspEnderecoImpressao`, 03-10-2026). `bspImprimirHtml(html, { pdf })` partilha um PDF pronto no iPhone (cartaz: `assets/cartaz-avaliar.pdf`, refazer se o cartaz mudar). Listas em tabela para imprimir: `bspTabelaImpressao`.
 - Guia por e-mail (30-09-2026, `guia-envio.sql`): imagens em `guia/`,
   fila `guia_envios`, confirmações `guia_recepcoes` (#confirmar-guia).
 - Acesso guiado (30-09-2026): `GuiaEcra` + `BSP_GUIA_FICHAS` (texto de cada
