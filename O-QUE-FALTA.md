@@ -2704,3 +2704,33 @@ Elmar: «Na qualidade não tem para os médicos o tempo de espera, não convém?
 - Setembro: Dra. Luidmila Chitata 3 h 28 (13 de 30 consultas medidas); Dra.
   Ludmila Da Silva 1 h 24 (18 de 38); clínica 1 h 38. Um médico não vê os
   números de outro (testado).
+
+## 3-el. Taxa de resposta ao inquérito e lista de chamadas no CRM (03-10-2026)
+
+Elmar: «3, as duas» (copiar a lista de contactos para o servidor e pôr a
+lista de chamadas no CRM).
+
+- `inquerito-taxa.sql` (aplicado). `inquerito_contactos`: 1 415 números
+  da folha «Contactos de pacientes (acumulado)» e 53 do MetaGest. Só
+  telefone, datas e tipo, sem nomes. O cron `bsp-inquerito-contactos`
+  (04h20) acrescenta os novos todos os dias. 10 números estão marcados sem
+  WhatsApp (envios de 15-09, 25-09 e 02-10).
+- `inquerito_envios_dia`: o «RESUMO DO DIA» do e-mail diário. A
+  `bsp_feedback_email` passa a gravá-lo
+  (`bsp_inquerito_resumo_do_texto`). Já lá estão os envios de 15-09 e
+  02-10. Sobre o de 25-09 não há resumo.
+- Qualidade → Feedback de utentes: bloco «Inquérito por WhatsApp · 30
+  dias» (`bsp_qualidade_inqueritos`). Hoje mostra uma taxa de resposta de
+  33% (21 de 63) e uma cobertura de 25% (63 inquéritos para 255 números
+  atendidos). Mostra também 32 recuperações (1 respondeu) e 9 números sem
+  WhatsApp.
+- CRM: estado novo «Por ligar», que aparece sempre, fora do período
+  escolhido (`crm_pedidos`). Se o pedido for marcado ou o utente vier, o
+  estado automático passa à frente (`crm.pedidos_estado`). Os 43 pedidos
+  da lista de chamadas (25-08 a 24-09) estão «Por ligar», com a
+  prioridade na nota.
+- Ficaram de fora 3 números: um já marcado, uma candidatura de emprego e
+  um número sem pedido no CRM. O Sérgio, que respondeu a 02-10, passou a
+  «Perdido» com essa nota.
+- Falta: o Zapier com o Outlook ligado, para o resumo entrar todos os dias
+  sozinho.

@@ -4059,7 +4059,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista'];
+const BSP_RPC_LEITURA = ['bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -25223,6 +25223,7 @@ const BSP_GUIA_FICHAS = [
     faz: [
       ['Marque e actualize', 'as consultas e exames (separador Marcações).'],
       ['Acompanhe os pedidos do WhatsApp:', 'o que pediram e se foram facturados.'],
+      ['Ligue a quem está «Por ligar»:', 'ficou sem resposta no WhatsApp. Registe o resultado no pedido.'],
       ['Veja o funil de vendas:', 'quantos escreveram, foram respondidos, marcados e vieram, e onde se perdem.'],
       ['Recupere utentes', 'a partir de um ficheiro CSV do MetaGest.'],
       ['Abra a ficha do paciente', 'com marcações e histórico.'],
@@ -25352,6 +25353,7 @@ const BSP_GUIA_FICHAS = [
       ['Notifique um incidente:', 'um quase-erro, um incidente ou um evento adverso, com o que se fez logo. Pode ser sem o seu nome.'],
       ['Quem trata regista', 'a causa, a acção correctiva, o responsável, o prazo e a verificação, até fechar.'],
       ['Veja a satisfação:', 'a média dos últimos 30 dias, as reclamações por responder e os incidentes em aberto.'],
+      ['Veja o inquérito por WhatsApp:', 'a taxa de resposta, quantos atendidos receberam o inquérito e os números sem WhatsApp, dos últimos 30 dias.'],
       ['Veja o tempo de espera', '(Direcção e Direcção Clínica): tempo na clínica e espera pelo médico, medidos pelo MetaGest, por dia, hora e médico.'],
       ['Faça as auditorias', '(gestão, Direcção Clínica e chefes de área): higiene das mãos, carro de emergência, cadeia de frio, resíduos, limpeza, identificação do doente e incêndio, com Sim / Não / N.A. e a conformidade calculada.']
     ],
@@ -26650,6 +26652,16 @@ function QualidadeScreen() {
     cl.rpc('bsp_qualidade_resumo', { p_dias: 30 }).then(r => { if (vivo && !r.error) setResumo(r.data); });
     return () => { vivo = false; };
   }, [veTudo, fb.linhas, oc.linhas]);
+  /* Inquérito por WhatsApp (03-10-2026, inquerito-taxa.sql): envios do
+     resumo do e-mail diário e números atendidos (só contagens). */
+  const [inq, setInq] = React.useState(null);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    cl.rpc('bsp_qualidade_inqueritos', { p_dias: 30 }).then(r => { if (vivo && !r.error) setInq(r.data); });
+    return () => { vivo = false; };
+  }, []);
   const hoje = bspDataLocalISO(new Date());
   const rot = bspTranspRot;
   const areas = bspEscalaAreas().filter(a => a.chave !== 'administracao');
@@ -26817,6 +26829,16 @@ function QualidadeScreen() {
     tile('Reclamações por responder', resumo.reclamacoes_abertas, resumo.reclamacoes_atrasadas ? resumo.reclamacoes_atrasadas + ' em atraso' : 'nenhuma em atraso', resumo.reclamacoes_atrasadas ? 'var(--perigo)' : null),
     tile('Incidentes em aberto', resumo.ocorrencias_abertas, resumo.ocorrencias_graves + ' graves em 30 dias', resumo.ocorrencias_graves ? 'var(--perigo)' : null))
     : (!veTudo && mediaArea ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)' } }, 'Satisfação no que vê: ' + mediaArea.replace('.', ',') + ' / 5 em ' + notasArea.length + ' avaliações.') : null);
+  const painelInq = inq && inq.dias_com_envio ? React.createElement("div", null,
+    React.createElement("div", { style: { fontSize: 12.5, fontWeight: 700, color: 'var(--text-2)', margin: '4px 0 6px' } },
+      'Inquérito por WhatsApp · 30 dias · ' + inq.dias_com_envio + (inq.dias_com_envio === 1 ? ' dia de envio' : ' dias de envio') +
+      (inq.ultimo_envio ? ' · último a ' + bspDataExacta(new Date(inq.ultimo_envio + 'T12:00:00')).replace(/,.*$/, '') : '')),
+    React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } },
+      tile('Taxa de resposta', pct(inq.respostas_inquerito, inq.inqueritos), inq.respostas_inquerito + ' de ' + inq.inqueritos + ' inquéritos · ' + inq.respostas_nota + ' com nota'),
+      tile('Cobertura', pct(inq.inqueritos, inq.atendidos), inq.inqueritos + ' inquéritos para ' + inq.atendidos + ' números atendidos'),
+      tile('Recuperação', inq.recuperacoes, inq.respostas_recuperacao + (inq.respostas_recuperacao === 1 ? ' respondeu' : ' responderam') + ' · ligar em Utentes → CRM'),
+      tile('Sem WhatsApp', inq.sem_whatsapp, inq.contactos_sem_whatsapp + ' números marcados na base', inq.sem_whatsapp ? 'var(--perigo)' : null)))
+    : null;
 
   const corpo = aba === 'espera' ? React.createElement(QualidadeEspera, null) : aba === 'auditorias' ? React.createElement(QualidadeAuditorias, null) : aba === 'utentes'
     ? React.createElement(React.Fragment, null,
@@ -26846,7 +26868,7 @@ function QualidadeScreen() {
       React.createElement("button", { onClick: () => setAba('incidentes'), style: bspEscChip(aba === 'incidentes') }, 'Incidentes e eventos adversos'),
       bspFazAlgumaAuditoria(euU) && React.createElement("button", { onClick: () => setAba('auditorias'), style: bspEscChip(aba === 'auditorias') }, 'Auditorias'),
       veTudo && React.createElement("button", { onClick: () => setAba('espera'), style: bspEscChip(aba === 'espera') }, 'Tempo de espera')),
-    aba !== 'espera' && aba !== 'auditorias' && painel, corpo);
+    aba !== 'espera' && aba !== 'auditorias' && painel, aba === 'utentes' && painelInq, corpo);
 }
 
 /* Equipamentos e manutenção preventiva (03-10-2026, manutencao-preventiva.sql).
@@ -27645,6 +27667,9 @@ function PainelScreen() {
 
 const BSP_CRM_ESTADOS = [
   { id: 'Novo',         cor: '#B54708', fundo: 'rgba(181,71,8,.10)' },
+  /* Lista de chamadas: ficou sem resposta no WhatsApp e a Recepção liga
+     (03-10-2026, inquerito-taxa.sql). Aparece sempre, fora do período. */
+  { id: 'Por ligar',    cor: 'var(--accent-d)', fundo: 'var(--accent-soft)' },
   { id: 'Em contacto',  cor: '#14448F', fundo: 'rgba(20,68,143,.10)' },
   { id: 'Marcado',      cor: '#06713F', fundo: 'rgba(6,113,63,.10)' },
   { id: 'Compareceu',   cor: '#06713F', fundo: 'rgba(6,113,63,.18)' },
@@ -27749,7 +27774,7 @@ function CrmPedidos() {
     return true;
   }
 
-  const abertos = ['Novo', 'Em contacto'];
+  const abertos = ['Novo', 'Por ligar', 'Em contacto'];
   const contagem = {};
   BSP_CRM_ESTADOS.forEach(e => contagem[e.id] = 0);
   linhas.forEach(l => { contagem[l.estado] = (contagem[l.estado] || 0) + 1; });
@@ -27813,7 +27838,7 @@ function CrmPedidos() {
   linhas.length > 0 && React.createElement("div", {
     style: { display: 'flex', gap: 8, flexWrap: 'wrap', flex: 'none' }
   }, React.createElement("button", { onClick: () => setFiltro('abertos'), style: chip(filtro === 'abertos') },
-      "Por tratar ", React.createElement("span", { style: { opacity: .65 } }, (contagem['Novo'] || 0) + (contagem['Em contacto'] || 0))),
+      "Por tratar ", React.createElement("span", { style: { opacity: .65 } }, (contagem['Novo'] || 0) + (contagem['Por ligar'] || 0) + (contagem['Em contacto'] || 0))),
     React.createElement("button", { onClick: () => setFiltro('todos'), style: chip(filtro === 'todos') },
       "Todos ", React.createElement("span", { style: { opacity: .65 } }, linhas.length)),
     BSP_CRM_ESTADOS.map(e => React.createElement("button", {
