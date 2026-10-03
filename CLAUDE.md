@@ -388,6 +388,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   Tempo de espera (03-10-2026, `qualidade-espera.sql`): `erp.espera_utente`
   (triagem, consulta e última factura do MetaGest, sem nomes),
   `bsp_qualidade_espera(de, ate)`, separador `QualidadeEspera`.
+  Auditorias (03-10-2026, `auditorias.sql`): `auditoria_modelos` + `auditorias`
+  (respostas `{item: {r: sim|nao|na, n}}`); a conformidade calcula-se no
+  servidor (`bsp_auditoria_calcular`); `bsp_faz_auditorias(area)` /
+  `bspFazAuditorias`; separador `QualidadeAuditorias`.
 - Médicos e credenciais (03-10-2026, `medicos-credenciais.sql`): `erp.medicos`
   copiado do MetaGest todos os dias; validades em `credenciais` (gestão e
   u14 registam, cada médico lê as suas); avisos por `bsp_credenciais_alertar`

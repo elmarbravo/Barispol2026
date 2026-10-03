@@ -4059,7 +4059,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista'];
+const BSP_RPC_LEITURA = ['bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -25333,7 +25333,8 @@ const BSP_GUIA_FICHAS = [
       ['Notifique um incidente:', 'um quase-erro, um incidente ou um evento adverso, com o que se fez logo. Pode ser sem o seu nome.'],
       ['Quem trata regista', 'a causa, a acção correctiva, o responsável, o prazo e a verificação, até fechar.'],
       ['Veja a satisfação:', 'a média dos últimos 30 dias, as reclamações por responder e os incidentes em aberto.'],
-      ['Veja o tempo de espera', '(Direcção e Direcção Clínica): tempo na clínica e espera pelo médico, medidos pelo MetaGest, por dia, hora e médico.']
+      ['Veja o tempo de espera', '(Direcção e Direcção Clínica): tempo na clínica e espera pelo médico, medidos pelo MetaGest, por dia, hora e médico.'],
+      ['Faça as auditorias', '(gestão, Direcção Clínica e chefes de área): higiene das mãos, carro de emergência, cadeia de frio, resíduos, limpeza, identificação do doente e incêndio, com Sim / Não / N.A. e a conformidade calculada.']
     ],
     quem: 'Toda a equipa regista. A Direcção e a Direcção Clínica vêem tudo; o chefe de cada área vê e trata o da sua; cada pessoa vê o que registou.',
     dica: 'Nunca escreva nomes de utentes. Uma reclamação tem 15 dias para resposta; notificar um incidente não é acusar ninguém.' }
@@ -26363,6 +26364,124 @@ function QualidadeEspera() {
     periodo === 'datas' && React.createElement(DatasLivres, { de: livre.de, ate: livre.ate, maxDias: 400, onMudar: (de, ate) => setLivre({ de, ate }) }),
     corpo);
 }
+/* Auditorias clínicas com lista de verificação (03-10-2026, auditorias.sql).
+   Cada modelo (higiene das mãos, carro de emergência, cadeia de frio…) tem
+   área e periodicidade; a auditoria regista Sim / Não / N.A. por item e o
+   servidor calcula a conformidade (N.A. não conta) e avisa as falhas.
+   Fazem e vêem: a gestão, a Direcção Clínica e o chefe de cada área. */
+function bspFazAuditorias(u, area) {
+  return bspVeQualidade(u) || (!!area && bspEditaEscala(u, area));
+}
+function bspFazAlgumaAuditoria(u) {
+  return bspVeQualidade(u) || bspEscalaAreas().some(a => bspEditaEscala(u, a.chave));
+}
+function bspAuditoriaFolha(m) {
+  const esc = x => String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  return '<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><title>' + esc(m.nome) + '</title><style>@page{size:A4;margin:14mm}body{margin:0;font-family:Dax,"Titillium Web","Segoe UI",Arial,sans-serif;color:#1C2033}' +
+    'h1{font-size:20px;color:#292F58;margin:0 0 4px}p{margin:0 0 10px;font-size:12px;color:#4E5366}table{width:100%;border-collapse:collapse;font-size:12.5px}' +
+    'th,td{border:1px solid #BFC2CC;padding:7px 6px;text-align:left;vertical-align:top}th{background:#292F58;color:#fff}td.c{width:44px;text-align:center}.ass{margin-top:22px;font-size:12.5px}</style></head><body>' +
+    '<h1>' + esc(m.nome) + '</h1><p>' + esc(bspEscalaAreaNome(m.area)) + ' · a cada ' + m.periodicidade + ' dias · ' + esc(m.descricao) + '</p>' +
+    '<p>Data: ____/____/______ &nbsp; Hora: ______ &nbsp; Local: ______________________</p>' +
+    '<table><thead><tr><th>Item</th><th class="c">Sim</th><th class="c">Não</th><th class="c">N.A.</th><th>Observação</th></tr></thead><tbody>' +
+    (m.itens || []).map(it => '<tr><td>' + esc(it.texto) + '</td><td class="c"></td><td class="c"></td><td class="c"></td><td style="width:34%"></td></tr>').join('') +
+    '</tbody></table><div class="ass">Auditor(a): ______________________________ &nbsp; Assinatura: ______________________</div>' +
+    '<p style="margin-top:18px">Clínica Barispol, Lda. · registar depois em Workspace → Qualidade → Auditorias.</p></body></html>';
+}
+function QualidadeAuditorias() {
+  const toast = useToast();
+  const eu = window.userById(window.CURRENT_USER_ID);
+  const md = useTabela('auditoria_modelos', 'ordem');
+  const au = useTabela('auditorias', 'dia');
+  const [estado, setEstado] = React.useState(null);
+  const [form, setForm] = React.useState(null);
+  const [aberta, setAberta] = React.useState(null);
+  const hoje = bspDataLocalISO(new Date());
+  const dataCurta = iso => iso ? bspDataExacta(new Date(iso + 'T12:00:00')).replace(/,.*$/, '') : '—';
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    cl.rpc('bsp_auditorias_estado').then(r => { if (vivo && !r.error) setEstado(r.data || []); });
+    return () => { vivo = false; };
+  }, [au.linhas]);
+  const modelos = (md.linhas || []).filter(m => m.activo && bspFazAuditorias(eu, m.area)).sort((a, b) => a.ordem - b.ordem);
+  const est = id => (estado || []).find(x => x.modelo_id === id) || {};
+  const pc = v => v == null ? '—' : String(v).replace('.', ',') + '%';
+  const corPc = v => v == null ? 'var(--text-3)' : v >= 90 ? 'var(--sucesso)' : v >= 75 ? 'var(--accent-d)' : 'var(--perigo)';
+  async function gravar() {
+    const m = form.modelo;
+    const falta = (m.itens || []).filter(it => !form.respostas[it.id]);
+    if (falta.length) { toast('Responda a todos os itens (' + falta.length + ' por responder).'); return; }
+    const semNota = (m.itens || []).filter(it => form.respostas[it.id].r === 'nao' && !String(form.respostas[it.id].n || '').trim());
+    if (semNota.length) { toast('Escreva o que falhou em cada «Não».'); return; }
+    const cl = bspGetClient();
+    const r = await cl.from('auditorias').insert({ modelo_id: m.id, area: m.area, dia: form.dia, respostas: form.respostas, notas: form.notas || '', auditor: window.CURRENT_USER_ID }).select().single();
+    if (r.error) { toast('Não foi possível gravar: ' + r.error.message); return; }
+    toast(r.data && r.data.falhas ? 'Gravada com ' + r.data.falhas + (r.data.falhas === 1 ? ' falha' : ' falhas') + ' (' + pc(r.data.conformidade) + '). A gestão e a área foram avisadas.' : 'Gravada: ' + pc(r.data && r.data.conformidade) + ' de conformidade.');
+    setForm(null); au.recarregar();
+  }
+  const opc = (it, v, rot) => {
+    const sel = form.respostas[it.id] && form.respostas[it.id].r === v;
+    const cor = v === 'sim' ? 'var(--sucesso)' : v === 'nao' ? 'var(--perigo)' : 'var(--text-2)';
+    return React.createElement("button", { type: 'button', onClick: () => setForm(Object.assign({}, form, { respostas: Object.assign({}, form.respostas, { [it.id]: Object.assign({}, form.respostas[it.id] || {}, { r: v }) }) })),
+      style: { height: 34, minWidth: 54, padding: '0 10px', borderRadius: 8, border: '1px solid ' + (sel ? cor : 'var(--border)'), background: sel ? 'var(--surface-2)' : 'var(--surface)', color: sel ? cor : 'var(--text-2)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer' } }, rot);
+  };
+  if (form) {
+    const m = form.modelo;
+    return React.createElement("div", { style: Object.assign({}, bspRegCaixa, { display: 'flex', flexDirection: 'column', gap: 12 }) },
+      React.createElement("div", null,
+        React.createElement("div", { style: { fontSize: 16, fontWeight: 700, color: 'var(--text-1)' } }, m.nome),
+        React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginTop: 2 } }, bspEscalaAreaNome(m.area) + ' · ' + m.descricao)),
+      React.createElement("label", { style: { display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, fontWeight: 600, color: 'var(--text-2)' } }, 'Dia',
+        React.createElement("input", { type: 'date', value: form.dia, max: hoje, onChange: e => setForm(Object.assign({}, form, { dia: e.target.value })), style: Object.assign({}, bspTranspCampo, { maxWidth: 200 }) })),
+      (m.itens || []).map((it, i) => React.createElement("div", { key: it.id, style: { borderTop: '1px solid var(--border)', paddingTop: 10 } },
+        React.createElement("div", { style: { fontSize: 14, color: 'var(--text-1)', marginBottom: 8 } }, (i + 1) + '. ' + it.texto),
+        React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } }, opc(it, 'sim', 'Sim'), opc(it, 'nao', 'Não'), opc(it, 'na', 'N.A.')),
+        form.respostas[it.id] && form.respostas[it.id].r === 'nao' && React.createElement("input", { value: form.respostas[it.id].n || '', placeholder: 'O que falhou? (sem nomes de utentes)',
+          onChange: e => setForm(Object.assign({}, form, { respostas: Object.assign({}, form.respostas, { [it.id]: Object.assign({}, form.respostas[it.id], { n: e.target.value }) }) })),
+          style: Object.assign({}, bspTranspCampo, { marginTop: 8 }) }))),
+      React.createElement("textarea", { rows: 2, value: form.notas, placeholder: 'Notas gerais (opcional)', onChange: e => setForm(Object.assign({}, form, { notas: e.target.value })), style: Object.assign({}, bspTranspCampo, { height: 'auto', padding: 10 }) }),
+      React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', gap: 8 } },
+        React.createElement("button", { onClick: () => setForm(null), style: bspEscBotao(false) }, 'Cancelar'),
+        React.createElement("button", { onClick: gravar, style: bspEscBotao(true) }, 'Gravar auditoria')));
+  }
+  const historico = (au.linhas || []).slice(0, 40);
+  const nomeModelo = id => ((md.linhas || []).find(m => m.id === id) || {}).nome || 'Auditoria';
+  return React.createElement(React.Fragment, null,
+    React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', lineHeight: 1.5 } }, 'Listas de verificação da OMS e da JCI. Cada lista tem a sua periodicidade; as que estão em atraso aparecem a vermelho e avisam às segundas-feiras. Uma auditoria com falhas avisa logo a gestão, a Direcção Clínica e a área.'),
+    md.erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, md.erro) : null,
+    !md.linhas ? React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, 'A carregar…') :
+    React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: 10 } },
+      modelos.map(m => {
+        const e = est(m.id);
+        return React.createElement("div", { key: m.id, style: Object.assign({}, bspRegCaixa, { borderLeft: '4px solid ' + (e.em_atraso ? 'var(--perigo)' : e.ultima ? 'var(--sucesso)' : 'var(--accent)'), display: 'flex', flexDirection: 'column', gap: 6 }) },
+          React.createElement("b", { style: { fontSize: 14.5, color: 'var(--text-1)' } }, m.nome),
+          React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, bspEscalaAreaNome(m.area) + ' · a cada ' + m.periodicidade + (m.periodicidade === 1 ? ' dia' : ' dias') + ' · ' + (m.itens || []).length + ' itens'),
+          React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)' } },
+            e.ultima ? React.createElement(React.Fragment, null, 'Última: ' + dataCurta(e.ultima) + ' · ', React.createElement("b", { style: { color: corPc(e.conformidade_ultima) } }, pc(e.conformidade_ultima))) : 'Ainda não foi feita.',
+            e.feitas_90 > 1 ? ' · média de 90 dias ' + pc(e.conformidade_90) : ''),
+          React.createElement("div", { style: { fontSize: 12.5, fontWeight: 700, color: e.em_atraso ? 'var(--perigo)' : 'var(--text-3)' } }, e.em_atraso ? 'Em atraso desde ' + dataCurta(e.proxima) : 'Próxima até ' + dataCurta(e.proxima)),
+          React.createElement("div", { style: { display: 'flex', gap: 8, marginTop: 4 } },
+            React.createElement("button", { onClick: () => setForm({ modelo: m, dia: hoje, respostas: {}, notas: '' }), style: bspEscBotao(true) }, 'Fazer auditoria'),
+            React.createElement("button", { onClick: () => bspImprimirHtml(bspAuditoriaFolha(m)), style: bspEscBotao(false) }, 'Folha em branco')));
+      })),
+    React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginTop: 6 } }, 'Auditorias feitas'),
+    !historico.length ? React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, au.linhas ? 'Ainda não há auditorias registadas.' : 'A carregar…') :
+    historico.map(a => {
+      const m = (md.linhas || []).find(x => x.id === a.modelo_id) || { itens: [] };
+      const falhas = (m.itens || []).filter(it => a.respostas && a.respostas[it.id] && a.respostas[it.id].r === 'nao');
+      return React.createElement("div", { key: a.id, style: Object.assign({}, bspRegCaixa, { padding: 12, cursor: 'pointer' }), onClick: () => setAberta(aberta === a.id ? null : a.id) },
+        React.createElement("div", { style: { display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' } },
+          React.createElement("b", { style: { fontSize: 13.5, color: 'var(--text-1)' } }, nomeModelo(a.modelo_id)),
+          React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, dataCurta(a.dia) + ' · ' + bspNomeDe(a.auditor)),
+          React.createElement("span", { style: { flex: 1 } }),
+          React.createElement("b", { style: { fontSize: 13.5, color: corPc(a.conformidade) } }, pc(a.conformidade)),
+          a.falhas ? React.createElement("span", { style: { fontSize: 12.5, fontWeight: 700, color: 'var(--perigo)' } }, a.falhas + (a.falhas === 1 ? ' falha' : ' falhas')) : null),
+        aberta === a.id && React.createElement("div", { style: { marginTop: 8, fontSize: 13, color: 'var(--text-2)', display: 'flex', flexDirection: 'column', gap: 4 } },
+          falhas.length ? falhas.map(it => React.createElement("div", { key: it.id }, '✗ ' + it.texto + (a.respostas[it.id].n ? ' — ' + a.respostas[it.id].n : ''))) : React.createElement("div", null, 'Sem falhas.'),
+          a.notas ? React.createElement("div", { style: { color: 'var(--text-3)' } }, a.notas) : null));
+    }));
+}
 function QualidadeScreen() {
   const toast = useToast();
   const eu = window.CURRENT_USER_ID;
@@ -26548,7 +26667,7 @@ function QualidadeScreen() {
     tile('Incidentes em aberto', resumo.ocorrencias_abertas, resumo.ocorrencias_graves + ' graves em 30 dias', resumo.ocorrencias_graves ? 'var(--perigo)' : null))
     : (!veTudo && mediaArea ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)' } }, 'Satisfação no que vê: ' + mediaArea.replace('.', ',') + ' / 5 em ' + notasArea.length + ' avaliações.') : null);
 
-  const corpo = aba === 'espera' ? React.createElement(QualidadeEspera, null) : aba === 'utentes'
+  const corpo = aba === 'espera' ? React.createElement(QualidadeEspera, null) : aba === 'auditorias' ? React.createElement(QualidadeAuditorias, null) : aba === 'utentes'
     ? React.createElement(React.Fragment, null,
         React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } },
           React.createElement("button", { onClick: () => setFiltroF('abertas'), style: bspEscChip(filtroF === 'abertas') }, 'Por tratar ' + abertasF.length),
@@ -26574,8 +26693,9 @@ function QualidadeScreen() {
     React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
       React.createElement("button", { onClick: () => setAba('utentes'), style: bspEscChip(aba === 'utentes') }, 'Feedback de utentes'),
       React.createElement("button", { onClick: () => setAba('incidentes'), style: bspEscChip(aba === 'incidentes') }, 'Incidentes e eventos adversos'),
+      bspFazAlgumaAuditoria(euU) && React.createElement("button", { onClick: () => setAba('auditorias'), style: bspEscChip(aba === 'auditorias') }, 'Auditorias'),
       veTudo && React.createElement("button", { onClick: () => setAba('espera'), style: bspEscChip(aba === 'espera') }, 'Tempo de espera')),
-    aba !== 'espera' && painel, corpo);
+    aba !== 'espera' && aba !== 'auditorias' && painel, corpo);
 }
 
 /* Equipamentos e manutenção preventiva (03-10-2026, manutencao-preventiva.sql).

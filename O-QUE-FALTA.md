@@ -2629,3 +2629,23 @@ Correcção (workspace.html):
 - Testado no navegador: 3 avisos por ler → 0 ao abrir, à vista nessa
   visita, ausentes ao reabrir; com o armazenamento cheio, grava 60
   mensagens e o aviso fica lido.
+
+## 3-eh. Auditorias clínicas (03-10-2026)
+
+Elmar: «Faz as auditorias, porque completam a parte clínica pedida pela JCI.»
+
+- `auditorias.sql` (aplicado): `auditoria_modelos` (7 listas iniciais: higiene
+  das mãos, carro de emergência, cadeia de frio, resíduos hospitalares,
+  limpeza e desinfecção, identificação do doente, segurança contra
+  incêndio; área e periodicidade; a gestão muda-as), `auditorias`
+  (Sim / Não / N.A. por item, conformidade = Sim ÷ (Sim + Não)), gatilho
+  `bsp_auditoria_calcular` (calcula e avisa as falhas nas novidades),
+  `bsp_auditorias_estado()` e `bsp_auditorias_alertar()` (segundas-feiras,
+  modelos em atraso; cron `bsp-auditorias`). Fazem e vêem: gestão, Direcção
+  Clínica e chefe da área (`bsp_faz_auditorias`).
+- Ecrã: Qualidade → «Auditorias» (`QualidadeAuditorias`): estado de cada
+  lista, «Fazer auditoria» (todas as respostas obrigatórias, nota em cada
+  «Não»), «Folha em branco» para imprimir a ronda, histórico com as falhas.
+- Testado no servidor (desfeito): carro de emergência com 1 falha e 1 N.A.
+  → 83,3%, área preenchida, novidade com a falha, próxima a 7 dias. No ecrã
+  (telemóvel): não grava sem todas as respostas nem sem a nota do «Não».
