@@ -485,6 +485,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   (`bspEscolheMedicoActividade`, `bsp_metagest_medicos`, membro
   `mg:<código>`), 02-10-2026. A Direcção Clínica vê os outros médicos só
   com quantidades, sem Kz (`sem_valores`, decisão do Elmar).
+  Datas livres e serviço (03-10-2026, `minha-actividade-servicos.sql`):
+  `bsp_minha_actividade(de, ate, membro, servico)`. Nos ecrãs com período,
+  a opção «Escolher datas» usa sempre `DatasLivres` (com o limite de dias da
+  função do servidor); o CRM passa `p_de`/`p_ate` (`crm-funil-datas.sql`).
   Painel clínico (02-10-2026, `painel-clinico-acesso.sql`): só gestão, Painel,
   Direcção Clínica e chefes de área (só a sua); a produção por médico só a
   quem vê tudo.

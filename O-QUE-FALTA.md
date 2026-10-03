@@ -2540,3 +2540,28 @@ ignora o `window.print()`.
   (`x-safari-https://…`, iOS 17 ou mais recente; o Safari imprime sempre)
   ou «Partilhar → Imprimir». A pré-visualização do Workspace mostra a mesma
   ajuda depois do toque em «Imprimir».
+
+## 3-ed. Datas livres e filtro de serviço (03-10-2026)
+
+Elmar: «Em todas secções que tenham tempo, coloque a opção de escolher as
+datas … nos médicos só permite hoje, mês passado, esse mês e ano, coloque
+a opção de filtrar datas e filtrar serviços».
+
+- Componente `DatasLivres` (De / Até, com validação e limite de dias de
+  cada função) e `bspPeriodoRotulo`. Chip «Escolher datas» em:
+  «A minha actividade», Painel (até 800 dias), Painel clínico (até 93),
+  Marcações (até 400), CRM → Funil de vendas e CRM → Resultados (até 400).
+- `minha-actividade-servicos.sql` (aplicado): `bsp_minha_actividade(de,
+  ate, membro, servico)`. Com serviço, só contam as facturas com esse
+  grupo de actos do MetaGest, e o valor é só o dessas linhas. Devolve
+  `servicos` (os do médico no período) para o menu. Máximo 3 anos. A
+  versão antiga de 3 parâmetros saiu.
+- `crm-funil-datas.sql` (aplicado): `crm_funil`, `crm_resultados` e
+  `bsp_marc_funil` aceitam `p_de`/`p_ate` opcionais (sem eles, como antes).
+- Testado no servidor: u4 de 01-09 a 02-10, sem filtro 18 facturas,
+  com «Consultas e Especialidades» 12. Funil de 1 a 15 de Setembro: 475
+  pedidos (igual à contagem directa da tabela).
+- Testado no ecrã (telemóvel, 390 px): os seis sítios mandam as datas
+  escolhidas ao servidor; o serviço vai em `p_servico`; data final antes
+  da inicial dá aviso; nada passa da largura do ecrã.
+- Ficha do guia de «A minha actividade» actualizada.

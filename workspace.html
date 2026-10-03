@@ -22443,11 +22443,13 @@ function MarcacoesScreen() {
     ['semana', 'Esta semana', bspSegundaDe(hoje), bspSomarDias(bspSegundaDe(hoje), 6)],
     ['proximos', 'Próximos 30 dias', hoje, bspSomarDias(hoje, 30)],
     ['mes', 'Este mês', hoje.slice(0, 8) + '01', bspSomarDias(bspSomarMeses(hoje.slice(0, 8) + '01', 1), -1)],
-    ['ano', 'Este ano', hoje.slice(0, 4) + '-01-01', hoje.slice(0, 4) + '-12-31']
+    ['ano', 'Este ano', hoje.slice(0, 4) + '-01-01', hoje.slice(0, 4) + '-12-31'],
+    ['datas', 'Escolher datas']
   ];
   const [periodo, setPeriodo] = React.useState('proximos');
+  const [livre, setLivre] = React.useState({ de: hoje, ate: bspSomarDias(hoje, 30) });
   const [dia, setDia] = React.useState('');
-  const p = periodos.find(x => x[0] === periodo) || periodos[0];
+  const p = periodo === 'datas' ? ['datas', 'Escolher datas', livre.de, livre.ate] : (periodos.find(x => x[0] === periodo) || periodos[0]);
   const de = dia || p[2], ate = dia || p[3];
   const marc = useMarcacoes(de, ate);
   const marcHoje = useMarcacoes(hoje, hoje);
@@ -22530,6 +22532,8 @@ function MarcacoesScreen() {
       periodos.map(x => React.createElement("button", { key: x[0], onClick: () => { setPeriodo(x[0]); setDia(''); }, style: chip(!dia && periodo === x[0]) }, x[1])),
       React.createElement("input", { type: 'date', value: dia, onChange: e => setDia(e.target.value), title: 'Ver um dia', style: { height: 32, padding: '0 8px', borderRadius: 8, border: '1px solid ' + (dia ? 'var(--accent-d)' : 'var(--border)'), background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 12.5 } }),
       React.createElement("input", { value: busca, onChange: e => setBusca(e.target.value), placeholder: 'Procurar nome, contacto, acto…', style: { height: 32, padding: '0 11px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 12.5, minWidth: 180, flex: '1 1 180px' } })),
+    periodo === 'datas' && !dia && React.createElement("div", { style: { flex: 'none' } },
+      React.createElement(DatasLivres, { de: livre.de, ate: livre.ate, maxDias: 400, onMudar: (de, ate) => setLivre({ de, ate }) })),
     marc.lista.length > 0 && React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap', flex: 'none' } },
       React.createElement("button", { onClick: () => setFiltroEstado('todos'), style: chip(filtroEstado === 'todos') }, 'Todas ', React.createElement("span", { style: { opacity: .65 } }, marc.lista.length)),
       BSP_MARC_ESTADOS.map(e => React.createElement("button", { key: e.id, onClick: () => setFiltroEstado(e.id), style: chip(filtroEstado === e.id, e.cor, e.fundo) }, e.id, ' ', React.createElement("span", { style: { opacity: .65 } }, contagem[e.id] || 0))),
@@ -24879,9 +24883,35 @@ function bspChefeDeArea(u) {
 }
 const bspGrupoActo = t => { const x = String(t || '').trim().toLowerCase(); return x ? x.charAt(0).toUpperCase() + x.slice(1) : 'Outros'; };
 const BSP_MESES_CURTOS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+/* Datas livres nos ecrãs com período (03-10-2026, Elmar: «Em todas secções
+   que tenham tempo, coloque a opção de escolher as datas»). O chip
+   «Escolher datas» mostra «De» e «Até»; só avisa o ecrã (onMudar) quando
+   as duas datas são válidas. maxDias respeita o limite de cada função do
+   servidor. bspPeriodoRotulo dá «1 Set 2026 a 2 Out 2026». */
+function bspPeriodoRotulo(de, ate) {
+  const d = iso => bspDataExacta(new Date(iso + 'T12:00:00')).replace(/,.*$/, '');
+  return de === ate ? d(de) : d(de) + ' a ' + d(ate);
+}
+function DatasLivres({ de, ate, onMudar, maxDias }) {
+  const [a, setA] = React.useState(de || '');
+  const [b, setB] = React.useState(ate || '');
+  const dias = a && b ? Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000) + 1 : 0;
+  const erro = !a || !b ? 'Escolha as duas datas.' : b < a ? 'A data final é anterior à inicial.'
+    : maxDias && dias > maxDias ? 'No máximo ' + maxDias + ' dias de cada vez.' : '';
+  React.useEffect(() => { if (!erro && (a !== de || b !== ate)) onMudar(a, b); }, [a, b, erro]);
+  const campo = { height: 36, padding: '0 8px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 16 };
+  const rot = { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--text-2)' };
+  return React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' } },
+    React.createElement("label", { style: rot }, 'De', React.createElement("input", { type: 'date', value: a, max: b || undefined, onChange: e => setA(e.target.value), style: campo })),
+    React.createElement("label", { style: rot }, 'Até', React.createElement("input", { type: 'date', value: b, min: a || undefined, onChange: e => setB(e.target.value), style: campo })),
+    erro ? React.createElement("span", { style: { fontSize: 12.5, color: 'var(--perigo)' } }, erro)
+      : React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, dias + (dias === 1 ? ' dia' : ' dias')));
+}
 function ActividadeScreen({ currentUser }) {
   const hoje = bspDataLocalISO(new Date());
   const [periodo, setPeriodo] = React.useState('mes');
+  const [livre, setLivre] = React.useState({ de: hoje.slice(0, 8) + '01', ate: hoje });
+  const [servico, setServico] = React.useState('');
   /* Quem escolhe vê todos os médicos do MetaGest (bsp_metagest_medicos),
      também os que não têm conta no Workspace: o valor é «mg:<código>». */
   const escolhe = bspEscolheMedicoActividade(currentUser);
@@ -24906,27 +24936,40 @@ function ActividadeScreen({ currentUser }) {
     if (periodo === 'semana') { const dw = (new Date(hoje + 'T12:00:00').getDay() + 6) % 7; return [bspSomarDias(hoje, -dw), hoje, 'Esta semana']; }
     if (periodo === 'anterior') { const a = bspSomarMeses(mes1, -1); return [a, bspSomarDias(mes1, -1), bspMesExtenso(a)]; }
     if (periodo === 'ano') return [hoje.slice(0, 4) + '-01-01', hoje, 'Este ano'];
+    if (periodo === 'datas') return [livre.de, livre.ate, bspPeriodoRotulo(livre.de, livre.ate)];
     return [mes1, hoje, bspMesExtenso(mes1)];
-  }, [periodo, hoje]);
+  }, [periodo, hoje, livre.de, livre.ate]);
   React.useEffect(() => {
     const cl = bspGetClient();
     if (!cl || !currentUser || !alvo) return;
     let vivo = true;
     setD(null); setErro('');
-    cl.rpc('bsp_minha_actividade', { p_de: intervalo[0], p_ate: intervalo[1], p_membro: alvo }).then(r => {
+    cl.rpc('bsp_minha_actividade', { p_de: intervalo[0], p_ate: intervalo[1], p_membro: alvo, p_servico: servico || null }).then(r => {
       if (!vivo) return;
       if (r.error) setErro(String(r.error.message || r.error)); else setD(r.data || {});
     });
     return () => { vivo = false; };
-  }, [intervalo[0], intervalo[1], alvo]);
+  }, [intervalo[0], intervalo[1], alvo, servico]);
+  /* Lista de serviços do período (vem do servidor); o escolhido fica na
+     lista mesmo quando o período novo não o tem. */
+  const servicos = React.useMemo(() => {
+    const l = (d && d.servicos) || [];
+    return servico && l.indexOf(servico) < 0 ? [servico].concat(l) : l;
+  }, [d, servico]);
   const vazio = x => React.createElement("div", { style: { padding: '40px 20px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13.5 } }, x);
   const tile = (rot, val, sub) => React.createElement(Card, { pad: 16, style: { flex: '1 1 160px' } },
     React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-3)' } }, rot),
     React.createElement("div", { style: { fontSize: 24, fontWeight: 700, color: 'var(--text-1)', marginTop: 2, fontVariantNumeric: 'tabular-nums' } }, val),
     sub && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2 } }, sub));
-  const chips = React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
-    [['hoje', 'Hoje'], ['semana', 'Esta semana'], ['mes', 'Este mês'], ['anterior', 'Mês anterior'], ['ano', 'Este ano']].map(p =>
-      React.createElement("button", { key: p[0], onClick: () => setPeriodo(p[0]), style: bspEscChip(periodo === p[0]) }, p[1])));
+  const chips = React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+    React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+      [['hoje', 'Hoje'], ['semana', 'Esta semana'], ['mes', 'Este mês'], ['anterior', 'Mês anterior'], ['ano', 'Este ano'], ['datas', 'Escolher datas']].map(p =>
+        React.createElement("button", { key: p[0], onClick: () => setPeriodo(p[0]), style: bspEscChip(periodo === p[0]) }, p[1]))),
+    periodo === 'datas' && React.createElement(DatasLivres, { de: livre.de, ate: livre.ate, maxDias: 1100, onMudar: (de, ate) => setLivre({ de, ate }) }),
+    React.createElement("label", { style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 13, fontWeight: 600, color: 'var(--text-2)' } }, 'Serviço',
+      React.createElement("select", { value: servico, onChange: e => setServico(e.target.value), style: Object.assign({}, bspTranspCampo, { maxWidth: 360 }) },
+        React.createElement("option", { value: '' }, 'Todos os serviços'),
+        servicos.map(g => React.createElement("option", { key: g, value: g }, bspGrupoActo(g))))));
   let corpo;
   if (erro) corpo = vazio('Não foi possível carregar. ' + erro);
   else if (!d) corpo = vazio('A carregar…');
@@ -24942,11 +24985,11 @@ function ActividadeScreen({ currentUser }) {
     }));
     corpo = React.createElement(React.Fragment, null,
       React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } },
-        tile('Doentes', Number(r.doentes || 0).toLocaleString('pt-PT'), intervalo[2]),
+        tile('Doentes', Number(r.doentes || 0).toLocaleString('pt-PT'), intervalo[2] + (servico ? ' · ' + bspGrupoActo(servico) : '')),
         tile('Consultas', Number(r.consultas || 0).toLocaleString('pt-PT'), 'Doente por dia com consulta'),
         tile('Só exames', Number(r.exames || 0).toLocaleString('pt-PT'), 'Doente por dia sem consulta'),
         semValores ? tile('Facturas', Number(r.facturas || 0).toLocaleString('pt-PT'), 'Sem notas de crédito')
-          : tile(proprio ? 'Valor facturado dos seus actos' : 'Valor facturado dos actos', bspPainelKz(r.valor), (r.facturas || 0) + ((r.facturas === 1) ? ' factura' : ' facturas'))),
+          : tile((proprio ? 'Valor facturado dos seus actos' : 'Valor facturado dos actos') + (servico ? ' de ' + bspGrupoActo(servico) : ''), bspPainelKz(r.valor), (r.facturas || 0) + ((r.facturas === 1) ? ' factura' : ' facturas'))),
       React.createElement(Card, { pad: 16 },
         React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } }, 'Actos por grupo · ' + intervalo[2]),
         !(d.grupos || []).length ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Sem actos neste período.')
@@ -24955,7 +24998,7 @@ function ActividadeScreen({ currentUser }) {
             React.createElement("span", { style: { color: 'var(--text-2)', fontVariantNumeric: 'tabular-nums' } }, Number(g.qtd || 0).toLocaleString('pt-PT') + (Number(g.qtd) === 1 ? ' acto' : ' actos')),
             semValores ? React.createElement("span", null) : React.createElement("b", { style: { fontVariantNumeric: 'tabular-nums' } }, bspPainelKz(g.valor))))),
       React.createElement(Card, { pad: 16 },
-        React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } }, (semValores ? 'Doentes por mês' : proprio ? 'Valor facturado dos seus actos' : 'Valor facturado dos actos') + ' · últimos 12 meses'),
+        React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } }, (semValores ? 'Doentes por mês' : proprio ? 'Valor facturado dos seus actos' : 'Valor facturado dos actos') + (servico ? ' de ' + bspGrupoActo(servico) : '') + ' · 12 meses até ' + bspMesExtenso(intervalo[1].slice(0, 8) + '01')),
         meses.length ? React.createElement(PainelColunas, { dados: meses, formatar: v => semValores ? Number(v).toLocaleString('pt-PT') : bspPainelKz(v), cor: '--serie-1', altura: 200 }) : React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Sem dados.')),
       React.createElement("p", { style: { margin: 0, fontSize: 12, color: 'var(--text-3)' } },
         'Dados do MetaGest' + (d.actualizado ? ', actualizados a ' + bspDataExacta(new Date(d.actualizado)) : '') + '. As facturas anuladas por nota de crédito não contam.' + (escolhe ? '' : ' Só vê a sua própria actividade.')));
@@ -25162,9 +25205,9 @@ const BSP_GUIA_FICHAS = [
   { icone: 'TrendUp', nome: 'A minha actividade',
     serve: 'Para cada médico, a sua própria produção na clínica.',
     faz: [
-      ['Veja doentes, consultas, exames e facturas', 'do período.'],
-      ['Veja os actos por grupo', '(consultas, laboratório, enfermagem...).'],
-      ['Acompanhe os últimos 12 meses', 'num gráfico.']
+      ['Veja doentes, consultas, exames e facturas', 'do período: hoje, semana, mês, ano ou as datas que escolher.'],
+      ['Filtre por serviço', '(consultas, ecografia, laboratório...): só contam as facturas desse serviço.'],
+      ['Veja os actos por grupo', 'e os 12 meses num gráfico.']
     ],
     quem: 'Cada médico vê só os seus números. A Direcção Clínica e a Direcção escolhem o médico e vêem a actividade de todos.',
     dica: 'Os valores já descontam as notas de crédito, como no relatório mensal.' },
@@ -26984,11 +27027,13 @@ function PainelClinicoScreen() {
     ['hoje', 'Hoje', hoje, hoje],
     ['7', 'Últimos 7 dias', bspSomarDias(hoje, -6), hoje],
     ['30', 'Últimos 30 dias', bspSomarDias(hoje, -29), hoje],
-    ['mes', 'Este mês', hoje.slice(0, 8) + '01', hoje]
+    ['mes', 'Este mês', hoje.slice(0, 8) + '01', hoje],
+    ['datas', 'Escolher datas']
   ];
   const [periodo, setPeriodo] = React.useState(() => { try { return localStorage.getItem('bsp-clinico-periodo') || 'ontem'; } catch (e) { return 'ontem'; } });
   React.useEffect(() => { try { localStorage.setItem('bsp-clinico-periodo', periodo); } catch (e) {} }, [periodo]);
-  const p = periodos.find(x => x[0] === periodo) || periodos[0];
+  const [livre, setLivre] = React.useState({ de: bspSomarDias(hoje, -29), ate: hoje });
+  const p = periodo === 'datas' ? ['datas', bspPeriodoRotulo(livre.de, livre.ate), livre.de, livre.ate] : (periodos.find(x => x[0] === periodo) || periodos[0]);
   const { dados: d, erro, aCarregar } = usePainelClinico(p[2], p[3]);
   const chip = on => ({ height: 32, padding: '0 12px', borderRadius: 999, border: '1px solid ' + (on ? 'var(--accent-d)' : 'var(--border)'), background: on ? 'var(--accent-soft)' : 'var(--surface)', color: on ? 'var(--accent-d)' : 'var(--text-2)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' });
   const tit = t => React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 12 } }, t);
@@ -27043,6 +27088,8 @@ function PainelClinicoScreen() {
       periodos.map(x => React.createElement("button", { key: x[0], onClick: () => setPeriodo(x[0]), style: chip(periodo === x[0]) }, x[1])),
       React.createElement("span", { style: { flex: 1 } }),
       React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, aCarregar ? 'A actualizar…' : 'MetaGest · sem valores')),
+    periodo === 'datas' && React.createElement("div", { style: { flex: 'none' } },
+      React.createElement(DatasLivres, { de: livre.de, ate: livre.ate, maxDias: 93, onMudar: (de, ate) => setLivre({ de, ate }) })),
     erro && React.createElement(Card, { pad: 16 }, React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, 'Não foi possível carregar o painel. ' + erro)),
     !d && !erro && React.createElement(Card, { pad: 16 }, React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'A carregar…')),
     d && React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 14, opacity: aCarregar ? 0.6 : 1 } },
@@ -27083,10 +27130,12 @@ function PainelScreen() {
     ['30', 'Últimos 30 dias', bspSomarDias(hoje, -29), hoje],
     ['mes', 'Este mês', inicioMes, hoje],
     ['mes-ant', 'Mês anterior', bspSomarMeses(inicioMes, -1), bspSomarDias(inicioMes, -1)],
-    ['ano', 'Este ano', hoje.slice(0, 4) + '-01-01', hoje]
+    ['ano', 'Este ano', hoje.slice(0, 4) + '-01-01', hoje],
+    ['datas', 'Escolher datas']
   ];
   const [periodo, setPeriodo] = React.useState(() => { try { return localStorage.getItem('bsp-painel-periodo') || 'mes'; } catch (e) { return 'mes'; } });
-  const p = periodos.find(x => x[0] === periodo) || periodos[4];
+  const [livre, setLivre] = React.useState({ de: inicioMes, ate: hoje });
+  const p = periodo === 'datas' ? ['datas', bspPeriodoRotulo(livre.de, livre.ate), livre.de, livre.ate] : (periodos.find(x => x[0] === periodo) || periodos[4]);
   const [dados, setDados] = React.useState(null);
   const [aCarregar, setACarregar] = React.useState(false);
   const [erro, setErro] = React.useState('');
@@ -27137,6 +27186,8 @@ function PainelScreen() {
       React.createElement("span", { style: { flex: 1 } }),
       React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } },
         aCarregar ? 'A actualizar…' : quando ? 'MetaGest lido a ' + bspDataExacta(new Date(quando)) + ' · hoje actualiza de 5 em 5 min' : '')),
+    periodo === 'datas' && React.createElement("div", { style: { flex: 'none' } },
+      React.createElement(DatasLivres, { de: livre.de, ate: livre.ate, maxDias: 800, onMudar: (de, ate) => setLivre({ de, ate }) })),
     erro && React.createElement(Card, { pad: 16 }, React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, 'Não foi possível carregar o painel. ' + erro)),
     d && React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 14, opacity: aCarregar ? 0.6 : 1 } },
       React.createElement("div", { className: 'bsp-painel-tiles', style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12 } },
@@ -27632,6 +27683,10 @@ function CrmFichas() {
    chegou; as perdas dizem onde se perdem as pessoas. */
 function CrmFunil() {
   const [dias, setDias] = React.useState(30);
+  /* dias = 0: datas escolhidas (03-10-2026). */
+  const hojeF = bspDataLocalISO(new Date());
+  const [livre, setLivre] = React.useState({ de: bspSomarDias(hojeF, -29), ate: hojeF });
+  const datas = dias === 0 ? { p_de: livre.de, p_ate: livre.ate } : {};
   const [origem, setOrigem] = React.useState('');
   const [servico, setServico] = React.useState('');
   const [d, setD] = React.useState(null);
@@ -27643,21 +27698,21 @@ function CrmFunil() {
     const cl = bspGetClient();
     if (!cl || !veMarc) return;
     let vivo = true;
-    cl.rpc('bsp_marc_funil', { p_dias: dias }).then(r => { if (vivo && !r.error) setMf(r.data); });
+    cl.rpc('bsp_marc_funil', Object.assign({ p_dias: dias || 30 }, datas)).then(r => { if (vivo && !r.error) setMf(r.data); });
     return () => { vivo = false; };
-  }, [dias]);
+  }, [dias, livre.de, livre.ate]);
   React.useEffect(() => {
     const cl = bspGetClient();
     if (!cl) { setErro('O servidor não está ligado neste aparelho.'); return; }
     let vivo = true;
     setErro('');
-    cl.rpc('crm_funil', { p_dias: dias, p_origem: origem || null, p_servico: servico || null }).then(r => {
+    cl.rpc('crm_funil', Object.assign({ p_dias: dias || 30, p_origem: origem || null, p_servico: servico || null }, datas)).then(r => {
       if (!vivo) return;
       if (r.error) { setErro(r.error.message || 'Não foi possível carregar.'); return; }
       setD(r.data || {});
     });
     return () => { vivo = false; };
-  }, [dias, origem, servico]);
+  }, [dias, origem, servico, livre.de, livre.ate]);
   const pct = (a, b) => b ? Math.round(100 * a / b) + '%' : '—';
   const min = v => v == null ? '—' : Number(v) < 60 ? Math.round(v) + ' min' : (Number(v) / 60).toLocaleString('pt-PT', { maximumFractionDigits: 1 }) + ' h';
   const chipE = on => ({
@@ -27679,11 +27734,12 @@ function CrmFunil() {
   const maxSem = Math.max(1, ...semanas.map(s => Number(s.pedidos) || 0));
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'auto' } },
     React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } },
-      [7, 30, 90, 365].map(n => React.createElement("button", { key: n, onClick: () => setDias(n), style: chipE(dias === n) }, n === 365 ? 'Último ano' : 'Últimos ' + n + ' dias')),
+      [7, 30, 90, 365, 0].map(n => React.createElement("button", { key: n, onClick: () => setDias(n), style: chipE(dias === n) }, n === 0 ? 'Escolher datas' : n === 365 ? 'Último ano' : 'Últimos ' + n + ' dias')),
       React.createElement("select", { value: origem, onChange: e => setOrigem(e.target.value), style: sel, 'aria-label': 'Origem' },
         React.createElement("option", { value: '' }, 'Todas as origens'), (d && d.origens || []).map(o => React.createElement("option", { key: o, value: o }, o))),
       React.createElement("select", { value: servico, onChange: e => setServico(e.target.value), style: sel, 'aria-label': 'Serviço' },
         React.createElement("option", { value: '' }, 'Todos os serviços'), (d && d.servicos || []).slice().sort(bspCompararTexto).map(s => React.createElement("option", { key: s, value: s }, s)))),
+    dias === 0 && React.createElement(DatasLivres, { de: livre.de, ate: livre.ate, maxDias: 400, onMudar: (de, ate) => setLivre({ de, ate }) }),
     erro ? React.createElement(Card, { pad: 16 }, erro) : !d ? React.createElement(Card, { pad: 16 }, 'A carregar…') : React.createElement(React.Fragment, null,
       React.createElement(Card, { pad: 18 },
         React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)', marginBottom: 12 } }, 'Funil de vendas · WhatsApp até à factura'),
@@ -27749,6 +27805,8 @@ function CrmFunil() {
 }
 function CrmResultados() {
   const [dias, setDias] = React.useState(30);
+  const hojeR = bspDataLocalISO(new Date());
+  const [livre, setLivre] = React.useState({ de: bspSomarDias(hojeR, -29), ate: hojeR });
   const [dados, setDados] = React.useState(null);
   const [estado, setEstado] = React.useState('a-carregar');
   const [erro, setErro] = React.useState('');
@@ -27759,7 +27817,7 @@ function CrmResultados() {
     let vivo = true;
     setEstado('a-carregar');
     (async () => {
-      const r = await cl.rpc('crm_resultados', { p_dias: dias });
+      const r = await cl.rpc('crm_resultados', dias === 0 ? { p_dias: 30, p_de: livre.de, p_ate: livre.ate } : { p_dias: dias });
       if (!vivo) return;
       if (r.error) {
         setEstado(bspCrmFaltaServidor(r.error.message) ? 'sem-funcao' : 'erro');
@@ -27770,7 +27828,7 @@ function CrmResultados() {
       setEstado('pronto');
     })();
     return () => { vivo = false; };
-  }, [dias]);
+  }, [dias, livre.de, livre.ate]);
 
   const chip = on => ({
     padding: '7px 13px', borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600,
@@ -27844,8 +27902,9 @@ function CrmResultados() {
 
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'auto' } },
     React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
-      [7, 30, 90, 365].map(d => React.createElement("button", { key: d, onClick: () => setDias(d), style: chip(dias === d) },
-        d === 365 ? 'Último ano' : 'Últimos ' + d + ' dias'))),
+      [7, 30, 90, 365, 0].map(d => React.createElement("button", { key: d, onClick: () => setDias(d), style: chip(dias === d) },
+        d === 0 ? 'Escolher datas' : d === 365 ? 'Último ano' : 'Últimos ' + d + ' dias'))),
+    dias === 0 && React.createElement(DatasLivres, { de: livre.de, ate: livre.ate, maxDias: 400, onMudar: (de, ate) => setLivre({ de, ate }) }),
     typeof corpo === 'string'
       ? React.createElement("div", { style: { padding: '48px 20px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13.5 } }, corpo)
       : corpo);
