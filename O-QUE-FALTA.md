@@ -2355,3 +2355,27 @@ Pedido do Elmar: «Avance tudo possível… Coloque lá o feedback de utentes».
 - Por fazer: imprimir o cartaz e pô-lo na recepção; decidir se o
   inquérito do WhatsApp passa a sair pelo número da clínica ligado ao
   servidor.
+
+## 3-dt. Médicos e credenciais (03-10-2026)
+
+- Servidor (`medicos-credenciais.sql`, aplicado):
+  - `erp.medicos`: cópia diária do MetaGest («Healthcare Practitioner»:
+    código, nome, cédula, departamento, estado) por
+    `erp.sincronizar_medicos()`; 112 médicos (72 activos, 27 com facturas nos
+    últimos 6 meses). O MetaGest não tem validades.
+  - `credenciais`: quota da Ordem, seguro de responsabilidade civil,
+    contrato, suporte de vida, especialidade… com número e validade.
+    Registam a gestão e a Direcção Clínica; cada médico lê as suas
+    (`bsp_meus_codigos_metagest`).
+  - `bsp_medicos_credenciais(p_todos)` para o ecrã;
+    `bsp_credenciais_alertar()` põe nas novidades os documentos que caducam
+    em 30 e 7 dias e no dia (gestão, Direcção Clínica e o médico).
+  - Cron `bsp-medicos` às 04h40 de Luanda (antes das novidades das 05h00).
+- Ecrã: Equipa → «Médicos e credenciais» (`MedicosCredenciaisPainel`,
+  `bspVeCredenciais`). Lista embutida `USERS` com os códigos MetaGest dos 5
+  médicos ligados (antes, sem o servidor, perdiam «A minha actividade»).
+- Testado: servidor com desfazer (Elmar vê 27 e regista; a Dra. Luidmila
+  vê só a sua e não grava; aviso a 7 dias com o texto certo); navegador com
+  servidor simulado (Elmar regista; médica só consulta).
+- Por fazer: registar as validades de cada médico (começar pelos 27 a
+  trabalhar); 1 dos 27 não tem cédula no MetaGest.

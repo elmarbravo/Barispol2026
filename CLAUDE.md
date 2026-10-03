@@ -375,6 +375,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   do inquérito no WhatsApp por `bsp_feedback_whatsapp` (texto «De 1 a 5…
   como correu o atendimento»: não mudar sem mudar a função). Nomes de
   utentes nunca.
+- Médicos e credenciais (03-10-2026, `medicos-credenciais.sql`): `erp.medicos`
+  copiado do MetaGest todos os dias; validades em `credenciais` (gestão e
+  u14 registam, cada médico lê as suas); avisos por `bsp_credenciais_alertar`
+  nas novidades. Ecrã Equipa → `MedicosCredenciaisPainel`.
 - Registos da equipa (01-10-2026, `equipa-registos.sql`): `ausencias`,
   `formacoes`, `avarias`, `pedidos_compra`. Quem decide: `bsp_chefe_de`
   (gestão, superior, chefe da área). Ecrãs: `EquipaScreen` (Contactos,

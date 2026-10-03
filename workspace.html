@@ -1039,6 +1039,7 @@ const USERS = [{
   role: "Médica",
   dept: "Clínica",
   email: "henriqueta.carvalho.m@gmail.com",
+  metagest: ['HLC-PRAC-2024-00069'],
   phone: '',
   status: 'offline',
   accessLevel: 'Clínica',
@@ -1050,6 +1051,7 @@ const USERS = [{
   role: "Médica",
   dept: "Clínica",
   email: "creusabarreira16@gmail.com",
+  metagest: ['HLC-PRAC-2025-00004'],
   phone: '',
   status: 'offline',
   accessLevel: 'Clínica',
@@ -1061,6 +1063,7 @@ const USERS = [{
   role: "Médica clínica geral, interna de ginecologia e obstetrícia",
   dept: "Clínica",
   email: "luidmilamuquepe07@gmail.com",
+  metagest: ['HLC-PRAC-2025-00002'],
   phone: '',
   status: 'offline',
   accessLevel: 'Clínica',
@@ -1084,6 +1087,7 @@ const USERS = [{
   role: "Médica",
   dept: "Clínica",
   email: "siomaradali@hotmail.com",
+  metagest: ['HLC-PRAC-2024-00068'],
   phone: '',
   status: 'offline',
   accessLevel: 'Clínica',
@@ -4050,7 +4054,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista'];
+const BSP_RPC_LEITURA = ['bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -25089,9 +25093,10 @@ const BSP_GUIA_FICHAS = [
       ['Peça férias ou uma ausência;', 'decide o seu superior, o chefe da área ou a Direcção, e recebe o aviso.'],
       ['Veja quem vai estar fora', 'nos próximos 30 dias.'],
       ['Consulte o mapa de férias', 'de toda a equipa, mês a mês, com aviso quando a mesma área fica com duas pessoas fora.'],
-      ['Registe as suas formações;', 'os certificados a caducar aparecem em destaque.']
+      ['Registe as suas formações;', 'os certificados a caducar aparecem em destaque.'],
+      ['Médicos e credenciais:', 'a cédula vem do MetaGest; a quota da Ordem, o seguro, o contrato e o suporte de vida registam-se com a validade, e avisam antes de caducar.']
     ],
-    quem: 'Toda a equipa. Cada pessoa vê os seus pedidos e formações; os chefes vêem os da sua área. O mapa de férias aprovadas é de todos.',
+    quem: 'Toda a equipa. Cada pessoa vê os seus pedidos e formações; os chefes vêem os da sua área. O mapa de férias aprovadas é de todos. As credenciais: a Direcção e a Direcção Clínica registam; cada médico vê as suas.',
     dica: 'Peça as férias com antecedência: o chefe precisa de acertar a escala.' },
   { icone: 'Cog', nome: 'Avarias e património',
     serve: 'O registo das avarias e dos danos em todo o património (equipamento, lâmpadas, portas, mobiliário, canalização…) até estarem resolvidos.',
@@ -25812,11 +25817,117 @@ function EquipaScreen() {
   }, txt);
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' } },
     React.createElement("div", { style: { display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', flex: 'none', overflowX: 'auto' } },
-      aba_('contactos', 'Contactos'), aba_('ausencias', 'Férias e ausências'), aba_('formacoes', 'Formações')),
+      aba_('contactos', 'Contactos'), aba_('ausencias', 'Férias e ausências'), aba_('formacoes', 'Formações'),
+      bspVeCredenciais(window.userById(window.CURRENT_USER_ID)) && aba_('medicos', 'Médicos e credenciais')),
     React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: 'auto', paddingBottom: 12 } },
       aba === 'contactos' && React.createElement(DirectoryScreen, null),
       aba === 'ausencias' && React.createElement(AusenciasPainel, null),
-      aba === 'formacoes' && React.createElement(FormacoesPainel, null)));
+      aba === 'formacoes' && React.createElement(FormacoesPainel, null),
+      aba === 'medicos' && bspVeCredenciais(window.userById(window.CURRENT_USER_ID)) && React.createElement(MedicosCredenciaisPainel, null)));
+}
+
+/* Médicos e credenciais (03-10-2026, medicos-credenciais.sql, Elmar: «Os
+   dados dos médicos tens no MetaGest»). O nome, a cédula, o departamento e o
+   estado vêm do MetaGest todos os dias (erp.medicos); as validades registam-se
+   aqui e avisam 30 e 7 dias antes e no dia (novidades). A gestão e a Direcção
+   Clínica vêem e registam todos (bspVeQualidade); cada médico vê as suas. */
+const BSP_CREDENCIAIS_TIPOS = ['Cédula profissional', 'Quota da Ordem dos Médicos', 'Seguro de responsabilidade civil', 'Contrato', 'Suporte básico de vida', 'Suporte avançado de vida', 'Título de especialidade', 'Outro'];
+const BSP_CREDENCIAIS_BASE = ['Quota da Ordem dos Médicos', 'Seguro de responsabilidade civil', 'Contrato', 'Suporte básico de vida'];
+const bspNomeProprio = s => String(s || '').toLowerCase().replace(/(^|\s)(\S)/g, (x, e, l) => e + l.toUpperCase()).replace(/ (Da|De|Do|Dos|Das|E) /g, w => w.toLowerCase());
+function bspVeCredenciais(u) {
+  return !!u && !bspESocio(u) && (bspVeQualidade(u) || (Array.isArray(u.metagest) && u.metagest.length > 0));
+}
+function MedicosCredenciaisPainel() {
+  const toast = useToast();
+  const euU = window.userById(window.CURRENT_USER_ID);
+  const regista = bspVeQualidade(euU);
+  const [todos, setTodos] = React.useState(false);
+  const [busca, setBusca] = React.useState('');
+  const [lista, setLista] = React.useState(null);
+  const [erro, setErro] = React.useState('');
+  const [tick, setTick] = React.useState(0);
+  const [nova, setNova] = React.useState(null);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    cl.rpc('bsp_medicos_credenciais', { p_todos: todos }).then(r => {
+      if (!vivo) return;
+      if (r.error) setErro(r.error.message || 'Não foi possível carregar.'); else { setErro(''); setLista(r.data || []); }
+    });
+    return () => { vivo = false; };
+  }, [todos, tick]);
+  const hoje = bspDataLocalISO(new Date());
+  const em30 = bspSomarDias(hoje, 30);
+  const dataCurta = iso => iso ? bspDataExacta(new Date(iso + 'T12:00:00')).replace(/,.*$/, '') : '';
+  const corValidade = v => !v ? 'var(--text-3)' : v < hoje ? 'var(--perigo)' : v <= em30 ? 'var(--serie-4)' : 'var(--sucesso)';
+  async function guardar() {
+    const cl = bspGetClient();
+    const linha = { medico: nova.medico, tipo: nova.tipo, numero: nova.numero.trim(), emitido: nova.emitido || null, validade: nova.validade || null, nota: nova.nota.trim() };
+    const r = nova.id ? await cl.from('credenciais').update(Object.assign({}, linha, { actualizado_em: new Date().toISOString() })).eq('id', nova.id).select('id') : await cl.from('credenciais').insert(linha).select('id');
+    if (r.error || !r.data || !r.data.length) { toast('Não foi possível gravar' + (r.error ? ': ' + r.error.message : '.')); return; }
+    toast('Guardado.'); setNova(null); setTick(t => t + 1);
+  }
+  async function apagar(c) {
+    if (!window.confirm('Apagar «' + c.tipo + '»?')) return;
+    const r = await bspGetClient().from('credenciais').delete().eq('id', c.id).select('id');
+    if (r.error || !r.data || !r.data.length) { toast('Não foi possível apagar.'); return; }
+    toast('Apagado.'); setTick(t => t + 1);
+  }
+  const simples = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const linhas = (lista || []).filter(m => !busca.trim() || simples(m.nome).indexOf(simples(busca.trim())) !== -1);
+  const semCedula = (lista || []).filter(m => !m.cedula).length;
+  const caducadas = (lista || []).reduce((s, m) => s + Number(m.caducadas || 0), 0);
+  const aCaducar = (lista || []).reduce((s, m) => s + Number(m.a_caducar || 0), 0);
+  const emFalta = m => BSP_CREDENCIAIS_BASE.filter(t => !(m.credenciais || []).some(c => c.tipo === t && (!c.validade || c.validade >= hoje)));
+  const tile = (rotulo, valor, cor) => React.createElement("div", { style: Object.assign({}, bspRegCaixa, { flex: '1 1 140px' }) },
+    React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-3)' } }, rotulo),
+    React.createElement("div", { style: { fontSize: 24, fontWeight: 700, color: cor || 'var(--text-1)' } }, valor));
+  const rot = bspTranspRot;
+  const form = m => nova && nova.medico === m.codigo && React.createElement("div", { style: { marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' } },
+    React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 } },
+      React.createElement("label", null, rot('Documento'), React.createElement("select", { value: nova.tipo, onChange: e => setNova(Object.assign({}, nova, { tipo: e.target.value })), style: bspTranspCampo }, BSP_CREDENCIAIS_TIPOS.map(t => React.createElement("option", { key: t, value: t }, t)))),
+      React.createElement("label", null, rot('Número'), React.createElement("input", { value: nova.numero, onChange: e => setNova(Object.assign({}, nova, { numero: e.target.value })), style: bspTranspCampo })),
+      React.createElement("label", null, rot('Emitido em'), React.createElement("input", { type: 'date', value: nova.emitido, onChange: e => setNova(Object.assign({}, nova, { emitido: e.target.value })), style: bspTranspCampo })),
+      React.createElement("label", null, rot('Válido até'), React.createElement("input", { type: 'date', value: nova.validade, onChange: e => setNova(Object.assign({}, nova, { validade: e.target.value })), style: bspTranspCampo }))),
+    React.createElement("label", { style: { display: 'block', marginTop: 10 } }, rot('Nota'), React.createElement("input", { value: nova.nota, onChange: e => setNova(Object.assign({}, nova, { nota: e.target.value })), placeholder: 'Ex.: seguradora, onde está o original', style: bspTranspCampo })),
+    React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 } },
+      React.createElement("button", { onClick: () => setNova(null), style: bspEscBotao(false) }, 'Cancelar'),
+      React.createElement("button", { onClick: guardar, style: bspEscBotao(true) }, 'Guardar')));
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+    regista && React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } },
+      tile(todos ? 'Médicos no MetaGest' : 'Médicos a trabalhar (6 meses)', lista ? lista.length : '…'),
+      tile('Sem cédula no MetaGest', semCedula, semCedula ? 'var(--perigo)' : null),
+      tile('Documentos caducados', caducadas, caducadas ? 'var(--perigo)' : null),
+      tile('A caducar em 30 dias', aCaducar, aCaducar ? 'var(--serie-4)' : null)),
+    regista && React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } },
+      React.createElement("button", { onClick: () => setTodos(false), style: bspEscChip(!todos) }, 'A trabalhar'),
+      React.createElement("button", { onClick: () => setTodos(true), style: bspEscChip(todos) }, 'Todos do MetaGest'),
+      React.createElement("input", { value: busca, onChange: e => setBusca(e.target.value), placeholder: 'Procurar médico', style: Object.assign({}, bspTranspCampo, { maxWidth: 260 }) })),
+    React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Nome, cédula e departamento vêm do MetaGest (actualizados todos os dias). As validades registam-se aqui e avisam 30 e 7 dias antes e no dia.'),
+    erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, erro) : null,
+    !lista ? React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, 'A carregar…') :
+    linhas.map(m => {
+      const falta = emFalta(m);
+      return React.createElement("div", { key: m.codigo, style: Object.assign({}, bspRegCaixa, { borderLeft: '4px solid ' + (Number(m.caducadas) ? 'var(--perigo)' : Number(m.a_caducar) ? 'var(--serie-4)' : falta.length ? 'var(--border)' : 'var(--sucesso)') }) },
+        React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' } },
+          React.createElement("b", { style: { fontSize: 14.5, color: 'var(--text-1)' } }, bspNomeProprio(m.nome)),
+          React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-2)' } }, [m.departamento, m.cedula ? 'Cédula ' + m.cedula : 'Sem cédula no MetaGest', m.estado === 'Disabled' ? 'Inactivo no MetaGest' : ''].filter(Boolean).join(' · ')),
+          React.createElement("span", { style: { flex: 1 } }),
+          React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, (m.facturas_6m ? m.facturas_6m + ' facturas em 6 meses' : 'Sem facturas em 6 meses') + ' · ' + (m.membro ? 'Workspace: ' + bspNomeDe(m.membro) : 'sem conta no Workspace'))),
+        (m.credenciais || []).length > 0 && React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 } },
+          m.credenciais.map(c => React.createElement("div", { key: c.id, style: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', fontSize: 13.5, color: 'var(--text-1)' } },
+            React.createElement("span", { style: { minWidth: 0 } }, c.tipo + (c.numero ? ' n.º ' + c.numero : '')),
+            React.createElement("b", { style: { color: corValidade(c.validade), fontSize: 12.5 } }, c.validade ? (c.validade < hoje ? 'Caducou a ' : 'Válido até ') + dataCurta(c.validade) : 'Sem validade'),
+            c.nota && React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, c.nota),
+            regista && React.createElement("button", { onClick: () => setNova({ id: c.id, medico: m.codigo, tipo: c.tipo, numero: c.numero || '', emitido: c.emitido || '', validade: c.validade || '', nota: c.nota || '' }), style: Object.assign(bspEscBotao(false), { padding: '4px 10px', height: 'auto' }) }, 'Alterar'),
+            regista && React.createElement("button", { onClick: () => apagar(c), style: Object.assign(bspEscBotao(false), { padding: '4px 10px', height: 'auto', color: 'var(--perigo)' }) }, 'Apagar')))),
+        falta.length > 0 && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginTop: 6 } }, 'Por registar: ' + falta.join(', ') + '.'),
+        regista && !(nova && nova.medico === m.codigo) && React.createElement("div", { style: { marginTop: 8 } },
+          React.createElement("button", { onClick: () => setNova({ medico: m.codigo, tipo: falta[0] || 'Outro', numero: '', emitido: '', validade: '', nota: '' }), style: bspEscBotao(false) }, 'Registar documento')),
+        form(m));
+    }),
+    lista && !linhas.length && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, 'Nenhum médico encontrado.'));
 }
 
 /* ───────────── Qualidade ───────────── */
