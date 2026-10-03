@@ -2379,3 +2379,22 @@ Pedido do Elmar: «Avance tudo possível… Coloque lá o feedback de utentes».
   servidor simulado (Elmar regista; médica só consulta).
 - Por fazer: registar as validades de cada médico (começar pelos 27 a
   trabalhar); 1 dos 27 não tem cédula no MetaGest.
+
+## 3-du. Equipamentos e manutenção preventiva (03-10-2026)
+
+- Servidor (`manutencao-preventiva.sql`, aplicado): `equipamentos`,
+  `manutencoes_plano` (tipo, de quantos em quantos dias, última, próxima,
+  quem faz; a próxima calcula-se no gatilho `bsp_plano_proxima`),
+  `manutencoes_registo` (dia, quem, custo, resultado; actualiza o plano e,
+  se «Não conforme», põe o equipamento em «Avariado»). Lê toda a equipa;
+  registam gestão, Serviços Gerais e Emmanuel (`bsp_trata_avarias`).
+  Avisos `bsp_manutencoes_alertar` (cron `bsp-manutencoes`, 04h45 de
+  Luanda): 14 dias antes, no dia e com 7 dias de atraso, nas novidades.
+- Ecrã: Avarias e património → separadores «Avarias» (`AvariasLista`, o
+  ecrã antigo) e «Equipamentos e manutenção» (`EquipamentosPainel`).
+- Testado: servidor com desfazer (plano trimestral avança 90 dias depois
+  do registo; aviso a 14 dias; médica lê e não grava); navegador com
+  servidor simulado (Emmanuel regista; médica consulta).
+- Por fazer: os Serviços Gerais acrescentam os equipamentos e os planos
+  (ecógrafos, analisadores, autoclave, frigoríficos, ar condicionado,
+  gerador, extintores).

@@ -379,6 +379,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   copiado do MetaGest todos os dias; validades em `credenciais` (gestão e
   u14 registam, cada médico lê as suas); avisos por `bsp_credenciais_alertar`
   nas novidades. Ecrã Equipa → `MedicosCredenciaisPainel`.
+- Equipamentos e manutenção preventiva (03-10-2026, `manutencao-preventiva.sql`):
+  `equipamentos`, `manutencoes_plano`, `manutencoes_registo`; ecrã Avarias →
+  `EquipamentosPainel` (o ecrã antigo chama-se `AvariasLista`).
 - Registos da equipa (01-10-2026, `equipa-registos.sql`): `ausencias`,
   `formacoes`, `avarias`, `pedidos_compra`. Quem decide: `bsp_chefe_de`
   (gestão, superior, chefe da área). Ecrãs: `EquipaScreen` (Contactos,

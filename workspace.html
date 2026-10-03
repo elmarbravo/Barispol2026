@@ -25105,7 +25105,8 @@ const BSP_GUIA_FICHAS = [
       ['Corrija o que escreveu', 'com «Editar», enquanto a avaria está aberta.'],
       ['Acompanhe o estado:', 'Aberta, Em reparação, Resolvida.'],
       ['Quem trata regista', 'o responsável, o custo e o que se fez, e carrega em «Concluída» no fim.'],
-      ['Enganou-se?', 'Cancele a avaria. Uma avaria criada só a Direcção apaga.']
+      ['Enganou-se?', 'Cancele a avaria. Uma avaria criada só a Direcção apaga.'],
+      ['Equipamentos e manutenção:', 'o inventário, o plano de manutenção e calibração de cada equipamento, a próxima data e o que se fez. Avisa 14 dias antes, no dia e com 7 dias de atraso.']
     ],
     quem: 'Toda a equipa reporta. Cada pessoa vê as avarias reportadas pela sua área. A Direcção, os Serviços Gerais e o Emmanuel vêem todas e tratam.',
     dica: 'Carregue uma só vez em «Reportar»: o mesmo texto repetido não cria outra avaria. A Direcção apaga as repetidas.' },
@@ -26192,6 +26193,149 @@ function QualidadeScreen() {
     painel, corpo);
 }
 
+/* Equipamentos e manutenção preventiva (03-10-2026, manutencao-preventiva.sql).
+   Inventário, plano de cada equipamento (manutenção, calibração, segurança
+   eléctrica…) com a próxima data, e registo do que se fez. Toda a equipa
+   consulta; registam os que tratam as avarias (bspTrataAvarias). Avisos 14
+   dias antes, no dia e com 7 dias de atraso (novidades). */
+const BSP_MANUT_TIPOS = ['Manutenção preventiva', 'Calibração', 'Verificação de segurança eléctrica', 'Inspecção obrigatória', 'Limpeza técnica', 'Substituição de filtros', 'Outro'];
+const BSP_MANUT_PERIODOS = [[30, 'Mensal'], [90, 'Trimestral'], [180, 'Semestral'], [365, 'Anual'], [730, 'De 2 em 2 anos']];
+const BSP_EQUIP_ESTADOS = ['Em uso', 'Avariado', 'Fora de serviço', 'Abatido'];
+function EquipamentosPainel() {
+  const toast = useToast();
+  const euU = window.userById(window.CURRENT_USER_ID);
+  const trata = bspTrataAvarias(euU);
+  const eq = useTabela('equipamentos', 'nome');
+  const pl = useTabela('manutencoes_plano', 'proxima');
+  const rg = useTabela('manutencoes_registo', 'dia');
+  const [novoEq, setNovoEq] = React.useState(null);
+  const [aberto, setAberto] = React.useState(null);
+  const [novoPl, setNovoPl] = React.useState(null);
+  const [novoRg, setNovoRg] = React.useState(null);
+  const [filtro, setFiltro] = React.useState('atencao');
+  const hoje = bspDataLocalISO(new Date());
+  const em30 = bspSomarDias(hoje, 30);
+  const rot = bspTranspRot;
+  const dataCurta = iso => iso ? bspDataExacta(new Date(iso + 'T12:00:00')).replace(/,.*$/, '') : '';
+  const recarregar = () => { eq.recarregar(); pl.recarregar(); rg.recarregar(); };
+  async function gravar(tabela, linha, msg) {
+    const r = await bspGetClient().from(tabela).insert(linha).select('id');
+    if (r.error || !r.data || !r.data.length) { toast('Não foi possível gravar' + (r.error ? ': ' + r.error.message : '.')); return false; }
+    toast(msg || 'Guardado.'); recarregar(); return true;
+  }
+  async function mudar(tabela, id, campos) {
+    const r = await bspGetClient().from(tabela).update(campos).eq('id', id).select('id');
+    if (r.error || !r.data || !r.data.length) { toast('Não foi possível guardar' + (r.error ? ': ' + r.error.message : '.')); return; }
+    toast('Guardado.'); recarregar();
+  }
+  const planos = pl.linhas || [];
+  const registos = rg.linhas || [];
+  const planosDe = id => planos.filter(p => p.equipamento_id === id && p.activo);
+  const proximaDe = id => planosDe(id).map(p => p.proxima).filter(Boolean).sort()[0] || '';
+  const corData = d => !d ? 'var(--text-3)' : d < hoje ? 'var(--perigo)' : d <= em30 ? 'var(--serie-4)' : 'var(--sucesso)';
+  const equipamentos = (eq.linhas || []).filter(e => e.estado !== 'Abatido' || filtro === 'todos');
+  const atrasados = equipamentos.filter(e => { const d = proximaDe(e.id); return d && d < hoje; }).length;
+  const proximos = equipamentos.filter(e => { const d = proximaDe(e.id); return d && d >= hoje && d <= em30; }).length;
+  const semPlano = equipamentos.filter(e => !planosDe(e.id).length).length;
+  const lista = (filtro === 'atencao' ? equipamentos.filter(e => { const d = proximaDe(e.id); return e.estado !== 'Em uso' || !d || d <= em30; }) : equipamentos)
+    .slice().sort((a, b) => (proximaDe(a.id) || '9999').localeCompare(proximaDe(b.id) || '9999') || bspCompararTexto(a.nome, b.nome));
+  const input = (v, set, ph, tipo) => React.createElement("input", { type: tipo || 'text', value: v, placeholder: ph || '', onChange: e => set(e.target.value), style: bspTranspCampo });
+  const grelha = f => React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 } }, f);
+  const areas = bspEscalaAreas().filter(a => a.chave !== 'administracao');
+  const botoes = (cancelar, guardar, txt) => React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 } },
+    React.createElement("button", { onClick: cancelar, style: bspEscBotao(false) }, 'Cancelar'),
+    React.createElement("button", { onClick: guardar, style: bspEscBotao(true) }, txt || 'Guardar'));
+  const formEq = novoEq && React.createElement("div", { style: bspRegCaixa },
+    grelha([
+      React.createElement("label", { key: 'n' }, rot('Equipamento'), input(novoEq.nome, v => setNovoEq(Object.assign({}, novoEq, { nome: v })), 'Ex.: Ecógrafo, autoclave, ar condicionado da sala 2')),
+      React.createElement("label", { key: 'c' }, rot('Tipo'), React.createElement("select", { value: novoEq.categoria, onChange: e => setNovoEq(Object.assign({}, novoEq, { categoria: e.target.value })), style: bspTranspCampo }, BSP_AVARIA_CATEGORIAS.map(c => React.createElement("option", { key: c, value: c }, c)))),
+      React.createElement("label", { key: 'a' }, rot('Área'), React.createElement("select", { value: novoEq.area, onChange: e => setNovoEq(Object.assign({}, novoEq, { area: e.target.value })), style: bspTranspCampo }, React.createElement("option", { value: '' }, '—'), areas.map(a => React.createElement("option", { key: a.chave, value: a.chave }, a.nome)))),
+      React.createElement("label", { key: 'l' }, rot('Onde está'), input(novoEq.local, v => setNovoEq(Object.assign({}, novoEq, { local: v })))),
+      React.createElement("label", { key: 'm' }, rot('Marca e modelo'), input(novoEq.marca, v => setNovoEq(Object.assign({}, novoEq, { marca: v })))),
+      React.createElement("label", { key: 's' }, rot('N.º de série'), input(novoEq.numero_serie, v => setNovoEq(Object.assign({}, novoEq, { numero_serie: v })))),
+      React.createElement("label", { key: 'f' }, rot('Fornecedor / assistência'), input(novoEq.fornecedor, v => setNovoEq(Object.assign({}, novoEq, { fornecedor: v })))),
+      React.createElement("label", { key: 'fc' }, rot('Contacto do fornecedor'), input(novoEq.contacto_fornecedor, v => setNovoEq(Object.assign({}, novoEq, { contacto_fornecedor: v })))),
+      React.createElement("label", { key: 'g' }, rot('Garantia até'), input(novoEq.garantia_ate, v => setNovoEq(Object.assign({}, novoEq, { garantia_ate: v })), '', 'date'))
+    ]),
+    botoes(() => setNovoEq(null), async () => {
+      if (!novoEq.nome.trim()) { toast('Diga o nome do equipamento.'); return; }
+      const linha = Object.assign({}, novoEq, { nome: novoEq.nome.trim(), garantia_ate: novoEq.garantia_ate || null });
+      if (await gravar('equipamentos', linha, 'Equipamento acrescentado. Defina agora o plano de manutenção.')) setNovoEq(null);
+    }, 'Acrescentar'));
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+    React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } },
+      [['Equipamentos', equipamentos.length, null], ['Manutenção em atraso', atrasados, atrasados ? 'var(--perigo)' : null], ['Nos próximos 30 dias', proximos, proximos ? 'var(--serie-4)' : null], ['Sem plano', semPlano, null]].map(x =>
+        React.createElement("div", { key: x[0], style: Object.assign({}, bspRegCaixa, { flex: '1 1 140px' }) },
+          React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-3)' } }, x[0]),
+          React.createElement("div", { style: { fontSize: 24, fontWeight: 700, color: x[2] || 'var(--text-1)' } }, eq.linhas ? x[1] : '…')))),
+    React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } },
+      React.createElement("button", { onClick: () => setFiltro('atencao'), style: bspEscChip(filtro === 'atencao') }, 'Precisam de atenção'),
+      React.createElement("button", { onClick: () => setFiltro('emuso'), style: bspEscChip(filtro === 'emuso') }, 'Todos em uso'),
+      React.createElement("button", { onClick: () => setFiltro('todos'), style: bspEscChip(filtro === 'todos') }, 'Incluir abatidos'),
+      React.createElement("span", { style: { flex: 1 } }),
+      trata && React.createElement("button", { onClick: () => setNovoEq(novoEq ? null : { nome: '', categoria: 'Equipamento médico', area: '', local: '', marca: '', numero_serie: '', fornecedor: '', contacto_fornecedor: '', garantia_ate: '' }), style: bspEscBotao(true) }, novoEq ? 'Fechar' : 'Acrescentar equipamento')),
+    formEq,
+    eq.erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, eq.erro) : null,
+    !lista.length ? React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, !eq.linhas ? 'A carregar…' : filtro === 'atencao' && equipamentos.length ? 'Nada precisa de atenção nos próximos 30 dias.' : 'Ainda não há equipamentos. ' + (trata ? 'Acrescente os que precisam de manutenção ou calibração.' : '')) :
+    lista.map(e => {
+      const ps = planosDe(e.id); const prox = proximaDe(e.id); const exp = aberto === e.id;
+      const regs = registos.filter(r => r.equipamento_id === e.id).slice(0, 5);
+      return React.createElement("div", { key: e.id, style: Object.assign({}, bspRegCaixa, { borderLeft: '4px solid ' + (e.estado !== 'Em uso' ? 'var(--perigo)' : corData(prox)) }) },
+        React.createElement("div", { onClick: () => setAberto(exp ? null : e.id), style: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline', cursor: 'pointer' } },
+          React.createElement("b", { style: { fontSize: 14.5, color: 'var(--text-1)' } }, e.nome),
+          React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-2)' } }, [e.categoria, e.area ? bspEscalaAreaNome(e.area) : '', e.local].filter(Boolean).join(' · ')),
+          e.estado !== 'Em uso' && React.createElement("b", { style: { fontSize: 12, color: 'var(--perigo)' } }, e.estado),
+          React.createElement("span", { style: { flex: 1 } }),
+          React.createElement("b", { style: { fontSize: 12.5, color: corData(prox) } }, prox ? (prox < hoje ? 'Em atraso desde ' : 'Próxima: ') + dataCurta(prox) : 'Sem plano')),
+        exp && React.createElement("div", { style: { marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 } },
+          React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, [e.marca, e.numero_serie ? 'Série ' + e.numero_serie : '', e.fornecedor ? 'Assistência: ' + e.fornecedor + (e.contacto_fornecedor ? ' (' + e.contacto_fornecedor + ')' : '') : '', e.garantia_ate ? 'Garantia até ' + dataCurta(e.garantia_ate) : ''].filter(Boolean).join(' · ') || 'Sem mais dados.'),
+          ps.map(p => React.createElement("div", { key: p.id, style: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', fontSize: 13.5, color: 'var(--text-1)' } },
+            React.createElement("span", null, p.tipo + ' · ' + ((BSP_MANUT_PERIODOS.find(x => x[0] === p.cada_dias) || [0, 'de ' + p.cada_dias + ' em ' + p.cada_dias + ' dias'])[1]).toLowerCase() + (p.responsavel ? ' · ' + p.responsavel : '')),
+            React.createElement("b", { style: { fontSize: 12.5, color: corData(p.proxima) } }, (p.ultima ? 'Última ' + dataCurta(p.ultima) + ' · ' : '') + 'Próxima ' + dataCurta(p.proxima)),
+            trata && React.createElement("button", { onClick: () => setNovoRg({ equipamento_id: e.id, plano_id: p.id, tipo: p.tipo, dia: hoje, feito_por: p.responsavel || '', custo: '', resultado: 'Conforme', nota: '' }), style: Object.assign(bspEscBotao(true), { padding: '4px 10px', height: 'auto' }) }, 'Feita'),
+            trata && React.createElement("button", { onClick: () => window.confirm('Retirar este plano?') && mudar('manutencoes_plano', p.id, { activo: false }), style: Object.assign(bspEscBotao(false), { padding: '4px 10px', height: 'auto' }) }, 'Retirar'))),
+          novoRg && novoRg.equipamento_id === e.id && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { background: 'var(--surface-2)' }) },
+            grelha([
+              React.createElement("label", { key: 'd' }, rot('Dia'), input(novoRg.dia, v => setNovoRg(Object.assign({}, novoRg, { dia: v })), '', 'date')),
+              React.createElement("label", { key: 'f' }, rot('Feita por'), input(novoRg.feito_por, v => setNovoRg(Object.assign({}, novoRg, { feito_por: v })), 'Empresa ou pessoa')),
+              React.createElement("label", { key: 'c' }, rot('Custo (Kz)'), input(novoRg.custo, v => setNovoRg(Object.assign({}, novoRg, { custo: v.replace(/[^0-9.,]/g, '') })), '', 'text')),
+              React.createElement("label", { key: 'r' }, rot('Resultado'), React.createElement("select", { value: novoRg.resultado, onChange: ev => setNovoRg(Object.assign({}, novoRg, { resultado: ev.target.value })), style: bspTranspCampo }, ['Conforme', 'Não conforme'].map(x => React.createElement("option", { key: x, value: x }, x))))
+            ]),
+            React.createElement("label", { style: { display: 'block', marginTop: 10 } }, rot('Nota'), input(novoRg.nota, v => setNovoRg(Object.assign({}, novoRg, { nota: v })), 'Ex.: n.º do relatório, peças trocadas')),
+            botoes(() => setNovoRg(null), async () => {
+              const linha = Object.assign({}, novoRg, { custo: novoRg.custo ? Number(String(novoRg.custo).replace(/\./g, '').replace(',', '.')) : null, feito_por: novoRg.feito_por.trim(), nota: novoRg.nota.trim() });
+              if (await gravar('manutencoes_registo', linha, novoRg.resultado === 'Não conforme' ? 'Registado. O equipamento passou a «Avariado».' : 'Registado. A próxima data foi actualizada.')) setNovoRg(null);
+            }, 'Registar')),
+          trata && !(novoPl && novoPl.equipamento_id === e.id) && React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+            React.createElement("button", { onClick: () => setNovoPl({ equipamento_id: e.id, tipo: 'Manutenção preventiva', cada_dias: 180, proxima: hoje, responsavel: e.fornecedor || '' }), style: bspEscBotao(false) }, 'Acrescentar plano'),
+            React.createElement("button", { onClick: () => setNovoRg({ equipamento_id: e.id, plano_id: null, tipo: 'Outro', dia: hoje, feito_por: '', custo: '', resultado: 'Conforme', nota: '' }), style: bspEscBotao(false) }, 'Registar intervenção avulsa'),
+            React.createElement("select", { value: e.estado, onChange: ev => mudar('equipamentos', e.id, { estado: ev.target.value }), style: Object.assign({}, bspTranspCampo, { width: 'auto', height: 36 }) }, BSP_EQUIP_ESTADOS.map(x => React.createElement("option", { key: x, value: x }, x)))),
+          novoPl && novoPl.equipamento_id === e.id && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { background: 'var(--surface-2)' }) },
+            grelha([
+              React.createElement("label", { key: 't' }, rot('O que se faz'), React.createElement("select", { value: novoPl.tipo, onChange: ev => setNovoPl(Object.assign({}, novoPl, { tipo: ev.target.value })), style: bspTranspCampo }, BSP_MANUT_TIPOS.map(x => React.createElement("option", { key: x, value: x }, x)))),
+              React.createElement("label", { key: 'c' }, rot('De quanto em quanto tempo'), React.createElement("select", { value: novoPl.cada_dias, onChange: ev => setNovoPl(Object.assign({}, novoPl, { cada_dias: Number(ev.target.value) })), style: bspTranspCampo }, BSP_MANUT_PERIODOS.map(x => React.createElement("option", { key: x[0], value: x[0] }, x[1])))),
+              React.createElement("label", { key: 'p' }, rot('Primeira vez em'), input(novoPl.proxima, v => setNovoPl(Object.assign({}, novoPl, { proxima: v })), '', 'date')),
+              React.createElement("label", { key: 'r' }, rot('Quem faz'), input(novoPl.responsavel, v => setNovoPl(Object.assign({}, novoPl, { responsavel: v })), 'Empresa ou pessoa'))
+            ]),
+            botoes(() => setNovoPl(null), async () => { if (await gravar('manutencoes_plano', Object.assign({}, novoPl, { proxima: novoPl.proxima || hoje }), 'Plano criado.')) setNovoPl(null); }, 'Criar plano')),
+          regs.length > 0 && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', display: 'flex', flexDirection: 'column', gap: 2 } },
+            React.createElement("b", { style: { color: 'var(--text-3)' } }, 'Últimas intervenções'),
+            regs.map(r => React.createElement("span", { key: r.id }, dataCurta(r.dia) + ' · ' + r.tipo + (r.feito_por ? ' · ' + r.feito_por : '') + (r.custo ? ' · ' + bspPainelKz(r.custo) : '') + ' · ' + r.resultado + (r.nota ? ' · ' + r.nota : ''))))));
+    }));
+}
+function AvariasScreen() {
+  const [aba, setAba] = React.useState('avarias');
+  const aba_ = (id, txt) => React.createElement("button", {
+    key: id, onClick: () => setAba(id),
+    style: { padding: '9px 16px', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700, background: 'transparent', whiteSpace: 'nowrap', flex: 'none', color: aba === id ? 'var(--accent-d)' : 'var(--text-2)', borderBottom: '2px solid ' + (aba === id ? 'var(--accent)' : 'transparent') }
+  }, txt);
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' } },
+    React.createElement("div", { style: { display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', flex: 'none', overflowX: 'auto' } },
+      aba_('avarias', 'Avarias'), aba_('equipamentos', 'Equipamentos e manutenção')),
+    React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: 'auto', paddingBottom: 12 } },
+      aba === 'avarias' ? React.createElement(AvariasLista, null) : React.createElement(EquipamentosPainel, null)));
+}
+
 /* ───────────── Avarias ───────────── */
 /* O Emmanuel (u22) trata e conclui todas, mesmo que mude de área (Elmar,
    02-10-2026). No servidor, bsp_trata_avarias. */
@@ -26218,7 +26362,7 @@ const BSP_AVARIA_EXEMPLOS = {
   'Viatura': 'Ex.: pneu, travões, luzes',
   'Outro': 'O que precisa de reparação'
 };
-function AvariasScreen() {
+function AvariasLista() {
   const toast = useToast();
   const eu = window.CURRENT_USER_ID;
   const euU = window.userById(eu);
