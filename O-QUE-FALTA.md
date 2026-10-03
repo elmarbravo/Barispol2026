@@ -2734,3 +2734,21 @@ lista de chamadas no CRM).
   «Perdido» com essa nota.
 - Falta: o Zapier com o Outlook ligado, para o resumo entrar todos os dias
   sozinho.
+
+## 3-em. Novidades no sino sem atraso nem repetições (03-10-2026)
+
+Elmar: «As novidades continuam atrasadas e repetidas» (sino com 20
+novidades de 1 de Outubro marcadas como novas).
+
+- Causa: o sino pedia as 20 novidades MAIS ANTIGAS dos últimos 14 dias (há
+  70) e guardava as já vistas só no aparelho. As novas nunca chegavam e,
+  com a memória do aparelho cheia, as mesmas voltavam a cada 10 minutos.
+- `novidades-sino.sql` (aplicado): `novidades_vistas` guarda por pessoa até
+  que novidade já viu. `bsp_novidades_por_ver()` devolve as seguintes que
+  são para ela, logo que são criadas, sem esperar pelo e-mail das 05h00.
+  `bsp_novidades_vistas(id)` avança o marcador. Na primeira vez, cada
+  pessoa recebe só as do último dia.
+- Ecrã: as novidades entram com o número (`novidade`) e não se repetem. Ao
+  abrir, as repetidas antigas saem do sino (fica uma de cada).
+- Testado: o Elmar recebe 10 novidades na primeira vez e nenhuma depois.
+  No ecrã, 3 cópias da mesma ficaram reduzidas a 1.

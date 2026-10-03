@@ -5970,33 +5970,43 @@ function StoreProvider({
       ...notif
     }, ...s.notifications].slice(0, 30)
   });
-  /* Novidades do sistema (27-09-2026, novidades.sql). Depois de a
-     resumo-matinal as enviar por e-mail (05h00), aparecem tambem no sino,
-     so a quem dizem respeito (o servidor filtra pelos grupos). Cada uma
-     aparece uma vez por pessoa: as ja mostradas ficam guardadas neste
-     aparelho. */
+  /* Novidades do sistema (27-09-2026, novidades.sql). Aparecem no sino só a
+     quem dizem respeito, logo que são criadas; o e-mail sai às 05h00.
+     Desde 03-10-2026 (novidades-sino.sql) o servidor guarda até que novidade
+     cada pessoa já viu (bsp_novidades_por_ver / bsp_novidades_vistas): antes
+     vinham as 20 mais antigas da quinzena e o «já vi» ficava só no aparelho,
+     e as mesmas voltavam (Elmar: «atrasadas e repetidas»). Ao abrir, tira do
+     sino as novidades repetidas que lá ficaram. */
   React.useEffect(() => {
     let vivo = true;
+    setState(s => {
+      const vistos = {};
+      const lista = (s.notifications || []).filter(n => {
+        if (n.type !== 'sistema' || n.novidade || !/^Novidade no Workspace: /.test(n.text || '')) return true;
+        if (vistos[n.text]) return false;
+        vistos[n.text] = true; return true;
+      });
+      return lista.length === (s.notifications || []).length ? s : { ...s, notifications: lista };
+    });
     const ver = async () => {
       const cl = bspGetClient();
-      const eu = window.CURRENT_USER_ID;
-      if (!cl || !eu) return;
-      const desde = new Date(Date.now() - 14 * 864e5).toISOString();
-      const r = await cl.from('novidades').select('id, titulo, texto, destino, enviado_em').gte('enviado_em', desde).order('id', { ascending: true }).limit(20);
+      if (!cl || !window.CURRENT_USER_ID || bspEmVerComo()) return;
+      const r = await cl.rpc('bsp_novidades_por_ver');
       if (!vivo || r.error || !Array.isArray(r.data) || !r.data.length) return;
-      const chave = 'bsp-novidades-vistas-' + eu;
-      let vistas = [];
-      try { vistas = JSON.parse(localStorage.getItem(chave) || '[]'); } catch (e) {}
-      const novas = r.data.filter(n => vistas.indexOf(n.id) === -1);
-      if (!novas.length) return;
-      novas.forEach(n => setState(s => pushNotif(s, {
-        type: 'sistema',
-        destino: n.destino || '',
-        text: 'Novidade no Workspace: ' + n.titulo,
-        preview: String(n.texto || '').split(/\n\s*\n/)[0].slice(0, 160),
-        ts: n.enviado_em
-      })));
-      try { localStorage.setItem(chave, JSON.stringify(vistas.concat(novas.map(n => n.id)).slice(-100))); } catch (e) {}
+      const novas = r.data;
+      setState(s => novas.reduce((acc, n) => {
+        const text = 'Novidade no Workspace: ' + n.titulo;
+        if ((acc.notifications || []).some(x => x.novidade === n.id)) return acc;
+        return pushNotif(acc, {
+          type: 'sistema',
+          novidade: n.id,
+          destino: n.destino || '',
+          text,
+          preview: String(n.texto || '').split(/\n\s*\n/)[0].slice(0, 160),
+          ts: n.quando
+        });
+      }, s));
+      await cl.rpc('bsp_novidades_vistas', { p_ate: Math.max.apply(null, novas.map(n => Number(n.id))) });
     };
     const t0 = setTimeout(ver, 4000);
     const iv = setInterval(ver, 10 * 60000);

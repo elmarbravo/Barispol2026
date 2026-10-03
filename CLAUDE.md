@@ -334,6 +334,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `direccao-clinica`, uma área de `bsp_area_chave` ou um id). Sai por
   e-mail às 05h00 (`bsp-novidades`, tipo `novidades` da `resumo-matinal`)
   só quando há, e aparece no sino (tipo `sistema`).
+  No sino (03-10-2026, `novidades-sino.sql`): só por `bsp_novidades_por_ver` /
+  `bsp_novidades_vistas` (marcador por pessoa no servidor), logo que é criada;
+  nunca voltar a ler a tabela pela ordem antiga nem guardar o «já vi» só no aparelho.
 - Painel financeiro (27-09-2026, `painel.sql`): `bsp_painel(de, ate)`,
   só `bsp_ve_painel()` = Elmar (u1), departamento Financeiro e sócios
   (decisão do Elmar; a gestão por si só não vê; ecrã: `bspVePainel`); histórico em `crm.mg_*`, hoje em `erp.sales_invoice`
