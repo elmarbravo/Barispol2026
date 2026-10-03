@@ -2689,3 +2689,18 @@ todos os colaboradores de produtividade e posteriormente de assiduidade.»
   vê depois de concluída; toma conhecimento; não se avalia a si própria.
 - FALTA: importar o Excel da Arlete para `desempenho_historico` quando
   chegar (ligar cada nome ao id da equipa).
+
+## 3-ek. Tempo de espera para cada médico (03-10-2026)
+
+Elmar: «Na qualidade não tem para os médicos o tempo de espera, não convém?»
+
+- Em «A minha actividade» (e não em Qualidade, que é da gestão e da
+  Direcção Clínica): cartão «Tempo de espera dos seus doentes», com a
+  mediana da triagem à abertura da consulta, a da clínica, os acima de 30
+  min e 1 h, e quantas consultas facturadas ficaram medidas. Cada médico vê
+  só os seus; a gestão, o Painel e a Direcção Clínica escolhem o médico.
+- `minha-espera.sql` (aplicado): `bsp_minha_espera(de, ate, membro)`, as
+  mesmas regras de `bsp_minha_actividade`.
+- Setembro: Dra. Luidmila Chitata 3 h 28 (13 de 30 consultas medidas); Dra.
+  Ludmila Da Silva 1 h 24 (18 de 38); clínica 1 h 38. Um médico não vê os
+  números de outro (testado).

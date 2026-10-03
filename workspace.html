@@ -4059,7 +4059,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista'];
+const BSP_RPC_LEITURA = ['bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -24994,6 +24994,16 @@ function ActividadeScreen({ currentUser }) {
   }, [intervalo[0], intervalo[1], alvo, servico]);
   /* Lista de serviços do período (vem do servidor); o escolhido fica na
      lista mesmo quando o período novo não o tem. */
+  /* Tempo de espera dos doentes deste médico (03-10-2026, minha-espera.sql). */
+  const [espera, setEspera] = React.useState(null);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl || !currentUser || !alvo) return;
+    let vivo = true;
+    setEspera(null);
+    cl.rpc('bsp_minha_espera', { p_de: intervalo[0], p_ate: intervalo[1], p_membro: alvo }).then(r => { if (vivo && !r.error) setEspera(r.data || null); });
+    return () => { vivo = false; };
+  }, [intervalo[0], intervalo[1], alvo]);
   const servicos = React.useMemo(() => {
     const l = (d && d.servicos) || [];
     return servico && l.indexOf(servico) < 0 ? [servico].concat(l) : l;
@@ -25032,6 +25042,13 @@ function ActividadeScreen({ currentUser }) {
         tile('Só exames', Number(r.exames || 0).toLocaleString('pt-PT'), 'Doente por dia sem consulta'),
         semValores ? tile('Facturas', Number(r.facturas || 0).toLocaleString('pt-PT'), 'Sem notas de crédito')
           : tile((proprio ? 'Valor facturado dos seus actos' : 'Valor facturado dos actos') + (servico ? ' de ' + bspGrupoActo(servico) : ''), bspPainelKz(r.valor), (r.facturas || 0) + ((r.facturas === 1) ? ' factura' : ' facturas'))),
+      espera && espera.ligado && React.createElement(Card, { pad: 16 },
+        React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } }, 'Tempo de espera ' + (proprio ? 'dos seus doentes' : 'dos doentes') + ' · ' + intervalo[2]),
+        React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } },
+          tile('Da triagem à consulta (mediana)', espera.n ? bspMinutos(espera.mediana) : '—', 'Clínica: ' + bspMinutos(espera.clinica_mediana)),
+          tile('Mais de 30 minutos', espera.n ? espera.mais_30 + ' de ' + espera.n : '—', espera.n ? 'mais de 1 h: ' + espera.mais_60 : ''),
+          tile('Consultas medidas', (espera.n || 0) + ' de ' + (espera.consultas_facturadas || 0), 'facturadas no período')),
+        React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 8, lineHeight: 1.5 } }, 'Conta da hora da triagem à hora em que a consulta é aberta no MetaGest. ' + ((espera.consultas_facturadas || 0) > (espera.n || 0) ? 'As consultas que não são abertas no MetaGest na hora em que o doente entra ficam por medir: abra a consulta quando chama o doente.' : ''))),
       React.createElement(Card, { pad: 16 },
         React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } }, 'Actos por grupo · ' + intervalo[2]),
         !(d.grupos || []).length ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Sem actos neste período.')
@@ -25249,6 +25266,7 @@ const BSP_GUIA_FICHAS = [
     faz: [
       ['Veja doentes, consultas, exames e facturas', 'do período: hoje, semana, mês, ano ou as datas que escolher.'],
       ['Filtre por serviço', '(consultas, ecografia, laboratório...): só contam as facturas desse serviço.'],
+      ['Veja o tempo de espera dos seus doentes,', 'da triagem à abertura da consulta no MetaGest, ao lado do da clínica.'],
       ['Veja os actos por grupo', 'e os 12 meses num gráfico.']
     ],
     quem: 'Cada médico vê só os seus números. A Direcção Clínica e a Direcção escolhem o médico e vêem a actividade de todos.',

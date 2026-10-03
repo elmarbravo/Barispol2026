@@ -507,6 +507,8 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `bsp_minha_actividade(de, ate, membro, servico)`. Nos ecrãs com período,
   a opção «Escolher datas» usa sempre `DatasLivres` (com o limite de dias da
   função do servidor); o CRM passa `p_de`/`p_ate` (`crm-funil-datas.sql`).
+  Espera dos doentes de cada médico (03-10-2026, `minha-espera.sql`):
+  `bsp_minha_espera(de, ate, membro)`, cartão em «A minha actividade».
   Painel clínico (02-10-2026, `painel-clinico-acesso.sql`): só gestão, Painel,
   Direcção Clínica e chefes de área (só a sua); a produção por médico só a
   quem vê tudo.
