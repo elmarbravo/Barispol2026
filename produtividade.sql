@@ -104,11 +104,14 @@ create or replace function public.bsp_produtividade_calcular()
 returns trigger language plpgsql set search_path to 'public'
 as $f$
 begin
+  new.actualizado_em := now();
+  -- Meses importados dos ficheiros dos RH guardam os números da folha (o que
+  -- se pagou), mesmo quando a folha fez a conta de outra maneira.
+  if new.fonte = 'sharepoint' and new.percentagem is not null then return new; end if;
   select round(avg((o->>'nota')::numeric), 2) into new.media
     from jsonb_array_elements(coalesce(new.objectivos, '[]')) o where (o->>'nota') ~ '^[1-3]$';
   new.percentagem := public.bsp_produtividade_percentagem(new.media);
   new.total := case when new.percentagem is null then null else round(new.subsidio * new.percentagem / 100.0, 2) end;
-  new.actualizado_em := now();
   return new;
 end $f$;
 create trigger bsp_produtividade_calcular before insert or update on public.produtividade_mensal
