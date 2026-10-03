@@ -2663,3 +2663,29 @@ Elmar: «Faz as auditorias, porque completam a parte clínica pedida pela JCI.»
 - Pré-visualização de 02-10 (sem envio): 4,14 / 5 em 14 avaliações; 1 h 43
   na clínica (40% acima de 2 h); ontem 52 min; 2 reclamações em aberto, 1
   fora do prazo; 7 auditorias por fazer.
+
+## 3-ej. Avaliação de desempenho anual (03-10-2026)
+
+Elmar: «Avaliação de desempenho anual. Solicite à Arlete o histórico anual de
+todos os colaboradores de produtividade e posteriormente de assiduidade.»
+
+- Pedido à Arlete enviado a 03-10-2026 pelo servidor (Resend, `bright-worker`,
+  com o Elmar em cópia e as respostas para elmar.bravo@barispol.com; o
+  Microsoft 365 desta sessão só lê): por colaborador e por mês, desde Março
+  de 2024, primeiro a produtividade (% de objectivos, avaliação mensal) e
+  depois a assiduidade (faltas, atrasos, subsídio). Pasta BRSP_RH.
+- `avaliacao-desempenho.sql` (aplicado): `avaliacao_modelo` (6 factores do
+  formulário «Avaliação de Desempenho – Barispol 2026», opções A–D; texto
+  só no servidor), `avaliacoes_desempenho` (uma por pessoa e ano: Rascunho →
+  Concluída → Tomou conhecimento), `desempenho_historico` (por mês, para o
+  Excel dos RH), `bsp_avalia`, `bsp_avaliacao_gravar`,
+  `bsp_avaliacao_conhecimento`, `bsp_avaliacao_apoio`. Avaliam a gestão e
+  o superior / chefe (`bsp_chefe_de`); ninguém se avalia a si próprio.
+- Ecrã: Equipa → «Avaliação» (`AvaliacaoPainel`): lista de quem cada um
+  avalia, formulário com os dados de apoio (ausências, formações,
+  histórico), rascunho, conclusão, impressão; «A minha avaliação» com
+  «Tomei conhecimento».
+- Testado no servidor (desfeito): não conclui sem os 6 factores; a pessoa só
+  vê depois de concluída; toma conhecimento; não se avalia a si própria.
+- FALTA: importar o Excel da Arlete para `desempenho_historico` quando
+  chegar (ligar cada nome ao id da equipa).
