@@ -2441,3 +2441,27 @@ Pedido do Elmar: «Avance tudo possível… Coloque lá o feedback de utentes».
   navegador com servidor simulado.
 - Por decidir (Elmar): iniciar a integração da Dra. Ludmila Da Silva
   (entrada 02-10-2026, superior Dr. Osvaldo?).
+
+## 3-dy. Cadeia de frio nos relatórios de turno (03-10-2026)
+
+- `cadeia-frio.sql` (aplicado): `bsp_frio_aviso` no `relatorios_area`.
+  Farmácia, Laboratório e Enfermagem: se `frio_min` < 2 ou `frio_max` > 8
+  °C, aviso já no telemóvel (gestão, Direcção Clínica, chefe da área) e nas
+  novidades. `bsp_num` lê números com vírgula ou ponto.
+- Ecrã: `BSP_CAMPOS_FRIO` (opcionais) nos três relatórios; os campos
+  numéricos opcionais aceitam decimais no telemóvel.
+- Testado no servidor com desfazer: 3–7,5 °C sem aviso; 1,5–6 °C com aviso.
+- Revisão final no navegador: todos os menus abrem sem erros (Elmar no
+  computador, médica no telemóvel).
+
+## 3-dz. O que fica por decidir (03-10-2026)
+
+- Despesas e margem no Painel: o MetaGest só tem as facturas de compra (46
+  desde Julho), sem salários, renda nem outras despesas. Uma margem só com
+  isso engana. Decidir de onde vêm as despesas (contabilidade, mapa mensal).
+- Pagamento aos médicos dentro do Workspace (hoje em Excel).
+- Dois factores na entrada para a Direcção e o Painel.
+- Prazo de 15 dias para responder a reclamações (confirmar).
+- Imprimir o cartaz com o QR (Qualidade → «Cartaz com QR») para a recepção.
+- Registar validades dos médicos, equipamentos e planos de manutenção.
+- Iniciar a integração da Dra. Ludmila Da Silva.

@@ -15822,6 +15822,13 @@ const BSP_CAMPOS_PROTOCOLOS = [
   { id: 'prot_conformes', tipo: 'numero', rotulo: 'Desses, cumpriram todos os passos' },
   { id: 'prot_falhas', tipo: 'varias', rotulo: 'Passos que falharam', opcoes: ['Nenhum', 'Identificação do utente com 2 dados', 'Higiene das mãos', 'Consentimento informado', 'Registo no processo / MetaGest', 'Resíduos e cortantes', 'Cadeia de frio', 'Outro (ver observação)'] }
 ];
+/* Cadeia de frio (03-10-2026, cadeia-frio.sql): fora de 2 a 8 °C o
+   servidor avisa logo a gestão, a Direcção Clínica e o chefe da área
+   (bsp_frio_aviso). Os ids frio_min / frio_max mudam-se dos dois lados. */
+const BSP_CAMPOS_FRIO = [
+  { id: 'frio_min', tipo: 'numero', opcional: true, rotulo: 'Frigorífico: temperatura mínima no turno (°C)' },
+  { id: 'frio_max', tipo: 'numero', opcional: true, rotulo: 'Frigorífico: temperatura máxima no turno (°C)' }
+];
 const BSP_CAMPOS_AREA = {
   rececao: [
     { id: 'espera_min', tipo: 'numero', rotulo: 'Tempo médio de espera na sala, da chegada ao atendimento (minutos)' },
@@ -15830,16 +15837,16 @@ const BSP_CAMPOS_AREA = {
     { id: 'satisf_ok', tipo: 'numero', rotulo: 'Desses, satisfeitos ou muito satisfeitos' },
     { id: 'reclamacoes', tipo: 'numero', rotulo: 'Reclamações registadas (livro ou verbais)' }
   ].concat(BSP_CAMPOS_INCIDENTES),
-  farmacia: BSP_CAMPOS_INCIDENTES.concat(BSP_CAMPOS_PROTOCOLOS),
+  farmacia: BSP_CAMPOS_FRIO.concat(BSP_CAMPOS_INCIDENTES, BSP_CAMPOS_PROTOCOLOS),
   laboratorio: [
     { id: 'amostras', tipo: 'numero', rotulo: 'Amostras colhidas' },
     { id: 'amostras_rejeitadas', tipo: 'numero', rotulo: 'Amostras rejeitadas ou a repetir (colheita, hemólise, identificação)' },
     { id: 'resultados_entregues', tipo: 'numero', rotulo: 'Resultados entregues hoje' },
     { id: 'resultados_atraso', tipo: 'numero', rotulo: 'Desses, fora do prazo combinado com o utente' },
     { id: 'tat_horas', tipo: 'numero', opcional: true, rotulo: 'Tempo médio da colheita ao resultado (horas, se souber)' }
-  ].concat(BSP_CAMPOS_INCIDENTES, BSP_CAMPOS_PROTOCOLOS),
+  ].concat(BSP_CAMPOS_FRIO, BSP_CAMPOS_INCIDENTES, BSP_CAMPOS_PROTOCOLOS),
   imagiologia: BSP_CAMPOS_INCIDENTES.concat(BSP_CAMPOS_PROTOCOLOS),
-  enfermagem: BSP_CAMPOS_INCIDENTES.concat(BSP_CAMPOS_PROTOCOLOS)
+  enfermagem: BSP_CAMPOS_FRIO.concat(BSP_CAMPOS_INCIDENTES, BSP_CAMPOS_PROTOCOLOS)
 };
 BSP_RELATORIOS.forEach(a => {
   const extra = BSP_CAMPOS_AREA[a.id];
@@ -16033,7 +16040,7 @@ function RelatoriosScreen() {
   const campo = c => React.createElement("div", { key: c.id, style: { marginBottom: 16 } }, React.createElement("div", {
     style: { fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)', marginBottom: 7 }
   }, c.rotulo, c.tipo === 'varias' ? React.createElement("span", { style: { fontWeight: 400, color: 'var(--text-3)' } }, ' · pode escolher várias') : null), c.tipo === 'escolha' ? React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } }, c.opcoes.map(op => chip(resp[c.id] === op, op, () => definir(c.id, op)))) : c.tipo === 'varias' ? React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } }, c.opcoes.map(op => chip(Array.isArray(resp[c.id]) && resp[c.id].indexOf(op) !== -1, op, () => alternar(c, op)))) : c.tipo === 'numero' ? React.createElement("input", {
-    type: "number", min: 0, inputMode: "numeric", value: resp[c.id] == null ? '' : resp[c.id],
+    type: "number", min: 0, step: c.opcional ? 'any' : 1, inputMode: c.opcional ? "decimal" : "numeric", value: resp[c.id] == null ? '' : resp[c.id],
     onChange: e => definir(c.id, e.target.value),
     style: { width: 120, height: 38, padding: '0 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 14, fontFamily: 'inherit' }
   }) : React.createElement("textarea", {

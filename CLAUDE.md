@@ -417,6 +417,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `erp.clinico_dados`; nunca Kz nem nomes de utentes. Os quadros da
   Recepção, Farmácia e Laboratório vêm de `erp.clinico_extra` (campo
   `extra`, filtrado por área no `bsp_painel_clinico`).
+- Cadeia de frio (03-10-2026, `cadeia-frio.sql`): `frio_min`/`frio_max` nos
+  relatórios da Farmácia, Laboratório e Enfermagem (`BSP_CAMPOS_FRIO`); fora
+  de 2–8 °C, `bsp_frio_aviso` avisa logo.
 - Qualidade clínica (02-10-2026, `qualidade-clinica.sql`): campos dos
   relatórios de turno em `BSP_CAMPOS_AREA` (incidentes, satisfação, espera,
   laboratório, protocolos), somados por `erp.qualidade_clinica_dados` e
