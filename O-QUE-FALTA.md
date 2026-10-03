@@ -2604,3 +2604,28 @@ Elmar: «Consegues colocar na qualidade o tempo de espera também?»
     não se lêem por esta via.
   - O «mapa» Excel da tarefa do WhatsApp fica no computador onde a tarefa
     corre, não em nenhuma Drive.
+
+## 3-eg. Notificações já vistas voltavam a aparecer (03-10-2026)
+
+Elmar: «As notificações já vistas continuam a aparecer, é chato.»
+
+Causas:
+- O ecrã Notificações nunca as marcava como lidas ao abrir: só ao tocar
+  numa a uma ou em «Marcar todas». Vistas, continuavam por ler e no sino.
+- O estado do aparelho (`bsp-workspace-v1`) leva as conversas inteiras, com
+  os históricos do WhatsApp (17 232 mensagens). Passa do limite do
+  navegador (~5 MB) e a gravação falhava em silêncio: ao reabrir voltava a
+  cópia antiga. Com o armazenamento cheio falhavam também as listas
+  pequenas (novidades já mostradas), e a mesma novidade voltava ao sino.
+
+Correcção (workspace.html):
+- `NotificationsScreen`: ao abrir, todas passam a lidas (1,2 s); as desta
+  visita ficam à vista até sair («N novas»); na visita seguinte só em «ver
+  as já lidas».
+- As notificações gravam-se também à parte (`bsp-notifs-v1`, lido no
+  `loadInitial`). Sair da sessão apaga as duas chaves.
+- Sem espaço: grava-se o estado com só as últimas 60 mensagens de cada
+  conversa (as anteriores voltam do servidor ao abrir a conversa).
+- Testado no navegador: 3 avisos por ler → 0 ao abrir, à vista nessa
+  visita, ausentes ao reabrir; com o armazenamento cheio, grava 60
+  mensagens e o aviso fica lido.

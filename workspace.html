@@ -3162,6 +3162,7 @@ function MenuConta({
        ficam, porque são do dispositivo e não de quem o usa. */
     try {
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem('bsp-notifs-v1');
     } catch (e) {}
     try {
       window.location.reload();
@@ -3585,6 +3586,10 @@ function loadInitial() {
         /* Versoes anteriores a 24-09-2026 gravavam avisos com o texto das
            linhas internas (recibos de leitura, edicoes): apareciam como
            "l745" ou "e747A Neusa...". Saem ao arrancar. */
+        try {
+          const nt = JSON.parse(localStorage.getItem('bsp-notifs-v1') || 'null');
+          if (Array.isArray(nt)) parsed.notifications = nt;
+        } catch (e) {}
         if (Array.isArray(parsed.notifications)) parsed.notifications = parsed.notifications.filter(n => !(n && bspLinhaDeControlo(n.preview)));
         /* Instalações anteriores às camadas editáveis arrancam com as
            quatro originais, em vez de ficarem sem nenhuma. */
@@ -5164,6 +5169,28 @@ function StoreProvider({
   React.useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      /* Sem espaço (03-10-2026): com os históricos do Chat o estado passa
+         dos ~5 MB do navegador. Grava-se então só o fim de cada conversa (as
+         anteriores voltam do servidor ao abrir a conversa), para libertar
+         espaço; senão também falhavam as listas pequenas (novidades já
+         mostradas, notificações) e os avisos repetiam-se. */
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        const leve = Object.assign({}, state, { channelMessages: {} });
+        Object.keys(state.channelMessages || {}).forEach(k => {
+          const l = state.channelMessages[k] || [];
+          leve.channelMessages[k] = l.length > 60 ? l.slice(-60) : l;
+        });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(leve));
+      } catch (e2) {}
+    }
+    /* As notificações gravam-se também à parte (03-10-2026): o estado
+       inteiro, com os históricos do Chat, pode passar do limite do
+       navegador e a gravação falhava em silêncio; ao reabrir voltava a cópia
+       antiga, com as notificações já vistas outra vez por ler. */
+    try {
+      localStorage.setItem('bsp-notifs-v1', JSON.stringify(state.notifications || []));
     } catch (e) {}
   }, [state]);
   React.useEffect(() => {
@@ -6651,6 +6678,7 @@ function StoreProvider({
     resetAll: () => {
       try {
         localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem('bsp-notifs-v1');
       } catch (e) {}
       window.location.reload();
     }
@@ -16735,6 +16763,20 @@ function NotificationsScreen({
   const [perm, setPerm] = React.useState('Notification' in window ? Notification.permission : 'unsupported');
   const [sound, setSound] = React.useState(localStorage.getItem('bsp_notif_sound') !== 'off');
   const all = (state.notifications || []).filter(n => !(n && bspLinhaDeControlo(n.preview)));
+  /* Vista = lida (03-10-2026, Elmar: «As notificações já vistas continuam a
+     aparecer»). Ao abrir este ecrã, as novas passam a lidas (o sino deixa de
+     as contar) e continuam à vista até sair. Na visita seguinte já não
+     aparecem, salvo em «ver as já lidas». */
+  const nestaVisita = React.useRef(null);
+  if (nestaVisita.current === null) nestaVisita.current = new Set();
+  const porLerAgora = all.filter(n => n.unread);
+  porLerAgora.forEach(n => nestaVisita.current.add(n.id));
+  React.useEffect(() => {
+    if (!porLerAgora.length || bspEmVerComo()) return;
+    const t = setTimeout(() => actions.markNotifsRead(), 1200);
+    return () => clearTimeout(t);
+  }, [porLerAgora.length]);
+  const eNova = n => n.unread || nestaVisita.current.has(n.id);
   const typeMeta = {
     mention: {
       icon: 'Chat',
@@ -16770,7 +16812,7 @@ function NotificationsScreen({
   /* Os numeros ao lado dos filtros contam as POR LER, nao o total. Era
      por isso que ficavam nos sete depois de "Marcar todas como lidas":
      contavam quantas havia, e nao quantas faltavam ver. */
-  const porLer = t => all.filter(n => n.unread && (!t || n.type === t)).length;
+  const porLer = t => all.filter(n => eNova(n) && (!t || n.type === t)).length;
   const filters = [{
     id: 'todas',
     label: 'Todas',
@@ -16800,8 +16842,8 @@ function NotificationsScreen({
      precisar de voltar atras. */
   const [verLidas, setVerLidas] = React.useState(false);
   const doTipo = filter === 'todas' ? all : all.filter(n => n.type === filter);
-  const list = verLidas ? doTipo : doTipo.filter(n => n.unread);
-  const lidas = doTipo.filter(n => !n.unread).length;
+  const list = verLidas ? doTipo : doTipo.filter(eNova);
+  const lidas = doTipo.filter(n => !eNova(n)).length;
   function askPermission() {
     if (!('Notification' in window)) return;
     Notification.requestPermission().then(p => {
@@ -16972,7 +17014,7 @@ function NotificationsScreen({
       fontSize: 14,
       color: 'var(--text-1)'
     }
-  }, all.filter(n => n.unread).length, " não lidas", lidas ? React.createElement("button", {
+  }, all.filter(eNova).length, all.filter(eNova).length === 1 ? " nova" : " novas", lidas ? React.createElement("button", {
     onClick: () => setVerLidas(v => !v),
     style: {
       marginLeft: 10, background: 'transparent', border: 'none',
@@ -17033,7 +17075,7 @@ function NotificationsScreen({
       style: {
         display: 'flex',
         alignItems: 'stretch',
-        background: n.unread ? 'rgba(34,145,206,.04)' : 'transparent',
+        background: eNova(n) ? 'rgba(34,145,206,.04)' : 'transparent',
         borderBottom: i < list.length - 1 ? '1px solid var(--border)' : 'none'
       },
       className: "bsp-row-hover"
@@ -17059,7 +17101,7 @@ function NotificationsScreen({
         color: 'inherit',
         cursor: 'pointer'
       }
-    }, n.unread && React.createElement("span", {
+    }, eNova(n) && React.createElement("span", {
       style: {
         position: 'absolute',
         left: 8,
@@ -28085,6 +28127,7 @@ function App() {
     bspUrlCacheLimpar();
     try {
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem('bsp-notifs-v1');
     } catch (e) {}
     setAuthedEmail(null);
     setAuthed(false);

@@ -152,6 +152,11 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   própria (gestão: em todas as dos canais, `bspVeRecibosDeTodos`); quem
   deve ler vem de `bspDestinatariosConversa`. Só se marca como lido com o
   Workspace à vista (`marcarLido` nunca com `document.hidden`).
+- Notificações (03-10-2026): abrir o ecrã marca-as lidas (`eNova` mantém
+  as desta visita à vista); gravam-se também em `bsp-notifs-v1` (sair da
+  sessão apaga-a). Sem espaço no aparelho, o estado grava-se com só as
+  últimas 60 mensagens por conversa. Nunca pôr no estado coisas grandes
+  sem pensar no limite de ~5 MB do `localStorage`.
 - Abrir uma conversa directa de qualquer ecrã: `bspConversaCom(id)`.
 - Grupos do Chat (30-09-2026): editam-se com `NovoGrupoModal` (`inicial`) e
   `actions.editarCanal`; o servidor segue o id e os membros, não o nome. Um
