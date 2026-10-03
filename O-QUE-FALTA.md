@@ -2752,3 +2752,28 @@ novidades de 1 de Outubro marcadas como novas).
   abrir, as repetidas antigas saem do sino (fica uma de cada).
 - Testado: o Elmar recebe 10 novidades na primeira vez e nenhuma depois.
   No ecrã, 3 cópias da mesma ficaram reduzidas a 1.
+
+## 3-en. Subsídio de produtividade mensal (03-10-2026)
+
+Elmar: «No SharePoint vê esse ficheiro e funde com a produtividade que já
+tem. Esse serve para pagar: Apuramento_Subs Produtividade.xlsx.»
+
+- Fonte: Direcção e Assistentes → BRSP_RH → «02 Compensação e Benefícios /
+  Apuramento_Subs Produtividade.xlsx». Regra: notas de 1 a 3 por objectivo
+  (até 4); média até 1,6 = 50%, até 2,6 = 75%, acima = 100%; a pagar =
+  subsídio × percentagem. RI-5.3 (nota BRSP-DG-NINT-24-001).
+- `produtividade.sql` (aplicado): `produtividade_objectivos` (24 objectivos
+  da «Legenda», só no servidor), `produtividade_pessoas` (por número BRP),
+  `produtividade_mensal` (Rascunho → Aprovado → Pago). As contas fazem-se no
+  servidor. Ao aprovar, o mês entra em `desempenho_historico` (fonte
+  «apuramento»), que a avaliação anual já mostra: é aí que as duas coisas
+  se juntam.
+- Equipa → «Produtividade» (`ProdutividadePainel`). Lançam o chefe da área e
+  o superior. Aprova a gestão. Marcam como pago a gestão e o Financeiro.
+  Há «Imprimir apuramento», «Exportar CSV» e a ficha de cada pessoa
+  (subsídio, objectivos, conta). Cada pessoa vê os seus meses aprovados.
+- Testado: as notas 3, 3, 2, 2 sobre 22 250 Kz dão 2,5, 75% e 16 687,50 Kz,
+  como no Excel. A chefe da Recepção não lança nos Serviços Gerais, e
+  ninguém lança a sua própria produtividade.
+- Falta: importar o histórico do arquivo dos RH (BRSP_RH_PRODUTIVIDADE:
+  Recepção, Serviços Gerais, Laboratório, Enfermagem, de 2024 a 2026).

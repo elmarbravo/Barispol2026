@@ -418,6 +418,16 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   factores só no servidor (`avaliacao_modelo`); escrita só por
   `bsp_avaliacao_gravar` / `bsp_avaliacao_conhecimento`; histórico mensal
   dos RH em `desempenho_historico`; Equipa → `AvaliacaoPainel`.
+- Subsídio de produtividade (03-10-2026, `produtividade.sql`, RI-5.3): regra
+  do ficheiro dos RH «Apuramento_Subs Produtividade» (notas 1–3 por objectivo;
+  média até 1,6 = 50%, até 2,6 = 75%, acima = 100%; a pagar = subsídio × %),
+  calculada no servidor (`bsp_produtividade_calcular`) e repetida no ecrã
+  (`bspProdPercentagem`): mudar as duas juntas. Tabelas `produtividade_pessoas`
+  (por número BRP; `user_id` só quem tem conta), `produtividade_mensal`
+  (Rascunho → Aprovado → Pago), `produtividade_objectivos` (catálogo, só no
+  servidor). Escrita só por `bsp_produtividade_gravar` / `_estado` / `_pessoa`.
+  Ao aprovar, o mês entra em `desempenho_historico` (fonte `apuramento`), que a
+  avaliação anual lê. Equipa → `ProdutividadePainel`. Valores nunca no repositório.
 - Integração (03-10-2026, `integracao.sql`, RI-2.2): modelo de passos só no
   servidor (`integracao_modelo`); Equipa → `IntegracaoPainel`. Documentos com
   `revisao_ate` (`documentos-revisao.sql`).

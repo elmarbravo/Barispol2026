@@ -25330,7 +25330,8 @@ const BSP_GUIA_FICHAS = [
       ['Registe as suas formações;', 'os certificados a caducar aparecem em destaque.'],
       ['Médicos e credenciais:', 'a cédula vem do MetaGest; a quota da Ordem, o seguro, o contrato e o suporte de vida registam-se com a validade, e avisam antes de caducar.'],
       ['Integração:', 'o plano de acolhimento de cada pessoa nova (RI-2.2), passo a passo, com prazos e avisos.'],
-      ['Avaliação:', 'a avaliação de desempenho anual (RI-5.3), com os seis factores do formulário (A a D). O superior avalia; cada pessoa lê a sua e confirma que tomou conhecimento.']
+      ['Avaliação:', 'a avaliação de desempenho anual (RI-5.3), com os seis factores do formulário (A a D). O superior avalia; cada pessoa lê a sua e confirma que tomou conhecimento.'],
+      ['Produtividade:', 'o subsídio de produtividade do mês. O chefe dá nota de 1 a 3 a cada objectivo; o Workspace calcula a percentagem e o valor a pagar; a Direcção aprova e o mês entra na avaliação anual.']
     ],
     quem: 'Toda a equipa. Cada pessoa vê os seus pedidos e formações; os chefes vêem os da sua área. O mapa de férias aprovadas é de todos. As credenciais: a Direcção e a Direcção Clínica registam; cada médico vê as suas.',
     dica: 'Peça as férias com antecedência: o chefe precisa de acertar a escala.' },
@@ -26071,14 +26072,15 @@ function EquipaScreen() {
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' } },
     React.createElement("div", { style: { display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', flex: 'none', overflowX: 'auto' } },
       aba_('contactos', 'Contactos'), aba_('ausencias', 'Férias e ausências'), aba_('formacoes', 'Formações'),
-      bspVeCredenciais(window.userById(window.CURRENT_USER_ID)) && aba_('medicos', 'Médicos e credenciais'), aba_('integracao', 'Integração'), aba_('avaliacao', 'Avaliação')),
+      bspVeCredenciais(window.userById(window.CURRENT_USER_ID)) && aba_('medicos', 'Médicos e credenciais'), aba_('integracao', 'Integração'), aba_('avaliacao', 'Avaliação'), aba_('produtividade', 'Produtividade')),
     React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: 'auto', paddingBottom: 12 } },
       aba === 'contactos' && React.createElement(DirectoryScreen, null),
       aba === 'ausencias' && React.createElement(AusenciasPainel, null),
       aba === 'formacoes' && React.createElement(FormacoesPainel, null),
       aba === 'medicos' && bspVeCredenciais(window.userById(window.CURRENT_USER_ID)) && React.createElement(MedicosCredenciaisPainel, null),
       aba === 'integracao' && React.createElement(IntegracaoPainel, null),
-      aba === 'avaliacao' && React.createElement(AvaliacaoPainel, null)));
+      aba === 'avaliacao' && React.createElement(AvaliacaoPainel, null),
+      aba === 'produtividade' && React.createElement(ProdutividadePainel, null)));
 }
 
 const BSP_CREDENCIAIS_TIPOS = ['Cédula profissional', 'Quota da Ordem dos Médicos', 'Seguro de responsabilidade civil', 'Contrato', 'Suporte básico de vida', 'Suporte avançado de vida', 'Título de especialidade', 'Outro'];
@@ -26180,7 +26182,7 @@ function AvaliacaoPainel() {
             React.createElement("div", null, 'Ausências: ' + ausTxt),
             React.createElement("div", null, 'Formações: ' + ((ap.formacoes || {}).n || 0) + ' (' + ((ap.formacoes || {}).horas || 0) + ' h)'),
             React.createElement("div", null, hr.meses ? 'Histórico dos RH (' + hr.meses + ' meses): produtividade média ' + (hr.produtividade_media != null ? String(hr.produtividade_media).replace('.', ',') + '%' : '—') + ' · faltas injustificadas ' + (hr.faltas_injustificadas || 0) + ' · justificadas ' + (hr.faltas_justificadas || 0) + ' · atrasos ' + (hr.atrasos || 0) + (hr.meses_sem_subsidio ? ' · ' + hr.meses_sem_subsidio + ' meses sem subsídio de assiduidade' : '')
-              : 'Histórico de produtividade e assiduidade dos RH ainda por importar (pedido à Arlete a 03-10-2026).'))),
+              : 'Ainda sem produtividade aprovada neste ano (Equipa → Produtividade); a assiduidade dos RH está por importar (pedido à Arlete a 03-10-2026).'))),
         modelo.map(m => linhaFactor(m, form, true)),
         React.createElement("div", { style: { borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
           React.createElement("b", { style: { fontSize: 14, color: 'var(--text-1)' } }, 'Avaliação aprovada?'),
@@ -26217,6 +26219,197 @@ function AvaliacaoPainel() {
         a && a.estado !== 'Rascunho' && React.createElement("button", { onClick: () => bspImprimirHtml(bspAvaliacaoFolha(x, ano, a, modelo)), style: bspEscBotao(false) }, 'Imprimir'),
         (!a || a.estado === 'Rascunho' || bspCamada(eu).podeGerirUtilizadores) && React.createElement("button", { onClick: () => abrir(x), style: bspEscBotao(!a || a.estado === 'Rascunho') }, !a ? 'Avaliar' : a.estado === 'Rascunho' ? 'Continuar' : 'Alterar'));
     }));
+}
+/* Subsídio de produtividade mensal (03-10-2026, produtividade.sql, Elmar:
+   «funde com a produtividade que já tem. Esse serve para pagar»). A regra é a
+   do ficheiro dos RH «Apuramento_Subs Produtividade»: até 4 objectivos da
+   função, cada um com nota de 1 a 3; a média dá 50% (até 1,6), 75% (até 2,6)
+   ou 100%, e o total a pagar é o subsídio × a percentagem. O servidor faz as
+   contas (bsp_produtividade_calcular) e, ao aprovar, passa a percentagem do
+   mês para o histórico da avaliação anual (desempenho_historico). Lançam o
+   chefe da área e o superior; aprova a gestão; marca como pago a gestão ou
+   o Financeiro. Cada pessoa vê os seus meses aprovados. */
+const BSP_PROD_NOTAS = { 1: 'Não cumpriu', 2: 'Cumpriu a 75%', 3: 'Cumpriu a 100%' };
+function bspProdPercentagem(media) {
+  if (media == null || isNaN(media)) return null;
+  return media <= 1.6 ? 50 : media <= 2.6 ? 75 : 100;
+}
+function bspProdMesRotulo(ano, mes) {
+  const t = bspDiaExtenso(ano + '-' + String(mes).padStart(2, '0') + '-15T12:00:00');
+  const m = t.match(/de ([^ ]+) de (\d{4})/);
+  return m ? m[1].charAt(0).toUpperCase() + m[1].slice(1) + ' de ' + m[2] : ano + '-' + String(mes).padStart(2, '0');
+}
+function ProdutividadePainel() {
+  const toast = useToast();
+  const euU = window.userById(window.CURRENT_USER_ID);
+  const gestor = !!(euU && bspCamada(euU).podeGerirUtilizadores);
+  const financeiro = !!(euU && bspVePainel(euU));
+  const d0 = new Date(); d0.setDate(1); d0.setMonth(d0.getMonth() - 1);
+  const [mesSel, setMesSel] = React.useState(d0.getFullYear() + '-' + String(d0.getMonth() + 1).padStart(2, '0'));
+  const ano = Number(mesSel.slice(0, 4)), mes = Number(mesSel.slice(5, 7));
+  const pes = useTabela('produtividade_pessoas', 'nome');
+  const men = useTabela('produtividade_mensal', 'id');
+  const cat = useTabela('produtividade_objectivos', 'ordem');
+  const [notas, setNotas] = React.useState({});
+  const [editar, setEditar] = React.useState(null);
+  const [verRegra, setVerRegra] = React.useState(false);
+  React.useEffect(() => { bspRegistarAcesso('produtividade', mesSel); }, [mesSel]);
+  const pessoas = (pes.linhas || []).filter(p => p.activo).sort((a, b) => bspCompararTexto(a.nome, b.nome));
+  const doMes = (men.linhas || []).filter(m => m.ano === ano && m.mes === mes);
+  const meus = (men.linhas || []).filter(m => m.user_id === (euU && euU.id) && m.estado !== 'Rascunho').sort((a, b) => (b.ano * 12 + b.mes) - (a.ano * 12 + a.mes));
+  const lancamento = p => doMes.find(m => m.codigo === p.codigo);
+  const notasDe = p => {
+    if (notas[p.codigo]) return notas[p.codigo];
+    const l = lancamento(p); const o = {};
+    ((l && l.objectivos) || []).forEach(x => { if (x.nota) o[x.nome] = x.nota; });
+    return o;
+  };
+  const calc = p => {
+    const n = notasDe(p);
+    const v = (p.objectivos || []).map(o => Number(n[o])).filter(x => x >= 1 && x <= 3);
+    const media = v.length ? Math.round(100 * v.reduce((s, x) => s + x, 0) / v.length) / 100 : null;
+    const pc = bspProdPercentagem(media);
+    return { media, pc, total: pc == null ? null : Math.round(Number(p.subsidio || 0) * pc) / 100, completo: v.length === (p.objectivos || []).length && v.length > 0 };
+  };
+  const kz = v => v == null ? '—' : Number(v).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Kz';
+  const virg = v => v == null ? '—' : String(v).replace('.', ',');
+  async function gravar(p) {
+    const c = calc(p);
+    if (!c.completo) { toast('Dê nota a todos os objectivos de ' + p.nome + '.'); return; }
+    const r = await bspGetClient().rpc('bsp_produtividade_gravar', { p_codigo: p.codigo, p_ano: ano, p_mes: mes, p_notas: notasDe(p), p_observacoes: '' });
+    if (r.error) { toast(r.error.message); return; }
+    toast('Guardado: ' + p.nome + ' · ' + c.pc + '%.');
+    const nn = Object.assign({}, notas); delete nn[p.codigo]; setNotas(nn); men.recarregar();
+  }
+  async function mudarEstado(estado) {
+    const txt = estado === 'Aprovado' ? 'Aprovar a produtividade de ' + bspProdMesRotulo(ano, mes) + '? Cada pessoa com conta recebe o aviso e o mês entra no histórico da avaliação anual.'
+      : estado === 'Pago' ? 'Marcar ' + bspProdMesRotulo(ano, mes) + ' como pago?' : 'Reabrir ' + bspProdMesRotulo(ano, mes) + ' para correcções?';
+    if (!window.confirm(txt)) return;
+    const r = await bspGetClient().rpc('bsp_produtividade_estado', { p_ano: ano, p_mes: mes, p_estado: estado, p_area: null });
+    if (r.error) { toast(r.error.message); return; }
+    toast(r.data + (r.data === 1 ? ' linha: ' : ' linhas: ') + estado.toLowerCase() + '.'); men.recarregar();
+  }
+  async function gravarPessoa() {
+    const e = editar;
+    if (!/^BRP\d+$/i.test(e.codigo.trim())) { toast('O número deve ser do tipo BRP030.'); return; }
+    if (!e.nome.trim()) { toast('Escreva o nome.'); return; }
+    if (e.objectivos.length < 1 || e.objectivos.length > 4) { toast('Escolha de 1 a 4 objectivos.'); return; }
+    const r = await bspGetClient().rpc('bsp_produtividade_pessoa', { p_codigo: e.codigo.trim(), p_dados: { nome: e.nome.trim(), area: e.area, funcao: e.funcao.trim(), subsidio: Number(String(e.subsidio).replace(/\s/g, '').replace(',', '.')) || 0, objectivos: e.objectivos, user_id: e.user_id || '', activo: e.activo } });
+    if (r.error) { toast(r.error.message); return; }
+    toast('Guardado.'); setEditar(null); pes.recarregar();
+  }
+  const linhasImpressao = () => pessoas.map(p => {
+    const l = lancamento(p);
+    return [p.codigo, p.nome, bspEscalaAreaNome(p.area) || p.area, p.funcao, kz(p.subsidio),
+      ((l && l.objectivos) || []).map(o => o.nome + ': ' + (o.nota || '—')).join(' · '),
+      l ? virg(l.media) : '—', l && l.percentagem != null ? l.percentagem + '%' : '—', l ? { v: kz(l.total), forte: true } : '—', l ? l.estado : 'Por lançar'];
+  });
+  function imprimir() {
+    const total = doMes.reduce((s, m) => s + Number(m.total || 0), 0);
+    bspImprimirHtml(bspTabelaImpressao('Subsídio de produtividade · ' + bspProdMesRotulo(ano, mes),
+      'Clínica Barispol, Lda. · Apuramento da produtividade (RI-5.3). Notas de 1 a 3: 1 não cumpriu, 2 cumpriu a 75%, 3 cumpriu a 100%. Média até 1,6 = 50%; até 2,6 = 75%; acima = 100%.',
+      [{ t: 'N.º', w: 6, nowrap: true }, { t: 'Nome', w: 14 }, { t: 'Área', w: 9 }, { t: 'Função', w: 10 }, { t: 'Subsídio', w: 8, dir: true, nowrap: true }, { t: 'Objectivos e notas', w: 23 }, { t: 'Média', w: 5, dir: true }, { t: '%', w: 5, dir: true }, { t: 'A pagar', w: 9, dir: true, nowrap: true }, { t: 'Estado', w: 8 }],
+      linhasImpressao(), { deitado: true, rodape: 'Total a pagar: ' + kz(total) + ' · documento interno, confidencial' }));
+  }
+  function exportar() {
+    const cab = ['Numero', 'Nome', 'Area', 'Funcao', 'Subsidio', 'Media', 'Percentagem', 'Total a pagar', 'Estado'];
+    const linhas = pessoas.map(p => { const l = lancamento(p); return [p.codigo, p.nome, p.area, p.funcao, p.subsidio, l ? l.media : '', l ? l.percentagem : '', l ? l.total : '', l ? l.estado : 'Por lançar']; });
+    const csv = '﻿' + [cab].concat(linhas).map(l => l.map(x => '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"').join(';')).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = 'produtividade-' + mesSel + '.csv'; a.click();
+  }
+  const rot = bspTranspRot;
+  const areas = bspEscalaAreas();
+  const totalMes = doMes.reduce((s, m) => s + Number(m.total || 0), 0);
+  const lancados = pessoas.filter(p => { const l = lancamento(p); return l && l.percentagem != null; }).length;
+  const rascunhos = doMes.filter(m => m.estado === 'Rascunho' && m.percentagem != null).length;
+  const aprovados = doMes.filter(m => m.estado === 'Aprovado').length;
+  const erro = pes.erro || men.erro;
+  const regra = React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } },
+    'Notas de 1 a 3 (1 não cumpriu · 2 cumpriu a 75% · 3 cumpriu a 100%). Média até 1,6 = 50%; até 2,6 = 75%; acima = 100%. A pagar = subsídio × percentagem. ',
+    React.createElement("button", { onClick: () => setVerRegra(!verRegra), style: { border: 'none', background: 'none', color: 'var(--accent-d)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, padding: 0 } }, verRegra ? 'Esconder objectivos' : 'Ver o que mede cada objectivo'));
+  const catalogo = verRegra && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { display: 'flex', flexDirection: 'column', gap: 8 }) },
+    (cat.linhas || []).filter(o => o.activo).sort((a, b) => a.ordem - b.ordem).map(o => React.createElement("div", { key: o.id, style: { fontSize: 13, color: 'var(--text-1)' } },
+      React.createElement("b", null, o.nome), React.createElement("span", { style: { color: 'var(--text-3)' } }, ' · ' + o.funcao),
+      o.descricao && React.createElement("div", { style: { color: 'var(--text-2)' } }, o.descricao))));
+  const formPessoa = editar && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { display: 'flex', flexDirection: 'column', gap: 10, borderLeft: '4px solid var(--accent)' }) },
+    React.createElement("b", { style: { fontSize: 15, color: 'var(--text-1)' } }, editar.novo ? 'Nova pessoa com subsídio' : editar.nome),
+    React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 } },
+      React.createElement("label", null, rot('N.º (BRP)'), React.createElement("input", { value: editar.codigo, disabled: !editar.novo, onChange: e => setEditar(Object.assign({}, editar, { codigo: e.target.value.toUpperCase() })), style: bspTranspCampo })),
+      React.createElement("label", null, rot('Nome'), React.createElement("input", { value: editar.nome, onChange: e => setEditar(Object.assign({}, editar, { nome: e.target.value })), style: bspTranspCampo })),
+      React.createElement("label", null, rot('Área'), React.createElement("select", { value: editar.area, onChange: e => setEditar(Object.assign({}, editar, { area: e.target.value })), style: bspTranspCampo },
+        React.createElement("option", { value: '' }, '—'), areas.map(a => React.createElement("option", { key: a.chave, value: a.chave }, a.nome)))),
+      React.createElement("label", null, rot('Função'), React.createElement("input", { value: editar.funcao, onChange: e => setEditar(Object.assign({}, editar, { funcao: e.target.value })), style: bspTranspCampo })),
+      React.createElement("label", null, rot('Subsídio (Kz)'), React.createElement("input", { inputMode: 'decimal', value: editar.subsidio, onChange: e => setEditar(Object.assign({}, editar, { subsidio: e.target.value })), style: bspTranspCampo })),
+      React.createElement("label", null, rot('Conta no Workspace'), React.createElement("select", { value: editar.user_id || '', onChange: e => setEditar(Object.assign({}, editar, { user_id: e.target.value })), style: bspTranspCampo },
+        React.createElement("option", { value: '' }, 'Sem conta'), bspSemOcultos(window.USERS || []).filter(u => !bspESocio(u)).map(u => React.createElement("option", { key: u.id, value: u.id }, u.name))))),
+    React.createElement("div", null, rot('Objectivos (de 1 a 4)'),
+      React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+        (cat.linhas || []).filter(o => o.activo).sort((a, b) => a.ordem - b.ordem).map(o => {
+          const on = editar.objectivos.indexOf(o.nome) !== -1;
+          return React.createElement("button", { key: o.id, title: o.funcao, onClick: () => setEditar(Object.assign({}, editar, { objectivos: on ? editar.objectivos.filter(x => x !== o.nome) : editar.objectivos.concat([o.nome]) })), style: bspEscChip(on) }, o.nome);
+        }))),
+    React.createElement("label", { style: { display: 'flex', gap: 8, alignItems: 'center', fontSize: 13.5, color: 'var(--text-1)' } },
+      React.createElement("input", { type: 'checkbox', checked: editar.activo, onChange: e => setEditar(Object.assign({}, editar, { activo: e.target.checked })) }), 'Tem subsídio de produtividade (activo)'),
+    React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', gap: 8 } },
+      React.createElement("button", { onClick: () => setEditar(null), style: bspEscBotao(false) }, 'Cancelar'),
+      React.createElement("button", { onClick: gravarPessoa, style: bspEscBotao(true) }, 'Guardar')));
+  const cartao = p => {
+    const l = lancamento(p);
+    const c = calc(p);
+    const n = notasDe(p);
+    const fechado = l && l.estado !== 'Rascunho' && !gestor;
+    const mudou = !!notas[p.codigo];
+    return React.createElement("div", { key: p.codigo, style: Object.assign({}, bspRegCaixa, { borderLeft: '4px solid ' + (!l ? 'var(--border)' : l.estado === 'Pago' ? 'var(--sucesso)' : l.estado === 'Aprovado' ? 'var(--accent)' : 'var(--accent-d)') }) },
+      React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' } },
+        React.createElement("b", { style: { fontSize: 14.5, color: 'var(--text-1)' } }, p.nome),
+        React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, p.codigo + ' · ' + (p.funcao || '') + (p.area ? ' · ' + (bspEscalaAreaNome(p.area) || p.area) : '')),
+        React.createElement("span", { style: { flex: 1 } }),
+        React.createElement("span", { style: { fontSize: 12.5, fontWeight: 700, color: !l ? 'var(--text-3)' : l.estado === 'Rascunho' ? 'var(--accent-d)' : 'var(--sucesso)' } }, l ? l.estado : 'Por lançar')),
+      React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 } },
+        (p.objectivos || []).map(o => React.createElement("div", { key: o, style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
+          React.createElement("span", { style: { flex: '1 1 180px', fontSize: 13.5, color: 'var(--text-1)' } }, o),
+          [1, 2, 3].map(v => React.createElement("button", { key: v, disabled: fechado, title: BSP_PROD_NOTAS[v], onClick: () => setNotas(prev => Object.assign({}, prev, { [p.codigo]: Object.assign({}, prev[p.codigo] || n, { [o]: v }) })), style: Object.assign({}, bspEscChip(Number(n[o]) === v), { minWidth: 44, opacity: fechado ? .6 : 1 }) }, String(v)))))),
+      React.createElement("div", { style: { display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginTop: 10, fontSize: 13, color: 'var(--text-2)' } },
+        React.createElement("span", null, 'Subsídio ' + kz(p.subsidio)),
+        React.createElement("span", null, 'Média ' + virg(c.media)),
+        React.createElement("b", { style: { color: 'var(--text-1)' } }, (c.pc != null ? c.pc + '%' : '—') + ' · a pagar ' + kz(c.total)),
+        React.createElement("span", { style: { flex: 1 } }),
+        gestor && React.createElement("button", { onClick: () => setEditar({ codigo: p.codigo, nome: p.nome, area: p.area, funcao: p.funcao, subsidio: String(p.subsidio), objectivos: (p.objectivos || []).slice(), user_id: p.user_id || '', activo: p.activo }), style: bspEscBotao(false) }, 'Ficha'),
+        !fechado && React.createElement("button", { onClick: () => gravar(p), style: bspEscBotao(mudou || !l) }, l ? 'Guardar' : 'Lançar')));
+  };
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+    React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } },
+      React.createElement("label", { style: { display: 'flex', gap: 8, alignItems: 'center', fontSize: 13.5, color: 'var(--text-1)', fontWeight: 700 } }, 'Mês',
+        React.createElement("input", { type: 'month', value: mesSel, onChange: e => { if (e.target.value) { setMesSel(e.target.value); setNotas({}); } }, style: Object.assign({}, bspTranspCampo, { width: 170 }) })),
+      React.createElement("span", { style: { fontSize: 13.5, color: 'var(--text-2)' } }, bspProdMesRotulo(ano, mes))),
+    erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, erro) : null,
+    pessoas.length > 0 && regra,
+    catalogo,
+    pessoas.length > 0 && React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } },
+      [['Lançados', lancados + ' de ' + pessoas.length], ['Total a pagar', kz(totalMes)], ['Por aprovar', String(rascunhos)], ['Aprovados', String(aprovados)]].map(([r, v]) =>
+        React.createElement("div", { key: r, style: Object.assign({}, bspRegCaixa, { flex: '1 1 130px' }) },
+          React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-3)' } }, r),
+          React.createElement("div", { style: { fontSize: 20, fontWeight: 700, color: 'var(--text-1)', fontVariantNumeric: 'tabular-nums' } }, v)))),
+    pessoas.length > 0 && React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+      gestor && rascunhos > 0 && React.createElement("button", { onClick: () => mudarEstado('Aprovado'), style: bspEscBotao(true) }, 'Aprovar o mês'),
+      (gestor || financeiro) && aprovados > 0 && React.createElement("button", { onClick: () => mudarEstado('Pago'), style: bspEscBotao(false) }, 'Marcar como pago'),
+      gestor && doMes.some(m => m.estado !== 'Rascunho') && React.createElement("button", { onClick: () => mudarEstado('Rascunho'), style: bspEscBotao(false) }, 'Reabrir'),
+      React.createElement("button", { onClick: imprimir, style: bspEscBotao(false) }, 'Imprimir apuramento'),
+      React.createElement("button", { onClick: exportar, style: bspEscBotao(false) }, 'Exportar CSV'),
+      gestor && React.createElement("button", { onClick: () => setEditar({ novo: true, codigo: 'BRP', nome: '', area: '', funcao: '', subsidio: '', objectivos: [], user_id: '', activo: true }), style: bspEscBotao(false) }, 'Nova pessoa')),
+    formPessoa,
+    pessoas.map(cartao),
+    meus.length > 0 && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { display: 'flex', flexDirection: 'column', gap: 6 }) },
+      React.createElement("b", { style: { fontSize: 15, color: 'var(--text-1)' } }, 'A minha produtividade'),
+      meus.slice(0, 24).map(m => React.createElement("div", { key: m.id, style: { display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 13.5, color: 'var(--text-1)', borderTop: '1px solid var(--border)', paddingTop: 6 } },
+        React.createElement("span", { style: { flex: '1 1 140px' } }, bspProdMesRotulo(m.ano, m.mes)),
+        React.createElement("span", null, 'Média ' + virg(m.media)),
+        React.createElement("b", null, (m.percentagem != null ? m.percentagem + '%' : '—') + ' · ' + kz(m.total)),
+        React.createElement("span", { style: { color: m.estado === 'Pago' ? 'var(--sucesso)' : 'var(--accent-d)', fontWeight: 700 } }, m.estado)))),
+    !pessoas.length && !meus.length && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) },
+      pes.linhas ? 'Ainda não há produtividade aprovada para si.' : 'A carregar…'));
 }
 /* Médicos e credenciais (03-10-2026, medicos-credenciais.sql, Elmar: «Os
    dados dos médicos tens no MetaGest»). O nome, a cédula, o departamento e o
