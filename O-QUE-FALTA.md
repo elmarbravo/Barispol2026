@@ -2480,10 +2480,36 @@ Pedido do Elmar: «Avance tudo possível… Coloque lá o feedback de utentes».
   19-09 e o e-mail diário de 02-10). 14 com nota, média 4,14; 2
   reclamações em tratamento; 9 por tratar. Comentários sem nomes.
 - Routine «Inquéritos dos utentes para o Workspace»
-  (`trig_01HT5cbhVcQF9RYt95QN1XEE`, todos os dias às 18h47 de Luanda): lê
-  o e-mail do dia e chama `bsp_feedback_importar`. ATENÇÃO: ficou sem
-  ligações (Microsoft 365 e Supabase), porque a organização não deixa
-  juntá-las por esta via. O Elmar tem de as acrescentar em claude.ai →
-  Routines, senão a tarefa corre sem conseguir ler nem gravar.
-- Alternativa definitiva: a tarefa do Cowork que manda o e-mail diário
-  passa também a chamar `bsp_feedback_importar`.
+  (`trig_01HT5cbhVcQF9RYt95QN1XEE`): desligada a 03-10-2026. Ficou sem
+  ligações (a organização não deixa juntá-las por esta via). Substituída
+  pelo Zapier (abaixo).
+
+## 3-eb. Inquéritos importados pelo Zapier (03-10-2026)
+
+Pedido do Elmar: «Use o zapier ou resend». Escolhido o Zapier: lê a caixa
+do Outlook sem mexer na Resend.
+
+- `feedback-email.sql` (aplicado):
+  - `bsp_feedback_email(codigo, assunto, texto)`: a única entrada. Aberta
+    à chave publicável, mas só grava com o código do cofre
+    `bsp_feedback_codigo` (nunca no repositório) e com o assunto
+    «Respostas dos pacientes no WhatsApp…».
+  - Guarda o e-mail em `feedback_email_entrada` (sem regras de leitura:
+    só o servidor) e lê a secção «INQUÉRITO PÓS-CONSULTA» com
+    `bsp_feedback_do_texto`. Cada linha com «nota X» ou «sem nota» vira
+    uma resposta, sem o nome. Chamadas e respostas automáticas ficam de
+    fora, e a secção «Recuperação» também.
+  - Nota 1–2 = reclamação (prazo de 15 dias, quer resposta); 4–5 ficam
+    fechadas; o resto fica «Nova». Os avisos de qualidade saem como numa
+    resposta escrita à mão.
+  - Chave `email:AAAA-MM-DD:N`, igual à da importação manual: repetir o
+    e-mail não duplica nada.
+- Teste (desfeito no fim): o texto de 02-10 dá as mesmas 4 respostas da
+  importação manual. Um código errado é recusado.
+- Zapier: fluxo privado «Inquéritos dos utentes para o Workspace».
+  Dispara com «New Email Matching Search» no Outlook do Elmar (assunto
+  «Respostas dos pacientes no WhatsApp») e chama a função. FALTA: o Elmar
+  liga a conta do Outlook ao Zapier (link dado na conversa). Sem isso o
+  fluxo não pode ser publicado.
+- Para ver se chegou: `select dia, importadas, erro, recebido_em from
+  feedback_email_entrada order by id desc limit 5;`
