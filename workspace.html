@@ -25164,7 +25164,8 @@ const BSP_GUIA_FICHAS = [
       ['Veja quem vai estar fora', 'nos próximos 30 dias.'],
       ['Consulte o mapa de férias', 'de toda a equipa, mês a mês, com aviso quando a mesma área fica com duas pessoas fora.'],
       ['Registe as suas formações;', 'os certificados a caducar aparecem em destaque.'],
-      ['Médicos e credenciais:', 'a cédula vem do MetaGest; a quota da Ordem, o seguro, o contrato e o suporte de vida registam-se com a validade, e avisam antes de caducar.']
+      ['Médicos e credenciais:', 'a cédula vem do MetaGest; a quota da Ordem, o seguro, o contrato e o suporte de vida registam-se com a validade, e avisam antes de caducar.'],
+      ['Integração:', 'o plano de acolhimento de cada pessoa nova (RI-2.2), passo a passo, com prazos e avisos.']
     ],
     quem: 'Toda a equipa. Cada pessoa vê os seus pedidos e formações; os chefes vêem os da sua área. O mapa de férias aprovadas é de todos. As credenciais: a Direcção e a Direcção Clínica registam; cada médico vê as suas.',
     dica: 'Peça as férias com antecedência: o chefe precisa de acertar a escala.' },
@@ -25902,12 +25903,13 @@ function EquipaScreen() {
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' } },
     React.createElement("div", { style: { display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', flex: 'none', overflowX: 'auto' } },
       aba_('contactos', 'Contactos'), aba_('ausencias', 'Férias e ausências'), aba_('formacoes', 'Formações'),
-      bspVeCredenciais(window.userById(window.CURRENT_USER_ID)) && aba_('medicos', 'Médicos e credenciais')),
+      bspVeCredenciais(window.userById(window.CURRENT_USER_ID)) && aba_('medicos', 'Médicos e credenciais'), aba_('integracao', 'Integração')),
     React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: 'auto', paddingBottom: 12 } },
       aba === 'contactos' && React.createElement(DirectoryScreen, null),
       aba === 'ausencias' && React.createElement(AusenciasPainel, null),
       aba === 'formacoes' && React.createElement(FormacoesPainel, null),
-      aba === 'medicos' && bspVeCredenciais(window.userById(window.CURRENT_USER_ID)) && React.createElement(MedicosCredenciaisPainel, null)));
+      aba === 'medicos' && bspVeCredenciais(window.userById(window.CURRENT_USER_ID)) && React.createElement(MedicosCredenciaisPainel, null),
+      aba === 'integracao' && React.createElement(IntegracaoPainel, null)));
 }
 
 /* Médicos e credenciais (03-10-2026, medicos-credenciais.sql, Elmar: «Os
@@ -26012,6 +26014,82 @@ function MedicosCredenciaisPainel() {
         form(m));
     }),
     lista && !linhas.length && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, 'Nenhum médico encontrado.'));
+}
+
+/* Integração de novos colaboradores (03-10-2026, integracao.sql, RI-2.2).
+   O modelo de passos e prazos está no servidor (integracao_modelo); aqui a
+   gestão inicia o plano de uma pessoa e cada um marca os seus passos. Vêem a
+   gestão, a própria pessoa e o superior / chefe da área. */
+function IntegracaoPainel() {
+  const toast = useToast();
+  const eu = window.CURRENT_USER_ID;
+  const euU = window.userById(eu);
+  const gestao = !!(euU && bspCamada(euU).podeGerirUtilizadores);
+  const it = useTabela('integracoes', 'entrada');
+  const ps = useTabela('integracao_passos', 'ordem');
+  const [nova, setNova] = React.useState(null);
+  const [verTodas, setVerTodas] = React.useState(false);
+  const hoje = bspDataLocalISO(new Date());
+  const dataCurta = iso => iso ? bspDataExacta(new Date(iso + 'T12:00:00')).replace(/,.*$/, '') : '';
+  const pessoas = bspSemOcultos(window.USERS || []).filter(u => !bspESocio(u));
+  const rot = bspTranspRot;
+  async function iniciar() {
+    if (!nova.pessoa || !nova.entrada) { toast('Escolha a pessoa e o dia de entrada.'); return; }
+    const r = await bspGetClient().rpc('bsp_integracao_iniciar', { p_user: nova.pessoa, p_entrada: nova.entrada, p_superior: nova.superior || '' });
+    if (r.error) { toast('Não foi possível iniciar: ' + r.error.message); return; }
+    toast('Plano de integração criado. A pessoa e o superior recebem o aviso.');
+    setNova(null); it.recarregar(); ps.recarregar();
+  }
+  async function marcar(p, feito) {
+    const r = await bspGetClient().rpc('bsp_integracao_passo', { p_id: p.id, p_feito: feito });
+    if (r.error) { toast(r.error.message); return; }
+    it.recarregar(); ps.recarregar();
+  }
+  const lista = (it.linhas || []).filter(i => verTodas || i.estado === 'Em curso');
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+    React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Acolhimento e integração (RI-2.2): o DCH e o superior acompanham a pessoa nova até 3 meses. Cada passo tem prazo e avisa no dia e com 3 dias de atraso.'),
+    React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } },
+      React.createElement("button", { onClick: () => setVerTodas(false), style: bspEscChip(!verTodas) }, 'Em curso'),
+      React.createElement("button", { onClick: () => setVerTodas(true), style: bspEscChip(verTodas) }, 'Todas'),
+      React.createElement("span", { style: { flex: 1 } }),
+      gestao && React.createElement("button", { onClick: () => setNova(nova ? null : { pessoa: '', entrada: hoje, superior: '' }), style: bspEscBotao(true) }, nova ? 'Fechar' : 'Iniciar integração')),
+    nova && React.createElement("div", { style: bspRegCaixa },
+      React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 } },
+        React.createElement("label", null, rot('Pessoa nova'), React.createElement("select", { value: nova.pessoa, onChange: e => { const u = window.userById(e.target.value); setNova(Object.assign({}, nova, { pessoa: e.target.value, superior: nova.superior || (u && u.superior) || '' })); }, style: bspTranspCampo },
+          React.createElement("option", { value: '' }, 'Escolha…'), pessoas.map(u => React.createElement("option", { key: u.id, value: u.id }, u.name)))),
+        React.createElement("label", null, rot('Dia de entrada'), React.createElement("input", { type: 'date', value: nova.entrada, onChange: e => setNova(Object.assign({}, nova, { entrada: e.target.value })), style: bspTranspCampo })),
+        React.createElement("label", null, rot('Superior directo'), React.createElement("select", { value: nova.superior, onChange: e => setNova(Object.assign({}, nova, { superior: e.target.value })), style: bspTranspCampo },
+          React.createElement("option", { value: '' }, '—'), pessoas.map(u => React.createElement("option", { key: u.id, value: u.id }, u.name))))),
+      React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 } },
+        React.createElement("button", { onClick: () => setNova(null), style: bspEscBotao(false) }, 'Cancelar'),
+        React.createElement("button", { onClick: iniciar, style: bspEscBotao(true) }, 'Criar plano'))),
+    it.erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, it.erro) : null,
+    !lista.length ? React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, it.linhas ? 'Sem integrações em curso.' : 'A carregar…') :
+    lista.map(i => {
+      const passos = (ps.linhas || []).filter(p => p.integracao_id === i.id).sort((a, b) => a.ordem - b.ordem);
+      const feitos = passos.filter(p => p.feito_em).length;
+      const atrasados = passos.filter(p => !p.feito_em && p.prazo < hoje).length;
+      const pode = p => gestao || i.superior === eu || (i.user_id === eu && p.quem === 'Colaborador') || bspChefeDeArea(euU) && (window.userById(i.user_id) || {}).superior === eu;
+      let etapa = '';
+      return React.createElement("div", { key: i.id, style: Object.assign({}, bspRegCaixa, { borderLeft: '4px solid ' + (i.estado === 'Concluída' ? 'var(--sucesso)' : atrasados ? 'var(--perigo)' : 'var(--accent)') }) },
+        React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' } },
+          React.createElement("b", { style: { fontSize: 15, color: 'var(--text-1)' } }, bspNomeDe(i.user_id)),
+          React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-2)' } }, 'Entrada a ' + dataCurta(i.entrada) + (i.superior ? ' · superior: ' + bspNomeDe(i.superior) : '')),
+          React.createElement("span", { style: { flex: 1 } }),
+          React.createElement("b", { style: { fontSize: 12.5, color: i.estado === 'Concluída' ? 'var(--sucesso)' : atrasados ? 'var(--perigo)' : 'var(--text-2)' } }, i.estado === 'Concluída' ? 'Concluída' : feitos + ' de ' + passos.length + ' feitos' + (atrasados ? ' · ' + atrasados + ' em atraso' : ''))),
+        React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 } },
+          passos.map(p => {
+            const cab = p.etapa !== etapa ? (etapa = p.etapa) : null;
+            return React.createElement(React.Fragment, { key: p.id },
+              cab && React.createElement("div", { style: { fontSize: 11.5, fontWeight: 700, color: 'var(--accent-d)', textTransform: 'uppercase', letterSpacing: '.05em', marginTop: 6 } }, cab),
+              React.createElement("label", { style: { display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 13.5, color: 'var(--text-1)', cursor: pode(p) ? 'pointer' : 'default' } },
+                React.createElement("input", { type: 'checkbox', checked: !!p.feito_em, disabled: !pode(p), onChange: e => marcar(p, e.target.checked), style: { width: 18, height: 18, marginTop: 2, flex: 'none' } }),
+                React.createElement("span", { style: { flex: 1, minWidth: 0, textDecoration: p.feito_em ? 'line-through' : 'none', color: p.feito_em ? 'var(--text-3)' : 'var(--text-1)' } },
+                  p.passo, React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, ' · ' + p.quem + (p.referencia ? ' · ' + p.referencia : ''))),
+                React.createElement("span", { style: { fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', color: p.feito_em ? 'var(--sucesso)' : p.prazo < hoje ? 'var(--perigo)' : 'var(--text-3)' } },
+                  p.feito_em ? 'Feito a ' + bspDataExacta(new Date(p.feito_em)).replace(/,.*$/, '') : 'até ' + dataCurta(p.prazo))));
+          })));
+    }));
 }
 
 /* ───────────── Qualidade ───────────── */

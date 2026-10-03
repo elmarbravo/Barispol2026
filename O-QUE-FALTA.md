@@ -2425,3 +2425,19 @@ Pedido do Elmar: «Avance tudo possível… Coloque lá o feedback de utentes».
 - Ecrã: «Rever até (opcional)» no `DocPublicarModal` (nos procedimentos
   propõe 2 anos); no cartão, quem publica vê «Rever até» / «Revisão em
   atraso».
+
+## 3-dx. Integração de novos colaboradores (03-10-2026, RI-2.2)
+
+- `integracao.sql` (aplicado): `integracao_modelo` (passos e prazos; os
+  valores estão só no servidor, preenchidos a partir do resumo do RI:
+  1.º dia, 1.ª semana, 2 meses, período experimental, último mês),
+  `integracoes`, `integracao_passos`; `bsp_integracao_iniciar` (só a
+  gestão), `bsp_integracao_passo` (gestão, superior, chefe; a pessoa só os
+  seus), `bsp_integracao_alertar` (cron `bsp-integracao`, 04h55 de Luanda:
+  um aviso por pessoa e dia, no prazo e com 3 dias de atraso).
+- Ecrã: Equipa → «Integração» (`IntegracaoPainel`).
+- Testado: servidor com desfazer (10 passos até +90 dias; a pessoa marca o
+  seu e não o do DCH; o superior vê; outra médica não vê; sem duplicados);
+  navegador com servidor simulado.
+- Por decidir (Elmar): iniciar a integração da Dra. Ludmila Da Silva
+  (entrada 02-10-2026, superior Dr. Osvaldo?).
