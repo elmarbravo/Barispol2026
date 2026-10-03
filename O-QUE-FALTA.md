@@ -2775,5 +2775,19 @@ tem. Esse serve para pagar: Apuramento_Subs Produtividade.xlsx.»
 - Testado: as notas 3, 3, 2, 2 sobre 22 250 Kz dão 2,5, 75% e 16 687,50 Kz,
   como no Excel. A chefe da Recepção não lança nos Serviços Gerais, e
   ninguém lança a sua própria produtividade.
-- Falta: importar o histórico do arquivo dos RH (BRSP_RH_PRODUTIVIDADE:
-  Recepção, Serviços Gerais, Laboratório, Enfermagem, de 2024 a 2026).
+- Histórico importado (03-10-2026) de 77 ficheiros da pasta dos RH
+  BRSP_RH_PRODUTIVIDADE e das pastas de cada colaborador: 132 meses de 33
+  pessoas, de Abril de 2025 a Setembro de 2026, como «Aprovado» (fonte
+  «sharepoint»). Guardam os números da folha, que foi o que se pagou. Em 18
+  linhas a folha fez a conta de outra maneira: dividiu sempre por 4 ou tirou
+  a percentagem da 4.ª nota. A nota de cada uma dessas linhas diz o que a
+  regra daria. 74 meses de 16 pessoas com conta entraram no histórico da
+  avaliação anual.
+- Números BRP repetidos nos ficheiros (BRP016 em 4 pessoas, BRP028 em 4,
+  BRP333 e BRP037 em 2). Cada pessoa ficou com um só número. Usei o da pasta
+  dos RH quando existe; nos repetidos sem pasta juntei as iniciais
+  (BRP028-JC, BRP028-MM, BRP333-CT, BRP333-JM, BRP037-DD, BRP037-WS). «Rosa
+  simão» e «Rosa Salvador» são a mesma pessoa. Os RH devem confirmar estes
+  números.
+- Sem ficheiro: Recepção de Janeiro e Fevereiro de 2026 (pastas vazias). As
+  áreas de saúde não têm Junho nem Julho de 2026.
