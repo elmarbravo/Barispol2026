@@ -2919,3 +2919,44 @@ contar números, preciso que notifique tudo.»
   é preciso voltar a ligá-lo para ver os registos.
 - A app Android (Capacitor) não tem avisos do sistema até ligar o Firebase
   (3-…, «Notificações C»).
+
+## 3-et. Pagamento dos médicos pelo mapa de Agosto (04-10-2026)
+
+Elmar: «Use o pagamento de Agosto para te guiares… Irão faltar todos os meses
+os mapas de presença deles, que ainda não consigo fazer digital. Ecografia: a
+imagiologista tem adenda contratual, 40% terça e domingo, 50% nos restantes
+dias. Os outros médicos estão off.»
+
+- `pagamento-medicos-regras.sql` (aplicado). O modelo é o
+  MAPA_PAGAMENTO_MEDICOS_AGOSTO_2026 «(pagamentos 15-09)» do SharePoint.
+- **Ecografia por dia da semana.** Coluna `prestadores.taxa_eco_dias`
+  (`{"2": 40, "7": 40}`; 1 = segunda … 7 = domingo). Nesses dias vale essa
+  taxa; nos outros, a `taxa_eco`. Sai a regra antiga do regime C (25% nos
+  dias de permanência). A permanência do regime C fica como estava (horas ÷ 6
+  × taxa). A adenda está lançada no cadastro, só no servidor.
+- **Presenças em falta.** O mapa calcula-se sem as fichas de presença; a
+  permanência fica a zero. Cada médico com actividade no mês e sem nenhum dia
+  lançado aparece em «A conferir antes de fechar» e com «sem presenças» a
+  vermelho. Lançar as fichas antes de fechar o mês.
+- **Nomes do MetaGest.** Coluna `prestadores.chaves_extra`: outros nomes do
+  mesmo médico. Em Setembro uma médica passou a ter o nome curto no MetaGest
+  e 1,26 milhões de facturação ficavam sem dono. Corrigido no cadastro. O
+  «ver linhas» (`bsp_pagamento_detalhe`) segue a mesma regra.
+- **Nutrição** conta como especialidade (50% do facturado), como no mapa.
+- **Cadastro (só no servidor):**
+  - os quatro imagiologistas e ginecologistas sem actividade ficaram
+    inactivos;
+  - o urologista passou a 30% na ecografia (decisão da DG de 11-09-2026);
+  - entram as duas médicas novas de Agosto (nº 26 e 27).
+- **Conferido com Agosto:**
+  - laboratório 232.222,51 contra 232.222,38;
+  - enfermagem e observação iguais.
+  - Imagiologia: a diferença de 4.134 é a regra nova contra a antiga de
+    Agosto. Agosto já foi pago pelo mapa avulso.
+  - Consultas: a diferença vem das fichas e dos exames atribuídos à mão.
+- **Falta:**
+  - Cadastro dos dois médicos novos de Setembro (aparecem em «Médicos sem
+    cadastro», com o valor facturado): NIF, IBAN, regime e taxa.
+  - Confirmar a taxa de permanência da médica nº 26. O mapa usou 15.000, e
+    a nota da DG de 13-09 fala em 20.000.
+  - Lançar as presenças de Setembro e fechar o mês.

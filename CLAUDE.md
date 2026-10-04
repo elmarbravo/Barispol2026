@@ -468,6 +468,13 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   IBAN só no servidor (`prestadores`).
   Farmácia e indicação: base à mão (o MetaGest não as diz). Conferido com
   Julho de 2026: laboratório e enfermagem iguais ao cêntimo.
+  Regras do mapa de Agosto (04-10-2026, `pagamento-medicos-regras.sql`):
+  ecografia por dia da semana em `taxa_eco_dias` (adenda; sobrepõe-se à
+  `taxa_eco`), outros nomes do MetaGest em `chaves_extra` (contam como a
+  chave, também no `bsp_pagamento_detalhe`), nutrição como especialidade.
+  As fichas de presença podem faltar: o mapa calcula-se na mesma e o médico
+  aparece em `pendencias.sem_presencas` / `sem_presenca`. Médico «off» =
+  `activo = false`, nunca apagar.
 - Integração (03-10-2026, `integracao.sql`, RI-2.2): modelo de passos só no
   servidor (`integracao_modelo`); Equipa → `IntegracaoPainel`. Documentos com
   `revisao_ate` (`documentos-revisao.sql`).

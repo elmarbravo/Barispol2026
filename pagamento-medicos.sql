@@ -13,7 +13,7 @@
 --   e MAPA 50% a quem realiza, pelo NOME do item (nunca pelo grupo; a
 --   electroforese fica de fora); laboratório e laboratório externo 10%; sala
 --   de observação 10%; outros actos de enfermagem 5%; ecografia 50% (30% nas
---   excepções do cadastro; regime C: 25% nos dias de permanência); raio-X 5%;
+--   excepções do cadastro; por dia da semana desde pagamento-medicos-regras.sql); raio-X 5%;
 --   farmácia 5% sobre o total (base lançada à mão: vem do relatório da
 --   farmácia, pelo médico em serviço); indicação 5% (o MetaGest não exporta
 --   quem indicou: base lançada à mão). Estornos somam com sinal. IRT 6,5%

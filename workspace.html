@@ -27865,6 +27865,17 @@ const BSP_PAG_RUBRICAS = [
   ['permanencia', 'Permanência'], ['clinica_geral', 'Clínica Geral'], ['pediatria', 'Pediatria'], ['especialidades', 'Especialidades (50%)'],
   ['cardiologia', 'Cardiologia, ECG (50%)'], ['laboratorio', 'Laboratório (10%)'], ['observacao', 'Sala de observação (10%)'],
   ['enfermagem', 'Enfermagem (5%)'], ['ecografia', 'Ecografia'], ['raio_x', 'Raio-X (5%)'], ['farmacia', 'Farmácia (5%)'], ['indicacao', 'Indicação (5%)']];
+/* Taxas de ecografia por dia da semana (adenda; taxa_eco_dias, chave 1 = segunda … 7 = domingo):
+   «40% à terça e ao domingo» (pagamento-medicos-regras.sql, 04-10-2026). */
+function bspPagTaxaDias(td) {
+  const nomes = ['', 'à segunda', 'à terça', 'à quarta', 'à quinta', 'à sexta', 'ao sábado', 'ao domingo'];
+  const porTaxa = {};
+  Object.keys(td || {}).sort().forEach(d => { const t = String(td[d]).replace('.', ','); (porTaxa[t] = porTaxa[t] || []).push(nomes[Number(d)] || d); });
+  return Object.keys(porTaxa).map(t => {
+    const l = porTaxa[t];
+    return t + '% ' + (l.length > 1 ? l.slice(0, -1).join(', ') + ' e ' + l[l.length - 1] : l[0]);
+  }).join('; ');
+}
 const BSP_PAG_REGIMES = { A: 'pró-rata (taxa ÷ 14,5 × horas)', B: 'pediatria (taxa × dias)', C: 'contrato próprio (horas ÷ 6 × taxa)', D: 'fixo (taxa × dias)' };
 const bspPagKz = v => v == null ? '—' : Number(v).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Kz';
 function PagamentoMedicosPainel() {
@@ -27943,6 +27954,7 @@ function PagamentoMedicosPainel() {
     s && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, s));
   const pend = (mapa && mapa.pendencias) || {};
   const avisos = mapa ? [
+    (pend.sem_presencas || []).length ? 'Sem fichas de presença lançadas (permanência a zero até se lançarem): ' + pend.sem_presencas.map(bspNomeProprio).join(', ') + '.' : '',
     pend.sem_medico && pend.sem_medico.linhas ? pend.sem_medico.linhas + ' linhas facturadas sem médico (' + bspPagKz(pend.sem_medico.valor) + '): comissão que ninguém recebe; corrigir no MetaGest.' : '',
     (pend.sem_cadastro || []).length ? 'Médicos sem cadastro: ' + pend.sem_cadastro.map(x => x.chave + ' (' + bspPagKz(x.valor) + ')').join(', ') + '.' : '',
     pend.simbolicos ? pend.simbolicos + ' linhas a valor simbólico (até 1 Kz).' : '',
@@ -27960,7 +27972,9 @@ function PagamentoMedicosPainel() {
       const base = k === 'permanencia' ? (m.regime ? x.dias + ' dias · ' + String(x.horas).replace('.', ',') + ' h' : 'sem permanência')
         : k === 'clinica_geral' ? x.util + ' em dia útil + ' + x.fds + ' ao fim-de-semana' + (x.da_ficha ? ' (ficha; MetaGest ' + x.util_mg + ' + ' + x.fds_mg + ')' : ' (MetaGest)')
         : k === 'pediatria' ? x.n + ' consultas' + (x.da_ficha ? ' (ficha; MetaGest ' + x.n_mg + ')' : ' (MetaGest)')
-        : k === 'ecografia' ? bspPagKz(x.base) + ' a ' + m.taxa_eco + '%' + (Number(x.base_permanencia) ? ' (' + bspPagKz(x.base_permanencia) + ' na permanência a 25%)' : '')
+        : k === 'ecografia' ? (x.taxa_dias && Object.keys(x.taxa_dias).length
+            ? bspPagKz(x.base) + ': ' + bspPagTaxaDias(x.taxa_dias) + ' (' + bspPagKz(x.base_dias) + '); outros dias a ' + m.taxa_eco + '%'
+            : bspPagKz(x.base) + ' a ' + m.taxa_eco + '%')
         : bspPagKz(x.base);
       const linhasRub = { clinica_geral: 'clinica_geral', pediatria: 'pediatria', especialidades: 'especialidade', cardiologia: 'cardiologia', laboratorio: 'laboratorio', observacao: 'observacao', enfermagem: 'enfermagem', ecografia: 'ecografia', raio_x: 'raio_x' }[k];
       if (!Number(x.valor) && !Number(x.base) && !Number(x.n) && !Number(x.util) && !Number(x.fds) && !Number(x.dias)) return null;
@@ -28031,6 +28045,7 @@ function PagamentoMedicosPainel() {
           React.createElement("div", { onClick: () => abrir(m), style: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline', cursor: 'pointer' } },
             React.createElement("b", { style: { flex: '1 1 220px', fontSize: 14, color: 'var(--text-1)' } }, bspNomeProprio(m.nome)),
             React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Permanência ' + bspPagKz(m.permanencia.valor) + ' · consultas ' + bspPagKz(cons)),
+            m.sem_presenca && React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: 'var(--perigo)' } }, 'sem presenças'),
             React.createElement("b", { style: { fontSize: 14, color: 'var(--text-1)', fontVariantNumeric: 'tabular-nums' } }, bspPagKz(m.liquido)),
             dif != null && React.createElement("span", { style: { fontSize: 12, color: dif < 0 ? 'var(--perigo)' : 'var(--sucesso)' } }, (dif >= 0 ? '+' : '−') + bspPagKz(Math.abs(dif)))),
           aberto === m.id && perm && ajuste && detalhe(m));
