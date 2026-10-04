@@ -1615,7 +1615,15 @@ function bspSemNotifsLidas(s) {
 }
 function useChatPorLer(eu) {
   const { state } = useStore();
-  return bspTotalPorLer(state, eu || (window.userById && window.userById(window.CURRENT_USER_ID)));
+  const total = bspTotalPorLer(state, eu || (window.userById && window.userById(window.CURRENT_USER_ID)));
+  /* Número no ícone da app (04-10-2026): as mensagens por ler. */
+  React.useEffect(() => {
+    try {
+      if (!navigator.setAppBadge) return;
+      if (total > 0) navigator.setAppBadge(total).catch(() => {}); else navigator.clearAppBadge().catch(() => {});
+    } catch (e) {}
+  }, [total]);
+  return total;
 }
 
 const CHANNELS = [{
@@ -3689,15 +3697,27 @@ function bspPlayChime() {
 /* Aviso do sistema com a pagina escondida. Tinha desaparecido por
    engano a 24-09-2026 (commit do som): cada mensagem recebida dava erro
    logo a seguir ao som. */
-function bspBrowserNotify(title, body) {
+/* Aviso do sistema (04-10-2026, Elmar: «as mensagens normais entre pessoas
+   no chat não está a notificar»). No telemóvel o `new Notification` não
+   existe (Android e iPhone só aceitam o service worker): o aviso perdia-se
+   sem erro. Agora vai pelo service worker, com a etiqueta da conversa
+   («conv-<chave>», a mesma do push do servidor): os dois juntam-se num só
+   aviso. `forcar` mostra-o também com o Workspace à vista. */
+function bspBrowserNotify(title, body, opc) {
   try {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
-    if (!document.hidden) return;
-    new Notification(title, {
-      body: body || '',
-      icon: typeof BSP_LOGO_URI !== 'undefined' ? BSP_LOGO_URI : undefined,
-      tag: 'bsp-' + Date.now()
-    });
+    const o = opc || {};
+    if (!document.hidden && !o.forcar) return;
+    const icone = 'assets/logo-barispol.png';
+    const dados = { body: body || '', icon: icone, badge: icone, tag: o.tag || ('bsp-' + Date.now()), renotify: false, data: { url: o.url || '' } };
+    const semSw = () => { try { new Notification(title, dados); } catch (e) {} };
+    const sw = navigator.serviceWorker;
+    if (sw && sw.getRegistration) {
+      sw.getRegistration().then(reg => reg || (sw.register ? sw.register('sw.js') : null)).then(reg => {
+        if (reg && reg.showNotification) return reg.showNotification(title, dados);
+        semSw();
+      }).catch(semSw);
+    } else semSw();
   } catch (e) {}
 }
 /* Toques das chamadas (pedido do Elmar, 24-09-2026: «ao chamar coloque
@@ -3740,10 +3760,12 @@ function bspToqueChamada(tipo) {
    directas, grupos, mencoes, Feed, tarefas atribuidas, documentos). Com o
    push activo neste aparelho, o aviso do sistema sai so pelo push, para
    nao aparecer duas vezes. */
-function bspIncoming(title, body, coberto) {
+function bspIncoming(title, body, coberto, opc) {
   bspPlayChime();
-  if (coberto && window.__bspPushActivo) return;
-  bspBrowserNotify(title, body);
+  /* Com etiqueta (mensagens), o aviso local e o do servidor juntam-se: mostra
+     sempre. Sem etiqueta, o push do servidor chega e não se repete. */
+  if (coberto && window.__bspPushActivo && !(opc && opc.tag)) return;
+  bspBrowserNotify(title, body, opc);
 }
 /* NOTIFICACOES COM O WORKSPACE FECHADO (02-10-2026, pedido do Elmar: «as 3
    ideias implementa»). Web Push: o aparelho regista-se no servidor
@@ -5411,7 +5433,10 @@ function StoreProvider({
         preview: bspTextoResumo(m.text).slice(0, 90)
       }));
       const grupoCn = !isDm && (window.CHANNELS || []).find(c => c.id === chave && c.membros && c.membros.length);
-      bspIncoming(name + (isDm ? ' (direta)' : ' · ' + where), bspTextoResumo(m.text).slice(0, 90), isDm || !!grupoCn || mencionado);
+      /* Avisa sempre, menos a quem já está a ler esta conversa (04-10-2026). */
+      const aLer = !document.hidden && window.__bspPagina === 'chat' && window.__bspConvAberta === chave;
+      bspIncoming(name + (isDm ? ' (direta)' : ' · ' + where), bspTextoResumo(m.text).slice(0, 90), isDm || !!grupoCn || mencionado,
+        aLer ? null : { tag: mencionado && !isDm ? 'mencao-' + m.id : 'conv-' + chave, url: '#/chat/' + chave, forcar: true });
     };
     const notifPost = p => {
       if (!p || p.user_id === window.CURRENT_USER_ID) return;
@@ -8471,6 +8496,8 @@ function ChatScreen({
   const activeDm = isDM ? dmList.find(d => d.id === dmId) : null;
   const dmUser = activeDm ? window.userById(activeDm.userId) : null;
   const convKey = isDM ? `dm-${dmId}` : channelId;
+  /* Conversa à vista, para não avisar de mensagens que a pessoa já está a ler. */
+  React.useEffect(() => { window.__bspConvAberta = drawer ? null : convKey; return () => { window.__bspConvAberta = null; }; }, [convKey, drawer]);
   const messages = (messagesByChan[convKey] || []).filter(m => !bspLinhaDeControlo(m.text));
   /* Ao abrir uma conversa, as 300 mais recentes vêm do servidor
      (30-09-2026). Um aparelho aberto só pedia mensagens com id maior do que
@@ -28908,6 +28935,7 @@ function App() {
     } catch (e) {}
   };
   const [page, setPage] = React.useState('dashboard');
+  React.useEffect(() => { window.__bspPagina = page; }, [page]);
   /* Conversa que uma notificacao mandou abrir. O contador faz parte do
      valor para que carregar duas vezes na mesma notificacao volte a
      mandar o Chat para la. */

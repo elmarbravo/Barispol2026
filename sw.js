@@ -22,6 +22,9 @@ self.addEventListener('push', e => {
   e.waitUntil((async () => {
     const janelas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const aFrente = janelas.some(c => c.visibilityState === 'visible' && c.focused && c.url.indexOf('workspace.html') !== -1);
+    /* Mensagem nova: ponto no ícone da app (o número certo põe-o o
+       Workspace quando abre). 04-10-2026. */
+    if (/^(conv|mencao)-/.test(d.tag || '')) { try { if (self.navigator.setAppBadge) await self.navigator.setAppBadge(); } catch (x) {} }
     if (aFrente && !SAFARI) return;
     await self.registration.showNotification(d.titulo || 'Barispol Workspace', {
       body: d.corpo || '',

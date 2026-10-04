@@ -167,6 +167,13 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   sessão apaga-a). Sem espaço no aparelho, o estado grava-se com só as
   últimas 60 mensagens por conversa. Nunca pôr no estado coisas grandes
   sem pensar no limite de ~5 MB do `localStorage`.
+- Avisos das mensagens (04-10-2026, Elmar: «as mensagens normais entre pessoas
+  no chat não está a notificar»): `bspBrowserNotify` só pelo service worker
+  (`showNotification`; o `new Notification` não existe no telemóvel), com a
+  etiqueta `conv-<chave>` igual ao push do servidor (os dois juntam-se num só).
+  Avisa sempre, menos quem está a ler essa conversa (`__bspPagina`,
+  `__bspConvAberta`). Número no ícone da app: `navigator.setAppBadge` em
+  `useChatPorLer`; o `sw.js` põe um ponto quando chega uma mensagem.
 - Abrir uma conversa directa de qualquer ecrã: `bspConversaCom(id)`.
 - Grupos do Chat (30-09-2026): editam-se com `NovoGrupoModal` (`inicial`) e
   `actions.editarCanal`; o servidor segue o id e os membros, não o nome. Um

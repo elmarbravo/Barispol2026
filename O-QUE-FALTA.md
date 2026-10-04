@@ -2894,3 +2894,28 @@ coisas! Os superiores vêem da sua equipa.»
   e ao próprio, e isso ficou corrigido.
 - Por decidir: a conta de teste «Beb» está na camada Direcção e por isso vê
   o mesmo que a gestão (excepto os salários). Tirá-la da Direcção?
+
+## 3-es. Mensagens do Chat voltam a avisar e a contar no telemóvel (04-10-2026)
+
+Elmar: «As mensagens normais entre pessoas no chat não está a notificar nem
+contar números, preciso que notifique tudo.»
+
+- Causa no ecrã: o aviso local usava `new Notification(...)`, que o Android e
+  o iPhone não aceitam (só pelo service worker). O aviso perdia-se sem erro.
+  Nas mensagens directas, com o push activo, nem se tentava, porque se
+  contava só com o push do servidor.
+- Agora `bspBrowserNotify` usa o service worker (`showNotification`), e
+  regista o `sw.js` se ainda não estiver registado. A etiqueta é
+  `conv-<chave>`, a mesma do push do servidor: os dois juntam-se num só
+  aviso.
+- Avisa sempre: mensagens directas, grupos, canais e menções. Também com o
+  Workspace aberto noutro ecrã. Só não avisa quem está a ler essa conversa.
+- Número no ícone da app: `navigator.setAppBadge` com as mensagens por ler.
+  O `sw.js` põe um ponto no ícone quando chega um push de mensagem.
+- Testado no navegador: uma mensagem directa nova dá o aviso do sistema
+  (etiqueta `conv-dm-…`, abre a conversa) e o «1» no botão Chat.
+- Não confirmado: o envio pelo servidor (gatilho `bsp_push_mensagem` →
+  `push-enviar`). O acesso ao Supabase ficou sem autorização a 04-10-2026 e
+  é preciso voltar a ligá-lo para ver os registos.
+- A app Android (Capacitor) não tem avisos do sistema até ligar o Firebase
+  (3-…, «Notificações C»).
