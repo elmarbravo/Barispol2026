@@ -3093,3 +3093,21 @@ Elmar: «Arlete vê tudo que é consumo.»
   `bspVeConsumos` passam a incluir a área Serviços Gerais e o Emmanuel (u22).
   Hoje a área tem só o Emmanuel. Passou a ver também o stock (menu Stock) e o
   transporte sem depender do cargo de motorista. Testado no servidor.
+
+## 3-ez. Custo médio de uma revisão das viaturas Suzuki (05-10-2026)
+
+Elmar: «O custo da revisão: vê as últimas facturas da Suzuki Angolauto para
+teres uma média por revisão.»
+
+- Fonte: o plano de manutenção dos Serviços Gerais no SharePoint
+  (BRSP-LOG_Plano-Manutencao-Equipamentos_2026), com quatro revisões feitas
+  na Angolauto em 2026, duas da Eeco e duas do S-Presso.
+  - A factura de Novembro de 2025 é uma digitalização sem texto e ficou de
+    fora.
+  - Média das quatro: 118.915 Kz por revisão.
+  - Média das revisões normais (óleo e filtros): 76.459 Kz.
+  - A revisão grande (velas, valvulina, todos os filtros) custou 246.283 Kz.
+  - Mão de obra fixa: 38.881,50 Kz por revisão.
+- No Transporte do Workspace (`transporte_manutencoes`) entraram as duas
+  revisões da Eeco (16-03 e 12-08-2026). As do S-Presso não, porque o módulo
+  é só da Eeco.
