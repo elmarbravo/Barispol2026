@@ -3111,3 +3111,7 @@ teres uma média por revisão.»
 - No Transporte do Workspace (`transporte_manutencoes`) entraram as duas
   revisões da Eeco (16-03 e 12-08-2026). As do S-Presso não, porque o módulo
   é só da Eeco.
+- Correcção (05-10-2026, Elmar: «30 de 09 era só informação, não fez»): o
+  registo de 30-09-2026 (id 1, 66.652,80 Kz, preço do material) passou de
+  «feita» a «orcamento», com nota. A última revisão feita da Eeco é a de
+  12-08-2026, aos 49.649 km; a seguinte (cada 5.000 km) já passou.
