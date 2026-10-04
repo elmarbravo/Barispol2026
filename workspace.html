@@ -25437,7 +25437,7 @@ const BSP_GUIA_FICHAS = [
       ['Quem trata regista', 'o responsável, o custo e o que se fez, e carrega em «Concluída» no fim.'],
       ['Enganou-se?', 'Cancele a avaria. Uma avaria criada só a Direcção apaga.'],
       ['Equipamentos e manutenção:', 'o inventário, o plano de manutenção e calibração de cada equipamento, a próxima data e o que se fez. Avisa 14 dias antes, no dia e com 7 dias de atraso.'],
-      ['Toners:', 'o nível de cada impressora e o stock no armário. Qualquer pessoa regista o nível que vê; quem trata regista trocas e compras. Avisa quando um toner chega ao mínimo.'],
+      ['Toners (Recepção, Laboratório, Serviços Gerais e gestão):', 'o nível de cada impressora e o stock no armário. Regista o nível que vê; os Serviços Gerais registam trocas e compras. Avisa quando um toner chega ao mínimo.'],
       ['Gerador:', 'o gasóleo no depósito (1000 L), o consumo por dia e os dias que restam. Registe a leitura do marcador e cada abastecimento. Abaixo de 30% avisa a gestão e os Serviços Gerais.']
     ],
     quem: 'Toda a equipa reporta. Cada pessoa vê as avarias reportadas pela sua área. A Direcção, os Serviços Gerais e o Emmanuel vêem todas e tratam.',
@@ -27326,6 +27326,11 @@ function EquipamentosPainel() {
    depósito por leituras e abastecimentos. Avisos no servidor. A leitura
    automática das impressoras precisa de um programa na rede da clínica. */
 const BSP_TONER_TIPOS = [['Leitura', 'Nível visto na impressora'], ['Troca', 'Toner trocado'], ['Entrada', 'Compra / entrada no armário'], ['Acerto', 'Contagem do armário (acerto)']];
+/* Quem vê os toners (05-10-2026, toners-acesso.sql, Elmar): Recepção,
+   Laboratório, Emmanuel/Serviços Gerais e gestão. No servidor, bsp_ve_toners. */
+function bspVeToners(u) {
+  return !!u && !bspESocio(u) && (bspTrataAvarias(u) || ['recepcao', 'laboratorio'].indexOf(bspAreaChave(u.dept)) !== -1);
+}
 function bspNivelCor(n) { return n == null ? 'var(--text-3)' : n <= 15 ? 'var(--perigo)' : n <= 35 ? 'var(--serie-4)' : 'var(--sucesso)'; }
 function TonersPainel() {
   const toast = useToast();
@@ -27498,7 +27503,7 @@ function AvariasScreen() {
   }, txt);
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' } },
     React.createElement("div", { style: { display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', flex: 'none', overflowX: 'auto' } },
-      aba_('avarias', 'Avarias'), aba_('equipamentos', 'Equipamentos e manutenção'), aba_('toners', 'Toners'),
+      aba_('avarias', 'Avarias'), aba_('equipamentos', 'Equipamentos e manutenção'), bspVeToners(window.userById(window.CURRENT_USER_ID)) && aba_('toners', 'Toners'),
       bspTrataAvarias(window.userById(window.CURRENT_USER_ID)) && aba_('gerador', 'Gerador')),
     React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: 'auto', paddingBottom: 12 } },
       aba === 'avarias' ? React.createElement(AvariasLista, null) : aba === 'toners' ? React.createElement(TonersPainel, null)

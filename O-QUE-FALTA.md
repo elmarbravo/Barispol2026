@@ -3050,3 +3050,20 @@ de 01-04 a 31-08 (só no servidor; a folha não entra no repositório).
 - Por decidir (Elmar): se a ida a casa do motorista é autorizada, ou se os
   km entre turnos de Abril a Agosto pedem explicação. Os maiores foram 19-04
   (96 km), 26-04 (104 km) e 01-05 (89 km).
+
+## 3-ex. Toners só para quem os trata (05-10-2026)
+
+Elmar: «Os toners só a Recepção, Laboratório, Emmanuel e Direcção é que
+vêem.»
+
+- `toners-acesso.sql` (aplicado): `bsp_ve_toners()`. Entram quem trata as
+  avarias (gestão, Serviços Gerais e Emmanuel) e as áreas Recepção e
+  Laboratório.
+  - Regras de leitura das impressoras, do mínimo e dos movimentos, e
+    `bsp_toners_estado`, passam a usar esta função.
+  - Registar uma leitura também exige `bsp_ve_toners`.
+- Ecrã: o separador «Toners» só aparece com `bspVeToners`.
+- A novidade «Toner a acabar? Registe no Workspace» passou de todos para a
+  Recepção e o Laboratório.
+- Testado no servidor: a Recepção, o Laboratório, o Emmanuel e o Elmar vêem
+  as 6 impressoras; a Enfermagem não vê nada e o estado é-lhe recusado.
