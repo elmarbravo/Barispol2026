@@ -172,7 +172,8 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   (`showNotification`; o `new Notification` não existe no telemóvel), com a
   etiqueta `conv-<chave>` igual ao push do servidor (os dois juntam-se num só).
   Avisa sempre, menos quem está a ler essa conversa (`__bspPagina`,
-  `__bspConvAberta`). Número no ícone da app: `navigator.setAppBadge` em
+  `__bspConvAberta`). No servidor, o `bsp_push_mensagem` avisa também nos
+  canais quem os vê (`push-canais.sql`, mesma regra do `bspVeCanal`). Número no ícone da app: `navigator.setAppBadge` em
   `useChatPorLer`; o `sw.js` põe um ponto quando chega uma mensagem.
 - Abrir uma conversa directa de qualquer ecrã: `bspConversaCom(id)`.
 - Grupos do Chat (30-09-2026): editam-se com `NovoGrupoModal` (`inicial`) e

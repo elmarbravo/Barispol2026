@@ -2914,9 +2914,13 @@ contar números, preciso que notifique tudo.»
   O `sw.js` põe um ponto no ícone quando chega um push de mensagem.
 - Testado no navegador: uma mensagem directa nova dá o aviso do sistema
   (etiqueta `conv-dm-…`, abre a conversa) e o «1» no botão Chat.
-- Não confirmado: o envio pelo servidor (gatilho `bsp_push_mensagem` →
-  `push-enviar`). O acesso ao Supabase ficou sem autorização a 04-10-2026 e
-  é preciso voltar a ligá-lo para ver os registos.
+- Servidor, confirmado a 04-10-2026 nos registos: as mensagens dos grupos
+  geravam push (`push-enviar`, resposta 200). As dos canais (#geral, #avisos,
+  #escalas e os de área) só avisavam nas menções: as de #recepção,
+  #laboratório, #escalas e #radiologia de 03-10 não avisaram ninguém.
+  Corrigido em `push-canais.sql` (aplicado). Nos canais avisa quem os vê, com
+  a regra do `bspVeCanal` (por exemplo, #geral 25 pessoas, #recepção 6), nunca
+  o autor nem os sócios.
 - A app Android (Capacitor) não tem avisos do sistema até ligar o Firebase
   (3-…, «Notificações C»).
 
