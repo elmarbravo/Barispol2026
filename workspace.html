@@ -23964,7 +23964,7 @@ function EscalaHojeCartao({ onAbrir }) {
    os vem. */
 function bspVeTransporte(u) {
   if (!u || bspESocio(u)) return false;
-  return bspGereMarcacoes(u) || /motorista/i.test(String(u.role || ''));
+  return bspVeConsumos(u) || /motorista/i.test(String(u.role || ''));
 }
 const BSP_TRANSP_TIPOS = {
   pessoal: 'Rota do pessoal', amostras: 'Amostras', compras: 'Compras', outro: 'Outro serviço',
@@ -25751,7 +25751,7 @@ function MetagestEscolha({ valor, onMudar }) {
 const BSP_STOCK_RESPONSAVEIS = { u2: ['*'], u17: ['FARMÁCIA - CBL'] };
 function bspVeStock(u) {
   if (!u || bspESocio(u)) return false;
-  return bspGereMarcacoes(u) || !!BSP_STOCK_RESPONSAVEIS[u.id];
+  return bspVeConsumos(u) || !!BSP_STOCK_RESPONSAVEIS[u.id];
 }
 function bspStockArmazemNome(a) {
   const n = String(a || '').replace(/\s*-\s*CBL$/i, '').trim();
@@ -26331,6 +26331,10 @@ const BSP_PROD_NOTAS = { 1: 'Não cumpriu', 2: 'Cumpriu a 75%', 3: 'Cumpriu a 10
    só o Director Geral (u1) e os RH (u2), igual a bsp_ve_salarios(). Nunca
    pela camada: a conta de teste da Direcção não entra. */
 const BSP_VE_SALARIOS_IDS = ['u1', 'u2'];
+/* Consumos (toners, gerador, combustível e viatura, stock): o Elmar e a
+   Arlete pelo nome, mais a gestão (05-10-2026, Elmar: «Arlete vê tudo que é
+   consumo»). No servidor, bsp_ve_consumos (consumos-acesso.sql). */
+function bspVeConsumos(u) { return !!u && !bspESocio(u) && (BSP_VE_SALARIOS_IDS.indexOf(u.id) !== -1 || bspGereMarcacoes(u)); }
 const bspVeSalarios = u => !!u && BSP_VE_SALARIOS_IDS.indexOf(u.id) !== -1;
 function bspProdPercentagem(media) {
   if (media == null || isNaN(media)) return null;
@@ -27329,7 +27333,7 @@ const BSP_TONER_TIPOS = [['Leitura', 'Nível visto na impressora'], ['Troca', 'T
 /* Quem vê os toners (05-10-2026, toners-acesso.sql, Elmar): Recepção,
    Laboratório, Emmanuel/Serviços Gerais e gestão. No servidor, bsp_ve_toners. */
 function bspVeToners(u) {
-  return !!u && !bspESocio(u) && (bspTrataAvarias(u) || ['recepcao', 'laboratorio'].indexOf(bspAreaChave(u.dept)) !== -1);
+  return !!u && !bspESocio(u) && (bspTrataAvarias(u) || bspVeConsumos(u) || ['recepcao', 'laboratorio'].indexOf(bspAreaChave(u.dept)) !== -1);
 }
 function bspNivelCor(n) { return n == null ? 'var(--text-3)' : n <= 15 ? 'var(--perigo)' : n <= 35 ? 'var(--serie-4)' : 'var(--sucesso)'; }
 function TonersPainel() {
@@ -27504,7 +27508,7 @@ function AvariasScreen() {
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' } },
     React.createElement("div", { style: { display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', flex: 'none', overflowX: 'auto' } },
       aba_('avarias', 'Avarias'), aba_('equipamentos', 'Equipamentos e manutenção'), bspVeToners(window.userById(window.CURRENT_USER_ID)) && aba_('toners', 'Toners'),
-      bspTrataAvarias(window.userById(window.CURRENT_USER_ID)) && aba_('gerador', 'Gerador')),
+      (bspTrataAvarias(window.userById(window.CURRENT_USER_ID)) || bspVeConsumos(window.userById(window.CURRENT_USER_ID))) && aba_('gerador', 'Gerador')),
     React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: 'auto', paddingBottom: 12 } },
       aba === 'avarias' ? React.createElement(AvariasLista, null) : aba === 'toners' ? React.createElement(TonersPainel, null)
         : aba === 'gerador' ? React.createElement(GeradorPainel, null) : React.createElement(EquipamentosPainel, null)));

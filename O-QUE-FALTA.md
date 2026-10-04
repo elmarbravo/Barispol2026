@@ -3067,3 +3067,25 @@ vêem.»
   Recepção e o Laboratório.
 - Testado no servidor: a Recepção, o Laboratório, o Emmanuel e o Elmar vêem
   as 6 impressoras; a Enfermagem não vê nada e o estado é-lhe recusado.
+
+## 3-ey. A Arlete vê tudo o que é consumo (05-10-2026)
+
+Elmar: «Arlete vê tudo que é consumo.»
+
+- `consumos-acesso.sql` (aplicado): `bsp_ve_consumos()`, com u1 e u2 pelo
+  nome e a gestão.
+  - Até aqui a Arlete via pela camada (Direcção/Coordenação). Agora vê mesmo
+    que a camada mude.
+  - Ligado a toners (`bsp_ve_toners`), gerador (`bsp_ve_gerador`, leitura e
+    estado), transporte (`bsp_ve_transporte`: viagens, combustível,
+    manutenção) e stock (`bsp_ve_stock`).
+  - Registar continua com quem trata.
+- Os avisos de toner e de gasóleo (`bsp_servicos_gerais_ids`) incluem sempre
+  a Arlete.
+- Ecrã: `bspVeConsumos` em `bspVeToners`, `bspVeTransporte`, `bspVeStock` e
+  no separador «Gerador».
+- Testado:
+  - Arlete: toners, gerador, transporte e stock; no ecrã, os separadores
+    Toners e Gerador.
+  - Enfermagem: nada disto.
+  - Emmanuel (cargo de motorista): sem mudança.

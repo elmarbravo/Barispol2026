@@ -38,6 +38,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   equipa), o chefe da área (`bsp_chefe_de` / `bsp_edita_escala`) e a gestão
   (Director Geral e RH). Nunca «todos os autenticados».
 - Salários e valores pagos: só o Elmar (u1) e a Arlete (u2), `bsp_ve_salarios`.
+- Consumos (toners, gerador, combustível e viatura, stock): o Elmar e a Arlete
+  pelo nome, mais a gestão: `bsp_ve_consumos` / `bspVeConsumos`
+  (`consumos-acesso.sql`, 05-10-2026). Um consumo novo usa esta regra.
 - Qualquer tabela nova com dados de uma pessoa segue esta regra no servidor
   (RLS) e no ecrã.
 
