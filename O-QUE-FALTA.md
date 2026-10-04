@@ -2964,3 +2964,8 @@ dias. Os outros médicos estão off.»
   - Confirmar a taxa de permanência da médica nº 26. O mapa usou 15.000, e
     a nota da DG de 13-09 fala em 20.000.
   - Lançar as presenças de Setembro e fechar o mês.
+  - 04-10-2026: a Arlete ainda não tinha mandado estes dados (nenhum e-mail
+    dela desde 28-09 sobre os médicos). Pedido enviado nesse dia, a pedido do
+    Elmar (de geral@barispol.com, com o Elmar em cópia e as respostas para
+    ele): cadastro dos dois médicos novos, NIF/IBAN e taxa da médica nº 26,
+    cópia da adenda da ecografia e, se houver, as fichas de presença.
