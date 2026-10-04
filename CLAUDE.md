@@ -433,6 +433,12 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
 - Equipamentos e manutenção preventiva (03-10-2026, `manutencao-preventiva.sql`):
   `equipamentos`, `manutencoes_plano`, `manutencoes_registo`; ecrã Avarias →
   `EquipamentosPainel` (o ecrã antigo chama-se `AvariasLista`).
+- Toners e gerador (04-10-2026, `toners-gerador.sql`): Avarias → `TonersPainel`
+  (toda a equipa; leitura de nível por qualquer pessoa) e `GeradorPainel` (só
+  `bspTrataAvarias`). Stock e níveis por movimentos (`bsp_toners_estado`);
+  depósito por leituras e abastecimentos (`bsp_gerador_estado`). Avisos por
+  `bsp_aviso_servicos_gerais` (novidade + telemóvel). Leitura automática das
+  impressoras ainda não existe (precisa de programa local).
 - Vigilância (03-10-2026, `vigilancia.sql`): `bsp_vigilancia` de 15 em 15 min,
   avisa a gestão no telemóvel; Admin → «Saúde do sistema». Uma verificação
   nova entra em `bsp_vigilancia` e em `BSP_VIGILANCIA_NOMES`.

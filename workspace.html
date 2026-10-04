@@ -4081,7 +4081,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista'];
+const BSP_RPC_LEITURA = ['bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -25436,7 +25436,9 @@ const BSP_GUIA_FICHAS = [
       ['Acompanhe o estado:', 'Aberta, Em reparação, Resolvida.'],
       ['Quem trata regista', 'o responsável, o custo e o que se fez, e carrega em «Concluída» no fim.'],
       ['Enganou-se?', 'Cancele a avaria. Uma avaria criada só a Direcção apaga.'],
-      ['Equipamentos e manutenção:', 'o inventário, o plano de manutenção e calibração de cada equipamento, a próxima data e o que se fez. Avisa 14 dias antes, no dia e com 7 dias de atraso.']
+      ['Equipamentos e manutenção:', 'o inventário, o plano de manutenção e calibração de cada equipamento, a próxima data e o que se fez. Avisa 14 dias antes, no dia e com 7 dias de atraso.'],
+      ['Toners:', 'o nível de cada impressora e o stock no armário. Qualquer pessoa regista o nível que vê; quem trata regista trocas e compras. Avisa quando um toner chega ao mínimo.'],
+      ['Gerador:', 'o gasóleo no depósito (1000 L), o consumo por dia e os dias que restam. Registe a leitura do marcador e cada abastecimento. Abaixo de 30% avisa a gestão e os Serviços Gerais.']
     ],
     quem: 'Toda a equipa reporta. Cada pessoa vê as avarias reportadas pela sua área. A Direcção, os Serviços Gerais e o Emmanuel vêem todas e tratam.',
     dica: 'Carregue uma só vez em «Reportar»: o mesmo texto repetido não cria outra avaria. A Direcção apaga as repetidas.' },
@@ -27318,6 +27320,176 @@ function EquipamentosPainel() {
             regs.map(r => React.createElement("span", { key: r.id }, dataCurta(r.dia) + ' · ' + r.tipo + (r.feito_por ? ' · ' + r.feito_por : '') + (r.custo ? ' · ' + bspPainelKz(r.custo) : '') + ' · ' + r.resultado + (r.nota ? ' · ' + r.nota : ''))))));
     }));
 }
+/* Toners e gerador (04-10-2026, toners-gerador.sql, Emmanuel: «falta-me o
+   controlo de toners em tempo real e o depósito do gerador»). Stock e nível
+   de cada impressora por movimentos (Entrada, Troca, Leitura, Acerto); o
+   depósito por leituras e abastecimentos. Avisos no servidor. A leitura
+   automática das impressoras precisa de um programa na rede da clínica. */
+const BSP_TONER_TIPOS = [['Leitura', 'Nível visto na impressora'], ['Troca', 'Toner trocado'], ['Entrada', 'Compra / entrada no armário'], ['Acerto', 'Contagem do armário (acerto)']];
+function bspNivelCor(n) { return n == null ? 'var(--text-3)' : n <= 15 ? 'var(--perigo)' : n <= 35 ? 'var(--serie-4)' : 'var(--sucesso)'; }
+function TonersPainel() {
+  const toast = useToast();
+  const trata = bspTrataAvarias(window.userById(window.CURRENT_USER_ID));
+  const imp = useTabela('impressoras', 'local');
+  const [estado, setEstado] = React.useState(null);
+  const [tick, setTick] = React.useState(0);
+  const [form, setForm] = React.useState(null);
+  const rot = bspTranspRot;
+  React.useEffect(() => {
+    const cl = bspGetClient(); if (!cl) return;
+    cl.rpc('bsp_toners_estado').then(r => setEstado(r.error ? { erro: r.error.message } : (r.data || { stock: [], niveis: [] })));
+  }, [tick]);
+  const impressoras = (imp.linhas || []).filter(i => i.activo).slice().sort((a, b) => bspCompararTexto(a.local, b.local) || bspCompararTexto(a.modelo, b.modelo));
+  const stock = (estado && estado.stock) || [];
+  const nivel = (id, c) => ((estado && estado.niveis) || []).find(n => n.impressora === id && n.codigo === c) || {};
+  const qtd = c => { const x = stock.find(s => s.codigo === c); return x ? Number(x.qtd) : 0; };
+  const minimo = c => { const x = stock.find(s => s.codigo === c); return x ? Number(x.minimo) : 1; };
+  const quando = iso => iso ? bspDataExacta(new Date(iso)) : '';
+  async function gravar() {
+    const f = form;
+    if (!f.codigo) { toast('Escolha o consumível.'); return; }
+    const linha = { codigo: f.codigo, tipo: f.tipo, impressora_id: f.impressora_id || null, nota: (f.nota || '').trim() };
+    if (f.tipo === 'Leitura') {
+      const n = Number(String(f.nivel).replace(',', '.'));
+      if (!(n >= 0 && n <= 100)) { toast('Diga o nível em % (0 a 100).'); return; }
+      if (!linha.impressora_id) { toast('Escolha a impressora.'); return; }
+      linha.nivel = Math.round(n);
+    } else {
+      const q = parseInt(f.quantidade, 10);
+      if (!q || (f.tipo !== 'Acerto' && q < 0)) { toast('Diga a quantidade.'); return; }
+      linha.quantidade = q;
+      if (f.tipo === 'Troca' && !linha.impressora_id) { toast('Escolha a impressora onde pôs o toner.'); return; }
+      if (f.tipo === 'Entrada' && f.valor) linha.valor = Number(String(f.valor).replace(/\./g, '').replace(',', '.'));
+    }
+    const r = await bspGetClient().from('toners_movimentos').insert(linha).select('id');
+    if (r.error || !r.data || !r.data.length) { toast('Não foi possível gravar' + (r.error ? ': ' + r.error.message : '.')); return; }
+    toast('Registado.'); setForm(null); setTick(t => t + 1);
+  }
+  const abrir = (tipo, i, c) => setForm({ tipo, impressora_id: i ? i.id : '', codigo: c || (i ? i.consumiveis[0] : ''), nivel: '', quantidade: tipo === 'Troca' ? '1' : '', valor: '', nota: '' });
+  const codigos = Array.from(new Set(impressoras.reduce((a, i) => a.concat(i.consumiveis || []), []).concat(stock.map(x => x.codigo)))).sort(bspCompararTexto);
+  const baixos = codigos.filter(c => qtd(c) <= minimo(c));
+  const tiposPermitidos = BSP_TONER_TIPOS.filter(t => trata || t[0] === 'Leitura');
+  const caixaForm = form && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { background: 'var(--surface-2)' }) },
+    React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 } },
+      React.createElement("label", null, rot('O que regista'), React.createElement("select", { value: form.tipo, onChange: e => setForm(Object.assign({}, form, { tipo: e.target.value })), style: bspTranspCampo }, tiposPermitidos.map(t => React.createElement("option", { key: t[0], value: t[0] }, t[1])))),
+      form.tipo !== 'Entrada' && form.tipo !== 'Acerto' && React.createElement("label", null, rot('Impressora'), React.createElement("select", { value: form.impressora_id, onChange: e => { const i = impressoras.find(x => String(x.id) === e.target.value); setForm(Object.assign({}, form, { impressora_id: e.target.value, codigo: i ? i.consumiveis[0] : form.codigo })); }, style: bspTranspCampo },
+        React.createElement("option", { value: '' }, '—'), impressoras.map(i => React.createElement("option", { key: i.id, value: i.id }, i.local + ' · ' + i.modelo)))),
+      React.createElement("label", null, rot('Consumível'), React.createElement("select", { value: form.codigo, onChange: e => setForm(Object.assign({}, form, { codigo: e.target.value })), style: bspTranspCampo },
+        React.createElement("option", { value: '' }, '—'),
+        (form.impressora_id && form.tipo !== 'Entrada' && form.tipo !== 'Acerto' ? ((impressoras.find(i => String(i.id) === String(form.impressora_id)) || {}).consumiveis || []) : codigos).map(c => React.createElement("option", { key: c, value: c }, c)))),
+      form.tipo === 'Leitura'
+        ? React.createElement("label", null, rot('Nível (%)'), React.createElement("input", { inputMode: 'numeric', value: form.nivel, placeholder: 'Ex.: 30', onChange: e => setForm(Object.assign({}, form, { nivel: e.target.value.replace(/[^0-9]/g, '') })), style: bspTranspCampo }))
+        : React.createElement("label", null, rot(form.tipo === 'Acerto' ? 'Diferença (+ ou −)' : 'Quantidade'), React.createElement("input", { inputMode: 'numeric', value: form.quantidade, onChange: e => setForm(Object.assign({}, form, { quantidade: e.target.value.replace(/[^0-9-]/g, '') })), style: bspTranspCampo })),
+      form.tipo === 'Entrada' && React.createElement("label", null, rot('Valor pago (Kz, opcional)'), React.createElement("input", { inputMode: 'decimal', value: form.valor, onChange: e => setForm(Object.assign({}, form, { valor: e.target.value.replace(/[^0-9.,]/g, '') })), style: bspTranspCampo }))),
+    React.createElement("label", { style: { display: 'block', marginTop: 10 } }, rot('Nota'), React.createElement("input", { value: form.nota, onChange: e => setForm(Object.assign({}, form, { nota: e.target.value })), placeholder: form.tipo === 'Leitura' ? 'Ex.: a impressora pede toner' : 'Ex.: fornecedor, n.º da factura', style: bspTranspCampo })),
+    React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 } },
+      React.createElement("button", { onClick: () => setForm(null), style: bspEscBotao(false) }, 'Cancelar'),
+      React.createElement("button", { onClick: gravar, style: bspEscBotao(true) }, 'Registar')));
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+    React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } },
+      [['Impressoras', impressoras.length, null], ['A acabar (15% ou menos)', impressoras.reduce((a, i) => a + (i.consumiveis || []).filter(c => { const n = nivel(i.id, c).nivel; return n != null && n <= 15; }).length, 0), 'var(--perigo)'], ['Consumíveis a comprar', baixos.length, 'var(--serie-4)']].map(x =>
+        React.createElement("div", { key: x[0], style: Object.assign({}, bspRegCaixa, { flex: '1 1 140px' }) },
+          React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-3)' } }, x[0]),
+          React.createElement("div", { style: { fontSize: 24, fontWeight: 700, color: x[1] && x[2] ? x[2] : 'var(--text-1)' } }, estado ? x[1] : '…')))),
+    React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+      React.createElement("button", { onClick: () => abrir('Leitura'), style: bspEscBotao(true) }, 'Registar nível'),
+      trata && React.createElement("button", { onClick: () => abrir('Troca'), style: bspEscBotao(false) }, 'Toner trocado'),
+      trata && React.createElement("button", { onClick: () => abrir('Entrada'), style: bspEscBotao(false) }, 'Entrada no armário')),
+    caixaForm,
+    estado && estado.erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, estado.erro) : null,
+    React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'O nível regista-se à mão (no visor ou no relatório da impressora). A leitura automática precisa de um pequeno programa num computador da clínica, ligado às impressoras.'),
+    !impressoras.length ? React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, imp.linhas ? 'Sem impressoras registadas.' : 'A carregar…') :
+    impressoras.map(i => React.createElement("div", { key: i.id, style: bspRegCaixa },
+      React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' } },
+        React.createElement("b", { style: { fontSize: 14.5, color: 'var(--text-1)' } }, i.local),
+        React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-2)' } }, i.modelo + (i.ip ? ' · IP ' + i.ip : ''))),
+      (i.consumiveis || []).map(c => { const n = nivel(i.id, c); return React.createElement("div", { key: c, style: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 } },
+        React.createElement("span", { style: { width: 150, flex: 'none', fontSize: 13, color: 'var(--text-1)' } }, c),
+        React.createElement("div", { style: { flex: '1 1 120px', height: 10, borderRadius: 5, background: 'var(--surface-2)', overflow: 'hidden', minWidth: 80 } },
+          React.createElement("div", { style: { width: (n.nivel == null ? 0 : n.nivel) + '%', height: '100%', background: bspNivelCor(n.nivel) } })),
+        React.createElement("b", { style: { width: 44, flex: 'none', fontSize: 13, color: bspNivelCor(n.nivel), textAlign: 'right' } }, n.nivel == null ? '—' : n.nivel + '%'),
+        React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, n.visto ? 'visto ' + quando(n.visto) : 'sem leitura'),
+        React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: qtd(c) <= minimo(c) ? 'var(--perigo)' : 'var(--text-2)' } }, 'Armário: ' + qtd(c)),
+        React.createElement("button", { onClick: () => abrir('Leitura', i, c), style: Object.assign(bspEscBotao(false), { padding: '4px 10px', height: 'auto' }) }, 'Nível'),
+        trata && React.createElement("button", { onClick: () => abrir('Troca', i, c), style: Object.assign(bspEscBotao(false), { padding: '4px 10px', height: 'auto' }) }, 'Trocado')); }))),
+    codigos.length > 0 && React.createElement("div", { style: bspRegCaixa },
+      React.createElement("b", { style: { fontSize: 13.5, color: 'var(--text-1)' } }, 'Stock no armário'),
+      React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 8, marginTop: 8 } },
+        codigos.map(c => React.createElement("div", { key: c, style: { fontSize: 13, color: qtd(c) <= minimo(c) ? 'var(--perigo)' : 'var(--text-1)' } }, c + ': ', React.createElement("b", null, String(qtd(c))), React.createElement("span", { style: { color: 'var(--text-3)' } }, ' (mín. ' + minimo(c) + ')'))))));
+}
+function GeradorPainel() {
+  const toast = useToast();
+  const [estado, setEstado] = React.useState(null);
+  const reg = useTabela('gerador_registos', 'quando');
+  const [form, setForm] = React.useState(null);
+  const [tick, setTick] = React.useState(0);
+  const rot = bspTranspRot;
+  React.useEffect(() => {
+    const cl = bspGetClient(); if (!cl) return;
+    cl.rpc('bsp_gerador_estado').then(r => setEstado(r.error ? { erro: r.error.message } : r.data));
+  }, [tick]);
+  const num = v => Number(String(v || '').replace(/\s/g, '').replace(/\.(?=\d{3}\b)/g, '').replace(',', '.'));
+  async function gravar() {
+    const f = form; const cap = Number((estado && estado.capacidade) || 1000);
+    let litros = num(f.litros);
+    if (f.tipo === 'Leitura' && f.modo === 'pct') litros = Math.round(num(f.pct) * cap / 100);
+    if (!(litros >= 0) || (f.tipo === 'Abastecimento' && !litros)) { toast('Diga os litros.'); return; }
+    if (litros > cap) { toast('O depósito leva ' + cap + ' L.'); return; }
+    const linha = { tipo: f.tipo, litros, nota: (f.nota || '').trim(), quando: f.quando ? new Date(f.quando).toISOString() : new Date().toISOString() };
+    if (f.valor) linha.valor = num(f.valor);
+    if (f.horas) linha.horas_motor = num(f.horas);
+    const r = await bspGetClient().from('gerador_registos').insert(linha).select('id');
+    if (r.error || !r.data || !r.data.length) { toast('Não foi possível gravar' + (r.error ? ': ' + r.error.message : '.')); return; }
+    toast('Registado.'); setForm(null); setTick(t => t + 1); reg.recarregar();
+  }
+  const agoraLocal = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+  const e = estado || {};
+  const pct = e.pct == null ? null : Number(e.pct);
+  const cor = pct == null ? 'var(--text-3)' : pct < Number(e.alerta_pct || 30) ? 'var(--perigo)' : pct < 50 ? 'var(--serie-4)' : 'var(--sucesso)';
+  const tile = (t, v, s, c) => React.createElement("div", { style: Object.assign({}, bspRegCaixa, { flex: '1 1 150px' }) },
+    React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-3)' } }, t),
+    React.createElement("div", { style: { fontSize: 22, fontWeight: 700, color: c || 'var(--text-1)' } }, v),
+    s && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, s));
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+    estado && estado.erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, estado.erro) : null,
+    React.createElement("div", { style: bspRegCaixa },
+      React.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, alignItems: 'baseline' } },
+        React.createElement("b", { style: { fontSize: 14.5, color: 'var(--text-1)' } }, 'Depósito do gerador (gasóleo)'),
+        React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, e.leitura_em ? 'Última leitura: ' + bspDataExacta(new Date(e.leitura_em)) : 'Sem leituras')),
+      React.createElement("div", { style: { height: 22, borderRadius: 6, background: 'var(--surface-2)', overflow: 'hidden', marginTop: 10, position: 'relative' } },
+        React.createElement("div", { style: { width: (pct || 0) + '%', height: '100%', background: cor } }),
+        React.createElement("div", { style: { position: 'absolute', top: 0, bottom: 0, left: (e.alerta_pct || 30) + '%', borderLeft: '2px dashed var(--text-2)' } })),
+      React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginTop: 6 } }, 'A linha tracejada é o limiar do aviso (' + (e.alerta_pct || 30) + '%): abaixo dele a gestão e os Serviços Gerais recebem um aviso no telemóvel.')),
+    React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } },
+      tile('No depósito', e.litros == null ? '…' : Math.round(e.litros) + ' L', e.capacidade ? 'de ' + Math.round(e.capacidade) + ' L · ' + (pct == null ? '—' : pct + '%') : null, cor),
+      tile('Consumo médio', e.consumo_dia == null ? '—' : String(e.consumo_dia).replace('.', ',') + ' L/dia', e.consumo_dia == null ? 'precisa de duas leituras com um dia de intervalo' : 'leituras dos últimos 30 dias'),
+      tile('Dá para', e.dias == null ? '—' : String(e.dias).replace('.', ',') + ' dias', null, e.dias != null && e.dias < 3 ? 'var(--perigo)' : null),
+      tile('Abastecido este mês', (e.abastecido_mes == null ? 0 : Math.round(e.abastecido_mes)) + ' L', e.valor_mes ? bspPainelKz(e.valor_mes) : null)),
+    React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+      React.createElement("button", { onClick: () => setForm({ tipo: 'Leitura', modo: 'pct', pct: '', litros: '', quando: agoraLocal(), nota: '' }), style: bspEscBotao(true) }, 'Registar leitura'),
+      React.createElement("button", { onClick: () => setForm({ tipo: 'Abastecimento', litros: '', valor: '', horas: '', quando: agoraLocal(), nota: '' }), style: bspEscBotao(false) }, 'Registar abastecimento')),
+    form && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { background: 'var(--surface-2)' }) },
+      React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 } },
+        form.tipo === 'Leitura' && React.createElement("label", null, rot('Como mediu'), React.createElement("select", { value: form.modo, onChange: ev => setForm(Object.assign({}, form, { modo: ev.target.value })), style: bspTranspCampo },
+          React.createElement("option", { value: 'pct' }, 'Percentagem (marcador)'), React.createElement("option", { value: 'litros' }, 'Litros'))),
+        form.tipo === 'Leitura' && form.modo === 'pct'
+          ? React.createElement("label", null, rot('Nível (%)'), React.createElement("input", { inputMode: 'numeric', value: form.pct, placeholder: 'Ex.: 50', onChange: ev => setForm(Object.assign({}, form, { pct: ev.target.value.replace(/[^0-9]/g, '') })), style: bspTranspCampo }))
+          : React.createElement("label", null, rot(form.tipo === 'Leitura' ? 'Litros no depósito' : 'Litros postos'), React.createElement("input", { inputMode: 'decimal', value: form.litros, onChange: ev => setForm(Object.assign({}, form, { litros: ev.target.value.replace(/[^0-9.,]/g, '') })), style: bspTranspCampo })),
+        form.tipo === 'Abastecimento' && React.createElement("label", null, rot('Valor pago (Kz)'), React.createElement("input", { inputMode: 'decimal', value: form.valor, onChange: ev => setForm(Object.assign({}, form, { valor: ev.target.value.replace(/[^0-9.,]/g, '') })), style: bspTranspCampo })),
+        form.tipo === 'Abastecimento' && React.createElement("label", null, rot('Horas do motor (opcional)'), React.createElement("input", { inputMode: 'decimal', value: form.horas, onChange: ev => setForm(Object.assign({}, form, { horas: ev.target.value.replace(/[^0-9.,]/g, '') })), style: bspTranspCampo })),
+        React.createElement("label", null, rot('Quando'), React.createElement("input", { type: 'datetime-local', value: form.quando, onChange: ev => setForm(Object.assign({}, form, { quando: ev.target.value })), style: bspTranspCampo }))),
+      React.createElement("label", { style: { display: 'block', marginTop: 10 } }, rot('Nota'), React.createElement("input", { value: form.nota, onChange: ev => setForm(Object.assign({}, form, { nota: ev.target.value })), placeholder: form.tipo === 'Abastecimento' ? 'Ex.: fornecedor, n.º da factura' : 'Ex.: gerador ligado 6 h por falta de luz', style: bspTranspCampo })),
+      React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 } },
+        React.createElement("button", { onClick: () => setForm(null), style: bspEscBotao(false) }, 'Cancelar'),
+        React.createElement("button", { onClick: gravar, style: bspEscBotao(true) }, 'Registar'))),
+    React.createElement("div", { style: bspRegCaixa },
+      React.createElement("b", { style: { fontSize: 13.5, color: 'var(--text-1)' } }, 'Registos'),
+      !(reg.linhas || []).length ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)', marginTop: 6 } }, reg.linhas ? 'Sem registos.' : 'A carregar…') :
+      (reg.linhas || []).slice(0, 30).map(x => React.createElement("div", { key: x.id, style: { display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 13, marginTop: 6, color: 'var(--text-1)' } },
+        React.createElement("span", { style: { width: 150, flex: 'none', color: 'var(--text-2)' } }, bspDataExacta(new Date(x.quando))),
+        React.createElement("b", { style: { width: 110, flex: 'none', color: x.tipo === 'Abastecimento' ? 'var(--sucesso)' : 'var(--text-1)' } }, x.tipo),
+        React.createElement("span", null, (x.tipo === 'Abastecimento' ? '+' : '') + Math.round(Number(x.litros)) + ' L' + (x.valor ? ' · ' + bspPainelKz(x.valor) : '') + (x.horas_motor ? ' · ' + x.horas_motor + ' h de motor' : '') + (x.nota ? ' · ' + x.nota : ''))))));
+}
 function AvariasScreen() {
   const [aba, setAba] = React.useState('avarias');
   const aba_ = (id, txt) => React.createElement("button", {
@@ -27326,9 +27498,11 @@ function AvariasScreen() {
   }, txt);
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' } },
     React.createElement("div", { style: { display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', flex: 'none', overflowX: 'auto' } },
-      aba_('avarias', 'Avarias'), aba_('equipamentos', 'Equipamentos e manutenção')),
+      aba_('avarias', 'Avarias'), aba_('equipamentos', 'Equipamentos e manutenção'), aba_('toners', 'Toners'),
+      bspTrataAvarias(window.userById(window.CURRENT_USER_ID)) && aba_('gerador', 'Gerador')),
     React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: 'auto', paddingBottom: 12 } },
-      aba === 'avarias' ? React.createElement(AvariasLista, null) : React.createElement(EquipamentosPainel, null)));
+      aba === 'avarias' ? React.createElement(AvariasLista, null) : aba === 'toners' ? React.createElement(TonersPainel, null)
+        : aba === 'gerador' ? React.createElement(GeradorPainel, null) : React.createElement(EquipamentosPainel, null)));
 }
 
 /* ───────────── Avarias ───────────── */

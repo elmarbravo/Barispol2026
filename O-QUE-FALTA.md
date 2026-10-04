@@ -2988,3 +2988,40 @@ agora recebe logo após as ecografias. Faz o mapa, mas assume que já paguei.»
   pagamento sobre 90% do facturado. Ver o mapa.
 - Para a Recepção corrigir no MetaGest: duas facturas sem praticante; uma
   possível factura em duplicado à seguradora.
+
+## 3-ev. Toners e depósito do gerador (04-10-2026)
+
+Emmanuel (Serviços Gerais): «Falta-me o controlo de toners em tempo real e o
+depósito do gerador.»
+
+- `toners-gerador.sql` (aplicado). Avarias → separadores «Toners» (toda a
+  equipa) e «Gerador» (gestão, Serviços Gerais e Emmanuel, `bspTrataAvarias`).
+- **Toners:**
+  - Tabelas `impressoras` e `toners_movimentos` (Entrada, Troca, Leitura,
+    Acerto), com o mínimo de cada consumível em `toners_minimo`.
+  - Stock e nível por `bsp_toners_estado`.
+  - Qualquer colaborador regista uma leitura; trocas e compras só quem trata.
+  - Aviso (sino e telemóvel) quando o stock chega ao mínimo, ou com a
+    impressora a 15% e sem reserva.
+  - Carregadas as 6 impressoras da lista do Emmanuel. O mínimo de CE285A é 2,
+    porque três impressoras o usam.
+- **Gerador:**
+  - Tabelas `gerador` (1000 L, aviso a 30%) e `gerador_registos` (Leitura,
+    Abastecimento).
+  - `bsp_gerador_estado` dá os litros de agora, o consumo por dia e os dias
+    que restam.
+  - Abaixo de 30% avisa a gestão e os Serviços Gerais, no máximo a cada
+    12 horas.
+  - Primeira leitura: 500 L (50%) a 04-10-2026, às 22h19.
+- **Testado:**
+  - De 500 L para 260 L em dois dias dá 121 L/dia e 2,2 dias de reserva, e o
+    aviso sai.
+  - O toner no mínimo dá aviso.
+  - A Recepção não vê o gerador nem regista compras.
+- **Falta:**
+  - «Tempo real» automático para os toners: um pequeno programa num
+    computador da clínica que leia as impressoras de rede por SNMP (só a
+    M236sdn tem IP; as P1102 são USB) e grave a leitura no servidor. A nuvem
+    não chega à rede 192.168.x.
+  - Para o gerador, só com um sensor de nível no depósito.
+  - Até lá, os dois registos fazem-se à mão.
