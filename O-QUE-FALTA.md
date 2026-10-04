@@ -2969,3 +2969,22 @@ dias. Os outros médicos estão off.»
     Elmar (de geral@barispol.com, com o Elmar em cópia e as respostas para
     ele): cadastro dos dois médicos novos, NIF/IBAN e taxa da médica nº 26,
     cópia da adenda da ecografia e, se houver, as fichas de presença.
+
+## 3-eu. Dra. Holoca paga exame a exame (04-10-2026)
+
+Elmar: «A doutora Elizabeth Holoca recebeu o pagamento durante o mês; ela
+agora recebe logo após as ecografias. Faz o mapa, mas assume que já paguei.»
+
+- Adenda de 01-09-2026: sem permanência. No cadastro do servidor ficou sem
+  regime (antes C) e com a taxa por dia da semana (40% à terça e ao domingo,
+  50% nos outros dias).
+- Setembro no módulo «Pagamento dos médicos»: ajuste «outros» que anula o
+  valor dela, com nota. Já foi paga à parte e não pode sair duas vezes no mapa
+  geral. Fazer o mesmo nos meses seguintes enquanto for paga exame a exame.
+- Mapa avulso de Setembro (BRSP-DAF-MAP-26-003, entregue ao Elmar, fora do
+  repositório): conciliado com os quatro comprovativos BAI dos e-mails.
+  Perguntas em aberto ao Elmar: duas ecografias sem comprovativo, um pagamento
+  a 50% numa terça-feira, uma retenção de 6,50 Kz em vez de 6,5% e um
+  pagamento sobre 90% do facturado. Ver o mapa.
+- Para a Recepção corrigir no MetaGest: duas facturas sem praticante; uma
+  possível factura em duplicado à seguradora.
