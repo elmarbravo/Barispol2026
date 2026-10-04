@@ -3025,3 +3025,28 @@ depósito do gerador.»
     não chega à rede 192.168.x.
   - Para o gerador, só com um sensor de nível no depósito.
   - Até lá, os dois registos fazem-se à mão.
+
+## 3-ew. Histórico da viatura, Abril a Agosto de 2026 (04-10-2026)
+
+Folha do Emmanuel com os km de cada dia (manhã e noite) e os abastecimentos,
+de 01-04 a 31-08 (só no servidor; a folha não entra no repositório).
+
+- Carregados 54 abastecimentos em `transporte_abastecimentos` (1.244 L).
+  - O valor é litros × 300 Kz, o preço de todos os registos de Setembro.
+  - Os km são os do odómetro no fim do dia, porque a folha não traz o km do
+    abastecimento.
+  - Nota em cada linha. Os km diários não se carregaram, porque não são
+    viagens.
+- **Conferido:**
+  - Sem erros de conta e sem odómetro a recuar.
+  - O odómetro andou 17.817 km, mas só 13.213 km estão em turnos
+    registados.
+  - Ficam 4.604 km (26%) entre turnos: 1.364 km entre a manhã e a noite, e
+    3.240 km entre a noite e a manhã seguinte (média de 21 km por noite).
+  - Rendimento pelo odómetro: 14,3 km/L, normal. Só pelos km registados
+    parecia 10,6 km/L.
+  - Setembro: 13,9 km/L. Outubro, até dia 4: todos os km registados (o
+    Transporte do Workspace regista a ida a casa).
+- Por decidir (Elmar): se a ida a casa do motorista é autorizada, ou se os
+  km entre turnos de Abril a Agosto pedem explicação. Os maiores foram 19-04
+  (96 km), 26-04 (104 km) e 01-05 (89 km).
