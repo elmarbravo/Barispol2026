@@ -1,7 +1,9 @@
 -- A Arlete vê tudo o que é consumo (05-10-2026, Elmar: «Arlete vê tudo que é
 -- consumo»).
 --
--- bsp_ve_consumos(): o Elmar (u1) e a Arlete (u2) pelo nome, mais a gestão.
+-- bsp_ve_consumos(): o Elmar (u1), a Arlete (u2) e o Emmanuel (u22) pelo nome,
+-- a área Serviços Gerais (05-10-2026, Elmar: «Serviços Gerais vêem tudo») e a
+-- gestão.
 -- Antes a Arlete só via pela camada (Direcção/Coordenação); se a camada mudar,
 -- continua a ver. Entra em: toners (bsp_ve_toners), gerador (leitura e
 -- bsp_gerador_estado), transporte (combustível, viagens, manutenção:
@@ -13,7 +15,8 @@ create or replace function public.bsp_ve_consumos()
 returns boolean language sql stable security definer set search_path to 'public'
 as $f$
   select public.bsp_meu_id() is not null and not coalesce(public.bsp_e_socio(), false)
-     and (public.bsp_meu_id() in ('u1', 'u2') or coalesce(public.bsp_e_gestor(), false))
+     and (public.bsp_meu_id() in ('u1', 'u2', 'u22') or coalesce(public.bsp_e_gestor(), false)
+          or coalesce(public.bsp_minha_area(), '') = 'servicos gerais')
 $f$;
 revoke execute on function public.bsp_ve_consumos() from public, anon;
 grant execute on function public.bsp_ve_consumos() to authenticated;

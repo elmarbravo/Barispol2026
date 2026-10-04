@@ -3089,3 +3089,7 @@ Elmar: «Arlete vê tudo que é consumo.»
     Toners e Gerador.
   - Enfermagem: nada disto.
   - Emmanuel (cargo de motorista): sem mudança.
+- 05-10-2026, Elmar: «Serviços Gerais vêem tudo». `bsp_ve_consumos` e
+  `bspVeConsumos` passam a incluir a área Serviços Gerais e o Emmanuel (u22).
+  Hoje a área tem só o Emmanuel. Passou a ver também o stock (menu Stock) e o
+  transporte sem depender do cargo de motorista. Testado no servidor.

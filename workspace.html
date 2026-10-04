@@ -26333,8 +26333,9 @@ const BSP_PROD_NOTAS = { 1: 'Não cumpriu', 2: 'Cumpriu a 75%', 3: 'Cumpriu a 10
 const BSP_VE_SALARIOS_IDS = ['u1', 'u2'];
 /* Consumos (toners, gerador, combustível e viatura, stock): o Elmar e a
    Arlete pelo nome, mais a gestão (05-10-2026, Elmar: «Arlete vê tudo que é
-   consumo»). No servidor, bsp_ve_consumos (consumos-acesso.sql). */
-function bspVeConsumos(u) { return !!u && !bspESocio(u) && (BSP_VE_SALARIOS_IDS.indexOf(u.id) !== -1 || bspGereMarcacoes(u)); }
+   consumo»; e os Serviços Gerais, «Serviços Gerais vêem tudo»). No
+   servidor, bsp_ve_consumos (consumos-acesso.sql). */
+function bspVeConsumos(u) { return !!u && !bspESocio(u) && (BSP_VE_SALARIOS_IDS.indexOf(u.id) !== -1 || u.id === 'u22' || bspAreaChave(u.dept) === 'servicos gerais' || bspGereMarcacoes(u)); }
 const bspVeSalarios = u => !!u && BSP_VE_SALARIOS_IDS.indexOf(u.id) !== -1;
 function bspProdPercentagem(media) {
   if (media == null || isNaN(media)) return null;
