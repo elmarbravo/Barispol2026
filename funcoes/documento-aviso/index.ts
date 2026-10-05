@@ -34,7 +34,7 @@ const chavesServidor = (): string[] => [
 const MARINHO = "#292F58";
 const MARINHO_BOTAO = "#273069";
 const AZUL = "#2291CE";
-const FONTE = "Dax,'Dax Pro','Titillium Web','Segoe UI',Arial,sans-serif";
+const FONTE = "'Titillium Web','Segoe UI',Arial,sans-serif";
 const TEXTO = "#1C2033";
 const LINHA = "#DDDBD6";
 const SITIO = "https://barispol.com/workspace.html";

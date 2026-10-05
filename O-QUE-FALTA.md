@@ -3387,3 +3387,21 @@ esse campo da hora?». Opção escolhida: a Recepção marca.
 - Verificado no navegador a 1280 px e 390 px, com dados simulados: marcar
   chegada, saída a outra hora, aviso das facturas sem chegada, sem passar da
   largura do ecrã.
+
+## 3-fj. Fonte gratuita em vez da Dax (05-10-2026)
+
+Elmar: «a fonte coloque uma gratuita, o Dax está a abrir mal em alguns PCs».
+- A Dax não estava alojada: só aparecia em quem a tinha instalada no PC, e
+  nalguns abria mal. Saiu de todas as listas de fontes (63 sítios): site,
+  Workspace, app, impressões, e-mails do Workspace, Edge Functions, modelos de
+  e-mail do Supabase e SQL (`emails-aspecto-site.sql`, `guia-envio.sql`).
+- Fica a Titillium Web (gratuita, Google Fonts; no Workspace, alojada em
+  `vendor/fontes`), com Segoe UI e Arial de recurso.
+- Base de dados: `bsp_envelope` e `bsp_guia_html` reescritas sem a Dax
+  (05-10-2026), testadas.
+- Edge Functions com a fonte nos e-mails: `resumo-pessoal`, `resumo-matinal`,
+  `contacto-site`, `recuperar-acesso`, `agenda-avisos`, `relatorios-diarios`
+  (a `documento-aviso` já não se chama). Publicar de novo cada uma.
+- Modelos de e-mail do Supabase (`emails-supabase/`): colam-se à mão em
+  Authentication → Emails, se se quiserem iguais.
+- Verificado no navegador: o Workspace mostra e carrega a Titillium Web.

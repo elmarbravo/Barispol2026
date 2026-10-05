@@ -339,7 +339,7 @@
     margin: 0; padding: 0; height: 100%; width: 100%;
   }
   body {
-    font-family: 'Dax', 'Titillium Web', 'Segoe UI', Arial, sans-serif;
+    font-family: 'Titillium Web', 'Segoe UI', Arial, sans-serif;
     font-size: 14px;
     color: var(--text-1);
     background: var(--bg);
@@ -3950,12 +3950,11 @@ function bspLigacaoPara(destino) {
 /* O botao azul do e-mail. Sem ele, "abra o Workspace" obrigava a pessoa a
    ir procurar o site, entrar, e encontrar a conversa — tres passos entre
    o aviso e a resposta. */
-/* A marca nos e-mails: as cores do logotipo e a fonte Dax, com Titillium
-   Web, Segoe UI e Arial de recurso. A Dax so aparece a quem a tiver
-   instalada; o Gmail e o Outlook usam a de recurso. O mesmo cartao do
+/* A marca nos e-mails: as cores do logotipo e a fonte Titillium Web (gratuita), com Segoe UI e Arial de recurso. Sem a Dax desde 05-10-2026: abria mal
+   nalguns PCs; o Gmail e o Outlook usam a de recurso. O mesmo cartao do
    resumo matinal (funcoes/resumo-matinal), para todos os e-mails da
    clinica serem iguais. */
-const BSP_EMAIL_FONTE = "Dax,'Dax Pro','Titillium Web','Segoe UI',Arial,sans-serif";
+const BSP_EMAIL_FONTE = "'Titillium Web','Segoe UI',Arial,sans-serif";
 const BSP_EMAIL_LOGO = 'https://barispol.com/assets/logo-barispol.png';
 /* Aspecto de todos os e-mails (26-09-2026): o do site novo e da caixa de
    contacto — fundo branco, linhas finas, cantos rectos, cabecalho com o
@@ -26759,7 +26758,7 @@ function bspAvaliaPessoa(eu, x) {
 }
 function bspAvaliacaoFolha(pessoa, ano, a, modelo) {
   const esc = x => String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  return '<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><title>Avaliação de desempenho ' + ano + '</title><style>@page{size:A4;margin:14mm}body{margin:0;font-family:Dax,"Titillium Web","Segoe UI",Arial,sans-serif;color:#1C2033;font-size:12.5px}' +
+  return '<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><title>Avaliação de desempenho ' + ano + '</title><style>@page{size:A4;margin:14mm}body{margin:0;font-family:"Titillium Web","Segoe UI",Arial,sans-serif;color:#1C2033;font-size:12.5px}' +
     'h1{font-size:20px;color:#292F58;margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:10px}th,td{border:1px solid #BFC2CC;padding:7px 6px;text-align:left;vertical-align:top}th{background:#292F58;color:#fff}.l{width:90px;text-align:center;font-weight:700}</style></head><body>' +
     '<h1>Avaliação de desempenho · ' + ano + '</h1><div>Colaborador: <b>' + esc(pessoa.name) + '</b> · ' + esc(pessoa.role || '') + ' · ' + esc(pessoa.dept || '') + '</div>' +
     '<div>Avaliador(a): ' + esc(bspNomeDe(a.avaliador)) + ' · ' + esc(a.estado) + (a.concluida_em ? ' a ' + esc(bspDataExacta(new Date(a.concluida_em))) : '') + '</div>' +
@@ -27306,7 +27305,7 @@ function bspImprimirCartazAvaliar() {
      QR saía cortado). O bloco nunca se parte entre folhas. */
   const base = location.href.replace(/[^/]*$/, '');
   bspImprimirHtml('<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><title>Avalie o atendimento</title><style>@page{size:A4 portrait;margin:12mm}body{margin:0}' +
-    '.cartaz{font-family:Dax,"Titillium Web","Segoe UI",Arial,sans-serif;text-align:center;color:#292F58;padding:6mm 4mm 0;max-width:170mm;margin:0 auto;break-inside:avoid;page-break-inside:avoid}' +
+    '.cartaz{font-family:"Titillium Web","Segoe UI",Arial,sans-serif;text-align:center;color:#292F58;padding:6mm 4mm 0;max-width:170mm;margin:0 auto;break-inside:avoid;page-break-inside:avoid}' +
     '.cartaz img{display:block;margin:0 auto}.cartaz h1{font-size:9mm;line-height:1.15;margin:6mm 0 2mm}.cartaz p{margin:0}' +
     '</style></head><body><div class="cartaz">' +
     '<img src="' + base + 'assets/logo-barispol.png" style="width:30mm;height:30mm;object-fit:contain">' +
@@ -27411,7 +27410,7 @@ function bspFazAlgumaAuditoria(u) {
 }
 function bspAuditoriaFolha(m) {
   const esc = x => String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  return '<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><title>' + esc(m.nome) + '</title><style>@page{size:A4;margin:14mm}body{margin:0;font-family:Dax,"Titillium Web","Segoe UI",Arial,sans-serif;color:#1C2033}' +
+  return '<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><title>' + esc(m.nome) + '</title><style>@page{size:A4;margin:14mm}body{margin:0;font-family:"Titillium Web","Segoe UI",Arial,sans-serif;color:#1C2033}' +
     'h1{font-size:20px;color:#292F58;margin:0 0 4px}p{margin:0 0 10px;font-size:12px;color:#4E5366}table{width:100%;border-collapse:collapse;font-size:12.5px}' +
     'th,td{border:1px solid #BFC2CC;padding:7px 6px;text-align:left;vertical-align:top}th{background:#292F58;color:#fff}td.c{width:44px;text-align:center}.ass{margin-top:22px;font-size:12.5px}</style></head><body>' +
     '<h1>' + esc(m.nome) + '</h1><p>' + esc(bspEscalaAreaNome(m.area)) + ' · a cada ' + m.periodicidade + ' dias · ' + esc(m.descricao) + '</p>' +
@@ -28805,7 +28804,7 @@ async function bspPagExcel({ mapa, extra, actos, conferir, ano, mes }) {
 function bspPagMapaIndividualHtml(m, fichas, actos, ano, mes) {
   const e = t => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const kz = v => Number(v || 0).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const fonte = '"Dax","Titillium Web","Segoe UI",Arial,sans-serif';
+  const fonte = '"Titillium Web","Segoe UI",Arial,sans-serif';
   const mesNome = bspPagMesNome(ano, mes);
   const nome = bspNomeProprio(m.nome);
   const prim = String(m.nome || '').trim().split(/\s+/)[0].normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();

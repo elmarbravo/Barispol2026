@@ -59,7 +59,7 @@ as $function$
     select * from fichas where id = 'mapa' or id = any (p_menus)
   ), botao as (
     select '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 22px"><tr><td style="background:#273069">'
-        || '<a href="https://barispol.com/workspace.html#confirmar-guia" style="display:inline-block;padding:13px 24px;font-family:Dax,''Titillium Web'',''Segoe UI'',Arial,sans-serif;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none">Confirmo a recepção</a>'
+        || '<a href="https://barispol.com/workspace.html#confirmar-guia" style="display:inline-block;padding:13px 24px;font-family:''Titillium Web'',''Segoe UI'',Arial,sans-serif;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none">Confirmo a recepção</a>'
         || '</td></tr></table>' b
   )
   select replace(public.bsp_envelope(

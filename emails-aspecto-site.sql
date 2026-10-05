@@ -18,14 +18,14 @@ as $function$
       || '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;background:#ffffff;border:1px solid #DDDBD6">'
       || '<tr><td style="padding:16px 24px;border-bottom:1px solid #DDDBD6"><table role="presentation" cellpadding="0" cellspacing="0"><tr>'
       || '<td style="padding-right:12px;vertical-align:middle"><img src="https://barispol.com/assets/logo-barispol.png" width="44" height="44" alt="Centro Médico Barispol" style="display:block;border:0;width:44px;height:44px"></td>'
-      || '<td style="vertical-align:middle;font-family:Dax,''Titillium Web'',''Segoe UI'',Arial,sans-serif"><div style="font-size:16px;font-weight:700;color:#292F58;line-height:1.2">Centro Médico Barispol</div><div style="font-size:12.5px;font-weight:600;color:#4E5366">Workspace da equipa</div></td>'
+      || '<td style="vertical-align:middle;font-family:''Titillium Web'',''Segoe UI'',Arial,sans-serif"><div style="font-size:16px;font-weight:700;color:#292F58;line-height:1.2">Centro Médico Barispol</div><div style="font-size:12.5px;font-weight:600;color:#4E5366">Workspace da equipa</div></td>'
       || '</tr></table></td></tr>'
-      || '<tr><td style="padding:28px 24px 26px;font-family:Dax,''Titillium Web'',''Segoe UI'',Arial,sans-serif;font-size:15px;line-height:1.6;color:#1C2033">'
+      || '<tr><td style="padding:28px 24px 26px;font-family:''Titillium Web'',''Segoe UI'',Arial,sans-serif;font-size:15px;line-height:1.6;color:#1C2033">'
       || '<div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#2291CE">Relatório automático</div>'
       || '<h1 style="margin:8px 0 16px;font-size:24px;line-height:1.2;font-weight:700;color:#292F58">' || titulo || '</h1>'
       || corpo
       || '</td></tr>'
-      || '<tr><td style="padding:16px 24px;background:#292F58;font-family:Dax,''Titillium Web'',''Segoe UI'',Arial,sans-serif;font-size:12.5px;line-height:1.6;color:#C9CCDA"><b style="color:#ffffff">Centro Médico Barispol</b> · ' || replace(rodape, 'E-mail automático do sistema do Centro Médico Barispol.', 'e-mail automático do Workspace.') || '<br>Clínica Barispol, Lda. · NIF&nbsp;5000999687</td></tr>'
+      || '<tr><td style="padding:16px 24px;background:#292F58;font-family:''Titillium Web'',''Segoe UI'',Arial,sans-serif;font-size:12.5px;line-height:1.6;color:#C9CCDA"><b style="color:#ffffff">Centro Médico Barispol</b> · ' || replace(rodape, 'E-mail automático do sistema do Centro Médico Barispol.', 'e-mail automático do Workspace.') || '<br>Clínica Barispol, Lda. · NIF&nbsp;5000999687</td></tr>'
       || '</table></td></tr></table>'
 $function$;
 

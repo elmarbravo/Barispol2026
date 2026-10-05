@@ -29,7 +29,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ORIGENS = ["https://barispol.com", "https://www.barispol.com"];
 const DESTINO = "https://barispol.com/workspace.html";
-const FONTE = "Dax, 'Titillium Web', 'Segoe UI', Arial, sans-serif";
+const FONTE = "'Titillium Web', 'Segoe UI', Arial, sans-serif";
 const LOGOTIPO = "https://barispol.com/assets/logo-barispol.png";
 const COR = { marinho: "#292F58", botao: "#273069", azul: "#2291CE", texto: "#1C2033", suave: "#4E5366", linha: "#DDDBD6", claro: "#F5F4F2" };
 

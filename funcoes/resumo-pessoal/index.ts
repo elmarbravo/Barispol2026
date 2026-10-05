@@ -32,14 +32,14 @@ const escapar = (t: unknown) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string)
   );
 
-/* A marca: as cores do logotipo e a fonte Dax, com Titillium Web, Segoe UI
-   e Arial de recurso. A Dax so aparece a quem a tiver instalada — um
+/* A marca: as cores do logotipo e a fonte Titillium Web (gratuita), com Segoe UI
+   e Arial de recurso. Sem a Dax desde 05-10-2026: abria mal nalguns PCs — um
    e-mail nao leva fontes consigo, e o Gmail e o Outlook ignoram as da
    rede. O logotipo vem do proprio site. */
 const MARINHO = "#292F58";
 const MARINHO_BOTAO = "#273069";
 const AZUL = "#2291CE";
-const FONTE = "Dax,'Dax Pro','Titillium Web','Segoe UI',Arial,sans-serif";
+const FONTE = "'Titillium Web','Segoe UI',Arial,sans-serif";
 const LOGOTIPO = "https://barispol.com/assets/logo-barispol.png";
 
 /* O botao que leva a pessoa ao sitio, em vez de a mandar procurar.

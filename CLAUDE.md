@@ -20,11 +20,11 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
    gerúndio. Frases curtas, verbos concretos.
 6. A pessoa jurídica é sempre «Clínica Barispol, Lda.», NIF 5000999687.
    «Centro Médico Barispol» é só a marca.
-7. Marca: Titillium Web (com Segoe UI/Arial de recurso). Todas as páginas
-   do site usam "Dax","Titillium Web","Segoe UI",Arial (02-10-2026). Cores:
-   azul-marinho #292F58 e #273069, azul #2291CE. Nos e-mails, a fonte é
-   Dax (pedido do Elmar, 24-09-2026), com Titillium Web, Segoe UI e Arial
-   de recurso, e o logotipo `assets/logo-barispol.png` no topo.
+7. Marca: Titillium Web, gratuita (com Segoe UI/Arial de recurso). Todas as
+   páginas, o Workspace e os e-mails usam "Titillium Web","Segoe UI",Arial.
+   Nunca voltar a pôr a Dax (Elmar, 05-10-2026: «coloque uma gratuita, o Dax
+   está a abrir mal em alguns PCs»). Cores: azul-marinho #292F58 e #273069,
+   azul #2291CE. Nos e-mails, o logotipo `assets/logo-barispol.png` no topo.
 8. Antes de cada alteração, dizer o que se vai fazer. Depois, dizer o que
    se confirmou. Se o ecrã ou o código não corresponder ao descrito, parar
    e descrever.
@@ -235,7 +235,7 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `BSP_RELATORIOS_DIRECCAO_CLINICA` / `bsp_le_areas_medicas()`) as áreas
   médicas; a Arlete (u2) recebe cada um por e-mail.
 - Apresentação do Workspace (25-09-2026): cores oficiais nas variáveis
-  (`--navy` #292F58, `--accent` #2291CE), letra Dax, sem gradientes nem
+  (`--navy` #292F58, `--accent` #2291CE), letra Titillium Web, sem gradientes nem
   animação de ecrã, e botão principal marinho (#273069). Cores novas vão
   para as variáveis, e nunca escritas à mão no código.
   Modo escuro (25-09-2026): `html[data-tema="escuro"]` troca as

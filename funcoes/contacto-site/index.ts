@@ -36,7 +36,7 @@ const ORIGENS = ["https://barispol.com", "https://www.barispol.com"];
 const POR_LIGACAO_HORA = 3;
 const TOTAL_HORA = 30;
 
-const FONTE = "Dax, 'Titillium Web', 'Segoe UI', Arial, sans-serif";
+const FONTE = "'Titillium Web', 'Segoe UI', Arial, sans-serif";
 const LOGOTIPO = "https://barispol.com/assets/logo-barispol.png";
 
 const PREFIXO_DE_CHAVE = /^(sb_secret_|eyJ)/;

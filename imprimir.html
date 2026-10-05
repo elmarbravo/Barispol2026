@@ -100,10 +100,10 @@
   src: url("vendor/fontes/75a01441-2c68-4985-86df-fba9813ce3fb.woff2") format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
-html,body{margin:0;background:#fff;color:#1C2033;font-family:Dax,"Titillium Web","Segoe UI",Arial,sans-serif}
+html,body{margin:0;background:#fff;color:#1C2033;font-family:"Titillium Web","Segoe UI",Arial,sans-serif}
 #barra{position:sticky;top:0;z-index:5;display:flex;gap:8px;align-items:center;padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top));background:#fff;border-bottom:1px solid #DDDBD6}
 #barra span{flex:1;font-size:14px;color:#4E5366}
-#barra button{height:40px;padding:0 16px;border-radius:8px;font:600 16px Dax,"Titillium Web",Arial,sans-serif;border:0;background:#273069;color:#fff;cursor:pointer}
+#barra button{height:40px;padding:0 16px;border-radius:8px;font:600 16px "Titillium Web",Arial,sans-serif;border:0;background:#273069;color:#fff;cursor:pointer}
 #aviso{padding:24px 16px;font-size:16px;color:#4E5366}
 iframe{display:block;width:100%;border:0}
 #ajuda{display:none}
@@ -134,9 +134,9 @@ iframe{display:block;width:100%;border:0}
     if (titulo) { document.title = titulo[1]; document.querySelector('#barra span').textContent = titulo[1]; }
     // O documento substitui a página toda; a barra entra por cima e some na impressão.
     var barra = document.getElementById('barra').outerHTML + document.getElementById('ajuda').outerHTML;
-    var estilo = '<style>#barra{position:sticky;top:0;z-index:5;display:flex;gap:8px;align-items:center;padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top));background:#fff;border-bottom:1px solid #DDDBD6;font-family:Dax,"Titillium Web",Arial,sans-serif}' +
+    var estilo = '<style>#barra{position:sticky;top:0;z-index:5;display:flex;gap:8px;align-items:center;padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top));background:#fff;border-bottom:1px solid #DDDBD6;font-family:"Titillium Web",Arial,sans-serif}' +
       '#barra span{flex:1;font-size:14px;color:#4E5366}#barra button{height:40px;padding:0 16px;border-radius:8px;font-weight:600;font-size:16px;border:0;background:#273069;color:#fff}' +
-      '#ajuda{display:none;margin:12px;padding:12px 14px;border:1px solid #DDDBD6;border-left:4px solid #2291CE;font:15px/1.45 Dax,"Titillium Web",Arial,sans-serif;color:#1C2033;background:#fff}' +
+      '#ajuda{display:none;margin:12px;padding:12px 14px;border:1px solid #DDDBD6;border-left:4px solid #2291CE;font:15px/1.45 "Titillium Web",Arial,sans-serif;color:#1C2033;background:#fff}' +
       '#ajuda a{display:inline-block;margin-top:8px;padding:9px 14px;border-radius:8px;background:#273069;color:#fff;text-decoration:none;font-weight:600}' +
       '@media print{#barra,#ajuda{display:none!important}}</style>';
     var fontes = document.querySelector('style').outerHTML;
