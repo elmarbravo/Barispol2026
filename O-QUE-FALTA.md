@@ -3428,3 +3428,13 @@ de `erp.sales_invoice`; entre a meia-noite e a carga, «ontem» ficava a 0.
   histórico (`corte`) vêm de `erp.sales_invoice`.
 - Conferido: 1 a 4 de Outubro iguais nas duas fontes; dia 5 = 397 625 Kz.
   Nenhuma outra função tinha a mesma regra.
+
+## 3-fm. Painel: facturação por área primeiro, antiguidade no fim (05-10-2026)
+
+Elmar: «No painel, a antiguidade tem que estar mais abaixo. Quero ver o
+facturado por área 1.º».
+- Ordem nova do `PainelFacturacao`: números do topo → Facturação por área (a
+  toda a largura) → Facturação por dia → grelha (quem paga, hora, médicos,
+  seguradoras, notas de crédito, marcações) → «Por receber» (`PainelCobrancas`,
+  com a antiguidade) no fim.
+- Verificado no navegador a 1280 px e 390 px, com dados simulados.

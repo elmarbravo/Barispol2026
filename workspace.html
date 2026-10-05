@@ -29244,7 +29244,11 @@ function PainelFacturacao() {
         React.createElement(PainelTile, { rotulo: 'Facturas emitidas', valor: Number(res.facturas || 0).toLocaleString('pt-PT'), delta: pct(res.facturas, ant.facturas) }),
         React.createElement(PainelTile, { rotulo: 'Em dívida', valor: bspPainelKz(d.divida && d.divida.valor, true), nota: ((d.divida && d.divida.n) || 0) + ' facturas por pagar' + (d.horas_desde && d.de < d.horas_desde ? ' (desde ' + bspMarcDataPt(d.horas_desde) + ')' : '') }),
         React.createElement(PainelTile, { perigo: Number(res.devolvido) > 0, rotulo: 'Notas de crédito', valor: (Number(res.devolvido) > 0 ? '− ' : '') + bspPainelKz(res.devolvido, true), nota: (res.devolucoes || 0) + (res.devolucoes === 1 ? ' nota (anulação ou devolução)' : ' notas (anulações e devoluções)') })),
-      React.createElement(PainelCobrancas, null),
+      /* Facturação por área primeiro (Elmar, 05-10-2026); «Por receber», com a
+         antiguidade, no fim do Painel. */
+      React.createElement(Card, { pad: 16 }, tit('Facturação por área'),
+        !(d.areas || []).length ? sub('Sem facturação neste período.')
+          : React.createElement(PainelBarras, { dados: d.areas.slice(0, 10).map(a => ({ rotulo: a.area, valor: Number(a.valor), extra: a.actos + ' actos' })), formatar: v => bspPainelKz(v, true) })),
       !umDia && React.createElement(Card, { pad: 16 },
         React.createElement("div", { style: { display: 'flex', alignItems: 'baseline', gap: 10 } },
           React.createElement("div", { style: { flex: 1 } }, tit('Facturação por dia')),
@@ -29258,9 +29262,6 @@ function PainelFacturacao() {
             React.createElement("td", { style: { padding: '5px 8px', textAlign: 'right', color: Number(x.notas_credito) > 0 ? 'var(--perigo)' : 'var(--text-3)', fontWeight: Number(x.notas_credito) > 0 ? 600 : 400 } }, Number(x.notas_credito) > 0 ? '− ' + bspPainelKz(x.notas_credito) : '—'))))))
           : React.createElement(PainelColunas, { dados: serie, formatar: v => bspPainelKz(v), cor: '--serie-1', altura: 220 })),
       React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 } },
-        React.createElement(Card, { pad: 16 }, tit('Facturação por área'),
-          !(d.areas || []).length ? sub('Sem facturação neste período.')
-            : React.createElement(PainelBarras, { dados: d.areas.slice(0, 10).map(a => ({ rotulo: a.area, valor: Number(a.valor), extra: a.actos + ' actos' })), formatar: v => bspPainelKz(v, true) })),
         React.createElement(Card, { pad: 16 }, tit('Quem paga'),
           React.createElement("div", { style: { display: 'flex', gap: 2, height: 16, borderRadius: 4, overflow: 'hidden', margin: '4px 0 14px' } },
             cli.filter(x => x.valor > 0).map(x => React.createElement("div", { key: x.tipo, title: x.tipo + ': ' + bspPainelKz(x.valor), style: { width: (100 * x.valor / cliTot) + '%', background: 'var(' + x.cor + ')' } }))),
@@ -29291,7 +29292,8 @@ function PainelFacturacao() {
             : React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 8 } },
               BSP_MARC_ESTADOS.map(e => React.createElement("div", { key: e.id, style: { minWidth: 96, flex: '1 1 96px', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' } },
                 React.createElement("div", { style: { fontSize: 20, fontWeight: 700, color: 'var(--text-1)' } }, marc[e.id] || 0),
-                React.createElement("div", { style: { fontSize: 12, color: 'var(--text-2)' } }, e.id))))))));
+                React.createElement("div", { style: { fontSize: 12, color: 'var(--text-2)' } }, e.id)))))),
+      React.createElement(PainelCobrancas, null)));
 }
 
 const BSP_CRM_ESTADOS = [
