@@ -24711,6 +24711,17 @@ function TransporteScreen({ currentUser }) {
     return true;
   };
   const gestao = bspGereMarcacoes(currentUser);
+  /* Apagar uma viagem mal registada (05-10-2026: o Emmanuel fechou uma
+     viagem com km a mais e o ecrã recusava a seguinte). Só a gestão; o
+     servidor tem a mesma regra (transporte_viagens_apagar = bsp_e_gestor). */
+  const apagarViagem = async v => {
+    const desc = BSP_TRANSP_TIPOS[v.tipo] + ' · ' + bspDataCurta(v.data) + ' · ' + bspKm(v.km_inicio) + ' → ' + (v.km_fim != null ? bspKm(v.km_fim) : '…');
+    if (!window.confirm('Apagar esta viagem?\n' + desc + '\nNão se pode desfazer.')) return;
+    const r = await bspGetClient().from('transporte_viagens').delete().eq('id', v.id).select('id');
+    if (r.error || !r.data || !r.data.length) { toast('Não foi possível apagar: ' + (r.error ? r.error.message : 'sem permissão')); return; }
+    t.recarregar(); toast('Viagem apagada.');
+    avisarChat('Viagem apagada pela gestão: ' + desc + (v.km_fim != null ? ' (' + (v.km_fim - v.km_inicio) + ' km)' : '') + '.');
+  };
   const mudarManut = async (m, campos, aviso) => {
     const r = await bspGetClient().from('transporte_manutencoes').update(campos).eq('id', m.id).select('id');
     if (r.error || !r.data || !r.data.length) { toast('Não foi possível gravar: ' + (r.error ? r.error.message : 'sem permissão')); return; }
@@ -24832,7 +24843,8 @@ function TransporteScreen({ currentUser }) {
                   v.foto_fim && React.createElement("button", { onClick: () => bspVerFotoTransp(v.foto_fim), style: { border: 0, background: 'transparent', color: 'var(--accent-d)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, padding: 0 } }, 'Foto do fim'))),
               React.createElement("div", { style: { textAlign: 'right', whiteSpace: 'nowrap' } },
                 React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)' } }, v.km_fim != null ? (v.km_fim - v.km_inicio) + ' km' : 'em curso'),
-                React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)' } }, bspKm(v.km_inicio) + ' → ' + (v.km_fim != null ? bspKm(v.km_fim) : '…')))),
+                React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)' } }, bspKm(v.km_inicio) + ' → ' + (v.km_fim != null ? bspKm(v.km_fim) : '…')),
+                gestao && React.createElement("button", { onClick: () => apagarViagem(v), style: { marginTop: 4, border: 0, background: 'transparent', color: 'var(--perigo)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, padding: 0 } }, 'Apagar'))),
             falhaDepois[v.id] && React.createElement("div", { style: { padding: '8px 16px', borderBottom: '1px solid var(--border)', fontSize: 12.5, fontWeight: 600, color: 'var(--perigo)' } },
               '⚠ ' + falhaDepois[v.id].km + ' km sem registo antes desta viagem (de ' + bspKm(falhaDepois[v.id].depois.km_fim) + ' a ' + bspKm(v.km_inicio) + ')')))))),
       manutMes.length > 0 && React.createElement(Card, { pad: 14 },

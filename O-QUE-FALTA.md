@@ -3405,3 +3405,16 @@ Elmar: «a fonte coloque uma gratuita, o Dax está a abrir mal em alguns PCs».
 - Modelos de e-mail do Supabase (`emails-supabase/`): colam-se à mão em
   Authentication → Emails, se se quiserem iguais.
 - Verificado no navegador: o Workspace mostra e carrega a Titillium Web.
+
+## 3-fk. Apagar uma viagem do Transporte (05-10-2026)
+
+O Emmanuel fechou a viagem de 05-10-2026 (07h45–10h31) com 55 574 km e a
+seguinte era recusada («os km não podem ser menos do que no fim da última
+viagem»). Pediu no #transporte que a apagassem.
+- Transporte → «Histórico e contas»: botão «Apagar» em cada viagem, só para a
+  gestão (`apagarViagem`; no servidor já existia `transporte_viagens_apagar` =
+  `bsp_e_gestor`). Pede confirmação e deixa uma linha no #transporte.
+- Pelo conector do Supabase o `delete` ficou à espera de confirmação e não
+  correu: a viagem 87 apaga-se pelo ecrã.
+- Verificado no navegador (390 px, dados simulados): o Elmar vê e apaga; o
+  motorista não vê o botão.
