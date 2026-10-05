@@ -3361,7 +3361,7 @@ espalhada».
 - Verificado no navegador a 1280 px e 390 px: a página desce, os separadores
   ficam por cima.
 
-## 3-fi. Presenças dos médicos marcadas pela Recepção (05-10-2026, servidor por aplicar)
+## 3-fi. Presenças dos médicos marcadas pela Recepção (05-10-2026)
 
 Elmar: «Sobre a presença do médico quem fiscaliza é a recepção, como fazemos
 esse campo da hora?». Opção escolhida: a Recepção marca.
@@ -3379,9 +3379,11 @@ esse campo da hora?». Opção escolhida: a Recepção marca.
   marcou.
 - Servidor: `medicos-presencas.sql` (`bsp_presencas_pode` = quem vê as
   Marcações, `bsp_presencas_dia`, `bsp_presenca_marcar`).
-- **Por fazer:** aplicar `medicos-presencas.sql` no Supabase (o conector
-  precisa de nova autorização) e inserir a novidade para `recepcao` e `gestao`.
-  Até lá o cartão do Início não aparece e o separador diz que não carregou.
+- `medicos-presencas.sql` aplicado a 05-10-2026. Testado no servidor (com
+  tudo desfeito no fim): como Elmar, chegada e saída com nome e horas
+  calculadas, hora futura recusada; como recepcionista (u15), vê 24 médicos e
+  marca, mas não marca há 3 dias; o Laboratório recebe «Sem acesso».
+- Novidade 170 para `recepcao`, `gestao` e `direccao-clinica`.
 - Verificado no navegador a 1280 px e 390 px, com dados simulados: marcar
   chegada, saída a outra hora, aviso das facturas sem chegada, sem passar da
   largura do ecrã.
