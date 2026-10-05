@@ -3304,3 +3304,25 @@ leve». Em Setembro o mapa fez-se à mão a partir das fichas em papel.
 - **Falta (em curso):** o ecrã: tabela das fichas por médico, conferência
   ficha × MetaGest, taxa de permanência só 15.000, 20.000 ou 25.000 (Elmar,
   05-10-2026), botões «Excel do mês» e «Mapas individuais».
+
+## 3-fg. Desactivar funcionários (05-10-2026)
+
+Elmar: «como faço para desactivar funcionários?» … «quero criar o botão
+desactivar». Antes só havia «Remover», que apaga a pessoa da equipa de vez.
+- Admin → Utilizadores, botão ✕ «Desactivar» (✓ «Reactivar» depois):
+  - a conta de entrada fica bloqueada: Edge Function `criar-utilizador`
+    versão 2, `desactivar: true|false` (`ban_duration`), publicada;
+  - na equipa: `inactivo: true`, `inactivoDesde`, `semEmails: true` (o valor
+    anterior fica em `semEmailsAntes` e volta ao reactivar);
+  - sai das listas, canais, menções e pickers (`bspSemOcultos`, `USERS`), mas
+    o nome continua nas mensagens antigas (`window.__bspInactivos`);
+  - `utilizadores-desactivar.sql` (aplicado): `bsp_recebe_emails` exclui
+    `inactivo`; `bsp_utilizador_desactivado(id)` apaga as subscrições de
+    avisos no telemóvel (só a gestão);
+  - quem está com a sessão aberta sai logo; ao tentar entrar vê «Esta conta
+    está desactivada. Fale com a Administração.»
+- Não deixa desactivar a própria conta nem a última pessoa que gere
+  utilizadores.
+- Verificado no navegador (Admin com a equipa embutida e o servidor
+  simulado): desactivar tira a pessoa das listas e chama a função e o
+  servidor; reactivar repõe.

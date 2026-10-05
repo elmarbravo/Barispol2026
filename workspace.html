@@ -1509,7 +1509,7 @@ function bspOculto(u) {
   return !!(u && u.oculto && u.id !== window.CURRENT_USER_ID);
 }
 function bspSemOcultos(lista) {
-  return (lista || []).filter(u => !bspOculto(u));
+  return (lista || []).filter(u => !bspOculto(u) && !(u && u.inactivo));
 }
 /* Quem ve o Painel (decisao do Elmar, 27-09-2026): o Elmar (u1), o
    departamento Financeiro e os socios. A gestao, por si so, nao. O
@@ -1772,7 +1772,7 @@ function userById(id) {
     const nome = String(id).slice(2);
     return { id: id, name: nome, short: nome.split(/\s+/).map(w => w[0] || '').join('').toUpperCase().slice(0, 2), role: 'Via WhatsApp', dept: '', email: '', phone: '', status: 'offline', accessLevel: '', bio: '' };
   }
-  return USERS.find(u => u.id === id);
+  return USERS.find(u => u.id === id) || (window.__bspInactivos || []).find(u => u.id === id);
 }
 function deptColor(name) {
   const d = DEPARTMENTS.find(x => x.name === name || x.id === name);
@@ -4025,7 +4025,7 @@ function bspSecureMode() {
    servidor: criar contas exige a chave service_role, que contorna todas as
    regras e por isso nunca pode estar aqui no navegador.
    Devolve null se correu bem, ou a frase a explicar o que falhou. */
-async function bspGerirLogin(email, password, apagar) {
+async function bspGerirLogin(email, password, apagar, desactivar) {
   const cfg = bspGetCfg();
   const cl = bspGetClient();
   if (!cfg || !cl) return 'O servidor não está ligado.';
@@ -4045,11 +4045,11 @@ async function bspGerirLogin(email, password, apagar) {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + testemunho
       },
-      body: JSON.stringify({
+      body: JSON.stringify(Object.assign({
         email: email,
         password: password || '',
         apagar: !!apagar
-      })
+      }, typeof desactivar === 'boolean' ? { desactivar: desactivar } : {}))
     });
     if (r.status === 404) return 'A função “criar-utilizador” ainda não existe no Supabase. Veja funcoes/criar-utilizador/index.ts no repositório.';
     const j = await r.json().catch(() => ({}));
@@ -5979,6 +5979,13 @@ function StoreProvider({
     if (!team || !team.length) return;
     USERS.length = 0;
     bspSemOcultos(team).sort(bspPorNome).forEach(u => USERS.push(u));
+    /* Desactivados (05-10-2026): fora das listas, mas o nome continua nas
+       mensagens e registos antigos. */
+    window.__bspInactivos = team.filter(u => u && u.inactivo && !u.oculto);
+    const sessao = String(window.__bspEmailSessao || '').toLowerCase();
+    if (sessao && team.some(u => u && u.inactivo && String(u.email || '').toLowerCase() === sessao)) {
+      try { window.dispatchEvent(new Event('bsp-conta-desactivada')); } catch (e) {}
+    }
   }, [state.team]);
   const nextId = prefix => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   const nowTime = () => {
@@ -7199,6 +7206,10 @@ function LoginScreen({
       setBusy(false);
       if (!error) {
         onLogin(norm);
+        return;
+      }
+      if (/banned/i.test(String(error.message || ''))) {
+        setErr('Esta conta está desactivada. Fale com a Administração.');
         return;
       }
       if (String(error.message || '').toLowerCase().indexOf('email not confirmed') !== -1) {
@@ -18303,6 +18314,40 @@ function AdminUsers() {
     a.click();
     a.remove();
   }
+  /* Desactivar (05-10-2026, utilizadores-desactivar.sql): a conta deixa de
+     entrar, a pessoa sai das listas e dos e-mails, a ficha e o histórico
+     ficam. Reactivar desfaz. Remover continua a apagar de vez. */
+  async function alternarActivo(u) {
+    if (u.id === meId) { toast('Não pode desactivar a sua própria conta.'); return; }
+    const desactivar = !u.inactivo;
+    if (desactivar && bspCamada(u).podeGerirUtilizadores && !equipaToda.some(x => x.id !== u.id && !x.inactivo && bspCamada(x).podeGerirUtilizadores)) {
+      toast('É a única pessoa que pode gerir utilizadores. Dê essa camada a outra antes de a desactivar.');
+      return;
+    }
+    if (!window.confirm((desactivar ? 'Desactivar ' : 'Reactivar ') + u.name + '?' + (desactivar
+      ? ' Deixa de conseguir entrar, sai das listas, dos canais e dos e-mails. A ficha e o histórico ficam, e pode reactivar quando quiser.'
+      : ' Volta a conseguir entrar com a palavra-passe que tinha.'))) return;
+    if (u.email) {
+      const erro = await bspGerirLogin(u.email, '', false, desactivar);
+      if (erro) { toast('Não foi possível: ' + erro); return; }
+    }
+    const novo = Object.assign({}, u);
+    if (desactivar) {
+      novo.inactivo = true;
+      novo.inactivoDesde = new Date().toISOString();
+      novo.semEmailsAntes = !!u.semEmails;
+      novo.semEmails = true;
+    } else {
+      /* Campos escritos a falso, não apagados: a gravação junta com o que havia. */
+      novo.inactivo = false;
+      novo.inactivoDesde = null;
+      novo.semEmails = !!u.semEmailsAntes;
+      novo.semEmailsAntes = null;
+    }
+    actions.upsertTeamMember(novo);
+    if (desactivar) { try { await bspGetClient().rpc('bsp_utilizador_desactivado', { p_id: u.id }); } catch (e) {} }
+    toast(desactivar ? u.name + ' foi desactivado.' : u.name + ' foi reactivado.');
+  }
   function remove(u) {
     /* Antes era o nome 'Direcção' à letra. Com camadas editáveis, o que
        interessa é não deixar a plataforma sem ninguém que a administre. */
@@ -18434,7 +18479,7 @@ function AdminUsers() {
       textOverflow: 'ellipsis',
       whiteSpace: 'nowrap'
     }
-  }, u.email || '—'))), React.createElement("div", {
+  }, (u.inactivo ? 'Desactivado · ' : '') + (u.email || '—')))), React.createElement("div", {
     style: {
       color: 'var(--text-2)'
     }
@@ -18472,6 +18517,17 @@ function AdminUsers() {
     title: "Editar",
     onClick: () => setModal(u)
   }, React.createElement(I.Edit, {
+    size: 13
+  })), React.createElement("button", {
+    className: "bsp-iconbtn",
+    style: {
+      width: 28,
+      height: 28
+    },
+    title: u.inactivo ? "Reactivar" : "Desactivar",
+    'aria-label': u.inactivo ? "Reactivar" : "Desactivar",
+    onClick: () => alternarActivo(u)
+  }, React.createElement(u.inactivo ? I.Check : I.X, {
     size: 13
   })), React.createElement("button", {
     className: "bsp-iconbtn",
@@ -29630,6 +29686,13 @@ function App() {
       window.location.reload();
     } catch (e) {}
   };
+  /* Conta desactivada na Administração (05-10-2026): sai logo. */
+  window.__bspEmailSessao = authedEmail || '';
+  React.useEffect(() => {
+    const f = () => { try { window.alert('A sua conta foi desactivada. Fale com a Administração.'); } catch (e) {} doLogout(); };
+    window.addEventListener('bsp-conta-desactivada', f);
+    return () => window.removeEventListener('bsp-conta-desactivada', f);
+  }, []);
   const [page, setPage] = React.useState('dashboard');
   React.useEffect(() => { window.__bspPagina = page; }, [page]);
   /* Histórico dos ecrãs (05-10-2026): cada mudança de menu é um passo;

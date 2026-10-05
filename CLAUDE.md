@@ -545,6 +545,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   conversa. Pedido em ecrã inteiro `PedidoNotificacoes`; lista em Admin →
   Notificações. Envios em massa pela base de dados: no máximo 5 por pedido
   (a Resend aceita 10 por segundo).
+- Desactivados (05-10-2026, `utilizadores-desactivar.sql`): `inactivo: true` na
+  equipa + conta bloqueada (`criar-utilizador` com `desactivar`); fora das listas
+  por `bspSemOcultos`, nome nas mensagens por `__bspInactivos`. Nunca apagar
+  para «desactivar».
 - Pessoas invisíveis (02-10-2026): `oculto: true` na equipa (o sócio
   Francisco Pinheiro). Esconder só no ecrã com `bspSemOcultos`/`bspOculto`;
   nunca tirar da `state.team`, que se grava inteira.

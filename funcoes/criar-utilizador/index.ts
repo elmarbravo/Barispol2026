@@ -1,4 +1,5 @@
-// Barispol Workspace · criar e actualizar logins
+// Barispol Workspace · criar, actualizar, desactivar e apagar logins
+// Versão 2 (05-10-2026): «desactivar» bloqueia a entrada sem apagar a conta.
 //
 // PORQUE EXISTE: o ecrã Admin → Utilizadores tem um campo de palavra-passe
 // e prometia "já pode entrar com o e-mail e palavra-passe definidos". Não
@@ -134,7 +135,7 @@ Deno.serve(async (req) => {
   }
 
   // 3. Fazer o trabalho.
-  let corpo: { email?: string; password?: string; apagar?: boolean };
+  let corpo: { email?: string; password?: string; apagar?: boolean; desactivar?: boolean };
   try {
     corpo = await req.json();
   } catch {
@@ -161,6 +162,21 @@ Deno.serve(async (req) => {
     const { error } = await admin.auth.admin.deleteUser(existente.id);
     if (error) return responder({ erro: error.message }, 400);
     return responder({ ok: true, accao: "apagada" });
+  }
+
+  // Desactivar / reactivar (05-10-2026, Elmar: «quero criar o botão
+  // desactivar»). A conta fica bloqueada (não entra nem renova a sessão), mas
+  // não se apaga: a ficha e o histórico ficam, e pode reactivar-se.
+  if (typeof corpo.desactivar === "boolean") {
+    if (!existente) return responder({ ok: true, nota: "Não há conta com este e-mail." });
+    if (email === emailPedinte) {
+      return responder({ erro: "Não pode desactivar a sua própria conta." }, 400);
+    }
+    const { error } = await admin.auth.admin.updateUserById(existente.id, {
+      ban_duration: corpo.desactivar ? "876000h" : "none",
+    });
+    if (error) return responder({ erro: error.message }, 400);
+    return responder({ ok: true, accao: corpo.desactivar ? "desactivada" : "reactivada" });
   }
 
   if (password && password.length < 8) {
