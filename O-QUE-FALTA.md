@@ -3241,3 +3241,42 @@ redundância e fazes uma limpeza».
   médicos.
 - Formulário do banco revisto em Word (fora do repositório), para usar até
   todos terem conta.
+
+## 3-fd. Registo clínico: correcções de uso (05-10-2026)
+
+Elmar: «o menu registo clínico não está a funcionar bem». O servidor
+respondia bem (lista de 8 dias em 8 ms; um dia em 0,6 s). Os problemas eram
+no ecrã, sobretudo no telemóvel:
+- **Lista:** a tabela passava da largura do ecrã e o «Abrir» ficava escondido.
+  No telemóvel é agora um cartão por dia, todo ele toca para abrir.
+- **Motivo e diagnóstico** vêm já do MetaGest quando o médico ainda não os
+  escreveu (antes eram só texto cinzento e tinha de escrever tudo).
+- **Página curta:** os dados do MetaGest de cada utente (facturas, triagem,
+  consulta, análises) ficam recolhidos; «Ver o que o MetaGest registou» abre
+  um, «Mostrar os dados do MetaGest de todos» abre todos. 12 utentes passaram
+  de ~15.000 px para ~8.500 px no telemóvel.
+- **Rascunho guardado sozinho** no `sessionStorage` (nunca no `localStorage`:
+  computadores partilhados), por médico e dia; mudar de dia antes de gravar
+  já não perde nada. Apaga-se ao gravar.
+- **«← Voltar à lista»** no topo do dia; a triagem já não mostra peso e IMC
+  a zero.
+- Verificado no navegador (390 px e 1280 px) com um dia real anonimizado.
+
+## 3-fe. Botão «voltar» do telemóvel e do navegador (05-10-2026)
+
+Elmar: «no workspace tem como ter subpáginas para cada menu? se clico voltar,
+fecha toda a app». O Workspace não escrevia nada no histórico do navegador.
+- Cada mudança de menu é um passo (`history.pushState` no `App`); voltar
+  regressa ao ecrã anterior. Só no Início sai da app.
+- Sub-páginas com `useBspVoltar(aberto, fechar)`: todas as janelas (`Modal`),
+  o «Mais» do telemóvel, a conversa aberta no Chat do telemóvel (voltar
+  mostra a lista), o médico aberto no Pagamento.
+- Separadores com `useBspAbaVoltar(aba, setAba)`: fora do primeiro, voltar
+  regressa ao primeiro (Equipa, Avarias, Qualidade, Utentes, Transporte,
+  Drive, Admin, Registo clínico).
+- Fechar no ecrã (X, Esc, Guardar) tira a entrada do histórico; entradas de
+  janelas que já fecharam saltam-se. O visor de imagens mantém a sua.
+- Na app Android o botão do telemóvel segue o mesmo histórico.
+- Verificado no navegador: abrir um dia do Registo clínico e voltar; abrir e
+  fechar janelas por voltar e por Esc; no fim, voltar sai da página.
+- Um ecrã novo com separadores ou sub-páginas usa estes dois hooks.

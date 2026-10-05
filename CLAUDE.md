@@ -185,6 +185,11 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   canais quem os vê (`push-canais.sql`, mesma regra do `bspVeCanal`). Número no ícone da app: `navigator.setAppBadge` em
   `useChatPorLer`; o `sw.js` põe um ponto quando chega uma mensagem.
 - Abrir uma conversa directa de qualquer ecrã: `bspConversaCom(id)`.
+- Botão «voltar» (05-10-2026): cada menu é uma entrada no histórico (`App`);
+  sub-páginas com `useBspVoltar(aberto, fechar)` (já em todas as `Modal`, no
+  «Mais», no Chat do telemóvel) e separadores com `useBspAbaVoltar(aba,
+  setAba)`. Um ecrã novo com separadores ou sub-páginas usa-os; nunca
+  `history.pushState` à mão.
 - Grupos do Chat (30-09-2026): editam-se com `NovoGrupoModal` (`inicial`) e
   `actions.editarCanal`; o servidor segue o id e os membros, não o nome. Um
   grupo com papel no sistema leva `funcao` (o do Transporte:
@@ -583,7 +588,8 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   número `BRSP-DC-BNC-AA-nnn`, Rascunho → Submetido → Visto). Cópia do MetaGest
   em `erp.clin_consulta`/`clin_triagem`/`clin_lab`/`clin_paciente`
   (`erp.sincronizar_clinico`). Acesso só por `bsp_rc_codigos` (o próprio médico,
-  Direcção Clínica, gestão); ecrã sensível. Substitui os papéis do banco,
+  Direcção Clínica, gestão); ecrã sensível. Motivo e diagnóstico vêm do
+  MetaGest; rascunho só no `sessionStorage` (`bspRcRascunhoGravar`). Substitui os papéis do banco,
   «Actividades realizadas» e «Registo de pacientes».
 - «A minha actividade» (30-09-2026, `minha-actividade.sql`): médicos vêem
   só a sua produção (`bsp_minha_actividade`, sem notas de crédito, igual ao

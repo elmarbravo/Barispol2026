@@ -5038,7 +5038,7 @@ function VisorImagem() {
     const abrir = e => {
       setImg(e.detail);
       try {
-        history.pushState({ bspVisor: 1 }, '');
+        history.pushState(Object.assign({}, bspHistEstado(), { bspVisor: 1 }), '');
         comHistorico.current = true;
       } catch (er) {}
     };
@@ -6749,6 +6749,51 @@ function useStore() {
   if (!ctx) throw new Error('useStore outside StoreProvider');
   return ctx;
 }
+/* Botão «voltar» (05-10-2026, Elmar: «se clico voltar, fecha toda a app, e
+   não é funcional»). Cada ecrã do menu e cada sub-página (janela, conversa
+   aberta no telemóvel, separador, médico aberto) ganha uma entrada no
+   histórico do navegador; voltar desfaz o último passo. Só no Início sai da
+   app. Na app Android o botão do telemóvel segue o mesmo histórico.
+   Um ecrã novo com separadores ou sub-páginas usa useBspVoltar. */
+let bspHistSeq = 0;
+const bspHistVivos = new Set();
+function bspHistEstado() { try { return history.state || {}; } catch (e) { return {}; } }
+/* Enquanto «aberto», há uma entrada no histórico; voltar chama fechar().
+   Fechada no ecrã (X, Guardar, outro separador), a entrada sai sozinha. */
+function useBspVoltar(aberto, fechar) {
+  const fecharRef = React.useRef(fechar);
+  fecharRef.current = fechar;
+  React.useEffect(() => {
+    if (!aberto) return;
+    const n = ++bspHistSeq;
+    let fora = false;
+    bspHistVivos.add(n);
+    try { const s = bspHistEstado(); history.pushState(Object.assign({}, s, { bspSub: (s.bspSub || []).concat(n) }), ''); } catch (e) {}
+    const pop = e => {
+      const subs = (e.state && e.state.bspSub) || [];
+      if (fora || subs.indexOf(n) !== -1) return;
+      fora = true;
+      bspHistVivos.delete(n);
+      if (fecharRef.current) fecharRef.current();
+    };
+    window.addEventListener('popstate', pop);
+    return () => {
+      window.removeEventListener('popstate', pop);
+      bspHistVivos.delete(n);
+      if (fora) return;
+      const subs = bspHistEstado().bspSub || [];
+      if (subs[subs.length - 1] === n) {
+        window.__bspHistIgnorar = (window.__bspHistIgnorar || 0) + 1;
+        try { history.back(); } catch (e) { window.__bspHistIgnorar--; }
+      }
+    };
+  }, [aberto]);
+}
+/* Separadores: fora do primeiro, voltar regressa ao primeiro. */
+function useBspAbaVoltar(aba, setAba) {
+  const primeira = React.useRef(aba);
+  useBspVoltar(aba !== primeira.current, () => setAba(primeira.current));
+}
 function Modal({
   open,
   onClose,
@@ -6757,6 +6802,7 @@ function Modal({
   footer,
   width = 520
 }) {
+  useBspVoltar(!!open, onClose);
   React.useEffect(() => {
     if (!open) return;
     const fn = e => {
@@ -8570,6 +8616,8 @@ function ChatScreen({
   }, []);
   const showInfoPanel = winW >= 1180;
   const showChannelList = winW >= 820;
+  /* No telemóvel, a conversa aberta é uma sub-página: voltar mostra a lista. */
+  useBspVoltar(!showChannelList && !drawer, () => setDrawer(true));
   const listRef = React.useRef(null);
   const typingTimer = React.useRef(null);
   /* Vir de uma notificacao abre a conversa de onde ela veio. O "alvo"
@@ -15377,6 +15425,7 @@ function DriveScreen() {
   /* Duas gavetas. A da equipa e a de sempre; a pessoal tem pastas e vive
      numa tabela com as suas proprias regras. */
   const [aba, setAba] = React.useState('equipa');
+  useBspAbaVoltar(aba, setAba);
   const [caminho, setCaminho] = React.useState('');
   const [vista, setVista] = React.useState(() => {
     try { return localStorage.getItem('bsp_drive_vista') || 'grelha'; } catch (e) { return 'grelha'; }
@@ -17506,6 +17555,7 @@ function AdminScreen({
   currentUser
 }) {
   const [tab, setTab] = React.useState('overview');
+  useBspAbaVoltar(tab, setTab);
   const tabs = [{
     id: 'overview',
     l: 'Visão geral'
@@ -24544,6 +24594,7 @@ function TransporteScreen({ currentUser }) {
   const t = useTransporte();
   const hoje = bspDiaServico();
   const [aba, setAba] = React.useState('hoje');
+  useBspAbaVoltar(aba, setAba);
   const [modal, setModal] = React.useState('');
   const [tipoNovo, setTipoNovo] = React.useState('pessoal');
   const [diaNovo, setDiaNovo] = React.useState('');
@@ -25218,6 +25269,7 @@ function RegistoClinicoScreen({ currentUser }) {
   const gestor = !!(bspCamada(currentUser) && bspCamada(currentUser).podeGerirUtilizadores);
   const meuCodigo = currentUser && Array.isArray(currentUser.metagest) && currentUser.metagest.length ? 'mg:' + currentUser.metagest[0] : '';
   const [aba, setAba] = React.useState(meuCodigo ? 'registo' : 'comparar');
+  useBspAbaVoltar(aba, setAba);
   const [dia, setDia] = React.useState(hoje);
   const [membro, setMembro] = React.useState('');
   const [medicos, setMedicos] = React.useState([]);
@@ -25245,36 +25297,61 @@ function RegistoClinicoScreen({ currentUser }) {
       (meuCodigo || escolhe) && React.createElement("button", { onClick: () => setAba('registo'), style: bspEscChip(aba === 'registo') }, 'Registo do dia'),
       React.createElement("button", { onClick: () => setAba('comparar'), style: bspEscChip(aba === 'comparar') }, escolhe ? 'Comparar' : 'Os meus dias')),
     aba === 'registo'
-      ? React.createElement(RegistoClinicoDia, { key: alvo + dia, dia, setDia, alvo, proprio, escolhe, gestor, toast, escolhaMedico })
+      ? React.createElement(RegistoClinicoDia, { key: alvo + dia, dia, setDia, alvo, proprio, escolhe, gestor, toast, escolhaMedico, voltar: () => setAba('comparar') })
       : React.createElement(RegistoClinicoComparar, { escolhe, alvo: escolhe ? '' : currentUser.id, abrir }));
 }
-function RegistoClinicoDia({ dia, setDia, alvo, proprio, escolhe, gestor, toast, escolhaMedico }) {
+/* Rascunho por médico e dia, só nesta sessão (sessionStorage: nunca dados
+   clínicos no localStorage de um computador partilhado). Mudar de dia ou de
+   médico antes de gravar já não perde o que se escreveu (05-10-2026). */
+const bspRcRascunhoChave = (alvo, dia) => 'bsp-rc-' + alvo + '-' + dia;
+function bspRcRascunhoLer(alvo, dia) {
+  try { const s = window.sessionStorage.getItem(bspRcRascunhoChave(alvo, dia)); return s ? JSON.parse(s) : null; } catch (e) { return null; }
+}
+function bspRcRascunhoGravar(alvo, dia, f) {
+  try { if (f) window.sessionStorage.setItem(bspRcRascunhoChave(alvo, dia), JSON.stringify(f)); else window.sessionStorage.removeItem(bspRcRascunhoChave(alvo, dia)); } catch (e) {}
+}
+function RegistoClinicoDia({ dia, setDia, alvo, proprio, escolhe, gestor, toast, escolhaMedico, voltar }) {
   const hoje = bspDataLocalISO(new Date());
   const [d, setD] = React.useState(null);
   const [erro, setErro] = React.useState('');
   const [f, setF] = React.useState(null);
   const [busy, setBusy] = React.useState(false);
   const [recarga, setRecarga] = React.useState(0);
+  const [abertos, setAbertos] = React.useState({});
+  const [recuperado, setRecuperado] = React.useState(false);
   React.useEffect(() => {
     const cl = bspGetClient();
     if (!cl || !alvo) return;
     let vivo = true;
-    setD(null); setErro('');
+    setD(null); setErro(''); setRecuperado(false);
     cl.rpc('bsp_registo_clinico_dia', { p_dia: dia, p_membro: alvo }).then(r => {
       if (!vivo) return;
       if (r.error) { setErro(String(r.error.message || r.error)); return; }
       const x = r.data || {};
       setD(x);
       const g = x.registo || {};
-      setF({ horario_de: (g.horario_de || '').slice(0, 5), horario_ate: (g.horario_ate || '').slice(0, 5), linhas: g.linhas || {},
-             observacoes: g.observacoes || '', dificuldades: g.dificuldades || '', sugestoes: g.sugestoes || '' });
+      /* Motivo e diagnóstico vêm já do MetaGest quando o médico ainda não os
+         escreveu: só confirma ou corrige (05-10-2026). */
+      const linhas = Object.assign({}, g.linhas || {});
+      (x.utentes || []).forEach(u => {
+        const c = u.consulta || {};
+        const l = linhas[u.chave] || {};
+        if (!l.motivo && (c.sintomas || []).length) l.motivo = c.sintomas.join(', ');
+        if (!l.diagnostico && (c.diagnosticos || []).length) l.diagnostico = c.diagnosticos.join(', ');
+        if (Object.keys(l).length) linhas[u.chave] = l;
+      });
+      const base = { horario_de: (g.horario_de || '').slice(0, 5), horario_ate: (g.horario_ate || '').slice(0, 5), linhas,
+                     observacoes: g.observacoes || '', dificuldades: g.dificuldades || '', sugestoes: g.sugestoes || '' };
+      const rasc = g.estado === 'Visto' ? null : bspRcRascunhoLer(alvo, dia);
+      if (rasc && JSON.stringify(rasc) !== JSON.stringify(base)) { setF(rasc); setRecuperado(true); } else setF(base);
     });
     return () => { vivo = false; };
   }, [dia, alvo, recarga]);
   const reg = d && d.registo;
   const estado = reg ? reg.estado : 'Por preencher';
   const podeEditar = !!d && d.ligado && estado !== 'Visto' && (proprio || gestor) && dia <= hoje;
-  const linha = (k, campo, v) => setF(Object.assign({}, f, { linhas: Object.assign({}, f.linhas, { [k]: Object.assign({}, f.linhas[k] || {}, { [campo]: v }) }) }));
+  const mudar = novo => { setF(novo); if (podeEditar) bspRcRascunhoGravar(alvo, dia, novo); };
+  const linha = (k, campo, v) => mudar(Object.assign({}, f, { linhas: Object.assign({}, f.linhas, { [k]: Object.assign({}, f.linhas[k] || {}, { [campo]: v }) }) }));
   async function gravar(submeter) {
     if (submeter) {
       const sem = (d.utentes || []).filter(u => !String(((f.linhas[u.chave] || {}).diagnostico) || '').trim()).length;
@@ -25288,6 +25365,7 @@ function RegistoClinicoDia({ dia, setDia, alvo, proprio, escolhe, gestor, toast,
     setBusy(false);
     if (r.error) { toast('Não foi possível gravar: ' + r.error.message); return; }
     toast(submeter ? 'Registo submetido com o número ' + (r.data && r.data.numero) + '.' : 'Rascunho gravado.');
+    bspRcRascunhoGravar(alvo, dia, null);
     setRecarga(x => x + 1);
   }
   async function visto() {
@@ -25301,10 +25379,11 @@ function RegistoClinicoDia({ dia, setDia, alvo, proprio, escolhe, gestor, toast,
   const area = (valor, mudar, ph, linhas) => React.createElement("textarea", { value: valor || '', onChange: e => mudar(e.target.value), placeholder: ph, disabled: !podeEditar, rows: linhas || 2,
     style: Object.assign({}, bspTranspCampo, { height: 'auto', padding: '8px 10px', resize: 'vertical', lineHeight: 1.4 }) });
   const caixaTopo = React.createElement("div", { style: Object.assign({}, bspRegCaixa, { display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }) },
+    voltar && React.createElement("button", { onClick: voltar, style: Object.assign({}, bspEscBotao(false), { flex: '0 0 100%', alignSelf: 'flex-start', maxWidth: 200 }) }, '← Voltar à lista'),
     React.createElement("label", { style: { flex: '0 0 auto' } }, rot('Dia'), React.createElement("input", { type: 'date', value: dia, max: hoje, onChange: e => e.target.value && setDia(e.target.value), style: Object.assign({}, bspTranspCampo, { width: 170 }) })),
     escolhaMedico && React.createElement("label", { style: { flex: '1 1 240px' } }, rot('Médico'), escolhaMedico),
-    f && React.createElement("label", { style: { flex: '0 0 auto' } }, rot('Das'), React.createElement("input", { type: 'time', value: f.horario_de, disabled: !podeEditar, onChange: e => setF(Object.assign({}, f, { horario_de: e.target.value })), style: Object.assign({}, bspTranspCampo, { width: 120 }) })),
-    f && React.createElement("label", { style: { flex: '0 0 auto' } }, rot('Às'), React.createElement("input", { type: 'time', value: f.horario_ate, disabled: !podeEditar, onChange: e => setF(Object.assign({}, f, { horario_ate: e.target.value })), style: Object.assign({}, bspTranspCampo, { width: 120 }) })),
+    f && React.createElement("label", { style: { flex: '0 0 auto' } }, rot('Das'), React.createElement("input", { type: 'time', value: f.horario_de, disabled: !podeEditar, onChange: e => mudar(Object.assign({}, f, { horario_de: e.target.value })), style: Object.assign({}, bspTranspCampo, { width: 120 }) })),
+    f && React.createElement("label", { style: { flex: '0 0 auto' } }, rot('Às'), React.createElement("input", { type: 'time', value: f.horario_ate, disabled: !podeEditar, onChange: e => mudar(Object.assign({}, f, { horario_ate: e.target.value })), style: Object.assign({}, bspTranspCampo, { width: 120 }) })),
     d && d.ligado && React.createElement("div", { style: { marginLeft: 'auto', textAlign: 'right' } },
       React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: estado === 'Visto' ? 'var(--sucesso)' : estado === 'Submetido' ? 'var(--accent-d)' : 'var(--text-2)' } }, estado),
       reg && reg.numero && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, reg.numero)));
@@ -25322,23 +25401,28 @@ function RegistoClinicoDia({ dia, setDia, alvo, proprio, escolhe, gestor, toast,
     itens.forEach(it => { const g = bspGrupoActo(it.grupo); (grupos[g] = grupos[g] || []).push(it.nome + (it.qtd > 1 ? ' ×' + it.qtd : '')); });
     const c = u.consulta, t = u.triagem;
     const idade = bspRcIdade(u.nascimento, dia) || (c && c.idade) || '';
+    const aberto = !!abertos[u.chave] || !!abertos._todos;
+    const nAn = (u.analises || []).length;
     return React.createElement("div", { key: u.chave, style: bspRegCaixa },
       React.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' } },
         React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)' } }, (i + 1) + '. ' + bspRcNomeProprio(u.nome || u.chave)),
         React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, [bspRcSexo(u.sexo || (c && c.sexo)), idade, u.hora ? 'factura às ' + String(u.hora).slice(0, 5) : ''].filter(Boolean).join(' · '))),
-      React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', marginTop: 6 } },
+      React.createElement("button", { onClick: () => setAbertos(Object.assign({}, abertos, { [u.chave]: !aberto, _todos: false })),
+        style: { marginTop: 6, border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, color: 'var(--accent-d)', textAlign: 'left' } },
+        (aberto ? '▾ Esconder' : '▸ Ver') + ' o que o MetaGest registou (' + [(u.facturas || []).length + ((u.facturas || []).length === 1 ? ' factura' : ' facturas'), t ? 'triagem' : '', c ? 'consulta' : 'sem consulta', nAn ? nAn + (nAn === 1 ? ' análise' : ' análises') : ''].filter(Boolean).join(' · ') + ')'),
+      aberto && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', marginTop: 6 } },
         (u.facturas || []).map(x => chip(x.factura + (x.seguradora ? ' · ' + x.seguradora : '') + (x.minha ? '' : ' · ' + bspRcNomeProprio(x.medico || 'outro médico'))))),
-      React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 6, lineHeight: 1.5 } },
+      aberto && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 6, lineHeight: 1.5 } },
         Object.keys(grupos).map(g => React.createElement("div", { key: g }, React.createElement("b", null, g + ': '), grupos[g].join('; ')))),
-      t && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 6 } }, React.createElement("b", null, 'Triagem (enfermagem): '),
-        [t.tensao && 'TA ' + t.tensao, t.pulso && 'pulso ' + t.pulso, t.temperatura && t.temperatura + ' °C', t.peso && t.peso + ' kg', t.imc && 'IMC ' + t.imc].filter(Boolean).join(' · ') || 'sem valores'),
-      c && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 6, lineHeight: 1.5 } },
+      aberto && t && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 6 } }, React.createElement("b", null, 'Triagem (enfermagem): '),
+        [t.tensao && 'TA ' + t.tensao, t.pulso && 'pulso ' + t.pulso, t.temperatura && t.temperatura + ' °C', Number(t.peso) > 0 && t.peso + ' kg', Number(t.imc) > 0 && 'IMC ' + t.imc].filter(Boolean).join(' · ') || 'sem valores'),
+      aberto && c && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 6, lineHeight: 1.5 } },
         React.createElement("b", null, 'Consulta no MetaGest: '),
         [c.sintomas && c.sintomas.length && 'queixas: ' + c.sintomas.join(', '), c.diagnosticos && c.diagnosticos.length && 'diagnóstico: ' + c.diagnosticos.join(', '),
          c.analises && c.analises.length && 'análises pedidas: ' + c.analises.map(a => a.exame).join(', '),
          c.receita && c.receita.length && 'receita: ' + c.receita.map(m => [m.medicamento, m.dose, m.periodo].filter(Boolean).join(' ')).join('; ')].filter(Boolean).join(' · ') || 'aberta, sem dados'),
       !c && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--perigo)', marginTop: 6 } }, 'Sem consulta registada no MetaGest.'),
-      (u.analises || []).length > 0 && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 6, lineHeight: 1.5 } }, React.createElement("b", null, 'Análises: '),
+      aberto && (u.analises || []).length > 0 && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 6, lineHeight: 1.5 } }, React.createElement("b", null, 'Análises: '),
         u.analises.map((a, k) => React.createElement("div", { key: k }, a.exame + ' — ' + (a.validado ? (a.resultados && a.resultados.length ? a.resultados.map(x => x.parametro + ': ' + x.valor).join('; ') : 'validada') : 'resultado por validar')))),
       React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, marginTop: 10 } },
         React.createElement("label", null, rot('Motivo da consulta'), area(l.motivo, v => linha(u.chave, 'motivo', v), c && c.sintomas && c.sintomas[0] ? c.sintomas.join(', ') : '')),
@@ -25358,6 +25442,8 @@ function RegistoClinicoDia({ dia, setDia, alvo, proprio, escolhe, gestor, toast,
     caixaTopo,
     React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, (d.medico ? bspRcNomeProprio(d.medico) + ' · ' : '') + ut.length + (ut.length === 1 ? ' utente' : ' utentes') + ' com factura neste dia.' +
       (d.sincronizado_em ? ' MetaGest copiado a ' + bspDataExacta(new Date(d.sincronizado_em)) + '.' : '')),
+    recuperado && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-2)' }) }, 'Recuperado o que escreveu antes neste dia e ainda não gravou. Grave para não o perder.'),
+    ut.length > 1 && React.createElement("div", null, React.createElement("button", { onClick: () => setAbertos({ _todos: !abertos._todos }), style: bspEscChip(!!abertos._todos) }, abertos._todos ? 'Esconder os dados do MetaGest' : 'Mostrar os dados do MetaGest de todos')),
     !ut.length ? React.createElement("div", { style: Object.assign({}, bspRegCaixa, { color: 'var(--text-3)', fontSize: 13.5 }) }, 'Sem facturas deste médico neste dia.') : ut.map(cartao),
     ut.length > 0 && React.createElement("div", { style: bspRegCaixa },
       React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 } }, 'Resumo do dia (contado pelo sistema)'),
@@ -25366,9 +25452,9 @@ function RegistoClinicoDia({ dia, setDia, alvo, proprio, escolhe, gestor, toast,
         n('Urgentes', res.urgentes), n('Para especialidade', res.especialidade), n('Para urgência / hospital', res.hospital), n('Exames pedidos', res.exames), n('Procedimentos', res.procedimentos)),
       pats.length > 0 && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 10 } }, React.createElement("b", null, 'Principais patologias: '), pats.map(p => p + ' (' + res.patologias[p] + ')').join(' · '))),
     ut.length > 0 && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { display: 'grid', gap: 10 }) },
-      React.createElement("label", null, rot('Observações do médico'), area(f.observacoes, v => setF(Object.assign({}, f, { observacoes: v })), '', 2)),
-      React.createElement("label", null, rot('Principais dificuldades encontradas'), area(f.dificuldades, v => setF(Object.assign({}, f, { dificuldades: v })), '', 2)),
-      React.createElement("label", null, rot('Sugestões para melhoria do atendimento'), area(f.sugestoes, v => setF(Object.assign({}, f, { sugestoes: v })), '', 2))),
+      React.createElement("label", null, rot('Observações do médico'), area(f.observacoes, v => mudar(Object.assign({}, f, { observacoes: v })), '', 2)),
+      React.createElement("label", null, rot('Principais dificuldades encontradas'), area(f.dificuldades, v => mudar(Object.assign({}, f, { dificuldades: v })), '', 2)),
+      React.createElement("label", null, rot('Sugestões para melhoria do atendimento'), area(f.sugestoes, v => mudar(Object.assign({}, f, { sugestoes: v })), '', 2))),
     React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' } },
       reg && reg.estado === 'Visto' && React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-3)', marginRight: 'auto' } },
         'Visto a ' + bspDataExacta(new Date(reg.visto_em)) + (reg.nota_visto ? ' · ' + reg.nota_visto : '')),
@@ -25378,6 +25464,7 @@ function RegistoClinicoDia({ dia, setDia, alvo, proprio, escolhe, gestor, toast,
 }
 function RegistoClinicoComparar({ escolhe, alvo, abrir }) {
   const hoje = bspDataLocalISO(new Date());
+  const telemovel = useIsMobile(640);
   const [periodo, setPeriodo] = React.useState('semana');
   const [livre, setLivre] = React.useState({ de: bspSomarDias(hoje, -13), ate: hoje });
   const [l, setL] = React.useState(null);
@@ -25415,6 +25502,21 @@ function RegistoClinicoComparar({ escolhe, alvo, abrir }) {
     erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13.5 } }, 'Não foi possível carregar. ' + erro)
       : !l ? React.createElement("div", { style: { color: 'var(--text-3)', fontSize: 13.5 } }, 'A carregar…')
       : !linhas.length ? React.createElement("div", { style: { color: 'var(--text-3)', fontSize: 13.5 } }, 'Nada neste período.')
+      /* No telemóvel, um cartão por dia, todo ele toca para abrir (a tabela
+         escondia o «Abrir» fora do ecrã, 05-10-2026). */
+      : telemovel ? React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 8 } }, linhas.map(x =>
+          React.createElement("button", { key: x.codigo + x.dia, onClick: () => abrir(x.codigo, x.dia),
+            style: Object.assign({}, bspRegCaixa, { textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', gap: 4, width: '100%' }) },
+            React.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' } },
+              React.createElement("b", { style: { fontSize: 14.5, color: 'var(--text-1)' } }, bspDataExacta(new Date(x.dia + 'T12:00:00')).replace(/,.*$/, '')),
+              React.createElement("span", { style: { fontSize: 12.5, fontWeight: 700, color: cor(x.estado) } }, x.estado)),
+            escolhe && React.createElement("div", { style: { fontSize: 13.5, color: 'var(--text-1)' } }, bspRcNomeProprio(x.medico || x.codigo)),
+            React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)' } },
+              x.utentes + (x.utentes === 1 ? ' utente facturado' : ' utentes facturados') + ' · ',
+              React.createElement("span", { style: { color: x.metagest < x.utentes ? 'var(--perigo)' : 'inherit' } }, x.metagest + ' no MetaGest'), ' · ',
+              React.createElement("span", { style: { color: x.registados < x.utentes ? 'var(--perigo)' : 'inherit' } }, x.registados + ' registados')),
+            x.numero && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, x.numero),
+            React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: 'var(--accent-d)' } }, 'Abrir ›'))))
       : React.createElement("div", { style: Object.assign({}, bspRegCaixa, { padding: 0, overflowX: 'auto' }) },
           React.createElement("table", { style: { width: '100%', borderCollapse: 'collapse' } },
             React.createElement("thead", null, React.createElement("tr", null,
@@ -26549,6 +26651,7 @@ function FormacoesPainel() {
 /* Equipa: contactos, ferias e ausencias, formacoes. */
 function EquipaScreen() {
   const [aba, setAba] = React.useState(() => window.__bspEquipaAba || 'contactos');
+  useBspAbaVoltar(aba, setAba);
   React.useEffect(() => { window.__bspEquipaAba = null; }, []);
   const aba_ = (id, txt) => React.createElement("button", {
     key: id, onClick: () => setAba(id),
@@ -27355,6 +27458,7 @@ function QualidadeScreen() {
   const euU = window.userById(eu);
   const veTudo = bspVeQualidade(euU);
   const [aba, setAba] = React.useState('utentes');
+  useBspAbaVoltar(aba, setAba);
   const fb = useTabela('feedback_utentes', 'criado_em');
   const oc = useTabela('ocorrencias', 'criado_em');
   const [resumo, setResumo] = React.useState(null);
@@ -27892,6 +27996,7 @@ function GeradorPainel() {
 }
 function AvariasScreen() {
   const [aba, setAba] = React.useState('avarias');
+  useBspAbaVoltar(aba, setAba);
   const aba_ = (id, txt) => React.createElement("button", {
     key: id, onClick: () => setAba(id),
     style: { padding: '9px 16px', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700, background: 'transparent', whiteSpace: 'nowrap', flex: 'none', color: aba === id ? 'var(--accent-d)' : 'var(--text-2)', borderBottom: '2px solid ' + (aba === id ? 'var(--accent)' : 'transparent') }
@@ -28464,6 +28569,7 @@ function PagamentoMedicosPainel() {
   const [erro, setErro] = React.useState('');
   const [tick, setTick] = React.useState(0);
   const [aberto, setAberto] = React.useState(null);
+  useBspVoltar(aberto != null, () => setAberto(null));
   const [perm, setPerm] = React.useState(null);
   const [ajuste, setAjuste] = React.useState(null);
   const [linhas, setLinhas] = React.useState(null);
@@ -28791,6 +28897,7 @@ function CrmScreen({ inicial }) {
   const veCrm = bspVeCrm(eu);
   const veMarc = bspVeMarcacoes(eu);
   const [aba, setAba] = React.useState(inicial && (inicial !== 'marcacoes' || veMarc) ? inicial : veMarc ? 'marcacoes' : 'pedidos');
+  useBspAbaVoltar(aba, setAba);
   const aba_ = (id, txt) => React.createElement("button", {
     key: id, onClick: () => setAba(id),
     style: {
@@ -29525,6 +29632,35 @@ function App() {
   };
   const [page, setPage] = React.useState('dashboard');
   React.useEffect(() => { window.__bspPagina = page; }, [page]);
+  /* Histórico dos ecrãs (05-10-2026): cada mudança de menu é um passo;
+     voltar regressa ao ecrã anterior. A primeira entrada é o Início. */
+  const pagVeioDoVoltar = React.useRef(false);
+  const pagPrimeira = React.useRef(true);
+  React.useEffect(() => {
+    try { history.replaceState(Object.assign({}, bspHistEstado(), { bspPg: 'dashboard', bspSub: [] }), ''); } catch (e) {}
+    const pop = e => {
+      if (window.__bspHistIgnorar > 0) {
+        window.__bspHistIgnorar--;
+        if (!window.__bspHistIgnorar && window.__bspHistDepois) { const f = window.__bspHistDepois; window.__bspHistDepois = null; f(); }
+        return;
+      }
+      const s = e.state || {};
+      /* Entrada de uma janela que já se fechou de outra maneira: salta-se. */
+      const subs = s.bspSub || [];
+      if (subs.length && !bspHistVivos.has(subs[subs.length - 1])) { try { history.back(); } catch (er) {} return; }
+      if (s.bspPg && s.bspPg !== window.__bspPagina) { pagVeioDoVoltar.current = true; setPage(s.bspPg); }
+    };
+    window.addEventListener('popstate', pop);
+    return () => window.removeEventListener('popstate', pop);
+  }, []);
+  React.useEffect(() => {
+    if (pagPrimeira.current) { pagPrimeira.current = false; if (page === 'dashboard') return; }
+    if (pagVeioDoVoltar.current) { pagVeioDoVoltar.current = false; return; }
+    const s = bspHistEstado();
+    if (s.bspPg === page && !(s.bspSub || []).length) return;
+    const empurrar = () => { try { history.pushState({ bspPg: page, bspSub: [] }, ''); } catch (e) {} };
+    if (window.__bspHistIgnorar > 0) window.__bspHistDepois = empurrar; else empurrar();
+  }, [page]);
   /* Conversa que uma notificacao mandou abrir. O contador faz parte do
      valor para que carregar duas vezes na mesma notificacao volte a
      mandar o Chat para la. */
@@ -29599,6 +29735,7 @@ function App() {
   }, []);
   const isMobile = useIsMobile();
   const [moreOpen, setMoreOpen] = React.useState(false);
+  useBspVoltar(moreOpen, () => setMoreOpen(false));
   const [t, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
   const utilizadorReal = bspResolveUser(authedEmail, window.USERS);
   /* Quem esta mesmo com a sessao aberta (a marca de agua usa-o, tambem no «Ver como»). */
