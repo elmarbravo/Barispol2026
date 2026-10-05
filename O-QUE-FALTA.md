@@ -3280,3 +3280,27 @@ fecha toda a app». O Workspace não escrevia nada no histórico do navegador.
 - Verificado no navegador: abrir um dia do Registo clínico e voltar; abrir e
   fechar janelas por voltar e por Esc; no fim, voltar sai da página.
 - Um ecrã novo com separadores ou sub-páginas usa estes dois hooks.
+
+## 3-ff. Pagamento dos médicos: fichas completas e conferência (05-10-2026)
+
+Elmar: «com base nesse cálculo criar algo no Workspace? Para Outubro ser mais
+leve». Em Setembro o mapa fez-se à mão a partir das fichas em papel.
+- `pagamento-fichas.sql` (aplicado):
+  - `pagamento_permanencias` guarda o dia inteiro da ficha: entrada, saída,
+    consultas, reconsultas, enfermagem, observação, outros e nota. As horas
+    calculam-se da entrada e da saída;
+  - `bsp_pagamento_fichas` grava o mês de um médico e põe nos ajustes as
+    consultas da ficha (a ficha prevalece, regra de Agosto): clínica geral
+    por dia útil e fim-de-semana, pediatria pelo total;
+  - `bsp_pagamento_conferir`: consultas por dia, ficha contra MetaGest;
+  - `bsp_pagamento_actos`: actos do mês sem doentes (Excel e mapas
+    individuais);
+  - `bsp_pagamento_permanencias_mes` devolve também as fichas.
+- Setembro carregado no servidor: 53 dias de 14 mapas e 16 dias da lista de
+  presenças (Henriqueta, Creusa, Danisandra, Luidmila). Ecografia prostática
+  de 09/09 (FT CBL-26/1857, facturada sem médico pela Recepção) paga ao
+  Dr. Simão a 30% em «Outros».
+- Setembro (aberto): bruto 1.987.535,17 Kz, líquido 1.858.345,38 Kz.
+- **Falta (em curso):** o ecrã: tabela das fichas por médico, conferência
+  ficha × MetaGest, taxa de permanência só 15.000, 20.000 ou 25.000 (Elmar,
+  05-10-2026), botões «Excel do mês» e «Mapas individuais».
