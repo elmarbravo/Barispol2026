@@ -3418,3 +3418,13 @@ viagem»). Pediu no #transporte que a apagassem.
   apagar»). O último km passa a 55 542.
 - Verificado no navegador (390 px, dados simulados): o Elmar vê e apaga; o
   motorista não vê o botão.
+
+## 3-fl. Painel: dia anterior a 0 Kz depois da meia-noite (05-10-2026)
+
+Elmar: «O sistema está a dar 0 kzs no dia 5» (00h10 de 06-10). O `bsp_painel`
+lia os dias passados só de `crm.mg_facturas` (carga às 05h00) e só o dia de hoje
+de `erp.sales_invoice`; entre a meia-noite e a carga, «ontem» ficava a 0.
+- `painel-ontem.sql` (aplicado a 05-10-2026): os dias depois do último dia do
+  histórico (`corte`) vêm de `erp.sales_invoice`.
+- Conferido: 1 a 4 de Outubro iguais nas duas fontes; dia 5 = 397 625 Kz.
+  Nenhuma outra função tinha a mesma regra.
