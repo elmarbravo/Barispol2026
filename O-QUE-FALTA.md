@@ -3145,6 +3145,13 @@ mim? Se não faça isso.»
     código só se gasta ao gravar (`verifyOtp` com `token_hash`), por isso os
     antivírus que abrem as ligações não o estragam. Depois entra no Workspace.
   - A ligação vale 1 hora e serve uma vez.
+- Nome e e-mail no ecrã (05-10-2026, Elmar: «Coloque aqui o nome de quem pede
+  para recuperar e e-mail»): versão 2 da função. A ligação leva também
+  `&email=` e `&nome=` (o nome vem de `shared_state.team`). O ecrã mostra um
+  quadro «Conta» com o nome e o e-mail por cima dos campos
+  (`window.__bspRecuperarQuem`). Leva também um campo escondido com o e-mail,
+  para o gestor de palavras-passe do telemóvel guardar a nova na conta certa.
+  As ligações enviadas antes da versão 2 abrem o ecrã sem o quadro.
 - Testado: a função responde 200 a um endereço sem conta, 403 a outra
   origem e 400 a um e-mail inválido. No navegador (Playwright, com o
   servidor simulado): pedido, ecrã, palavra-passe curta, ligação gasta e

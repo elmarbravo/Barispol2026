@@ -22,6 +22,8 @@
 //   · o e-mail vai só para o endereço da própria conta.
 // Não respeita a pausa dos e-mails (emails-pausa.sql): é a própria pessoa que
 // pede, e sem isto fica sem entrar. Fica registado em emails_registo.
+// Versão 2 (05-10-2026): a ligação leva também &email= e &nome=, que o ecrã
+// «Nova palavra-passe» mostra.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -124,13 +126,14 @@ Deno.serve(async (req) => {
   const codigo = link && (link as any).properties && (link as any).properties.hashed_token;
   if (error || !codigo) return pronto();
 
-  /* Primeiro nome, da equipa (shared_state), se lá estiver. */
-  let nome = "";
+  /* Nome, da equipa (shared_state), se lá estiver. */
+  let nome = "", nomeCompleto = "";
   try {
     const { data: linha } = await admin.from("shared_state").select("team").eq("id", 1).single();
     const equipa: any[] = linha && Array.isArray(linha.team) ? linha.team : [];
     const u = equipa.find((x: any) => x && String(x.email || "").trim().toLowerCase() === email);
-    nome = u && u.name ? String(u.name).trim().split(/\s+/)[0] : "";
+    nomeCompleto = u && u.name ? String(u.name).trim().replace(/\s+/g, " ") : "";
+    nome = nomeCompleto.split(" ")[0];
   } catch { /* sem nome, o e-mail sai na mesma */ }
 
   let key = Deno.env.get("RESEND_API_KEY") || "";
@@ -140,7 +143,10 @@ Deno.serve(async (req) => {
   }
   if (!key) return responder({ erro: "O envio de e-mail não está configurado." }, 500);
 
-  const ligacao = DESTINO + "#recuperar=" + encodeURIComponent(codigo);
+  /* O nome e o e-mail vão na ligação (05-10-2026, Elmar): o ecrã mostra de
+     quem é a conta antes de gravar. Ficam depois do #, não chegam ao site. */
+  const ligacao = DESTINO + "#recuperar=" + encodeURIComponent(codigo) +
+    "&email=" + encodeURIComponent(email) + (nomeCompleto ? "&nome=" + encodeURIComponent(nomeCompleto) : "");
   const ate = new Date(Date.now() + 3600_000);
   const assunto = "Nova palavra-passe do Workspace";
   const r = await fetch("https://api.resend.com/emails", {
