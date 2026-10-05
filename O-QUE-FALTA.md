@@ -3160,3 +3160,20 @@ mim? Se não faça isso.»
   Configuration → Site URL = `https://barispol.com/workspace.html`. Já não é
   preciso para a recuperação, mas os outros e-mails do próprio Supabase
   (convites) continuam a apontar para localhost.
+
+## 3-fb. Controlo de férias e subsídio dos RH (05-10-2026, por aplicar)
+
+Pedido da Arlete pelo Elmar: «rh-controlo-de-ferias-e-subsidio.xlsx, actualize
+o sistema».
+
+- `ferias-controlo.sql`: tabela `ferias_controlo` (por ano e nome: dias de
+  direito, 1.º e 2.º semestre, subsídio pago, observações), `bsp_ferias_controlo`
+  (com o «Estado Geral» da folha) e `bsp_ferias_subsidio`. Só
+  `bsp_ve_salarios()` (u1, u2): o subsídio é um pagamento.
+- **Ainda não aplicado:** o acesso ao Supabase foi recusado a 05-10-2026.
+  Falta aplicar o SQL, carregar as 18 linhas da folha (os dados ficam fora do
+  repositório), lançar os períodos de quem tem conta como «Férias» aprovadas
+  em `ausencias` e fazer o quadro «Controlo de férias (RH)» em Equipa →
+  Ausências.
+- Sem conta no Workspace: Angelina Kingalo, Eva António, Inês Nicolau, Loide
+  Dibanga, Neusa Chimi. Confirmar se «Cássia Alvaro» é a Cassia Peixoto (u19).
