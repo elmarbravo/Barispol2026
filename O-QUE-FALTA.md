@@ -3177,3 +3177,67 @@ o sistema».
   Ausências.
 - Sem conta no Workspace: Angelina Kingalo, Eva António, Inês Nicolau, Loide
   Dibanga, Neusa Chimi. Confirmar se «Cássia Alvaro» é a Cassia Peixoto (u19).
+
+## 3-fc. Registo clínico do médico (05-10-2026)
+
+Elmar: «preciso que coloque os dados todos dos pacientes, pedidos de exames,
+resultados, observações de enfermagem e tudo que o médico fez, para que o
+director clínico tenha os dados todos a partir do sistema e só comparar.
+Quero que os médicos preencham no sistema, encontram já as facturas e tudo.»
+E: «o prioritário é o formulário online, vê os 3 documentos se há
+redundância e fazes uma limpeza».
+
+- Os três papéis da Direcção Clínica passam a um só formulário: o do banco,
+  «Actividades realizadas» e «Registo de pacientes».
+  - Identificação, contagens e resumo repetiam-se nos três. Agora vêm do
+    MetaGest ou contam-se sozinhos.
+  - As assinaturas passam a ser «Submeter» (médico) e «Dar visto» (Direcção
+    Clínica), com nome e hora.
+- `registo-clinico.sql` (aplicado):
+  - Cópia do MetaGest pela API (`erp.api_lista`/`erp.api_get`):
+    - `erp.clin_consulta` (Patient Encounter: idade, sexo, queixas,
+      diagnóstico, análises pedidas, receita);
+    - `erp.clin_triagem` (Vital Signs);
+    - `erp.clin_lab` (Lab Test e resultados);
+    - `erp.clin_paciente` (sexo e data de nascimento).
+  - `erp.sincronizar_clinico(de, ate)`, com os crons `bsp-clinico-hoje`
+    (30 em 30 min) e `bsp-clinico` (02h55, 7 dias).
+  - Carga de Setembro de 2026 pelo cron `bsp-clinico-carga`
+    (`erp.clin_carga`). **Desligar esse cron quando a carga acabar.**
+  - `public.registo_clinico`: um por médico (código MetaGest) e dia.
+    Rascunho → Submetido (número `BRSP-DC-BNC-AA-nnn`) → Visto.
+  - Funções: `bsp_registo_clinico_dia`, `_gravar`, `_visto` e `_lista`.
+    O acesso usa `bsp_rc_codigos`: o próprio médico, a Direcção Clínica e a
+    gestão. Escreve só o próprio médico (ou a gestão). O visto é da Direcção
+    Clínica ou da gestão.
+- Ecrã «Registo clínico» (`RegistoClinicoScreen`, rota `registo`), para os
+  mesmos de «A minha actividade»:
+  - por utente: facturas e serviços, triagem, consulta do MetaGest e
+    análises com resultado;
+  - o médico escreve o motivo, diagnóstico, conduta, destino, se foi urgente
+    e observações;
+  - resumo e patologias calculados;
+  - observações, dificuldades e sugestões;
+  - separador «Comparar» para a Direcção Clínica.
+  - É um ecrã sensível (`BSP_ECRAS_SENSIVEIS`, acesso registado) e tem ficha
+    no guia.
+- Os nomes dos doentes aparecem neste ecrã por pedido do Elmar. Ficam só no
+  servidor e só para o próprio médico, a Direcção Clínica e a gestão.
+- Verificado:
+  - sincronização real (4 dias: 8 consultas, 12 triagens, 43 análises,
+    25 utentes);
+  - um dia real da Dra. Luidmila, com tudo preenchido;
+  - acesso: a Juliana é recusada; o Director Clínico vê 14 médicos;
+  - circuito de gravação, submissão e visto (dentro de uma transacção
+    anulada);
+  - ecrã no navegador com dados fictícios.
+- Em Setembro, só a Dra. Luidmila registava as consultas no MetaGest. Os
+  outros facturavam sem consulta registada.
+- **Falta:** só 5 médicos têm conta com o código MetaGest (u4, u5, u6, u7 e
+  Ludmila). Os outros que facturam precisam de conta no Workspace e do
+  código MetaGest na ficha: Conceição Calunga, Pedro Feliciano, Edgar Jorge,
+  Graça Lueie, Joia Manuel, Albano Lussati, Selmira Bungo e outros.
+- **Falta:** ligar o registo submetido às presenças do pagamento dos
+  médicos.
+- Formulário do banco revisto em Word (fora do repositório), para usar até
+  todos terem conta.

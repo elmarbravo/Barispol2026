@@ -578,6 +578,13 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   decisão do Elmar); `bsp_doc_no_grupo`/`bsp_cargo_grupos` no servidor e
   `bspNosGrupos`/`BSP_DOC_CARGOS` no ecrã, mudar os dois juntos. Fora de
   «todos», nada vai para o Feed nem #avisos.
+- Registo clínico (05-10-2026, `registo-clinico.sql`): ecrã `registo`
+  (`RegistoClinicoScreen`), um registo por médico e dia (`registo_clinico`,
+  número `BRSP-DC-BNC-AA-nnn`, Rascunho → Submetido → Visto). Cópia do MetaGest
+  em `erp.clin_consulta`/`clin_triagem`/`clin_lab`/`clin_paciente`
+  (`erp.sincronizar_clinico`). Acesso só por `bsp_rc_codigos` (o próprio médico,
+  Direcção Clínica, gestão); ecrã sensível. Substitui os papéis do banco,
+  «Actividades realizadas» e «Registo de pacientes».
 - «A minha actividade» (30-09-2026, `minha-actividade.sql`): médicos vêem
   só a sua produção (`bsp_minha_actividade`, sem notas de crédito, igual ao
   Painel). Ligação pelo campo `metagest` (códigos `ref_practitioner`) na

@@ -2847,6 +2847,13 @@ const NAV_ITEMS = [{
   badge: null,
   actividadeOnly: true
 }, {
+  /* Registo clinico (05-10-2026, registo-clinico.sql): os mesmos de «A minha actividade». */
+  id: 'registo',
+  label: 'Registo clínico',
+  icon: 'Edit',
+  badge: null,
+  actividadeOnly: true
+}, {
   /* Documentos da clinica (30-09-2026): toda a equipa, com o numero por ler. */
   id: 'documentos',
   label: 'Documentos',
@@ -4085,7 +4092,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado'];
+const BSP_RPC_LEITURA = ['bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -20086,7 +20093,7 @@ function MobileNav({
       }
     }, n > 99 ? '99+' : n)), it.label);
   }), React.createElement("button", {
-    "data-on": ['calendar', 'stock', 'avarias', 'meetings', 'drive', 'admin', 'notifications', 'directory', 'relatorios', 'escalas', 'transporte', 'seguimento', 'marcacoes', 'painel', 'actividade', 'documentos', 'qualidade'].includes(current),
+    "data-on": ['calendar', 'stock', 'avarias', 'meetings', 'drive', 'admin', 'notifications', 'directory', 'relatorios', 'escalas', 'transporte', 'seguimento', 'marcacoes', 'painel', 'actividade', 'registo', 'documentos', 'qualidade'].includes(current),
     onClick: onMore
   }, React.createElement(I.MoreH, {
     size: 20
@@ -20311,6 +20318,10 @@ function MobileMore({
     label: 'A minha actividade',
     icon: 'TrendUp'
   }, {
+    id: 'registo',
+    label: 'Registo clínico',
+    icon: 'Edit'
+  }, {
     id: 'documentos',
     label: 'Documentos',
     icon: 'Folder'
@@ -20342,6 +20353,10 @@ function MobileMore({
   }
   if (!bspVeActividade(window.userById(window.CURRENT_USER_ID))) {
     const k = items.findIndex(x => x.id === 'actividade');
+    if (k !== -1) items.splice(k, 1);
+  }
+  if (!bspVeActividade(window.userById(window.CURRENT_USER_ID))) {
+    const k = items.findIndex(x => x.id === 'registo');
     if (k !== -1) items.splice(k, 1);
   }
   if (!bspVeTransporte(window.userById(window.CURRENT_USER_ID))) {
@@ -25158,6 +25173,261 @@ function DatasLivres({ de, ate, onMudar, maxDias }) {
     erro ? React.createElement("span", { style: { fontSize: 12.5, color: 'var(--perigo)' } }, erro)
       : React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, dias + (dias === 1 ? ' dia' : ' dias')));
 }
+/* Registo clínico (05-10-2026, registo-clinico.sql). Pedido do Elmar: os
+   médicos registam no Workspace o que fizeram e encontram lá as facturas, a
+   triagem, as análises e a consulta do MetaGest; o Director Clínico compara.
+   Junta os três papéis da Direcção Clínica (banco, actividades realizadas e
+   registo de pacientes). Dados de doentes: só o próprio médico, a Direcção
+   Clínica e a gestão (bsp_rc_codigos no servidor); ecrã sensível. */
+const BSP_RC_DESTINOS = ['Alta', 'Reconsulta / seguimento', 'Encaminhado para especialidade', 'Encaminhado para urgência / hospital', 'Em observação'];
+function bspRcIdade(nasc, dia) {
+  if (!nasc) return '';
+  const a = new Date(nasc + 'T12:00:00'), b = new Date(dia + 'T12:00:00');
+  let anos = b.getFullYear() - a.getFullYear();
+  if (b.getMonth() < a.getMonth() || (b.getMonth() === a.getMonth() && b.getDate() < a.getDate())) anos--;
+  if (anos >= 2) return anos + ' anos';
+  const meses = (b.getFullYear() - a.getFullYear()) * 12 + b.getMonth() - a.getMonth() - (b.getDate() < a.getDate() ? 1 : 0);
+  return Math.max(0, meses) + (meses === 1 ? ' mês' : ' meses');
+}
+const bspRcSexo = s => /^f/i.test(String(s || '')) ? 'F' : /^m/i.test(String(s || '')) ? 'M' : '';
+const bspRcNomeProprio = s => String(s || '').toLowerCase().replace(/(^|\s)(\S)/g, (x, e, l) => e + l.toUpperCase()).replace(/ (Da|De|Do|Dos|Das|E) /g, w => w.toLowerCase());
+/* Resumo do banco calculado: o que antes se contava à mão. */
+function bspRcResumo(utentes, linhas) {
+  const r = { total: utentes.length, m: 0, f: 0, primeiras: 0, seguimento: 0, urgentes: 0, especialidade: 0, hospital: 0, exames: 0, procedimentos: 0, patologias: {} };
+  utentes.forEach(u => {
+    const s = bspRcSexo(u.sexo || (u.consulta && u.consulta.sexo));
+    if (s === 'M') r.m++; if (s === 'F') r.f++;
+    const itens = [].concat.apply([], (u.facturas || []).map(f => f.itens || []));
+    if (itens.some(i => /reconsulta|seguimento|controlo/i.test(i.nome || ''))) r.seguimento++;
+    else if (itens.some(i => /CONSULTA/i.test(i.grupo || ''))) r.primeiras++;
+    r.exames += itens.filter(i => /LABORAT|RAIO|ECOGRAF|CARDIOLOG/i.test(i.grupo || '')).length;
+    r.procedimentos += itens.filter(i => /ENFERMAGEM/i.test(i.grupo || '')).length;
+    const l = linhas[u.chave] || {};
+    if (l.urgente) r.urgentes++;
+    if (/especialidade/i.test(l.destino || '')) r.especialidade++;
+    if (/urg|hospital/i.test(l.destino || '')) r.hospital++;
+    const dx = String(l.diagnostico || (u.consulta && (u.consulta.diagnosticos || [])[0]) || '').trim();
+    if (dx) { const k = dx.charAt(0).toUpperCase() + dx.slice(1).toLowerCase(); r.patologias[k] = (r.patologias[k] || 0) + 1; }
+  });
+  return r;
+}
+function RegistoClinicoScreen({ currentUser }) {
+  const toast = useToast();
+  const hoje = bspDataLocalISO(new Date());
+  const escolhe = bspEscolheMedicoActividade(currentUser);
+  const gestor = !!(bspCamada(currentUser) && bspCamada(currentUser).podeGerirUtilizadores);
+  const meuCodigo = currentUser && Array.isArray(currentUser.metagest) && currentUser.metagest.length ? 'mg:' + currentUser.metagest[0] : '';
+  const [aba, setAba] = React.useState(meuCodigo ? 'registo' : 'comparar');
+  const [dia, setDia] = React.useState(hoje);
+  const [membro, setMembro] = React.useState('');
+  const [medicos, setMedicos] = React.useState([]);
+  React.useEffect(() => {
+    if (!escolhe) return;
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    cl.rpc('bsp_metagest_medicos').then(r => { if (vivo && !r.error) setMedicos((r.data || []).map(m => ({ id: 'mg:' + m.id, name: bspRcNomeProprio(m.nome) || m.id })).sort((a, b) => bspCompararTexto(a.name, b.name))); });
+    return () => { vivo = false; };
+  }, [escolhe]);
+  const alvo = escolhe ? (membro || meuCodigo || (medicos[0] && medicos[0].id) || '') : currentUser.id;
+  const proprio = !escolhe || alvo === meuCodigo;
+  const abrir = (codigo, d) => { if (escolhe) setMembro('mg:' + codigo); setDia(d); setAba('registo'); };
+  const escolhaMedico = escolhe && React.createElement("select", { value: alvo, onChange: e => setMembro(e.target.value), style: Object.assign({}, bspTranspCampo, { maxWidth: 360 }) },
+    !medicos.length && React.createElement("option", { value: alvo }, 'A carregar médicos…'),
+    medicos.map(m => React.createElement("option", { key: m.id, value: m.id }, m.name + (m.id === meuCodigo ? ' (eu)' : ''))));
+  return React.createElement("div", { style: { padding: 'var(--density-pad)', maxWidth: 1100, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 14 } },
+    React.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' } },
+      React.createElement("div", null,
+        React.createElement("h1", { style: { margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--navy-texto)' } }, 'Registo clínico'),
+        React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)', marginTop: 2 } }, 'O que o médico fez em cada dia, ao lado do que o MetaGest registou.')),
+      React.createElement(BotaoGuia, { pg: 'registo' })),
+    React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+      (meuCodigo || escolhe) && React.createElement("button", { onClick: () => setAba('registo'), style: bspEscChip(aba === 'registo') }, 'Registo do dia'),
+      React.createElement("button", { onClick: () => setAba('comparar'), style: bspEscChip(aba === 'comparar') }, escolhe ? 'Comparar' : 'Os meus dias')),
+    aba === 'registo'
+      ? React.createElement(RegistoClinicoDia, { key: alvo + dia, dia, setDia, alvo, proprio, escolhe, gestor, toast, escolhaMedico })
+      : React.createElement(RegistoClinicoComparar, { escolhe, alvo: escolhe ? '' : currentUser.id, abrir }));
+}
+function RegistoClinicoDia({ dia, setDia, alvo, proprio, escolhe, gestor, toast, escolhaMedico }) {
+  const hoje = bspDataLocalISO(new Date());
+  const [d, setD] = React.useState(null);
+  const [erro, setErro] = React.useState('');
+  const [f, setF] = React.useState(null);
+  const [busy, setBusy] = React.useState(false);
+  const [recarga, setRecarga] = React.useState(0);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl || !alvo) return;
+    let vivo = true;
+    setD(null); setErro('');
+    cl.rpc('bsp_registo_clinico_dia', { p_dia: dia, p_membro: alvo }).then(r => {
+      if (!vivo) return;
+      if (r.error) { setErro(String(r.error.message || r.error)); return; }
+      const x = r.data || {};
+      setD(x);
+      const g = x.registo || {};
+      setF({ horario_de: (g.horario_de || '').slice(0, 5), horario_ate: (g.horario_ate || '').slice(0, 5), linhas: g.linhas || {},
+             observacoes: g.observacoes || '', dificuldades: g.dificuldades || '', sugestoes: g.sugestoes || '' });
+    });
+    return () => { vivo = false; };
+  }, [dia, alvo, recarga]);
+  const reg = d && d.registo;
+  const estado = reg ? reg.estado : 'Por preencher';
+  const podeEditar = !!d && d.ligado && estado !== 'Visto' && (proprio || gestor) && dia <= hoje;
+  const linha = (k, campo, v) => setF(Object.assign({}, f, { linhas: Object.assign({}, f.linhas, { [k]: Object.assign({}, f.linhas[k] || {}, { [campo]: v }) }) }));
+  async function gravar(submeter) {
+    if (submeter) {
+      const sem = (d.utentes || []).filter(u => !String(((f.linhas[u.chave] || {}).diagnostico) || '').trim()).length;
+      if (sem && !window.confirm(sem + (sem === 1 ? ' utente ficou' : ' utentes ficaram') + ' sem diagnóstico. Submeter mesmo assim?')) return;
+      if (!window.confirm('Submeter o registo de ' + bspDataExacta(new Date(dia + 'T12:00:00')).replace(/,.*$/, '') + '? Depois do visto da Direcção Clínica já não se altera.')) return;
+    }
+    const cl = bspGetClient();
+    if (!cl) return;
+    setBusy(true);
+    const r = await cl.rpc('bsp_registo_clinico_gravar', { p_dia: dia, p_dados: f, p_submeter: !!submeter, p_membro: alvo });
+    setBusy(false);
+    if (r.error) { toast('Não foi possível gravar: ' + r.error.message); return; }
+    toast(submeter ? 'Registo submetido com o número ' + (r.data && r.data.numero) + '.' : 'Rascunho gravado.');
+    setRecarga(x => x + 1);
+  }
+  async function visto() {
+    const nota = window.prompt('Nota do visto (opcional):', '');
+    if (nota === null) return;
+    const r = await bspGetClient().rpc('bsp_registo_clinico_visto', { p_id: reg.id, p_nota: nota });
+    if (r.error) { toast('Não foi possível: ' + r.error.message); return; }
+    toast('Visto dado.'); setRecarga(x => x + 1);
+  }
+  const rot = t => React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: 'var(--text-3)', marginBottom: 4 } }, t);
+  const area = (valor, mudar, ph, linhas) => React.createElement("textarea", { value: valor || '', onChange: e => mudar(e.target.value), placeholder: ph, disabled: !podeEditar, rows: linhas || 2,
+    style: Object.assign({}, bspTranspCampo, { height: 'auto', padding: '8px 10px', resize: 'vertical', lineHeight: 1.4 }) });
+  const caixaTopo = React.createElement("div", { style: Object.assign({}, bspRegCaixa, { display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }) },
+    React.createElement("label", { style: { flex: '0 0 auto' } }, rot('Dia'), React.createElement("input", { type: 'date', value: dia, max: hoje, onChange: e => e.target.value && setDia(e.target.value), style: Object.assign({}, bspTranspCampo, { width: 170 }) })),
+    escolhaMedico && React.createElement("label", { style: { flex: '1 1 240px' } }, rot('Médico'), escolhaMedico),
+    f && React.createElement("label", { style: { flex: '0 0 auto' } }, rot('Das'), React.createElement("input", { type: 'time', value: f.horario_de, disabled: !podeEditar, onChange: e => setF(Object.assign({}, f, { horario_de: e.target.value })), style: Object.assign({}, bspTranspCampo, { width: 120 }) })),
+    f && React.createElement("label", { style: { flex: '0 0 auto' } }, rot('Às'), React.createElement("input", { type: 'time', value: f.horario_ate, disabled: !podeEditar, onChange: e => setF(Object.assign({}, f, { horario_ate: e.target.value })), style: Object.assign({}, bspTranspCampo, { width: 120 }) })),
+    d && d.ligado && React.createElement("div", { style: { marginLeft: 'auto', textAlign: 'right' } },
+      React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: estado === 'Visto' ? 'var(--sucesso)' : estado === 'Submetido' ? 'var(--accent-d)' : 'var(--text-2)' } }, estado),
+      reg && reg.numero && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, reg.numero)));
+  if (erro) return React.createElement(React.Fragment, null, caixaTopo, React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13.5 } }, 'Não foi possível carregar. ' + erro));
+  if (!d || !f) return React.createElement(React.Fragment, null, caixaTopo, React.createElement("div", { style: { color: 'var(--text-3)', fontSize: 13.5, padding: 20 } }, 'A carregar…'));
+  if (!d.ligado) return React.createElement(React.Fragment, null, caixaTopo, React.createElement("div", { style: { color: 'var(--text-3)', fontSize: 13.5, padding: 20 } }, proprio ? 'A sua conta ainda não está ligada ao seu nome no MetaGest. Peça à Administração.' : 'Este médico ainda não está ligado ao MetaGest.'));
+  const ut = d.utentes || [];
+  const res = bspRcResumo(ut, f.linhas);
+  const pats = Object.keys(res.patologias).sort((a, b) => res.patologias[b] - res.patologias[a]).slice(0, 8);
+  const chip = (t, cor) => React.createElement("span", { style: { display: 'inline-block', fontSize: 12, padding: '2px 8px', borderRadius: 999, border: '1px solid var(--border)', color: cor || 'var(--text-2)', margin: '2px 4px 2px 0' } }, t);
+  const cartao = (u, i) => {
+    const l = f.linhas[u.chave] || {};
+    const itens = [].concat.apply([], (u.facturas || []).map(x => x.itens || []));
+    const grupos = {};
+    itens.forEach(it => { const g = bspGrupoActo(it.grupo); (grupos[g] = grupos[g] || []).push(it.nome + (it.qtd > 1 ? ' ×' + it.qtd : '')); });
+    const c = u.consulta, t = u.triagem;
+    const idade = bspRcIdade(u.nascimento, dia) || (c && c.idade) || '';
+    return React.createElement("div", { key: u.chave, style: bspRegCaixa },
+      React.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' } },
+        React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)' } }, (i + 1) + '. ' + bspRcNomeProprio(u.nome || u.chave)),
+        React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, [bspRcSexo(u.sexo || (c && c.sexo)), idade, u.hora ? 'factura às ' + String(u.hora).slice(0, 5) : ''].filter(Boolean).join(' · '))),
+      React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', marginTop: 6 } },
+        (u.facturas || []).map(x => chip(x.factura + (x.seguradora ? ' · ' + x.seguradora : '') + (x.minha ? '' : ' · ' + bspRcNomeProprio(x.medico || 'outro médico'))))),
+      React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 6, lineHeight: 1.5 } },
+        Object.keys(grupos).map(g => React.createElement("div", { key: g }, React.createElement("b", null, g + ': '), grupos[g].join('; ')))),
+      t && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 6 } }, React.createElement("b", null, 'Triagem (enfermagem): '),
+        [t.tensao && 'TA ' + t.tensao, t.pulso && 'pulso ' + t.pulso, t.temperatura && t.temperatura + ' °C', t.peso && t.peso + ' kg', t.imc && 'IMC ' + t.imc].filter(Boolean).join(' · ') || 'sem valores'),
+      c && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 6, lineHeight: 1.5 } },
+        React.createElement("b", null, 'Consulta no MetaGest: '),
+        [c.sintomas && c.sintomas.length && 'queixas: ' + c.sintomas.join(', '), c.diagnosticos && c.diagnosticos.length && 'diagnóstico: ' + c.diagnosticos.join(', '),
+         c.analises && c.analises.length && 'análises pedidas: ' + c.analises.map(a => a.exame).join(', '),
+         c.receita && c.receita.length && 'receita: ' + c.receita.map(m => [m.medicamento, m.dose, m.periodo].filter(Boolean).join(' ')).join('; ')].filter(Boolean).join(' · ') || 'aberta, sem dados'),
+      !c && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--perigo)', marginTop: 6 } }, 'Sem consulta registada no MetaGest.'),
+      (u.analises || []).length > 0 && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 6, lineHeight: 1.5 } }, React.createElement("b", null, 'Análises: '),
+        u.analises.map((a, k) => React.createElement("div", { key: k }, a.exame + ' — ' + (a.validado ? (a.resultados && a.resultados.length ? a.resultados.map(x => x.parametro + ': ' + x.valor).join('; ') : 'validada') : 'resultado por validar')))),
+      React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, marginTop: 10 } },
+        React.createElement("label", null, rot('Motivo da consulta'), area(l.motivo, v => linha(u.chave, 'motivo', v), c && c.sintomas && c.sintomas[0] ? c.sintomas.join(', ') : '')),
+        React.createElement("label", null, rot('Diagnóstico / patologia'), area(l.diagnostico, v => linha(u.chave, 'diagnostico', v), c && c.diagnosticos && c.diagnosticos[0] ? c.diagnosticos.join(', ') : '')),
+        React.createElement("label", null, rot('Conduta / tratamento'), area(l.conduta, v => linha(u.chave, 'conduta', v), '')),
+        React.createElement("label", null, rot('Destino'), React.createElement("select", { value: l.destino || '', disabled: !podeEditar, onChange: e => linha(u.chave, 'destino', e.target.value), style: bspTranspCampo },
+          React.createElement("option", { value: '' }, '—'), BSP_RC_DESTINOS.map(x => React.createElement("option", { key: x, value: x }, x))))),
+      React.createElement("div", { style: { display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 } },
+        React.createElement("label", { style: { display: 'flex', gap: 6, alignItems: 'center', fontSize: 13, color: 'var(--text-2)' } },
+          React.createElement("input", { type: 'checkbox', checked: !!l.urgente, disabled: !podeEditar, onChange: e => linha(u.chave, 'urgente', e.target.checked) }), 'Caso urgente'),
+        React.createElement("div", { style: { flex: '1 1 260px' } }, area(l.obs, v => linha(u.chave, 'obs', v), 'Observações (opcional)', 1))));
+  };
+  const n = (rotulo, v) => React.createElement("div", { style: { flex: '1 1 150px', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8 } },
+    React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)', fontWeight: 600 } }, rotulo),
+    React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: 'var(--text-1)' } }, v));
+  return React.createElement(React.Fragment, null,
+    caixaTopo,
+    React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, (d.medico ? bspRcNomeProprio(d.medico) + ' · ' : '') + ut.length + (ut.length === 1 ? ' utente' : ' utentes') + ' com factura neste dia.' +
+      (d.sincronizado_em ? ' MetaGest copiado a ' + bspDataExacta(new Date(d.sincronizado_em)) + '.' : '')),
+    !ut.length ? React.createElement("div", { style: Object.assign({}, bspRegCaixa, { color: 'var(--text-3)', fontSize: 13.5 }) }, 'Sem facturas deste médico neste dia.') : ut.map(cartao),
+    ut.length > 0 && React.createElement("div", { style: bspRegCaixa },
+      React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 } }, 'Resumo do dia (contado pelo sistema)'),
+      React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+        n('Utentes', res.total), n('Masculino', res.m), n('Feminino', res.f), n('Primeiras consultas', res.primeiras), n('Seguimento', res.seguimento),
+        n('Urgentes', res.urgentes), n('Para especialidade', res.especialidade), n('Para urgência / hospital', res.hospital), n('Exames pedidos', res.exames), n('Procedimentos', res.procedimentos)),
+      pats.length > 0 && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 10 } }, React.createElement("b", null, 'Principais patologias: '), pats.map(p => p + ' (' + res.patologias[p] + ')').join(' · '))),
+    ut.length > 0 && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { display: 'grid', gap: 10 }) },
+      React.createElement("label", null, rot('Observações do médico'), area(f.observacoes, v => setF(Object.assign({}, f, { observacoes: v })), '', 2)),
+      React.createElement("label", null, rot('Principais dificuldades encontradas'), area(f.dificuldades, v => setF(Object.assign({}, f, { dificuldades: v })), '', 2)),
+      React.createElement("label", null, rot('Sugestões para melhoria do atendimento'), area(f.sugestoes, v => setF(Object.assign({}, f, { sugestoes: v })), '', 2))),
+    React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' } },
+      reg && reg.estado === 'Visto' && React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-3)', marginRight: 'auto' } },
+        'Visto a ' + bspDataExacta(new Date(reg.visto_em)) + (reg.nota_visto ? ' · ' + reg.nota_visto : '')),
+      podeEditar && ut.length > 0 && React.createElement("button", { onClick: () => gravar(false), disabled: busy, style: bspEscBotao(false) }, busy ? 'A gravar…' : 'Gravar rascunho'),
+      podeEditar && ut.length > 0 && React.createElement("button", { onClick: () => gravar(true), disabled: busy, style: bspEscBotao(true) }, estado === 'Submetido' ? 'Submeter alterações' : 'Submeter'),
+      escolhe && !proprio && reg && reg.estado === 'Submetido' && React.createElement("button", { onClick: visto, style: bspEscBotao(true) }, 'Dar visto')));
+}
+function RegistoClinicoComparar({ escolhe, alvo, abrir }) {
+  const hoje = bspDataLocalISO(new Date());
+  const [periodo, setPeriodo] = React.useState('semana');
+  const [livre, setLivre] = React.useState({ de: bspSomarDias(hoje, -13), ate: hoje });
+  const [l, setL] = React.useState(null);
+  const [erro, setErro] = React.useState('');
+  const [so, setSo] = React.useState('');
+  const int = React.useMemo(() => {
+    if (periodo === 'semana') return [bspSomarDias(hoje, -6), hoje];
+    if (periodo === 'mes') return [hoje.slice(0, 8) + '01', hoje];
+    if (periodo === 'anterior') { const m1 = hoje.slice(0, 8) + '01'; return [bspSomarMeses(m1, -1), bspSomarDias(m1, -1)]; }
+    return [livre.de, livre.ate];
+  }, [periodo, hoje, livre.de, livre.ate]);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    setL(null); setErro('');
+    cl.rpc('bsp_registo_clinico_lista', { p_de: int[0], p_ate: int[1], p_membro: alvo || null }).then(r => {
+      if (!vivo) return;
+      if (r.error) setErro(String(r.error.message || r.error)); else setL(r.data || []);
+    });
+    return () => { vivo = false; };
+  }, [int[0], int[1], alvo]);
+  const linhas = (l || []).filter(x => !so || x.estado === so);
+  const cor = e => e === 'Visto' ? 'var(--sucesso)' : e === 'Submetido' ? 'var(--accent-d)' : e === 'Rascunho' ? 'var(--text-2)' : 'var(--perigo)';
+  const th = { textAlign: 'left', fontSize: 12, color: 'var(--text-3)', fontWeight: 700, padding: '6px 8px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' };
+  const td = { fontSize: 13, color: 'var(--text-1)', padding: '8px', borderBottom: '1px solid var(--border)' };
+  return React.createElement(React.Fragment, null,
+    React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+      [['semana', 'Últimos 7 dias'], ['mes', 'Este mês'], ['anterior', 'Mês anterior'], ['datas', 'Escolher datas']].map(p =>
+        React.createElement("button", { key: p[0], onClick: () => setPeriodo(p[0]), style: bspEscChip(periodo === p[0]) }, p[1]))),
+    periodo === 'datas' && React.createElement(DatasLivres, { de: livre.de, ate: livre.ate, maxDias: 62, onMudar: (de, ate) => setLivre({ de, ate }) }),
+    React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+      ['', 'Por preencher', 'Rascunho', 'Submetido', 'Visto'].map(e => React.createElement("button", { key: e || 'todos', onClick: () => setSo(e), style: bspEscChip(so === e) },
+        (e || 'Todos') + (l ? ' (' + (e ? l.filter(x => x.estado === e).length : l.length) + ')' : '')))),
+    erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13.5 } }, 'Não foi possível carregar. ' + erro)
+      : !l ? React.createElement("div", { style: { color: 'var(--text-3)', fontSize: 13.5 } }, 'A carregar…')
+      : !linhas.length ? React.createElement("div", { style: { color: 'var(--text-3)', fontSize: 13.5 } }, 'Nada neste período.')
+      : React.createElement("div", { style: Object.assign({}, bspRegCaixa, { padding: 0, overflowX: 'auto' }) },
+          React.createElement("table", { style: { width: '100%', borderCollapse: 'collapse' } },
+            React.createElement("thead", null, React.createElement("tr", null,
+              ['Dia', escolhe ? 'Médico' : null, 'Utentes facturados', 'Consultas no MetaGest', 'Registados no Workspace', 'Estado', ''].filter(x => x !== null).map((h, i) => React.createElement("th", { key: i, style: th }, h)))),
+            React.createElement("tbody", null, linhas.map(x => React.createElement("tr", { key: x.codigo + x.dia },
+              React.createElement("td", { style: td }, bspDataExacta(new Date(x.dia + 'T12:00:00')).replace(/,.*$/, '')),
+              escolhe && React.createElement("td", { style: td }, bspRcNomeProprio(x.medico || x.codigo)),
+              React.createElement("td", { style: td }, x.utentes),
+              React.createElement("td", { style: Object.assign({}, td, { color: x.metagest < x.utentes ? 'var(--perigo)' : td.color }) }, x.metagest),
+              React.createElement("td", { style: Object.assign({}, td, { color: x.registados < x.utentes ? 'var(--perigo)' : td.color }) }, x.registados),
+              React.createElement("td", { style: Object.assign({}, td, { color: cor(x.estado), fontWeight: 700 }) }, x.estado + (x.numero ? ' · ' + x.numero : '')),
+              React.createElement("td", { style: td }, React.createElement("button", { onClick: () => abrir(x.codigo, x.dia), style: bspEscBotao(false) }, 'Abrir'))))))));
+}
 function ActividadeScreen({ currentUser }) {
   const hoje = bspDataLocalISO(new Date());
   const [periodo, setPeriodo] = React.useState('mes');
@@ -25309,7 +25579,7 @@ function ActividadeAtalho({ currentUser, onAbrir }) {
    cliques. Nao impede o print (no navegador nao ha forma), mas quem o
    tirou fica escrito nele. Na app Android os prints estao bloqueados
    (FLAG_SECURE na MainActivity). */
-const BSP_ECRAS_SENSIVEIS = ['painel', 'painel-clinico', 'actividade', 'seguimento', 'marcacoes', 'qualidade'];
+const BSP_ECRAS_SENSIVEIS = ['painel', 'painel-clinico', 'actividade', 'registo', 'seguimento', 'marcacoes', 'qualidade'];
 function MarcaDagua({ forte }) {
   const [agora, setAgora] = React.useState(() => new Date());
   React.useEffect(() => {
@@ -25573,9 +25843,20 @@ const BSP_GUIA_FICHAS = [
       ['Faça as auditorias', '(gestão, Direcção Clínica e chefes de área): higiene das mãos, carro de emergência, cadeia de frio, resíduos, limpeza, identificação do doente e incêndio, com Sim / Não / N.A. e a conformidade calculada.']
     ],
     quem: 'Toda a equipa regista. A Direcção e a Direcção Clínica vêem tudo; o chefe de cada área vê e trata o da sua; cada pessoa vê o que registou.',
-    dica: 'Nunca escreva nomes de utentes. Uma reclamação tem 15 dias para resposta; notificar um incidente não é acusar ninguém.' }
+    dica: 'Nunca escreva nomes de utentes. Uma reclamação tem 15 dias para resposta; notificar um incidente não é acusar ninguém.' },
+  { icone: 'Edit', nome: 'Registo clínico',
+    serve: 'O registo do que o médico fez em cada dia, no lugar do formulário do banco, das actividades realizadas e do registo de pacientes em papel.',
+    faz: [
+      ['Escolha o dia:', 'aparecem sozinhos os seus utentes desse dia, com as facturas, a triagem da enfermagem, as análises e a consulta do MetaGest.'],
+      ['Escreva por utente', 'o motivo, o diagnóstico, a conduta e o destino. Marque os casos urgentes.'],
+      ['O resumo conta-se sozinho:', 'utentes, sexo, primeiras consultas, urgentes, encaminhados, exames e patologias.'],
+      ['Grave o rascunho e submeta no fim do turno.', 'O registo recebe o número BRSP-DC-BNC e a Direcção Clínica dá o visto.'],
+      ['Em «Comparar»', 'a Direcção Clínica vê, por médico e dia, o que foi facturado, o que está no MetaGest e o que está registado.']
+    ],
+    quem: 'Cada médico vê só os seus doentes. A Direcção Clínica e a Direcção vêem todos os médicos.',
+    dica: 'Os dados dos doentes são confidenciais: cada abertura deste ecrã fica registada.' }
 ];
-const BSP_GUIA_IDS = ['dashboard', 'chat', 'feed', 'drive', 'calendar', 'tasks', 'escalas', 'transporte', 'seguimento', 'marcacoes', 'painel', 'relatorios', 'actividade', 'documentos', 'admin', 'stock', 'directory', 'avarias', 'painel-clinico', 'qualidade'];
+const BSP_GUIA_IDS = ['dashboard', 'chat', 'feed', 'drive', 'calendar', 'tasks', 'escalas', 'transporte', 'seguimento', 'marcacoes', 'painel', 'relatorios', 'actividade', 'documentos', 'admin', 'stock', 'directory', 'avarias', 'painel-clinico', 'qualidade', 'registo'];
 const BSP_GUIA = {};
 BSP_GUIA_IDS.forEach((id, i) => { BSP_GUIA[id] = BSP_GUIA_FICHAS[i]; });
 function bspGuiaVistos(uid) {
@@ -29309,7 +29590,7 @@ function App() {
          confirmacao de recepcao (GuiaRecepcaoCartao). */
       window.__bspConfirmarGuia = true;
       setPage('dashboard');
-    } else if (['feed', 'tarefas', 'agenda', 'drive', 'seguimento', 'marcacoes', 'escalas', 'transporte', 'painel', 'chat', 'relatorios', 'documentos', 'actividade', 'notificacoes', 'qualidade', 'avarias', 'admin'].indexOf(onde) !== -1) {
+    } else if (['feed', 'tarefas', 'agenda', 'drive', 'seguimento', 'marcacoes', 'escalas', 'transporte', 'painel', 'chat', 'relatorios', 'documentos', 'actividade', 'registo', 'notificacoes', 'qualidade', 'avarias', 'admin'].indexOf(onde) !== -1) {
       setPage({ tarefas: 'tasks', agenda: 'calendar', notificacoes: 'notifications' }[onde] || onde);
     } else {
       return;
@@ -29421,7 +29702,7 @@ function App() {
   }), pg === 'meetings' && React.createElement(MeetingsScreen, null), pg === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), (pg === 'seguimento' || pg === 'marcacoes') && (bspVeCrm(currentUser) || bspVeMarcacoes(currentUser) ? React.createElement(CrmScreen, { key: pg, inicial: pg === 'marcacoes' ? 'marcacoes' : null }) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'stock' && (bspVeStock(currentUser) ? React.createElement(StockScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'painel-clinico' && (bspVePainelClinico(currentUser) ? React.createElement(PainelClinicoScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(AvisoVersaoNova, null), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(PedidoNotificacoes, { currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(EquipaScreen, null), pg === 'avarias' && (!bspESocio(currentUser) ? React.createElement(AvariasScreen, null) : null), pg === 'qualidade' && (!bspESocio(currentUser) ? React.createElement(QualidadeScreen, null) : null), pg === 'admin' && React.createElement(AdminScreen, {
+  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), (pg === 'seguimento' || pg === 'marcacoes') && (bspVeCrm(currentUser) || bspVeMarcacoes(currentUser) ? React.createElement(CrmScreen, { key: pg, inicial: pg === 'marcacoes' ? 'marcacoes' : null }) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'stock' && (bspVeStock(currentUser) ? React.createElement(StockScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'painel-clinico' && (bspVePainelClinico(currentUser) ? React.createElement(PainelClinicoScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(AvisoVersaoNova, null), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(PedidoNotificacoes, { currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'registo' && (bspVeActividade(currentUser) ? React.createElement(RegistoClinicoScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(EquipaScreen, null), pg === 'avarias' && (!bspESocio(currentUser) ? React.createElement(AvariasScreen, null) : null), pg === 'qualidade' && (!bspESocio(currentUser) ? React.createElement(QualidadeScreen, null) : null), pg === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
   }), pg === 'notifications' && React.createElement(NotificationsScreen, {
     onAbrir: abrirNotificacao
