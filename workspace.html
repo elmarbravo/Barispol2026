@@ -10,6 +10,10 @@
    apagava a ligacao a quem abrisse, por exemplo, um link para um grupo
    cujo identificador calhasse conter essas cinco letras. */
 (function(){ try { var e = (location.hash + ' ' + location.search).toLowerCase(); if (/(^|[#?&\/])reset($|[=&\/\s])/.test(e)) { localStorage.removeItem('bsp_supabase_cfg'); } } catch(e){} })();
+/* Recuperacao da palavra-passe (05-10-2026): o e-mail da recuperar-acesso
+   abre workspace.html#recuperar=<codigo>. Guarda-se o codigo e limpa-se o
+   endereco ja aqui, antes de o Workspace ler o #/ como destino. */
+(function(){ try { var m = /[#&]recuperar=([^&]+)/.exec(location.hash || ''); if (m) { window.__bspRecuperar = decodeURIComponent(m[1]); history.replaceState(null, '', location.pathname + location.search); } } catch(e){} })();
 </script>
 <script>
 /* Modo escuro (25-09-2026): aplicado antes de desenhar, para nao piscar a branco. */
@@ -7000,6 +7004,83 @@ Object.assign(window, {
   ToastProvider,
   useToast
 });
+/* Nova palavra-passe pela ligacao do e-mail (05-10-2026, recuperar-acesso).
+   O codigo so se gasta aqui, ao gravar (verifyOtp com token_hash): os
+   antivirus que abrem as ligacoes dos e-mails nao o estragam. Depois de
+   verificado, a pessoa fica com sessao e grava a nova palavra-passe. */
+function NovaPalavraPasseEcra({ codigo, onLogin, onCancelar }) {
+  const [p1, setP1] = React.useState('');
+  const [p2, setP2] = React.useState('');
+  const [busy, setBusy] = React.useState(false);
+  const [err, setErr] = React.useState('');
+  const verificado = React.useRef(false);
+  const gravar = async e => {
+    e && e.preventDefault();
+    if (busy) return;
+    setErr('');
+    if (p1.length < 8) { setErr('A palavra-passe deve ter pelo menos 8 caracteres.'); return; }
+    if (p1 !== p2) { setErr('As duas palavras-passe não coincidem.'); return; }
+    const client = bspGetClient();
+    if (!client) { setErr('O servidor não está ligado neste aparelho.'); return; }
+    setBusy(true);
+    try {
+      if (!verificado.current) {
+        const { error } = await client.auth.verifyOtp({ token_hash: codigo, type: 'recovery' });
+        if (error) {
+          setBusy(false);
+          setErr('A ligação já foi usada ou passou do prazo (1 hora). Volte ao início e carregue outra vez em «Esqueceu-se?».');
+          return;
+        }
+        verificado.current = true;
+      }
+      const { data, error } = await client.auth.updateUser({ password: p1 });
+      setBusy(false);
+      if (error) {
+        const m = String(error.message || '').toLowerCase();
+        setErr(m.indexOf('different from the old') !== -1 ? 'A nova palavra-passe tem de ser diferente da antiga.' : m.indexOf('weak') !== -1 ? 'Palavra-passe fraca. Junte letras, números e mais caracteres.' : 'Não foi possível gravar: ' + (error.message || ''));
+        return;
+      }
+      window.__bspRecuperar = null;
+      onLogin(String(data && data.user && data.user.email || '').toLowerCase());
+    } catch (e2) {
+      setBusy(false);
+      setErr('Não foi possível gravar. Verifique a internet.');
+    }
+  };
+  const campo = (valor, mudar, ph, auto) => React.createElement("input", {
+    type: "password",
+    value: valor,
+    onChange: e => mudar(e.target.value),
+    placeholder: ph,
+    autoComplete: "new-password",
+    autoFocus: auto,
+    style: { width: '100%', height: 46, padding: '0 14px', border: '1px solid var(--border)', borderRadius: 10, fontSize: 16, color: 'var(--text-1)', background: 'var(--surface)', outline: 'none', fontFamily: 'inherit', marginBottom: 12, boxSizing: 'border-box' }
+  });
+  return React.createElement("div", {
+    style: { minHeight: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'var(--bg)', overflowY: 'auto', boxSizing: 'border-box' }
+  }, React.createElement("form", {
+    onSubmit: gravar,
+    style: { width: '100%', maxWidth: 400, background: 'var(--surface)', border: '1px solid var(--border)', padding: 28, boxSizing: 'border-box' }
+  }, React.createElement("div", { style: { display: 'flex', justifyContent: 'center', marginBottom: 18 } }, React.createElement(BarispolLogo, { size: "md" })),
+  React.createElement("h2", { style: { fontSize: 22, fontWeight: 700, color: 'var(--navy-texto)', margin: '0 0 6px' } }, "Nova palavra-passe"),
+  React.createElement("p", { style: { fontSize: 14, color: 'var(--text-3)', margin: '0 0 20px' } }, "Escreva a nova palavra-passe duas vezes. Pelo menos 8 caracteres. Depois de gravar, entra no Workspace."),
+  err && React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: 'var(--perigo)', border: '1px solid var(--perigo)', borderRadius: 10, padding: '10px 12px', marginBottom: 16 } }, err),
+  campo(p1, setP1, 'Nova palavra-passe', true),
+  campo(p2, setP2, 'Repetir a nova palavra-passe', false),
+  React.createElement(Button, {
+    variant: "navy",
+    full: true,
+    size: "lg",
+    onClick: gravar,
+    style: { marginTop: 4 }
+  }, busy ? 'A gravar…' : 'Gravar e entrar'),
+  React.createElement(Button, {
+    variant: "ghost",
+    full: true,
+    onClick: e => { e.preventDefault(); onCancelar(); },
+    style: { marginTop: 10 }
+  }, "Voltar à entrada")));
+}
 function LoginScreen({
   onLogin
 }) {
@@ -7010,6 +7091,7 @@ function LoginScreen({
   const [err, setErr] = React.useState('');
   const [info, setInfo] = React.useState('');
   const [busy, setBusy] = React.useState(false);
+  const [recCodigo, setRecCodigo] = React.useState(() => window.__bspRecuperar || null);
   const hasServer = !!bspGetCfg();
   const cfgGuardada = bspGetCfg() || {};
   const [mostrarLigacao, setMostrarLigacao] = React.useState(!hasServer);
@@ -7081,13 +7163,33 @@ function LoginScreen({
       setErr('A recuperação por e-mail requer o servidor ligado.');
       return;
     }
+    /* Recuperacao propria (05-10-2026, recuperar-acesso): o correio do
+       Supabase so entregava ao Elmar e a ligacao ia para localhost. */
+    const cfg = bspGetCfg();
+    setBusy(true);
     try {
-      await client.auth.resetPasswordForEmail(norm);
-      setInfo('Enviámos um e-mail de recuperação para ' + norm + '. Verifique a caixa de entrada.');
+      const r = await fetch(cfg.url.replace(/\/$/, '') + '/functions/v1/recuperar-acesso', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: cfg.key },
+        body: JSON.stringify({ email: norm })
+      });
+      const j = await r.json().catch(() => ({}));
+      setBusy(false);
+      if (!r.ok) {
+        setErr(j.erro || 'Não foi possível enviar o e-mail de recuperação.');
+        return;
+      }
+      setInfo('Se ' + norm + ' tiver conta no Workspace, recebe dentro de minutos um e-mail de geral@barispol.com com a ligação para escolher a nova palavra-passe. Veja também a pasta de lixo electrónico.');
     } catch (e) {
-      setErr('Não foi possível enviar o e-mail de recuperação.');
+      setBusy(false);
+      setErr('Não foi possível enviar o e-mail de recuperação. Verifique a internet.');
     }
   };
+  if (recCodigo) return React.createElement(NovaPalavraPasseEcra, {
+    codigo: recCodigo,
+    onLogin: onLogin,
+    onCancelar: () => { window.__bspRecuperar = null; setRecCodigo(null); }
+  });
   return React.createElement("div", {
     className: "bsp-login-root",
     style: {

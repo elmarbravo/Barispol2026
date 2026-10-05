@@ -3115,3 +3115,41 @@ teres uma média por revisão.»
   registo de 30-09-2026 (id 1, 66.652,80 Kz, preço do material) passou de
   «feita» a «orcamento», com nota. A última revisão feita da Eeco é a de
   12-08-2026, aos 49.649 km; a seguinte (cada 5.000 km) já passou.
+
+## 3-fa. Recuperação da palavra-passe sem o Elmar (05-10-2026)
+
+Elmar: «A recuperação de password como está? Os meus colegas conseguem sem
+mim? Se não faça isso.»
+
+- Como estava: o «Esqueceu-se?» chamava `resetPasswordForEmail`.
+  - O e-mail saía pelo correio de teste do Supabase
+    (noreply@mail.app.supabase.io). Esse correio só entrega a membros da
+    organização do Supabase, ou seja, só ao Elmar.
+  - A ligação levava ao «Site URL» do painel, que está em
+    http://localhost:3000. Mesmo o Elmar caía numa página que não abre.
+  - O ecrã dizia sempre «Enviámos», mesmo sem envio.
+  - Resultado: nenhum colega conseguia recuperar a palavra-passe sozinho.
+- Como fica:
+  - Edge Function `recuperar-acesso` (versão 1, verificação de JWT
+    desligada, só aceita barispol.com). Cria a ligação com `generateLink`
+    (recovery) e envia-a pela Resend, de geral@barispol.com, só para o
+    endereço da conta.
+  - Responde sempre o mesmo, exista ou não a conta.
+  - Limite: 3 pedidos por endereço por hora e 30 no total
+    (`recuperar-acesso.sql`, `recuperacoes_pedidos`, `bsp_recuperacao_pode`;
+    guarda só o resumo SHA-256 do endereço).
+  - Não respeita a pausa dos e-mails. Regista em `emails_registo`.
+  - A ligação abre `workspace.html#recuperar=<código>`. O código guarda-se
+    logo no início da página (`window.__bspRecuperar`) e o endereço limpa-se.
+  - Ecrã `NovaPalavraPasseEcra`: duas vezes a palavra-passe (mínimo 8). O
+    código só se gasta ao gravar (`verifyOtp` com `token_hash`), por isso os
+    antivírus que abrem as ligações não o estragam. Depois entra no Workspace.
+  - A ligação vale 1 hora e serve uma vez.
+- Testado: a função responde 200 a um endereço sem conta, 403 a outra
+  origem e 400 a um e-mail inválido. No navegador (Playwright, com o
+  servidor simulado): pedido, ecrã, palavra-passe curta, ligação gasta e
+  entrada no Workspace.
+- Opcional, no painel do Supabase (só o Elmar): Authentication → URL
+  Configuration → Site URL = `https://barispol.com/workspace.html`. Já não é
+  preciso para a recuperação, mas os outros e-mails do próprio Supabase
+  (convites) continuam a apontar para localhost.

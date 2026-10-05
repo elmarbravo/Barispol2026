@@ -102,6 +102,12 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
     05h00), sino e telemóvel. A `documento-aviso` já não se chama; o
     colectivo das 12h00 está desligado. O WhatsApp está só no e-mail das
     08h00 (`wa_resumo_8h`), nunca no relatório da Recepção.
+  - `recuperar-acesso` (05-10-2026, `recuperar-acesso.sql`): o «Esqueceu-se?».
+    Ligação de recuperação (`generateLink`) pela Resend, de geral@, só para
+    o endereço da conta; abre `workspace.html#recuperar=<código>` e o
+    `NovaPalavraPasseEcra` gasta o código só ao gravar (`verifyOtp`). Nunca
+    voltar ao `resetPasswordForEmail` (correio do Supabase só entrega ao
+    Elmar e a ligação ia para localhost).
   - `contacto-site` (caixa de contacto do site): versão 5 (26-09-2026),
     para rececao@barispol.com com geral@barispol.com em cópia; aspecto
     igual ao site. Verificação de JWT desligada, só aceita barispol.com.
