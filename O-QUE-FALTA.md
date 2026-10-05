@@ -3326,3 +3326,20 @@ desactivar». Antes só havia «Remover», que apaga a pessoa da equipa de vez.
 - Verificado no navegador (Admin com a equipa embutida e o servidor
   simulado): desactivar tira a pessoa das listas e chama a função e o
   servidor; reactivar repõe.
+
+## 3-fh. Menu dos médicos: «Actividade e registo» (05-10-2026)
+
+Elmar: «no menu dos médicos não tem a opção de correr a página para baixo,
+podes juntar a actividade com esse menu novo dos médicos? tem muita coisa
+espalhada».
+- Um só menu, «Actividade e registo» (rota `actividade`), com dois
+  separadores: «A minha actividade» («Actividade» para quem escolhe o médico)
+  e «Registo clínico» (`MedicosScreen`). A rota antiga `registo` (ligações,
+  novidades, `#/registo`) abre o mesmo ecrã no separador do registo.
+- A página do Registo clínico não descia no computador: faltava
+  `height: 100%` e `overflow: auto` ao ecrã. Corrigido.
+- As patologias do resumo contam-se uma a uma (o diagnóstico vindo do
+  MetaGest junta várias com vírgula).
+- Ficha do guia «Actividade e registo» actualizada.
+- Verificado no navegador a 1280 px e 390 px: a página desce, os separadores
+  ficam por cima.

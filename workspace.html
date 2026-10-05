@@ -2840,17 +2840,11 @@ const NAV_ITEMS = [{
   icon: 'File',
   badge: null
 }, {
-  /* A minha actividade (30-09-2026): so os medicos ligados ao MetaGest. */
+  /* A minha actividade (30-09-2026) e Registo clinico (05-10-2026) num so
+     menu, com separadores (Elmar, 05-10-2026: «tem muita coisa espalhada»). */
   id: 'actividade',
-  label: 'A minha actividade',
+  label: 'Actividade e registo',
   icon: 'TrendUp',
-  badge: null,
-  actividadeOnly: true
-}, {
-  /* Registo clinico (05-10-2026, registo-clinico.sql): os mesmos de «A minha actividade». */
-  id: 'registo',
-  label: 'Registo clínico',
-  icon: 'Edit',
   badge: null,
   actividadeOnly: true
 }, {
@@ -3270,7 +3264,7 @@ function Topbar({
     'painel-clinico': 'Painel clínico',
     relatorios: 'Relatórios do dia',
     documentos: 'Documentos da clínica',
-    actividade: 'A minha actividade',
+    actividade: 'Actividade e registo',
     directory: 'Equipa',
     avarias: 'Avarias e património',
     qualidade: 'Qualidade',
@@ -20070,7 +20064,7 @@ function MobileTopbar({
     'painel-clinico': 'Painel clínico',
     relatorios: 'Relatórios',
     documentos: 'Documentos',
-    actividade: 'A minha actividade',
+    actividade: 'Actividade e registo',
     admin: 'Admin',
     notifications: 'Notificações',
     directory: 'Equipa',
@@ -20421,12 +20415,8 @@ function MobileMore({
     icon: 'File'
   }, {
     id: 'actividade',
-    label: 'A minha actividade',
+    label: 'Actividade e registo',
     icon: 'TrendUp'
-  }, {
-    id: 'registo',
-    label: 'Registo clínico',
-    icon: 'Edit'
   }, {
     id: 'documentos',
     label: 'Documentos',
@@ -20459,10 +20449,6 @@ function MobileMore({
   }
   if (!bspVeActividade(window.userById(window.CURRENT_USER_ID))) {
     const k = items.findIndex(x => x.id === 'actividade');
-    if (k !== -1) items.splice(k, 1);
-  }
-  if (!bspVeActividade(window.userById(window.CURRENT_USER_ID))) {
-    const k = items.findIndex(x => x.id === 'registo');
     if (k !== -1) items.splice(k, 1);
   }
   if (!bspVeTransporte(window.userById(window.CURRENT_USER_ID))) {
@@ -25313,8 +25299,10 @@ function bspRcResumo(utentes, linhas) {
     if (l.urgente) r.urgentes++;
     if (/especialidade/i.test(l.destino || '')) r.especialidade++;
     if (/urg|hospital/i.test(l.destino || '')) r.hospital++;
-    const dx = String(l.diagnostico || (u.consulta && (u.consulta.diagnosticos || [])[0]) || '').trim();
-    if (dx) { const k = dx.charAt(0).toUpperCase() + dx.slice(1).toLowerCase(); r.patologias[k] = (r.patologias[k] || 0) + 1; }
+    /* Cada patologia conta à parte («A, B» são duas). */
+    String(l.diagnostico || (u.consulta && (u.consulta.diagnosticos || []).join(', ')) || '').split(/[,;\n]+/).map(x => x.trim()).filter(Boolean).forEach(dx => {
+      const k = dx.charAt(0).toUpperCase() + dx.slice(1).toLowerCase(); r.patologias[k] = (r.patologias[k] || 0) + 1;
+    });
   });
   return r;
 }
@@ -25343,7 +25331,8 @@ function RegistoClinicoScreen({ currentUser }) {
   const escolhaMedico = escolhe && React.createElement("select", { value: alvo, onChange: e => setMembro(e.target.value), style: Object.assign({}, bspTranspCampo, { maxWidth: 360 }) },
     !medicos.length && React.createElement("option", { value: alvo }, 'A carregar médicos…'),
     medicos.map(m => React.createElement("option", { key: m.id, value: m.id }, m.name + (m.id === meuCodigo ? ' (eu)' : ''))));
-  return React.createElement("div", { style: { padding: 'var(--density-pad)', maxWidth: 1100, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 14 } },
+  /* height + overflow: sem isto a página não descia no computador (05-10-2026). */
+  return React.createElement("div", { style: { height: '100%', overflow: 'auto', boxSizing: 'border-box', paddingBottom: 24 } }, React.createElement("div", { style: { padding: 'var(--density-pad)', maxWidth: 1100, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 14 } },
     React.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' } },
       React.createElement("div", null,
         React.createElement("h1", { style: { margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--navy-texto)' } }, 'Registo clínico'),
@@ -25354,7 +25343,22 @@ function RegistoClinicoScreen({ currentUser }) {
       React.createElement("button", { onClick: () => setAba('comparar'), style: bspEscChip(aba === 'comparar') }, escolhe ? 'Comparar' : 'Os meus dias')),
     aba === 'registo'
       ? React.createElement(RegistoClinicoDia, { key: alvo + dia, dia, setDia, alvo, proprio, escolhe, gestor, toast, escolhaMedico, voltar: () => setAba('comparar') })
-      : React.createElement(RegistoClinicoComparar, { escolhe, alvo: escolhe ? '' : currentUser.id, abrir }));
+      : React.createElement(RegistoClinicoComparar, { escolhe, alvo: escolhe ? '' : currentUser.id, abrir })));
+}
+/* Menu dos médicos (05-10-2026, Elmar: «podes juntar a actividade com esse
+   menu novo dos médicos? tem muita coisa espalhada»): «A minha actividade» e
+   «Registo clínico» como separadores do mesmo ecrã. A rota antiga «registo»
+   abre aqui, no separador do registo. */
+function MedicosScreen({ currentUser, inicial }) {
+  const [aba, setAba] = React.useState(inicial === 'registo' ? 'registo' : 'actividade');
+  useBspAbaVoltar(aba, setAba);
+  const escolhe = bspEscolheMedicoActividade(currentUser);
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 } },
+    React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap', padding: '0 0 10px' } },
+      React.createElement("button", { onClick: () => setAba('actividade'), style: bspEscChip(aba === 'actividade') }, escolhe ? 'Actividade' : 'A minha actividade'),
+      React.createElement("button", { onClick: () => setAba('registo'), style: bspEscChip(aba === 'registo') }, 'Registo clínico')),
+    React.createElement("div", { style: { flex: 1, minHeight: 0 } },
+      aba === 'registo' ? React.createElement(RegistoClinicoScreen, { currentUser }) : React.createElement(ActividadeScreen, { currentUser })));
 }
 /* Rascunho por médico e dia, só nesta sessão (sessionStorage: nunca dados
    clínicos no localStorage de um computador partilhado). Mudar de dia ou de
@@ -25901,9 +25905,10 @@ const BSP_GUIA_FICHAS = [
     ],
     quem: 'Todos preenchem. Lêem: Direcção e Coordenação (tudo) e Direcção Clínica (áreas médicas).',
     dica: 'Nunca escreva nomes de utentes no relatório. Cada relatório segue por e-mail para a Arlete.' },
-  { icone: 'TrendUp', nome: 'A minha actividade',
-    serve: 'Para cada médico, a sua própria produção na clínica.',
+  { icone: 'TrendUp', nome: 'Actividade e registo',
+    serve: 'Para cada médico, a sua própria produção na clínica e o registo clínico de cada dia, em dois separadores.',
     faz: [
+      ['No separador «Registo clínico», escreva o que fez em cada dia:', 'motivo e diagnóstico já vêm do MetaGest; confirme, complete a conduta e o destino, e submeta.'],
       ['Veja doentes, consultas, exames e facturas', 'do período: hoje, semana, mês, ano ou as datas que escolher.'],
       ['Filtre por serviço', '(consultas, ecografia, laboratório...): só contam as facturas desse serviço.'],
       ['Veja o tempo de espera dos seus doentes,', 'da triagem à abertura da consulta no MetaGest, ao lado do da clínica.'],
@@ -29902,7 +29907,7 @@ function App() {
   }), pg === 'meetings' && React.createElement(MeetingsScreen, null), pg === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), (pg === 'seguimento' || pg === 'marcacoes') && (bspVeCrm(currentUser) || bspVeMarcacoes(currentUser) ? React.createElement(CrmScreen, { key: pg, inicial: pg === 'marcacoes' ? 'marcacoes' : null }) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'stock' && (bspVeStock(currentUser) ? React.createElement(StockScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'painel-clinico' && (bspVePainelClinico(currentUser) ? React.createElement(PainelClinicoScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(AvisoVersaoNova, null), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(PedidoNotificacoes, { currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), pg === 'actividade' && (bspVeActividade(currentUser) ? React.createElement(ActividadeScreen, { currentUser: currentUser }) : null), pg === 'registo' && (bspVeActividade(currentUser) ? React.createElement(RegistoClinicoScreen, { currentUser: currentUser }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(EquipaScreen, null), pg === 'avarias' && (!bspESocio(currentUser) ? React.createElement(AvariasScreen, null) : null), pg === 'qualidade' && (!bspESocio(currentUser) ? React.createElement(QualidadeScreen, null) : null), pg === 'admin' && React.createElement(AdminScreen, {
+  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), (pg === 'seguimento' || pg === 'marcacoes') && (bspVeCrm(currentUser) || bspVeMarcacoes(currentUser) ? React.createElement(CrmScreen, { key: pg, inicial: pg === 'marcacoes' ? 'marcacoes' : null }) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'stock' && (bspVeStock(currentUser) ? React.createElement(StockScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'painel-clinico' && (bspVePainelClinico(currentUser) ? React.createElement(PainelClinicoScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(AvisoVersaoNova, null), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(PedidoNotificacoes, { currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), (pg === 'actividade' || pg === 'registo') && (bspVeActividade(currentUser) ? React.createElement(MedicosScreen, { key: pg, currentUser: currentUser, inicial: pg === 'registo' ? 'registo' : 'actividade' }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(EquipaScreen, null), pg === 'avarias' && (!bspESocio(currentUser) ? React.createElement(AvariasScreen, null) : null), pg === 'qualidade' && (!bspESocio(currentUser) ? React.createElement(QualidadeScreen, null) : null), pg === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
   }), pg === 'notifications' && React.createElement(NotificationsScreen, {
     onAbrir: abrirNotificacao
