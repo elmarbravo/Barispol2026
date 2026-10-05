@@ -4086,7 +4086,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos'];
+const BSP_RPC_LEITURA = ['bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -7851,6 +7851,9 @@ function DashboardScreen({
     onAbrir: () => onSwitch && onSwitch('actividade')
   }), bspAreaChave(currentUser && currentUser.dept) === 'recepcao' && React.createElement(MarcLembretesInicio, {
     onAbrir: () => onSwitch && onSwitch('marcacoes')
+  }), bspAreaChave(currentUser && currentUser.dept) === 'recepcao' && React.createElement(PresencasMedicos, {
+    compacto: true,
+    onVerTudo: () => { window.__bspCrmAba = 'presencas'; if (onSwitch) onSwitch('seguimento'); }
   }), React.createElement(GuiaRecepcaoCartao, {
     currentUser: currentUser
   }), React.createElement(GuiaRecepcoesRhCartao, {
@@ -29309,11 +29312,99 @@ function bspCrmFaltaServidor(msg) {
   return /function|does not exist|schema cache|not find/i.test(String(msg || ''));
 }
 
+/* Presenças dos médicos (05-10-2026, medicos-presencas.sql). A Recepção
+   fiscaliza: «Chegou» e «Saiu» gravam a hora do sistema e quem carregou;
+   corrigir fica registado. As horas entram sozinhas no Pagamento dos médicos.
+   Aqui só nomes e horas, nunca valores. */
+function PresencasMedicos({ compacto, onVerTudo }) {
+  const toast = useToast();
+  const hoje = bspDataLocalISO(new Date());
+  const eu = window.userById(window.CURRENT_USER_ID);
+  const gestor = !!(bspCamada(eu) && bspCamada(eu).podeGerirUtilizadores);
+  const [dia, setDia] = React.useState(hoje);
+  const [lista, setLista] = React.useState(null);
+  const [erro, setErro] = React.useState('');
+  const [tick, setTick] = React.useState(0);
+  const [busca, setBusca] = React.useState('');
+  const [aMarcar, setAMarcar] = React.useState(null);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    cl.rpc('bsp_presencas_dia', { p_dia: dia }).then(r => {
+      if (!vivo) return;
+      if (r.error) { setErro(String(r.error.message || r.error)); setLista([]); } else { setErro(''); setLista(r.data || []); }
+    });
+    return () => { vivo = false; };
+  }, [dia, tick]);
+  /* De 5 em 5 minutos, para ver o que outro posto marcou. */
+  React.useEffect(() => { const t = setInterval(() => setTick(x => x + 1), 5 * 60 * 1000); return () => clearInterval(t); }, []);
+  async function marcar(m, tipo, hora) {
+    setAMarcar(m.id + tipo);
+    const r = await bspGetClient().rpc('bsp_presenca_marcar', { p_prestador: m.id, p_tipo: tipo, p_dia: dia, p_hora: hora || null });
+    setAMarcar(null);
+    if (r.error) { toast(r.error.message); return; }
+    toast(tipo === 'limpar' ? 'Presença apagada.' : (tipo === 'entrada' ? 'Chegada' : 'Saída') + ' de ' + bspNomeProprio(m.nome) + ' às ' + (r.data && (tipo === 'entrada' ? r.data.entrada : r.data.saida)) + '.');
+    setTick(x => x + 1);
+  }
+  function corrigir(m, tipo) {
+    const actual = tipo === 'entrada' ? m.entrada : m.saida;
+    const h = window.prompt('Hora ' + (tipo === 'entrada' ? 'de chegada' : 'de saída') + ' de ' + bspNomeProprio(m.nome) + ' (HH:MM). Fica registado que foi corrigida por si.', actual || '');
+    if (h === null) return;
+    if (!/^\d{1,2}:\d{2}$/.test(h.trim())) { toast('Escreva a hora como 08:30.'); return; }
+    marcar(m, tipo, h.trim());
+  }
+  /* Uma lista com o «Ver como» ou sem acesso não mostra nada no Início. */
+  if (compacto && (erro || (lista && !lista.length))) return null;
+  const quem = id => { const u = id && window.userById(id); return u ? bspNomeProprio(u.name).split(' ')[0] : ''; };
+  const semChegada = (lista || []).filter(m => !m.entrada && m.facturas > 0);
+  const presentes = (lista || []).filter(m => m.entrada);
+  const semAcento = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  let mostrar = (lista || []).filter(m => !busca.trim() || semAcento(m.nome).indexOf(semAcento(busca.trim())) !== -1);
+  if (compacto && !busca.trim()) mostrar = mostrar.filter(m => m.entrada || m.facturas > 0);
+  const botao = (txt, f, principal, chave) => React.createElement("button", { disabled: aMarcar === chave, onClick: f, style: Object.assign({}, bspEscBotao(!!principal), { padding: '6px 12px', minHeight: 34 }) }, aMarcar === chave ? '…' : txt);
+  const linha = m => {
+    const corr = m.corrigido_por ? ' · corrigido por ' + quem(m.corrigido_por) : '';
+    return React.createElement("div", { key: m.id, style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '8px 0', borderTop: '1px solid var(--border)' } },
+      React.createElement("div", { style: { flex: '1 1 200px', minWidth: 0 } },
+        React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)' } }, bspNomeProprio(m.nome)),
+        React.createElement("div", { style: { fontSize: 12, color: !m.entrada && m.facturas > 0 ? 'var(--perigo)' : 'var(--text-3)' } },
+          !m.entrada && m.facturas > 0 ? 'Já tem ' + m.facturas + (m.facturas === 1 ? ' factura' : ' facturas') + ' hoje e a chegada não está marcada'
+            : [bspNomeProprio(m.especialidade || ''), m.entrada ? 'chegou ' + m.entrada + (quem(m.entrada_por) ? ' (' + quem(m.entrada_por) + ')' : '') : '',
+               m.saida ? 'saiu ' + m.saida + (quem(m.saida_por) ? ' (' + quem(m.saida_por) + ')' : '') : ''].filter(Boolean).join(' · ') + corr)),
+      React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+        !m.entrada && botao('Chegou', () => marcar(m, 'entrada'), true, m.id + 'entrada'),
+        m.entrada && !m.saida && botao('Saiu', () => marcar(m, 'saida'), true, m.id + 'saida'),
+        !m.entrada && botao('Outra hora', () => corrigir(m, 'entrada'), false, m.id + 'c1'),
+        m.entrada && botao('Corrigir chegada', () => corrigir(m, 'entrada'), false, m.id + 'c2'),
+        m.saida && botao('Corrigir saída', () => corrigir(m, 'saida'), false, m.id + 'c3'),
+        m.entrada && !m.saida && botao('Saiu a outra hora', () => corrigir(m, 'saida'), false, m.id + 'c4'),
+        gestor && m.entrada && botao('Apagar', () => window.confirm('Apagar a presença de ' + bspNomeProprio(m.nome) + ' neste dia?') && marcar(m, 'limpar'), false, m.id + 'limpar')));
+  };
+  return React.createElement("div", { style: Object.assign({}, bspRegCaixa, { display: 'flex', flexDirection: 'column', gap: 8 }) },
+    React.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' } },
+      React.createElement("div", null,
+        React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--navy-texto)' } }, 'Presenças dos médicos'),
+        React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } },
+          presentes.length + (presentes.length === 1 ? ' presente' : ' presentes') + (semChegada.length ? ' · ' + semChegada.length + ' com facturas sem chegada marcada' : '') +
+          '. Carregue em «Chegou» quando o médico entra e em «Saiu» quando sai.')),
+      !compacto && React.createElement("label", { style: { display: 'flex', gap: 6, alignItems: 'center', fontSize: 13, fontWeight: 700, color: 'var(--text-2)' } }, 'Dia',
+        React.createElement("input", { type: 'date', value: dia, max: hoje, min: gestor ? undefined : bspSomarDias(hoje, -1), onChange: e => e.target.value && setDia(e.target.value), style: Object.assign({}, bspTranspCampo, { width: 160 }) }))),
+    erro && React.createElement("div", { style: { fontSize: 13, color: 'var(--perigo)' } }, 'Não foi possível carregar: ' + erro),
+    React.createElement("input", { value: busca, onChange: e => setBusca(e.target.value), placeholder: compacto ? 'Procurar médico para marcar a chegada…' : 'Procurar médico…', style: bspTranspCampo }),
+    !lista ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'A carregar…')
+      : !mostrar.length ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)', padding: '6px 0' } }, compacto ? 'Ninguém marcado hoje. Procure o médico acima para marcar a chegada.' : 'Nenhum médico com este nome.')
+      : mostrar.map(linha),
+    compacto && onVerTudo && React.createElement("div", null, React.createElement("button", { onClick: onVerTudo, style: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, color: 'var(--accent-d)' } }, 'Todos os médicos e outros dias ›')));
+}
 function CrmScreen({ inicial }) {
   const eu = window.userById(window.CURRENT_USER_ID);
   const veCrm = bspVeCrm(eu);
   const veMarc = bspVeMarcacoes(eu);
-  const [aba, setAba] = React.useState(inicial && (inicial !== 'marcacoes' || veMarc) ? inicial : veMarc ? 'marcacoes' : 'pedidos');
+  const [aba, setAba] = React.useState(() => {
+    const pedida = window.__bspCrmAba || inicial; window.__bspCrmAba = null;
+    return pedida && ((pedida !== 'marcacoes' && pedida !== 'presencas') || veMarc) ? pedida : veMarc ? 'marcacoes' : 'pedidos';
+  });
   useBspAbaVoltar(aba, setAba);
   const aba_ = (id, txt) => React.createElement("button", {
     key: id, onClick: () => setAba(id),
@@ -29328,9 +29419,10 @@ function CrmScreen({ inicial }) {
     style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' }
   }, React.createElement("div", {
     style: { display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', flex: 'none', overflowX: 'auto' }
-  }, veMarc && aba_('marcacoes', 'Marcações'), veCrm && aba_('pedidos', 'Pedidos do WhatsApp'), veCrm && aba_('funil', 'Funil de vendas'), veCrm && aba_('recuperar', 'Recuperar utentes'), veCrm && aba_('fichas', 'Fichas de pacientes'), veCrm && aba_('resultados', 'Resultados')),
-  React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: aba === 'marcacoes' ? 'auto' : 'hidden' } },
+  }, veMarc && aba_('marcacoes', 'Marcações'), veMarc && aba_('presencas', 'Presenças dos médicos'), veCrm && aba_('pedidos', 'Pedidos do WhatsApp'), veCrm && aba_('funil', 'Funil de vendas'), veCrm && aba_('recuperar', 'Recuperar utentes'), veCrm && aba_('fichas', 'Fichas de pacientes'), veCrm && aba_('resultados', 'Resultados')),
+  React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: aba === 'marcacoes' || aba === 'presencas' ? 'auto' : 'hidden' } },
     aba === 'marcacoes' && veMarc && React.createElement(MarcacoesScreen, null),
+    aba === 'presencas' && veMarc && React.createElement(PresencasMedicos, null),
     aba === 'pedidos' && React.createElement(CrmPedidos, null),
     aba === 'recuperar' && React.createElement(SeguimentoScreen, null),
     aba === 'fichas' && React.createElement(CrmFichas, null),

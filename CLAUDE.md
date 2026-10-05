@@ -503,6 +503,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   doentes). «Excel do mês» e «Mapas individuais» saem do ecrã (`bspPagExcel`,
   `bspPagMapasZip`). Taxas de permanência: 15.000, 20.000 ou 25.000. Médico «off» =
   `activo = false`, nunca apagar.
+  Presenças (05-10-2026, `medicos-presencas.sql`): a Recepção marca «Chegou»/«Saiu»
+  (`PresencasMedicos`, Utentes e Início) por `bsp_presenca_marcar`, com hora do
+  servidor; correcções ficam com `corrigido_por`. Vão para `pagamento_permanencias`;
+  o `bsp_pagamento_fichas` actualiza sem apagar quem marcou.
 - Integração (03-10-2026, `integracao.sql`, RI-2.2): modelo de passos só no
   servidor (`integracao_modelo`); Equipa → `IntegracaoPainel`. Documentos com
   `revisao_ate` (`documentos-revisao.sql`).

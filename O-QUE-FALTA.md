@@ -3360,3 +3360,28 @@ espalhada».
 - Ficha do guia «Actividade e registo» actualizada.
 - Verificado no navegador a 1280 px e 390 px: a página desce, os separadores
   ficam por cima.
+
+## 3-fi. Presenças dos médicos marcadas pela Recepção (05-10-2026, servidor por aplicar)
+
+Elmar: «Sobre a presença do médico quem fiscaliza é a recepção, como fazemos
+esse campo da hora?». Opção escolhida: a Recepção marca.
+- Ecrã: Utentes → separador «Presenças dos médicos» (`PresencasMedicos`), e no
+  Início da Recepção um cartão com os médicos de hoje. «Chegou» e «Saiu» gravam
+  a hora do servidor (hora de Luanda); «Outra hora», «Corrigir chegada/saída» e
+  «Saiu a outra hora» pedem a hora e ficam registados como correcção (quem e
+  quando). Só a gestão apaga uma presença.
+- Aviso a vermelho: médico com facturas hoje no MetaGest e sem chegada marcada.
+- A Recepção marca hoje e corrige só ontem; a gestão marca qualquer dia. Nunca
+  dias nem horas futuras, nunca meses já fechados no Pagamento.
+- As horas vão directamente para as fichas do Pagamento dos médicos
+  (`pagamento_permanencias`, `origem`, `entrada_por`, `saida_por`,
+  `corrigido_por`); o `bsp_pagamento_fichas` passa a actualizar sem apagar quem
+  marcou.
+- Servidor: `medicos-presencas.sql` (`bsp_presencas_pode` = quem vê as
+  Marcações, `bsp_presencas_dia`, `bsp_presenca_marcar`).
+- **Por fazer:** aplicar `medicos-presencas.sql` no Supabase (o conector
+  precisa de nova autorização) e inserir a novidade para `recepcao` e `gestao`.
+  Até lá o cartão do Início não aparece e o separador diz que não carregou.
+- Verificado no navegador a 1280 px e 390 px, com dados simulados: marcar
+  chegada, saída a outra hora, aviso das facturas sem chegada, sem passar da
+  largura do ecrã.
