@@ -3414,7 +3414,7 @@ viagem»). Pediu no #transporte que a apagassem.
 - Transporte → «Histórico e contas»: botão «Apagar» em cada viagem, só para a
   gestão (`apagarViagem`; no servidor já existia `transporte_viagens_apagar` =
   `bsp_e_gestor`). Pede confirmação e deixa uma linha no #transporte.
-- Pelo conector do Supabase o `delete` ficou à espera de confirmação e não
-  correu: a viagem 87 apaga-se pelo ecrã.
+- Viagem 87 apagada no servidor a 05-10-2026, com autorização do Elmar («Pode
+  apagar»). O último km passa a 55 542.
 - Verificado no navegador (390 px, dados simulados): o Elmar vê e apaga; o
   motorista não vê o botão.
