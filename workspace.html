@@ -4086,7 +4086,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista'];
+const BSP_RPC_LEITURA = ['bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -28601,6 +28601,278 @@ function PainelClinicoScreen() {
    lançam-se aqui (a ficha prevalece). Fechar guarda o mapa; depois «Pago».
    Só quem vê o Painel (bspVePainel); os sócios só lêem. NIF, IBAN e valores
    vêm do servidor e nunca ficam no código. */
+/* Ficheiros do mês do Pagamento dos médicos (05-10-2026, Elmar: «com base
+   nesse cálculo criar algo no Workspace? Para Outubro ser mais leve»).
+   Em Setembro o Excel e os mapas individuais fizeram-se à mão; agora saem
+   daqui, com os números do servidor (bsp_pagamento_calcular, fichas,
+   bsp_pagamento_actos). Sem nomes de doentes; IBAN completo só no Excel
+   (é para o banco), nos mapas individuais só os últimos 4 dígitos. */
+const BSP_PAG_TAXAS_PERM = [15000, 20000, 25000];
+const BSP_PAG_IRT = 0.065;
+const BSP_PAG_TAXA_RUB = { especialidade: 0.5, cardiologia: 0.5, laboratorio: 0.1, observacao: 0.1, enfermagem: 0.05, raio_x: 0.05 };
+const BSP_PAG_NOME_RUB = { clinica_geral: 'Clínica geral', pediatria: 'Pediatria', especialidade: 'Especialidades', cardiologia: 'Cardiologia', laboratorio: 'Laboratório', observacao: 'Observação', enfermagem: 'Enfermagem', ecografia: 'Ecografia', raio_x: 'Raio-X', farmacia: 'Farmácia', outro: 'Outro' };
+const bspPagR2 = v => Math.round((Number(v) || 0) * 100) / 100;
+const bspPagHoras = (e, s) => {
+  const a = /^(\d{1,2}):(\d{2})/.exec(e || ''), b = /^(\d{1,2}):(\d{2})/.exec(s || '');
+  if (!a || !b) return null;
+  let m = (Number(b[1]) * 60 + Number(b[2])) - (Number(a[1]) * 60 + Number(a[2]));
+  if (m < 0) m += 24 * 60;
+  return bspPagR2(m / 60);
+};
+const bspPagMesNome = (ano, mes) => ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][mes - 1] + ' ' + ano;
+/* Folha de cálculo .xlsx mínima (JSZip), com fórmulas e o valor já calculado
+   em cada uma, para abrir certo mesmo antes de o Excel recalcular.
+   Célula: null | número | texto | { v, f, s } (s = estilo, BSP_XLSX_ESTILOS). */
+const BSP_XLSX_ESTILOS = { normal: 0, forte: 1, kz: 2, kzForte: 3, cabeca: 4, pct: 5, titulo: 6, horas: 7, vermelho: 8 };
+function bspXlsxColuna(n) { let s = ''; n++; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; }
+async function bspXlsx(folhas) {
+  const JSZip = await bspCarregarJsZip();
+  const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+  const z = new JSZip();
+  z.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+    folhas.map((f, i) => '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join('') + '</Types>');
+  z.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+  z.file('xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    folhas.map((f, i) => '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>').join('') +
+    '<Relationship Id="rId' + (folhas.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
+  z.file('xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' +
+    folhas.map((f, i) => '<sheet name="' + esc(f.nome) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>').join('') + '</sheets><calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>');
+  z.file('xl/styles.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0.00"/></numFmts>' +
+    '<fonts count="5"><font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="10"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><b/><sz val="14"/><color rgb="FF292F58"/><name val="Arial"/></font><font><sz val="10"/><color rgb="FFC0392B"/><name val="Arial"/></font></fonts>' +
+    '<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF292F58"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFF4C2"/></patternFill></fill></fills>' +
+    '<borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="9">' +
+    '<xf fontId="0"/><xf fontId="1" applyFont="1"/><xf numFmtId="164" applyNumberFormat="1"/><xf numFmtId="164" fontId="1" applyNumberFormat="1" applyFont="1"/>' +
+    '<xf fontId="2" fillId="2" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>' +
+    '<xf numFmtId="9" applyNumberFormat="1"/><xf fontId="3" applyFont="1"/><xf numFmtId="2" applyNumberFormat="1"/><xf fontId="4" applyFont="1" applyAlignment="1"><alignment wrapText="1"/></xf>' +
+    '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>');
+  folhas.forEach((f, i) => {
+    const linhas = f.linhas.map((l, r) => '<row r="' + (r + 1) + '">' + (l || []).map((c, k) => {
+      if (c == null || c === '') return '';
+      const ref = bspXlsxColuna(k) + (r + 1);
+      const o = (typeof c === 'object') ? c : { v: c };
+      const s = o.s != null ? ' s="' + (BSP_XLSX_ESTILOS[o.s] != null ? BSP_XLSX_ESTILOS[o.s] : o.s) + '"' : '';
+      if (o.f) return '<c r="' + ref + '"' + s + '><f>' + esc(String(o.f).replace(/^=/, '')) + '</f>' + (typeof o.v === 'number' && isFinite(o.v) ? '<v>' + o.v + '</v>' : '') + '</c>';
+      if (typeof o.v === 'number' && isFinite(o.v)) return '<c r="' + ref + '"' + s + '><v>' + o.v + '</v></c>';
+      return '<c r="' + ref + '"' + s + ' t="inlineStr"><is><t xml:space="preserve">' + esc(o.v == null ? '' : o.v) + '</t></is></c>';
+    }).join('') + '</row>').join('');
+    const cols = f.larguras && f.larguras.length ? '<cols>' + f.larguras.map((w, k) => '<col min="' + (k + 1) + '" max="' + (k + 1) + '" width="' + w + '" customWidth="1"/>').join('') + '</cols>' : '';
+    const fixa = f.fixa ? '<sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane xSplit="' + (f.fixa[0] || 0) + '" ySplit="' + (f.fixa[1] || 0) + '" topLeftCell="' + bspXlsxColuna(f.fixa[0] || 0) + ((f.fixa[1] || 0) + 1) + '" activePane="bottomRight" state="frozen"/></sheetView></sheetViews>'
+      : '<sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews>';
+    z.file('xl/worksheets/sheet' + (i + 1) + '.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' + fixa + cols + '<sheetData>' + linhas + '</sheetData></worksheet>');
+  });
+  return z.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+function bspDescarregarBlob(nome, blob) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = nome;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+/* As fichas de um médico, por ordem de dia, com as horas calculadas. */
+function bspPagFichasDe(extra, id) {
+  const f = ((extra && extra.fichas) || {})[String(id)];
+  if (f && f.length) return f.slice().sort((a, b) => String(a.dia).localeCompare(String(b.dia)));
+  const d = ((extra && extra.dias) || {})[String(id)] || {};
+  return Object.keys(d).sort().map(k => ({ dia: k, horas: d[k] }));
+}
+async function bspPagExcel({ mapa, extra, actos, conferir, ano, mes }) {
+  const medicos = (mapa.medicos || []).filter(m => Number(m.bruto) || Number(m.permanencia.dias) || Number(m.outros) || Number(m.ecografia.valor));
+  const K = 'kz';
+  /* NOTAS */
+  const pend = mapa.pendencias || {};
+  const notas = [[{ v: 'MAPA DE PAGAMENTO — ' + bspPagMesNome(ano, mes).toUpperCase(), s: 'titulo' }],
+    ['Gerado no Workspace a ' + bspDataExacta(new Date()) + ' (Equipa → Pagamento dos médicos), com as regras do mapa de Agosto de 2026. Estado do mês: ' + (mapa.estado || 'Aberto') + '.'],
+    ['Bruto ' + bspPagKz(mapa.bruto) + ' · IRT ' + bspPagKz(mapa.irt) + ' · Líquido ' + bspPagKz(mapa.liquido) + '.'],
+    [],
+    [{ v: 'COMO ESTÁ FEITO', s: 'forte' }],
+    ['• MEDICOS: permanência pelas fichas assinadas (fórmula legível). Regime A: taxa ÷ 14,5 h × horas; B e D: taxa × dias; C: horas ÷ 6 × taxa.'],
+    ['• FICHAS: as fichas do mês, dia a dia. MAPA: clínica geral e pediatria ao valor fixo (CONFIG), pela ficha quando há; o resto em percentagem do facturado.'],
+    ['• ACTOS: os actos facturados por médico, sem nomes de doentes.'],
+    [],
+    [{ v: 'A CONFERIR ANTES DE PAGAR', s: 'forte' }]];
+  const avisos = [];
+  if ((pend.sem_presencas || []).length) avisos.push('Sem fichas (permanência a zero): ' + pend.sem_presencas.join(', ') + '.');
+  if (pend.sem_medico && pend.sem_medico.linhas) avisos.push(pend.sem_medico.linhas + ' linhas facturadas sem médico (' + bspPagKz(pend.sem_medico.valor) + '): comissão que ninguém recebe.');
+  if ((pend.sem_cadastro || []).length) avisos.push('Médicos sem cadastro: ' + pend.sem_cadastro.map(x => x.chave).join(', ') + '.');
+  if (pend.duplicados) avisos.push(pend.duplicados + ' possíveis facturas em duplicado.');
+  if (pend.relancados) avisos.push(pend.relancados + ' actos iguais aos do mês anterior.');
+  (mapa.medicos || []).forEach(m => {
+    const l = (conferir || {})[String(m.id)] || [];
+    const dif = l.filter(x => x.ficha != null && Number(x.ficha) !== Number(x.metagest || 0));
+    const semFicha = l.filter(x => !x.tem_ficha && Number(x.metagest || 0) > 0);
+    if (dif.length || (semFicha.length && l.some(x => x.tem_ficha)))
+      avisos.push(m.nome + ': ' + [dif.length ? dif.map(x => x.dia.slice(8, 10) + '/' + x.dia.slice(5, 7) + ' ficha ' + x.ficha + ' / MetaGest ' + Number(x.metagest || 0)).join('; ') : '',
+        semFicha.length ? 'MetaGest sem ficha a ' + semFicha.map(x => x.dia.slice(8, 10) + '/' + x.dia.slice(5, 7)).join(', ') : ''].filter(Boolean).join(' · ') + '.');
+    if (m.nota) avisos.push(m.nome + ' — ' + m.nota);
+  });
+  (avisos.length ? avisos : ['Nada por conferir.']).forEach(t => notas.push([{ v: '• ' + t, s: 'vermelho' }]));
+  /* CONFIG */
+  const cfg = [['TAXAS — alterar aqui se mudarem.', null], ['Clínica Geral — dia útil', 2000], ['Clínica Geral — fim-de-semana', 2500], ['Pediatria', 4000],
+    ['Especialidades', 0.5], ['Cardiologia / ECG', 0.5], ['Laboratório', 0.1], ['Sala de observação', 0.1], ['Enfermagem', 0.05], ['Raio-X', 0.05],
+    ['Retenção na fonte — IRT', BSP_PAG_IRT], ['Horas de referência (regime A)', 14.5]];
+  const C = { CG_UTIL: 'CONFIG!$B$2', CG_FDS: 'CONFIG!$B$3', PED: 'CONFIG!$B$4', ESP: 'CONFIG!$B$5', CARD: 'CONFIG!$B$6', LAB: 'CONFIG!$B$7', OBS: 'CONFIG!$B$8', ENF: 'CONFIG!$B$9', RX: 'CONFIG!$B$10', IRT: 'CONFIG!$B$11', H: 'CONFIG!$B$12' };
+  const folhaCfg = cfg.map(([t, v]) => [{ v: t, s: v == null ? 'forte' : 'normal' }, v == null ? null : { v, s: v < 1 ? 'pct' : K }]);
+  /* MEDICOS */
+  const med = [[{ v: 'Médicos | permanências de ' + bspPagMesNome(ano, mes), s: 'titulo' }], [],
+    ['Nº', 'NOME', 'ESPECIALIDADE', 'NIF', 'IBAN', 'REGIME', 'PERMANÊNCIA', 'TAXA', 'DIAS', 'HORAS', 'TAXA ECO'].map(v => ({ v, s: 'cabeca' }))];
+  const linhaMed = {};
+  (mapa.medicos || []).forEach(m => {
+    const fi = bspPagFichasDe(extra, m.id);
+    const hs = fi.map(x => x.entrada && x.saida ? bspPagHoras(x.entrada, x.saida) : Number(x.horas) || 0);
+    const taxa = Number(m.taxa_permanencia) || 0;
+    const r = med.length + 1;
+    let f = null;
+    if (m.regime === 'A' && hs.length) f = taxa + '/' + C.H + '*(' + hs.map(h => String(h)).join('+') + ')';
+    else if ((m.regime === 'B' || m.regime === 'D') && hs.length) f = taxa + '*' + hs.length;
+    else if (m.regime === 'C' && hs.length) f = '(' + hs.map(h => String(h)).join('+') + ')/6*' + taxa;
+    linhaMed[m.id] = r;
+    med.push([m.id, m.nome, m.especialidade || '', m.nif || 'PENDENTE', m.iban || 'PENDENTE', m.regime || '—',
+      f ? { f, v: Number(m.permanencia.valor), s: K } : { v: 0, s: K }, { v: taxa, s: K }, hs.length || null, hs.length ? { v: bspPagR2(hs.reduce((a, b) => a + b, 0)), s: 'horas' } : null, { v: (Number(m.taxa_eco) || 0) / 100, s: 'pct' }]);
+  });
+  /* FICHAS */
+  const DS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const fic = [['Nº', 'MÉDICO', 'DATA', 'DIA', 'ENTRADA', 'SAÍDA', 'HORAS', 'CONS.', 'RECONS.', 'ENF.', 'OBS.', 'OUTROS', 'NOTA'].map(v => ({ v, s: 'cabeca' }))];
+  (mapa.medicos || []).forEach(m => bspPagFichasDe(extra, m.id).forEach(x => {
+    const d = new Date(x.dia + 'T12:00:00');
+    fic.push([m.id, m.nome, x.dia.slice(8, 10) + '/' + x.dia.slice(5, 7) + '/' + x.dia.slice(0, 4), DS[d.getDay()], x.entrada || '', x.saida || '',
+      { v: x.entrada && x.saida ? bspPagHoras(x.entrada, x.saida) : Number(x.horas) || 0, s: 'horas' }, x.consultas, x.reconsultas, x.enfermagem, x.observacao, x.outros || '', x.nota || '']);
+  }));
+  /* MAPA */
+  const cab = ['Nº', 'MÉDICO', 'ESPECIALIDADE', 'PERMANÊNCIA', 'CG ÚTIL', 'CG FDS', 'CLÍNICA GERAL', 'PED. (nº)', 'PEDIATRIA', 'ESPECIALIDADES (base)', 'ESPECIALIDADES',
+    'CARDIOLOGIA (base)', 'CARDIOLOGIA', 'LABORATÓRIO (base)', 'LABORATÓRIO', 'OBSERVAÇÃO (base)', 'OBSERVAÇÃO', 'ENFERMAGEM (base)', 'ENFERMAGEM', 'ECOGRAFIA',
+    'RAIO-X (base)', 'RAIO-X', 'FARMÁCIA', 'INDICAÇÃO', 'OUTROS', 'BRUTO', 'IRT', 'LÍQUIDO', 'IBAN', 'NOTA'];
+  const mp = [[{ v: 'MAPA DE PAGAMENTO — PRESTADORES DE SERVIÇO CLÍNICO — ' + bspPagMesNome(ano, mes).toUpperCase(), s: 'titulo' }],
+    ['Clínica Barispol, Lda. · NIF 5000999687 · valores em Kz · ' + (mapa.estado || 'Aberto')], [], cab.map(v => ({ v, s: 'cabeca' }))];
+  const r0 = mp.length + 1;
+  let diferencas = 0;
+  medicos.forEach((m, i) => {
+    const r = r0 + i;
+    const cg = Number(m.clinica_geral.util) * 2000 + Number(m.clinica_geral.fds) * 2500, ped = Number(m.pediatria.n) * 4000;
+    const v = { esp: bspPagR2(m.especialidades.base * 0.5), card: bspPagR2(m.cardiologia.base * 0.5), lab: bspPagR2(m.laboratorio.base * 0.1), obs: bspPagR2(m.observacao.base * 0.1), enf: bspPagR2(m.enfermagem.base * 0.05), rx: bspPagR2(m.raio_x.base * 0.05) };
+    const bruto = bspPagR2(Number(m.permanencia.valor) + cg + ped + v.esp + v.card + v.lab + v.obs + v.enf + Number(m.ecografia.valor) + v.rx + Number(m.farmacia.valor) + Number(m.indicacao.valor) + Number(m.outros));
+    if (Math.abs(bruto - Number(m.bruto)) > 0.05) diferencas++;
+    const irt = bspPagR2(bruto * BSP_PAG_IRT);
+    mp.push([m.id, m.nome, m.especialidade || '', { f: 'MEDICOS!G' + linhaMed[m.id], v: Number(m.permanencia.valor), s: K },
+      Number(m.clinica_geral.util), Number(m.clinica_geral.fds), { f: 'E' + r + '*' + C.CG_UTIL + '+F' + r + '*' + C.CG_FDS, v: cg, s: K },
+      Number(m.pediatria.n), { f: 'H' + r + '*' + C.PED, v: ped, s: K },
+      { v: Number(m.especialidades.base), s: K }, { f: 'ROUND(J' + r + '*' + C.ESP + ',2)', v: v.esp, s: K },
+      { v: Number(m.cardiologia.base), s: K }, { f: 'ROUND(L' + r + '*' + C.CARD + ',2)', v: v.card, s: K },
+      { v: Number(m.laboratorio.base), s: K }, { f: 'ROUND(N' + r + '*' + C.LAB + ',2)', v: v.lab, s: K },
+      { v: Number(m.observacao.base), s: K }, { f: 'ROUND(P' + r + '*' + C.OBS + ',2)', v: v.obs, s: K },
+      { v: Number(m.enfermagem.base), s: K }, { f: 'ROUND(R' + r + '*' + C.ENF + ',2)', v: v.enf, s: K },
+      { v: Number(m.ecografia.valor), s: K },
+      { v: Number(m.raio_x.base), s: K }, { f: 'ROUND(U' + r + '*' + C.RX + ',2)', v: v.rx, s: K },
+      { v: Number(m.farmacia.valor), s: K }, { v: Number(m.indicacao.valor), s: K }, { v: Number(m.outros), s: K },
+      { f: 'ROUND(D' + r + '+G' + r + '+I' + r + '+K' + r + '+M' + r + '+O' + r + '+Q' + r + '+S' + r + '+T' + r + '+V' + r + '+W' + r + '+X' + r + '+Y' + r + ',2)', v: bruto, s: 'kzForte' },
+      { f: 'ROUND(Z' + r + '*' + C.IRT + ',2)', v: irt, s: K }, { f: 'Z' + r + '-AA' + r, v: bspPagR2(bruto - irt), s: 'kzForte' },
+      m.iban || 'PENDENTE', m.nota || (m.sem_presenca ? 'Sem fichas do mês.' : '')]);
+  });
+  const rt = r0 + medicos.length;
+  const tot = [null, { v: 'TOTAL', s: 'forte' }, null];
+  for (let c = 3; c < 28; c++) {
+    const col = bspXlsxColuna(c);
+    const soma = mp.slice(r0 - 1).reduce((a, l) => { const x = l[c]; return a + (typeof x === 'number' ? x : x && typeof x.v === 'number' ? x.v : 0); }, 0);
+    tot.push({ f: 'SUM(' + col + r0 + ':' + col + (rt - 1) + ')', v: bspPagR2(soma), s: [4, 5, 7].indexOf(c) !== -1 ? 'forte' : 'kzForte' });
+  }
+  mp.push(tot);
+  /* ACTOS */
+  const nomes = {}; (mapa.medicos || []).forEach(m => { nomes[m.id] = m; });
+  const act = [['Nº', 'MÉDICO', 'RUBRICA', 'DATA', 'ACTO', 'QTD', 'FACTURADO', 'TAXA', 'GANHO'].map(v => ({ v, s: 'cabeca' }))];
+  (actos || []).forEach(a => {
+    const m = nomes[a.id]; if (!m) return;
+    const r = act.length + 1;
+    const tx = a.rubrica === 'ecografia' ? (Number(m.taxa_eco) || 0) / 100 : BSP_PAG_TAXA_RUB[a.rubrica];
+    act.push([a.id, m.nome, BSP_PAG_NOME_RUB[a.rubrica] || a.rubrica, a.dia.slice(8, 10) + '/' + a.dia.slice(5, 7) + '/' + a.dia.slice(0, 4), a.item, Number(a.qtd),
+      { v: Number(a.valor), s: Number(a.valor) < 0 ? 'vermelho' : K }, tx != null ? { v: tx, s: 'pct' } : null,
+      tx != null ? { f: 'ROUND(G' + r + '*H' + r + ',2)', v: bspPagR2(Number(a.valor) * tx), s: K } : (a.rubrica === 'clinica_geral' || a.rubrica === 'pediatria' ? 'valor fixo pela ficha' : '')]);
+  });
+  const blob = await bspXlsx([
+    { nome: 'NOTAS', linhas: notas, larguras: [150] },
+    { nome: 'MAPA', linhas: mp, larguras: [5, 40, 18, 13, 7, 7, 12, 7, 11, 13, 12, 13, 12, 13, 12, 12, 11, 12, 11, 12, 11, 10, 9, 9, 11, 13, 11, 13, 28, 50], fixa: [3, 4] },
+    { nome: 'CONFIG', linhas: folhaCfg, larguras: [44, 14] },
+    { nome: 'MEDICOS', linhas: med, larguras: [5, 42, 20, 18, 30, 8, 16, 10, 7, 8, 10] },
+    { nome: 'FICHAS', linhas: fic, larguras: [5, 38, 12, 6, 8, 8, 8, 7, 8, 6, 6, 16, 60], fixa: [0, 1] },
+    { nome: 'ACTOS', linhas: act, larguras: [5, 36, 15, 12, 64, 6, 13, 8, 12], fixa: [0, 1] }]);
+  return { blob, diferencas };
+}
+/* Mapa individual de um médico, no aspecto do mapa de Agosto (Finanças),
+   sem nomes de doentes e com o IBAN mascarado. */
+function bspPagMapaIndividualHtml(m, fichas, actos, ano, mes) {
+  const e = t => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const kz = v => Number(v || 0).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fonte = '"Dax","Titillium Web","Segoe UI",Arial,sans-serif';
+  const mesNome = bspPagMesNome(ano, mes);
+  const nome = bspNomeProprio(m.nome);
+  const prim = String(m.nome || '').trim().split(/\s+/)[0].normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const fem = /a$/.test(prim) || ['alaide', 'alice', 'arlete', 'conceicao', 'elizabeth', 'noemia', 'diodeth', 'catiana', 'ines', 'beatriz', 'raquel', 'isabel'].indexOf(prim) !== -1;
+  const trat = (fem ? 'Dra. ' : 'Dr. ') + nome;
+  const linhas = [];
+  const add = (r, v) => { if (Math.abs(Number(v) || 0) >= 0.005) linhas.push([r, Number(v)]); };
+  add('Permanências (' + m.permanencia.dias + ' dias' + (m.regime === 'A' ? ', ' + String(m.permanencia.horas).replace('.', ',') + ' h' : '') + ')', m.permanencia.valor);
+  if (Number(m.clinica_geral.util) || Number(m.clinica_geral.fds)) add('Clínica geral (' + m.clinica_geral.util + ' úteis × 2.000 + ' + m.clinica_geral.fds + ' fim-de-semana × 2.500)', m.clinica_geral.valor);
+  if (Number(m.pediatria.n)) add('Pediatria (' + m.pediatria.n + ' × 4.000)', m.pediatria.valor);
+  add('Especialidades (50%)', m.especialidades.valor); add('Cardiologia (50%)', m.cardiologia.valor); add('Laboratório (10%)', m.laboratorio.valor);
+  add('Sala de observação (10%)', m.observacao.valor); add('Enfermagem (5%)', m.enfermagem.valor); add('Ecografia', m.ecografia.valor);
+  add('Raio-X (5%)', m.raio_x.valor); add('Farmácia (5%)', m.farmacia.valor); add('Indicação (5%)', m.indicacao.valor); add('Outros / acertos' + (m.nota ? ' — ' + m.nota : ''), m.outros);
+  const res = linhas.map(([a, b]) => '<tr><td>' + e(a) + '</td><td class="n">' + kz(b) + '</td></tr>').join('') +
+    '<tr class="sub"><td>Valor bruto</td><td class="n">' + kz(m.bruto) + '</td></tr><tr><td>Retenção na fonte (6,5%)</td><td class="n">-' + kz(m.irt) + '</td></tr>' +
+    '<tr class="tot"><td>Líquido a receber</td><td class="n">' + kz(m.liquido) + '</td></tr>';
+  const DS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  const q = x => x == null || x === 0 ? '' : String(x);
+  const fh = fichas.length
+    ? '<tr><td style="padding:0 32px"><div class="h2">Fichas de actividade consideradas</div></td></tr><tr><td style="padding:0 32px"><table class="x" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><th>Data</th><th>Horário</th><th class="n">Cons.</th><th class="n">Recons.</th><th class="n">Enf.</th><th class="n">Obs.</th><th>Observações</th></tr>' +
+      fichas.map(x => '<tr><td>' + x.dia.slice(8, 10) + '/' + x.dia.slice(5, 7) + '/' + x.dia.slice(0, 4) + '</td><td style="white-space:nowrap">' + (x.entrada && x.saida ? x.entrada.replace(':', 'h') + ' - ' + x.saida.replace(':', 'h') : String(x.horas || '').replace('.', ',') + ' h') +
+        '</td><td class="n">' + q(x.consultas) + '</td><td class="n">' + q(x.reconsultas) + '</td><td class="n">' + q(x.enfermagem) + '</td><td class="n">' + q(x.observacao) + '</td><td>' +
+        e([DS[new Date(x.dia + 'T12:00:00').getDay()], x.outros, x.nota].filter(Boolean).join('; ')) + '</td></tr>').join('') + '</table></td></tr>'
+    : '<tr><td style="padding:0 32px"><div class="h2">Fichas de actividade</div></td></tr><tr><td style="padding:0 32px;font-size:13px;line-height:20px">' +
+      (m.regime ? 'Não recebemos fichas de actividade deste mês. A permanência fica a zero até as recebermos.' : 'O contrato não prevê permanência. Os valores resultam dos actos facturados.') + '</td></tr>';
+  const ag = {};
+  actos.forEach(a => { const k = a.rubrica + '|' + a.item; const x = ag[k] = ag[k] || { rub: a.rubrica, item: a.item, q: 0, v: 0 }; x.q += Number(a.qtd) || 0; x.v += Number(a.valor) || 0; });
+  const ordem = ['clinica_geral', 'pediatria', 'especialidade', 'cardiologia', 'laboratorio', 'observacao', 'enfermagem', 'ecografia', 'raio_x', 'farmacia'];
+  let tf = 0, tg = 0, at = '';
+  ordem.forEach(rub => {
+    const its = Object.keys(ag).map(k => ag[k]).filter(x => x.rub === rub).sort((a, b) => a.item.localeCompare(b.item));
+    if (!its.length) return;
+    const tx = rub === 'ecografia' ? (Number(m.taxa_eco) || 0) / 100 : BSP_PAG_TAXA_RUB[rub];
+    let sf = 0, sg = 0;
+    at += '<tr class="sec"><td colspan="5">' + e(BSP_PAG_NOME_RUB[rub]) + (tx != null ? ' (' + Math.round(tx * 100) + '%)' : ' (valor fixo pela ficha)') + '</td></tr>';
+    its.forEach(x => {
+      const g = tx != null ? bspPagR2(x.v * tx) : null; sf += x.v; sg += g || 0;
+      at += '<tr><td>' + e(x.item) + '</td><td class="n">' + x.q + '</td><td class="n">' + kz(x.v) + '</td><td class="n">' + (tx != null ? Math.round(tx * 100) + '%' : '—') + '</td><td class="n">' + (g != null ? kz(g) : '—') + '</td></tr>';
+    });
+    at += '<tr class="sub"><td colspan="2">Subtotal — ' + e(BSP_PAG_NOME_RUB[rub]) + '</td><td class="n">' + kz(sf) + '</td><td></td><td class="n">' + (tx != null ? kz(sg) : '—') + '</td></tr>';
+    tf += sf; tg += sg;
+  });
+  const actosHtml = at ? '<tr><td style="padding:0 32px"><div class="h2">Detalhe dos actos</div></td></tr><tr><td style="padding:0 32px"><table class="x" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><th>Acto</th><th class="n">Qtd</th><th class="n">Facturado</th><th class="n">Taxa</th><th class="n">Ganho</th></tr>' + at +
+    '<tr class="tot"><td colspan="2">Total facturado com o seu nome</td><td class="n">' + kz(tf) + '</td><td></td><td class="n">' + kz(tg) + '</td></tr></table><div style="font-size:11px;line-height:16px;color:#7A8494;padding-top:6px">Actos somados por tipo. Valores negativos são notas de crédito. As consultas de clínica geral e pediatria pagam-se ao valor fixo, pelas fichas assinadas.</div></td></tr>' : '';
+  const iban = m.iban ? m.iban.slice(0, 4) + ' •••• ' + m.iban.slice(-4) : 'por indicar';
+  const css = 'body{margin:0;padding:0;background:#EEF1F5;font-family:' + fonte + ';color:#4A5568}table{border-collapse:collapse}.x td,.x th{font-family:' + fonte + ';font-size:12px;line-height:16px;padding:6px 8px;border-bottom:1px solid #E3E7EE;vertical-align:top;color:#4A5568}.x th{background:#EEF1F5;color:#292F58;font-weight:bold;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px}.n{text-align:right;white-space:nowrap}.sec td{background:#F7F9FB;color:#292F58;font-weight:bold;font-size:11px;text-transform:uppercase;letter-spacing:.6px;border-top:1px solid #E3E7EE}.sub td{color:#292F58;font-weight:bold;background:#F7F9FB}.tot td{background:#292F58;color:#FFFFFF;font-weight:bold;border-bottom:0}.h2{font-size:13px;line-height:16px;font-weight:bold;color:#292F58;text-transform:uppercase;letter-spacing:1.2px;margin-top:26px;margin-bottom:8px;padding-left:10px;border-left:3px solid #2291CE}';
+  return '<!doctype html><html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>Mapa de pagamento ' + e(mesNome) + '</title><style>' + css + '</style></head><body>' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#EEF1F5"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="680" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:680px;background:#FFFFFF">' +
+    '<tr><td style="height:4px;background:#2291CE;font-size:0;line-height:0">&nbsp;</td></tr>' +
+    '<tr><td style="padding:18px 32px;border-bottom:1px solid #E3E7EE"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td valign="middle"><img src="https://barispol.com/assets/logo-barispol.png" width="64" height="64" alt="Centro Médico Barispol" style="display:block;width:64px;height:64px;border:0"></td><td align="right" valign="middle" style="font-size:12px;color:#292F58;font-weight:bold;text-transform:uppercase;letter-spacing:1.5px">Finanças</td></tr></table></td></tr>' +
+    '<tr><td style="background:#292F58;padding:22px 32px"><div style="font-size:11px;color:#2291CE;font-weight:bold;letter-spacing:2px;text-transform:uppercase">Prestadores de serviço clínico</div><div style="font-size:22px;line-height:28px;color:#FFFFFF;font-weight:bold;padding-top:6px">Mapa de pagamento — ' + e(mesNome) + '</div><div style="font-size:13px;color:#C9D1E3;padding-top:4px">' + e(trat) + ' · ' + e(bspNomeProprio(m.especialidade || '')) + '</div></td></tr>' +
+    '<tr><td style="padding:26px 32px 4px;font-size:14px;line-height:22px"><p style="margin:0 0 12px">' + (fem ? 'Estimada ' : 'Estimado ') + e(trat) + ',</p><p style="margin:0">Enviamos o seu mapa de pagamento de <b style="color:#292F58">' + e(mesNome) + '</b>, com o resumo dos valores apurados, as fichas de actividade consideradas e o detalhe dos actos que geraram receita.</p></td></tr>' +
+    '<tr><td style="padding:18px 32px 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#EEF1F5;border-left:4px solid #292F58"><tr><td style="padding:16px 20px;font-size:12px;line-height:18px;color:#7A8494"><div style="text-transform:uppercase;letter-spacing:1px;font-weight:bold">Líquido a receber</div><div style="font-size:28px;line-height:34px;color:#292F58;font-weight:bold;padding-top:2px">' + kz(m.liquido) + ' <span style="font-size:15px">Kz</span></div><div style="padding-top:4px">Bruto ' + kz(m.bruto) + ' Kz · Retenção IRT 6,5 % -' + kz(m.irt) + ' Kz</div></td><td align="right" valign="top" style="padding:16px 20px;font-size:12px;line-height:18px"><div>NIF ' + e(m.nif || 'por indicar') + '<br>IBAN ' + e(iban) + '</div></td></tr></table></td></tr>' +
+    '<tr><td style="padding:0 32px"><div class="h2">Resumo de pagamento</div></td></tr><tr><td style="padding:0 32px"><table class="x" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">' + res + '</table></td></tr>' + fh + actosHtml +
+    '<tr><td style="padding:24px 32px 0;font-size:14px;line-height:22px"><p style="margin:0">Se encontrar alguma divergência, responda a este e-mail no prazo de 5 dias úteis, com a data e o acto em causa.</p><p style="margin:14px 0 0">Com os melhores cumprimentos,</p></td></tr>' +
+    '<tr><td style="padding:18px 32px 0"><div style="font-size:19px;font-weight:bold;color:#292F58">Finanças</div><div style="font-size:13px;font-weight:bold;color:#2291CE;text-transform:uppercase;letter-spacing:1.2px;padding-top:3px">Centro Médico Barispol</div><div style="font-size:13px;line-height:20px;padding-top:10px">+244 946 373 631 · <a href="mailto:financas@barispol.com" style="color:#4A5568;text-decoration:none">financas@barispol.com</a> · <a href="https://www.barispol.com" style="color:#2291CE;text-decoration:none;font-weight:bold">www.barispol.com</a></div></td></tr>' +
+    '<tr><td style="padding:22px 32px 28px"><div style="border-top:1px solid #E3E7EE;padding-top:12px;font-size:9.5px;line-height:14px;color:#9AA3B2"><strong style="color:#7A8494">Aviso de confidencialidade:</strong> esta mensagem é confidencial e dirigida só ao destinatário.<br>Clínica Barispol, Lda. · NIF 5000999687 · Retenção na fonte (IRT) de 6,5 % aplicada nos termos legais.</div></td></tr>' +
+    '</table></td></tr></table></body></html>';
+}
+async function bspPagMapasZip({ mapa, extra, actos, ano, mes }) {
+  const JSZip = await bspCarregarJsZip();
+  const z = new JSZip();
+  let n = 0;
+  (mapa.medicos || []).filter(m => Number(m.bruto) > 0).forEach(m => {
+    const nomeF = String(m.id).padStart(2, '0') + '_' + String(m.nome || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '') + '.html';
+    z.file(nomeF, bspPagMapaIndividualHtml(m, bspPagFichasDe(extra, m.id), (actos || []).filter(a => a.id === m.id), ano, mes));
+    n++;
+  });
+  return { blob: await z.generateAsync({ type: 'blob' }), n };
+}
 const BSP_PAG_RUBRICAS = [
   ['permanencia', 'Permanência'], ['clinica_geral', 'Clínica Geral'], ['pediatria', 'Pediatria'], ['especialidades', 'Especialidades (50%)'],
   ['cardiologia', 'Cardiologia, ECG (50%)'], ['laboratorio', 'Laboratório (10%)'], ['observacao', 'Sala de observação (10%)'],
@@ -28634,6 +28906,10 @@ function PagamentoMedicosPainel() {
   const [perm, setPerm] = React.useState(null);
   const [ajuste, setAjuste] = React.useState(null);
   const [linhas, setLinhas] = React.useState(null);
+  /* Fichas completas e conferência com o MetaGest (05-10-2026, pagamento-fichas.sql). */
+  const [fichas, setFichas] = React.useState(null);
+  const [conferir, setConferir] = React.useState({});
+  const [aGerar, setAGerar] = React.useState('');
   React.useEffect(() => { bspRegistarAcesso('pagamento-medicos', mesSel); }, [mesSel]);
   React.useEffect(() => {
     const cl = bspGetClient();
@@ -28645,6 +28921,7 @@ function PagamentoMedicosPainel() {
       if (a.error) { setErro(a.error.message); return; }
       setMapa(a.data || {}); setExtra((b && b.data) || { dias: {}, ajustes: {} });
     });
+    cl.rpc('bsp_pagamento_conferir', { p_ano: ano, p_mes: mes }).then(r => { if (vivo && !r.error) setConferir(r.data || {}); });
     return () => { vivo = false; };
   }, [mesSel, tick]);
   const fechado = mapa && mapa.estado && mapa.estado !== 'Aberto';
@@ -28661,6 +28938,9 @@ function PagamentoMedicosPainel() {
     setAberto(aberto === m.id ? null : m.id); setLinhas(null);
     const dias = (extra.dias || {})[String(m.id)] || {};
     setPerm(Object.assign({}, dias));
+    setFichas(bspPagFichasDe(extra, m.id).map(x => ({ dia: String(Number(String(x.dia).slice(8, 10))), entrada: x.entrada || '', saida: x.saida || '', horas: x.entrada ? '' : (x.horas == null ? '' : String(x.horas).replace('.', ',')),
+      consultas: x.consultas == null ? '' : String(x.consultas), reconsultas: x.reconsultas == null ? '' : String(x.reconsultas), enfermagem: x.enfermagem == null ? '' : String(x.enfermagem),
+      observacao: x.observacao == null ? '' : String(x.observacao), outros: x.outros || '', nota: x.nota || '' })));
     const a = (extra.ajustes || {})[String(m.id)] || {};
     setAjuste({ cg_util: a.cg_util == null ? '' : String(a.cg_util), cg_fds: a.cg_fds == null ? '' : String(a.cg_fds), pediatria: a.pediatria == null ? '' : String(a.pediatria),
       farmacia_base: a.farmacia_base ? String(a.farmacia_base) : '', indicacao_base: a.indicacao_base ? String(a.indicacao_base) : '', outros: a.outros ? String(a.outros) : '', nota: a.nota || '' });
@@ -28680,6 +28960,26 @@ function PagamentoMedicosPainel() {
         return [m.nome, bspPagKz(m.permanencia.valor), bspPagKz(cons), bspPagKz(Number(m.bruto) - Number(m.permanencia.valor) - cons), bspPagKz(m.bruto), bspPagKz(m.irt), { v: bspPagKz(m.liquido), forte: true }, m.anterior == null ? '—' : bspPagKz(m.anterior)];
       }).concat([[{ v: 'TOTAL', forte: true }, '', '', '', { v: bspPagKz(mapa.bruto), forte: true }, bspPagKz(mapa.irt), { v: bspPagKz(mapa.liquido), forte: true }, mapa.anterior ? bspPagKz(mapa.anterior.liquido) : '—']]),
       { deitado: true, rodape: 'Documento interno, confidencial' }));
+  }
+  /* Excel do mês (modelo de Agosto) e mapas individuais, dos números do servidor. */
+  async function gerar(qual) {
+    setAGerar(qual);
+    try {
+      const r = await bspGetClient().rpc('bsp_pagamento_actos', { p_ano: ano, p_mes: mes });
+      if (r.error) { toast('Não foi possível ler os actos: ' + r.error.message); return; }
+      const dados = { mapa, extra, actos: r.data || [], conferir, ano, mes };
+      const sufixo = bspPagMesNome(ano, mes).toUpperCase().replace(/Ç/g, 'C').replace(' ', '_');
+      if (qual === 'excel') {
+        const x = await bspPagExcel(dados);
+        bspDescarregarBlob('MAPA_PAGAMENTO_MEDICOS_' + sufixo + '.xlsx', x.blob);
+        toast(x.diferencas ? 'Excel gerado, mas ' + x.diferencas + ' médico(s) com o bruto diferente do sistema: confira.' : 'Excel gerado.');
+      } else {
+        const x = await bspPagMapasZip(dados);
+        bspDescarregarBlob('MAPAS_INDIVIDUAIS_' + sufixo + '.zip', x.blob);
+        toast(x.n + ' mapas individuais gerados (sem nomes de doentes).');
+      }
+    } catch (e) { toast('Não foi possível gerar: ' + (e && e.message || e)); }
+    finally { setAGerar(''); }
   }
   function exportar() {
     const cab = ['Prestador', 'NIF', 'IBAN', 'Bruto', 'IRT', 'Liquido'];
@@ -28702,11 +29002,76 @@ function PagamentoMedicosPainel() {
     pend.duplicados ? pend.duplicados + (pend.duplicados === 1 ? ' caso' : ' casos') + ' do mesmo acto ao mesmo doente no mesmo dia em facturas diferentes (possível dupla facturação).' : '',
     pend.eco_nao_imagiologista ? pend.eco_nao_imagiologista + ' ecografias atribuídas a médicos que não são imagiologistas: confirmar se executaram ou só indicaram.' : '',
     pend.relancados ? pend.relancados + ' actos iguais aos do mês anterior (mesmo doente, acto e valor): confirmar se foram relançados.' : '',
+    (() => {
+      const nomes = medicos.filter(m => (conferir[String(m.id)] || []).some(x => x.ficha != null && Number(x.ficha) !== Number(x.metagest || 0))).map(m => bspNomeProprio(m.nome));
+      return nomes.length ? 'Consultas da ficha diferentes das do MetaGest (paga a ficha): ' + nomes.join(', ') + '. Abra o médico para ver os dias a vermelho.' : '';
+    })(),
     'Actos de um mês facturados no seguinte só se vêem nas fichas: desconte-os em «Outros», com nota.',
     'Farmácia e indicação: o MetaGest não diz o médico em serviço nem quem indicou; lance a base de cada médico.'
   ].filter(Boolean) : [];
   const rot = bspTranspRot;
   const campo = (k, ph) => React.createElement("input", { inputMode: 'decimal', disabled: !pode, value: ajuste[k], placeholder: ph || '', onChange: e => setAjuste(Object.assign({}, ajuste, { [k]: e.target.value })), style: bspTranspCampo });
+  /* Fichas do mês (05-10-2026): um dia por linha, como no papel. Entrada e
+     saída dão as horas; as consultas da ficha passam para o cálculo
+     (bsp_pagamento_fichas). Ao lado, o que o MetaGest tem nesse dia. */
+  const fichasBloco = m => {
+    const conf = conferir[String(m.id)] || [];
+    const mg = {}; conf.forEach(x => { mg[Number(x.dia.slice(8, 10))] = Number(x.metagest || 0); });
+    const diasFicha = (fichas || []).map(f => Number(f.dia));
+    const soMg = conf.filter(x => !x.tem_ficha && Number(x.metagest || 0) > 0).map(x => Number(x.dia.slice(8, 10)));
+    const mudar = (i, k, v) => setFichas(fichas.map((f, j) => j === i ? Object.assign({}, f, { [k]: v }) : f));
+    const n = v => React.createElement('input', { inputMode: 'numeric', disabled: !pode, value: v.valor, onChange: e => v.mudar(e.target.value.replace(/[^0-9]/g, '')), style: Object.assign({}, bspTranspCampo, { padding: '0 6px', height: 34, width: 52 }) });
+    const th = { fontSize: 11, color: 'var(--text-3)', fontWeight: 700, padding: '4px 4px', textAlign: 'left', whiteSpace: 'nowrap' };
+    const td = { padding: '3px 4px', verticalAlign: 'middle' };
+    const ds = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const gravar = () => {
+      const lista = (fichas || []).filter(f => f.dia).map(f => ({ dia: iso(Number(f.dia)), entrada: f.entrada, saida: f.saida, horas: num(f.horas), consultas: f.consultas, reconsultas: f.reconsultas,
+        enfermagem: f.enfermagem, observacao: f.observacao, outros: f.outros, nota: f.nota }));
+      if (lista.some(f => (f.entrada && !f.saida) || (!f.entrada && f.saida))) { toast('Falta a entrada ou a saída num dos dias.'); return; }
+      rpc('bsp_pagamento_fichas', { p_prestador: m.id, p_ano: ano, p_mes: mes, p_fichas: lista }, 'Fichas guardadas.');
+    };
+    const taxa = Number(m.taxa_permanencia) || 0;
+    return React.createElement("div", null,
+      m.regime && React.createElement("div", { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 } },
+        rot('Taxa de permanência'),
+        React.createElement("select", { disabled: !pode, value: String(taxa), onChange: e => rpc('bsp_pagamento_prestador', { p_id: m.id, p_dados: { taxa_permanencia: e.target.value } }, 'Taxa alterada para ' + bspPagKz(e.target.value) + '.'),
+          style: Object.assign({}, bspTranspCampo, { width: 'auto', height: 34 }) },
+          BSP_PAG_TAXAS_PERM.concat(BSP_PAG_TAXAS_PERM.indexOf(taxa) === -1 ? [taxa] : []).map(t => React.createElement("option", { key: t, value: String(t) }, bspPagKz(t)))),
+        React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, m.regime === 'A' ? 'por 14,5 h' : m.regime === 'C' ? 'por 6 h' : 'por dia')),
+      rot('Fichas do mês (um dia por linha, como no papel)'),
+      React.createElement("div", { style: { overflowX: 'auto' } }, React.createElement("table", { style: { borderCollapse: 'collapse', fontSize: 13 } },
+        React.createElement("thead", null, React.createElement("tr", null, ['Dia', 'Entrada', 'Saída', 'Horas', 'Cons.', 'Recons.', 'Enf.', 'Obs.', 'MetaGest', 'Outros / nota', ''].map((h, i) => React.createElement("th", { key: i, style: th }, h)))),
+        React.createElement("tbody", null, (fichas || []).map((f, i) => {
+          const d = Number(f.dia);
+          const h = f.entrada && f.saida ? bspPagHoras(f.entrada, f.saida) : null;
+          const fichaQ = (f.consultas === '' && f.reconsultas === '') ? null : (Number(f.consultas) || 0) + (Number(f.reconsultas) || 0);
+          const mgQ = d ? (mg[d] || 0) : null;
+          const difere = fichaQ != null && mgQ != null && fichaQ !== mgQ;
+          const sem = d && new Date(iso(d) + 'T12:00:00').getDay();
+          return React.createElement("tr", { key: i, style: { borderTop: '1px solid var(--border)' } },
+            React.createElement("td", { style: td }, React.createElement("select", { disabled: !pode, value: f.dia, onChange: e => mudar(i, 'dia', e.target.value), style: Object.assign({}, bspTranspCampo, { width: 'auto', height: 34, padding: '0 4px' }) },
+              React.createElement("option", { value: '' }, '—'),
+              Array.from({ length: diasMes }, (_, k) => k + 1).map(k => React.createElement("option", { key: k, value: String(k), disabled: k !== d && diasFicha.indexOf(k) !== -1 }, k + ' ' + ds[new Date(iso(k) + 'T12:00:00').getDay()])))),
+            React.createElement("td", { style: td }, React.createElement("input", { type: 'time', disabled: !pode, value: f.entrada, onChange: e => mudar(i, 'entrada', e.target.value), style: Object.assign({}, bspTranspCampo, { height: 34, width: 104, padding: '0 4px' }) })),
+            React.createElement("td", { style: td }, React.createElement("input", { type: 'time', disabled: !pode, value: f.saida, onChange: e => mudar(i, 'saida', e.target.value), style: Object.assign({}, bspTranspCampo, { height: 34, width: 104, padding: '0 4px' }) })),
+            React.createElement("td", { style: Object.assign({}, td, { whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }) }, h != null ? String(h).replace('.', ',') + ' h'
+              : React.createElement("input", { inputMode: 'decimal', disabled: !pode, value: f.horas, placeholder: 'h', onChange: e => mudar(i, 'horas', e.target.value), style: Object.assign({}, bspTranspCampo, { padding: '0 6px', height: 34, width: 56 }) })),
+            React.createElement("td", { style: td }, n({ valor: f.consultas, mudar: v => mudar(i, 'consultas', v) })),
+            React.createElement("td", { style: td }, n({ valor: f.reconsultas, mudar: v => mudar(i, 'reconsultas', v) })),
+            React.createElement("td", { style: td }, n({ valor: f.enfermagem, mudar: v => mudar(i, 'enfermagem', v) })),
+            React.createElement("td", { style: td }, n({ valor: f.observacao, mudar: v => mudar(i, 'observacao', v) })),
+            React.createElement("td", { style: Object.assign({}, td, { whiteSpace: 'nowrap', fontWeight: difere ? 700 : 400, color: difere ? 'var(--perigo)' : 'var(--text-2)' }) }, mgQ == null ? '' : mgQ + (mgQ === 1 ? ' consulta' : ' consultas') + (sem === 0 || sem === 6 ? ' · fds' : '')),
+            React.createElement("td", { style: td }, React.createElement("input", { disabled: !pode, value: f.nota, placeholder: f.outros ? f.outros : 'nota', onChange: e => mudar(i, 'nota', e.target.value), style: Object.assign({}, bspTranspCampo, { height: 34, minWidth: 160 }) })),
+            React.createElement("td", { style: td }, pode && React.createElement("button", { onClick: () => setFichas(fichas.filter((_, j) => j !== i)), title: 'Tirar este dia', style: { border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 16 } }, '×')));
+        })))),
+      soMg.length > 0 && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--perigo)', marginTop: 6 } },
+        'O MetaGest tem consultas em dias sem ficha: ' + soMg.map(d => d + '/' + mes).join(', ') + '. Sem ficha, esses dias não contam como permanência.'),
+      pode && React.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 8, flexWrap: 'wrap' } },
+        React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+          React.createElement("button", { onClick: () => setFichas((fichas || []).concat([{ dia: '', entrada: '', saida: '', horas: '', consultas: '', reconsultas: '', enfermagem: '', observacao: '', outros: '', nota: '' }])), style: bspEscBotao(false) }, '+ Dia'),
+          soMg.length > 0 && React.createElement("button", { onClick: () => setFichas((fichas || []).concat(soMg.map(d => ({ dia: String(d), entrada: '', saida: '', horas: '', consultas: '', reconsultas: '', enfermagem: '', observacao: '', outros: '', nota: '' })))), style: bspEscBotao(false) }, '+ Dias do MetaGest sem ficha')),
+        React.createElement("button", { onClick: gravar, style: bspEscBotao(true) }, 'Guardar fichas')));
+  };
   const detalhe = m => {
     const rubs = BSP_PAG_RUBRICAS.map(([k, t]) => {
       const x = m[k] || {};
@@ -28732,18 +29097,7 @@ function PagamentoMedicosPainel() {
       linhas && React.createElement("div", { style: { maxHeight: 260, overflow: 'auto', fontSize: 12.5, border: '1px solid var(--border)', borderRadius: 8, padding: 8 } },
         !linhas.lista ? 'A carregar…' : !linhas.lista.length ? 'Sem linhas.' : linhas.lista.map((x, i) => React.createElement("div", { key: i, style: { display: 'flex', gap: 8, color: Number(x.valor) < 0 ? 'var(--perigo)' : 'var(--text-1)' } },
           React.createElement("span", { style: { width: 86, flex: 'none' } }, bspMarcDataPt(x.dia)), React.createElement("span", { style: { flex: 1 } }, x.item + (Number(x.qtd) !== 1 ? ' × ' + x.qtd : '')), React.createElement("span", null, bspPagKz(x.valor))))),
-      m.regime && React.createElement("div", null,
-        rot(m.regime === 'B' || m.regime === 'D' ? 'Dias assinados na ficha (toque para marcar)' : 'Horas assinadas por dia (fichas)'),
-        React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(62px, 1fr))', gap: 6 } },
-          Array.from({ length: diasMes }, (_, i) => i + 1).map(dia => {
-            const k = iso(dia); const v = perm[k];
-            const fds = [0, 6].indexOf(new Date(k + 'T12:00:00').getDay()) !== -1;
-            if (m.regime === 'B' || m.regime === 'D') return React.createElement("button", { key: k, disabled: !pode, onClick: () => setPerm(Object.assign({}, perm, { [k]: v ? 0 : 1 })), style: Object.assign({}, bspEscChip(!!Number(v)), { minWidth: 0, padding: '6px 0' }) }, (fds ? '· ' : '') + dia);
-            return React.createElement("label", { key: k, style: { display: 'flex', flexDirection: 'column', fontSize: 11, color: fds ? 'var(--accent-d)' : 'var(--text-3)' } }, String(dia),
-              React.createElement("input", { inputMode: 'decimal', disabled: !pode, value: v == null || v === 0 ? '' : String(v).replace('.', ','), onChange: e => setPerm(Object.assign({}, perm, { [k]: num(e.target.value) })), style: Object.assign({}, bspTranspCampo, { padding: '0 6px', height: 34 }) }));
-          })),
-        pode && React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', marginTop: 8 } },
-          React.createElement("button", { onClick: () => rpc('bsp_pagamento_permanencias', { p_prestador: m.id, p_ano: ano, p_mes: mes, p_dias: perm }, 'Permanências guardadas.'), style: bspEscBotao(true) }, 'Guardar permanências'))),
+      fichasBloco(m),
       React.createElement("div", null,
         rot('Ajustes do mês (o que a ficha diz prevalece; vazio = MetaGest)'),
         React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 } },
@@ -28775,6 +29129,8 @@ function PagamentoMedicosPainel() {
         escreve && mapa.estado === 'Fechado' && React.createElement("button", { onClick: () => window.confirm('Marcar ' + bspProdMesRotulo(ano, mes) + ' como pago?') && rpc('bsp_pagamento_fechar', { p_ano: ano, p_mes: mes, p_estado: 'Pago' }, 'Marcado como pago.'), style: bspEscBotao(true) }, 'Marcar como pago'),
         escreve && mapa.estado === 'Fechado' && React.createElement("button", { onClick: () => window.confirm('Reabrir o mês para correcções?') && rpc('bsp_pagamento_fechar', { p_ano: ano, p_mes: mes, p_estado: 'Aberto' }, 'Mês reaberto.'), style: bspEscBotao(false) }, 'Reabrir'),
         React.createElement("button", { onClick: imprimir, style: bspEscBotao(false) }, 'Imprimir mapa'),
+        React.createElement("button", { disabled: !!aGerar, onClick: () => gerar('excel'), style: bspEscBotao(false) }, aGerar === 'excel' ? 'A gerar o Excel…' : 'Excel do mês'),
+        React.createElement("button", { disabled: !!aGerar, onClick: () => gerar('mapas'), style: bspEscBotao(false) }, aGerar === 'mapas' ? 'A gerar os mapas…' : 'Mapas individuais (zip)'),
         React.createElement("button", { onClick: exportar, style: bspEscBotao(false) }, 'Exportar para o banco (CSV)')),
       avisos.length > 0 && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-2)', display: 'flex', flexDirection: 'column', gap: 4 }) },
         React.createElement("b", { style: { color: 'var(--text-1)' } }, 'A conferir antes de fechar'),
@@ -28789,7 +29145,7 @@ function PagamentoMedicosPainel() {
             m.sem_presenca && React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: 'var(--perigo)' } }, 'sem presenças'),
             React.createElement("b", { style: { fontSize: 14, color: 'var(--text-1)', fontVariantNumeric: 'tabular-nums' } }, bspPagKz(m.liquido)),
             dif != null && React.createElement("span", { style: { fontSize: 12, color: dif < 0 ? 'var(--perigo)' : 'var(--sucesso)' } }, (dif >= 0 ? '+' : '−') + bspPagKz(Math.abs(dif)))),
-          aberto === m.id && perm && ajuste && detalhe(m));
+          aberto === m.id && perm && ajuste && fichas && detalhe(m));
       })));
 }
 /* O Painel é só a facturação. O pagamento dos médicos passou para Equipa

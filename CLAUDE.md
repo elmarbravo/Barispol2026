@@ -495,7 +495,13 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `taxa_eco`), outros nomes do MetaGest em `chaves_extra` (contam como a
   chave, também no `bsp_pagamento_detalhe`), nutrição como especialidade.
   As fichas de presença podem faltar: o mapa calcula-se na mesma e o médico
-  aparece em `pendencias.sem_presencas` / `sem_presenca`. Médico «off» =
+  aparece em `pendencias.sem_presencas` / `sem_presenca`.
+  Fichas completas (05-10-2026, `pagamento-fichas.sql`): entrada, saída e
+  quantidades por dia em `pagamento_permanencias`, gravadas só por
+  `bsp_pagamento_fichas` (as consultas da ficha vão para os ajustes);
+  `bsp_pagamento_conferir` (ficha × MetaGest), `bsp_pagamento_actos` (sem
+  doentes). «Excel do mês» e «Mapas individuais» saem do ecrã (`bspPagExcel`,
+  `bspPagMapasZip`). Taxas de permanência: 15.000, 20.000 ou 25.000. Médico «off» =
   `activo = false`, nunca apagar.
 - Integração (03-10-2026, `integracao.sql`, RI-2.2): modelo de passos só no
   servidor (`integracao_modelo`); Equipa → `IntegracaoPainel`. Documentos com

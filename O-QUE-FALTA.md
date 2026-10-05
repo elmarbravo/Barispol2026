@@ -3301,9 +3301,26 @@ leve». Em Setembro o mapa fez-se à mão a partir das fichas em papel.
   de 09/09 (FT CBL-26/1857, facturada sem médico pela Recepção) paga ao
   Dr. Simão a 30% em «Outros».
 - Setembro (aberto): bruto 1.987.535,17 Kz, líquido 1.858.345,38 Kz.
-- **Falta (em curso):** o ecrã: tabela das fichas por médico, conferência
-  ficha × MetaGest, taxa de permanência só 15.000, 20.000 ou 25.000 (Elmar,
-  05-10-2026), botões «Excel do mês» e «Mapas individuais».
+- Ecrã (Equipa → Pagamento dos médicos), feito a 05-10-2026:
+  - por médico, **«Fichas do mês»**: um dia por linha (dia, entrada, saída,
+    consultas, reconsultas, enfermagem, observação, nota); as horas saem da
+    entrada e da saída; ao lado, as consultas do MetaGest nesse dia, a
+    vermelho quando diferem; aviso e botão para os dias que o MetaGest tem
+    sem ficha; «Guardar fichas» (`bsp_pagamento_fichas`);
+  - **taxa de permanência** só 15.000, 20.000 ou 25.000 Kz (Elmar,
+    05-10-2026; a Maria Ester fica nos 15.000), por `bsp_pagamento_prestador`;
+  - em «A conferir antes de fechar», os médicos com consultas da ficha
+    diferentes das do MetaGest;
+  - **«Excel do mês»**: o .xlsx no modelo de Agosto (NOTAS com o que
+    conferir, MAPA com fórmulas, CONFIG, MEDICOS com a permanência em fórmula
+    legível, FICHAS, ACTOS sem doentes), feito no navegador com o JSZip
+    (`bspXlsx`, `bspPagExcel`);
+  - **«Mapas individuais (zip)»**: um HTML por médico no aspecto do mapa de
+    Agosto, sem doentes e com o IBAN mascarado (`bspPagMapaIndividualHtml`).
+- Verificado no navegador com os números reais de Setembro: o Excel abre no
+  openpyxl sem avisos, o total do MAPA dá 1.987.535,17 Kz como o sistema, a
+  fórmula da permanência do Edgar é 15000/14,5×(2,5+5,78+5,83+9,28+9,33+9,83);
+  17 mapas individuais; guardar as fichas envia os 6 dias do Edgar.
 
 ## 3-fg. Desactivar funcionários (05-10-2026)
 
