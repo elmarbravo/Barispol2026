@@ -3581,3 +3581,16 @@ para escolher a viatura que vou usar · histórico para cada uma delas».
   Viaturas → Alterar). O relatório semanal ao motorista (`resumo-matinal`,
   tipo `transporte`) ainda soma todas as viaturas juntas: mudar quando houver
   uma segunda viatura em serviço.
+
+## 3-ft. Documentação no Notion (06-10-2026)
+
+Elmar: «Tudo que fizemos aqui cria uma pasta no Notion para carregar dados,
+passos, documentos» e «vai carregando tudo que formos fazendo».
+- Página privada «Barispol Workspace» no Notion: Leia primeiro, Por fazer,
+  Módulos (12 páginas), Registo de alterações (145 linhas, base de dados),
+  Ficheiros do servidor (111 SQL + 12 Edge Functions) e a pasta «Documentos
+  para carregar». Sem chaves, nomes de utentes, valores pagos, taxas dos
+  médicos nem o regulamento interno.
+- Regra 10 do `CLAUDE.md`: cada alteração nova entra no Notion.
+- Falta: o Elmar diz que já tem uma pasta «Barispol» no Notion, mas não está
+  visível para a ligação do Claude; com a ligação dela, mudar a página para lá.

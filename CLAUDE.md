@@ -30,6 +30,16 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
    e descrever.
 9. Sempre que se mexe no código, actualizar `O-QUE-FALTA.md` na mesma
    alteração.
+10. Notion (Elmar, 06-10-2026: «vai carregando tudo que formos fazendo»):
+   cada alteração entra também na página privada «Barispol Workspace» do
+   Notion (id `3f1d81c4-3cc2-812f-8881-f48f3cfc301a`): uma linha na base
+   «Registo de alterações» (data source `e4b100cf-4d80-477c-940e-f10aee4c8769`:
+   Alteração, Código, Data, Área, Ficheiros, Resumo); um ficheiro SQL ou Edge
+   Function novo entra em «Ficheiros do servidor» (data source
+   `edd8c523-ea66-4bf2-bb23-3922bef4c0b7`: Ficheiro, Tipo, Data, Para que
+   serve); e, quando mudar, a página «Por fazer» e o módulo da área. Nunca
+   lá: chaves, palavras-passe, nomes de utentes, valores pagos, taxas dos
+   médicos nem o texto do regulamento interno.
 
 ## Quem vê o quê (03-10-2026, Elmar: «cada funcionário só vê as suas coisas; os superiores vêem da sua equipa»)
 
@@ -292,7 +302,7 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   comentários na conversa `tarefa-<id>` (privadas: `tarefa-p<id>`, só quem
   vê a tarefa, em `bsp_ve_conversa`); «Levar para o Chat» termina com
   `[tarefa:<id>]` (`bspTarefaDaMensagem`, `bspAbrirTarefa`).
-- Tarefas delegadas (06-10-2026, `tarefas-conclusao.sql`): «✓ Concluída» no cartão e
+- Tarefas delegadas (06-10-2026, `tarefas-conclusao.sql`): «✓ Concluir» no cartão e
   na janela; ao concluir, quem delegou recebe aviso (`bsp_tarefa_concluida_aviso`);
   às 06h45 a lista das atrasadas (`bsp_tarefas_atrasadas_alertar`). O `prazo` das
   privadas é texto: converter antes de comparar. Secção «Atrasadas» no quadro.
