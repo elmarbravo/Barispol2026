@@ -3663,4 +3663,16 @@ Elmar: «Juliana aprovada por Arlete e depois a mim».
 - Juliana (u12): `superior` = u2 e `aprovaFerias` = u1. Cadeia: Arlete → Elmar.
 - Testado no servidor (transacção desfeita): a Arlete não dá o 2.º passo; o
   Elmar recebe o aviso e aprova. Ecrã testado a 390 e 1280 px.
-- Por decidir: superior do Dr. Osvaldo; pedido 15 (Solange).
+- Dr. Osvaldo (u14), Elmar: «Osvaldo vai para mim apenas»: sem `superior`,
+  `aprovaFerias` = u1. Uma só aprovação, a do Elmar (testado).
+- Pedido 15 (Solange), Elmar: «Solange volta para Osvaldo»: voltou a «Pedido»
+  com `superior_id` u14 e `final_id` u2; o Dr. Osvaldo recebeu o aviso.
+
+## 3-fy. Calendário no mapa de férias (06-10-2026)
+
+Elmar: «nas férias coloque calendário além da lista para ver quem sai quando».
+- `MapaFerias` com «Calendário» (abre por omissão) e «Lista». `CalendarioFerias`:
+  grelha do mês de segunda a domingo, quem está de férias em cada dia (só as
+  aprovadas), setas para mudar de mês. No telemóvel cada dia mostra o número;
+  tocar num dia lista quem está fora, com a área e o último dia.
+- Testado a 390 e 1280 px, sem passar da largura do ecrã.

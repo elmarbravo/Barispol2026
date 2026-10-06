@@ -26364,7 +26364,7 @@ const BSP_GUIA_FICHAS = [
       ['Procure um colega', 'e ligue ou escreva-lhe.'],
       ['Peça férias ou uma ausência;', 'aprova primeiro o seu superior (os chefes das áreas clínicas: o Director Clínico), depois os RH. Cada passo recebe o aviso no telemóvel.'],
       ['Veja quem vai estar fora', 'nos próximos 30 dias.'],
-      ['Consulte o mapa de férias', 'de toda a equipa, mês a mês, com aviso quando a mesma área fica com duas pessoas fora.'],
+      ['Consulte o mapa de férias', 'de toda a equipa: em calendário (toque num dia para ver quem está fora) ou em lista mês a mês, com aviso quando a mesma área fica com duas pessoas fora.'],
       ['Registe as suas formações;', 'os certificados a caducar aparecem em destaque.'],
       ['Médicos e credenciais:', 'a cédula vem do MetaGest; a quota da Ordem, o seguro, o contrato e o suporte de vida registam-se com a validade, e avisam antes de caducar.'],
       ['Integração:', 'o plano de acolhimento de cada pessoa nova (RI-2.2), passo a passo, com prazos e avisos.'],
@@ -26936,9 +26936,60 @@ function bspDiasEntre(a, b) { return Math.round((bspDataDe(b) - bspDataDe(a)) / 
    ficam privados. Quando duas pessoas da mesma área estão fora ao mesmo
    tempo, o mês mostra o aviso. */
 const BSP_MESES_LONGOS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+/* Calendário das férias (06-10-2026, Elmar: «nas férias coloque calendário
+   além da lista para ver quem sai quando»). Grelha do mês, de segunda a
+   domingo, com quem está de férias em cada dia (só as aprovadas, as mesmas da
+   lista). No telemóvel cada dia mostra o número de pessoas (classes
+   bsp-mes-evt / bsp-mes-n do Calendário); tocar num dia lista quem está fora. */
+function CalendarioFerias({ ano, linhas, mes, setMes }) {
+  const hoje = bspDataLocalISO(new Date());
+  const [dia, setDia] = React.useState(null);
+  const primeiro = new Date(ano, mes, 1);
+  const nDias = new Date(ano, mes + 1, 0).getDate();
+  const vazio = (primeiro.getDay() + 6) % 7;
+  const iso = d => ano + '-' + String(mes + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  const fora = d => { const x = iso(d); return (linhas || []).filter(a => a.inicio <= x && a.fim >= x); };
+  const celulas = [];
+  for (let k = 0; k < vazio; k++) celulas.push(null);
+  for (let d = 1; d <= nDias; d++) celulas.push(d);
+  const escolhido = dia && dia.slice(0, 7) === iso(1).slice(0, 7) ? dia : null;
+  const lista = escolhido ? (linhas || []).filter(a => a.inicio <= escolhido && a.fim >= escolhido) : [];
+  const navBtn = (txt, alvo, rotulo) => React.createElement("button", { type: 'button', 'aria-label': rotulo, disabled: alvo < 0 || alvo > 11,
+    onClick: () => { setMes(alvo); setDia(null); }, style: Object.assign({}, bspEscBotao(false), { minWidth: 40, opacity: alvo < 0 || alvo > 11 ? .4 : 1 }) }, txt);
+  return React.createElement("div", { style: { marginTop: 10 } },
+    React.createElement("div", { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 } },
+      navBtn('‹', mes - 1, 'Mês anterior'),
+      React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--navy-texto)' } }, BSP_MESES_LONGOS[mes] + ' ' + ano),
+      navBtn('›', mes + 1, 'Mês seguinte')),
+    React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 3, marginTop: 8 } },
+      ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map(n => React.createElement("div", { key: n, style: { fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textAlign: 'center' } }, n))),
+    React.createElement("div", { className: 'bsp-mes-grelha', style: { display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gridAutoRows: 'minmax(78px, auto)', gap: 3, marginTop: 3 } },
+      celulas.map((d, k) => {
+        if (!d) return React.createElement("div", { key: 'v' + k });
+        const x = iso(d), f = fora(d), fimSemana = k % 7 >= 5;
+        return React.createElement("button", { key: x, type: 'button', onClick: () => setDia(escolhido === x ? null : x),
+          'aria-label': d + ' de ' + BSP_MESES_LONGOS[mes] + ': ' + (f.length ? f.length + ' de férias' : 'ninguém de férias'),
+          style: { display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 2, padding: 4, minWidth: 0, textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
+            borderRadius: 6, border: '1px solid ' + (escolhido === x ? 'var(--accent)' : x === hoje ? 'var(--navy)' : 'var(--border)'),
+            background: fimSemana ? 'var(--surface-2)' : 'var(--surface)' } },
+          React.createElement("span", { style: { fontSize: 12, fontWeight: x === hoje ? 800 : 600, color: 'var(--text-2)' } }, d),
+          f.slice(0, 3).map(a => React.createElement("span", { key: a.user_id + a.inicio, className: 'bsp-mes-evt', title: bspNomeDe(a.user_id),
+            style: { fontSize: 11, lineHeight: 1.3, padding: '1px 4px', borderRadius: 4, background: 'var(--accent-soft)', color: 'var(--texto-sobre-pastel)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, bspNomeCurto(a.user_id))),
+          f.length > 3 && React.createElement("span", { className: 'bsp-mes-evt', style: { fontSize: 11, color: 'var(--text-3)', fontWeight: 600 } }, '+' + (f.length - 3)),
+          f.length > 0 && React.createElement("span", { className: 'bsp-mes-n', style: { fontSize: 11, fontWeight: 700, color: 'var(--texto-sobre-pastel)', background: 'var(--accent-soft)', borderRadius: 999, textAlign: 'center' } }, f.length));
+      })),
+    React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', marginTop: 8 } },
+      !escolhido ? 'Toque num dia para ver quem está fora.'
+        : !lista.length ? bspDataCurta(escolhido) + ': ninguém de férias.'
+        : [React.createElement("b", { key: 't', style: { color: 'var(--text-1)' } }, bspDataCurta(escolhido) + ': '),
+           lista.map(a => { const u = window.userById(a.user_id); return bspNomeCurto(a.user_id) + (u && u.dept ? ' (' + u.dept + ')' : '') + ', até ' + bspDataCurta(a.fim); }).join('; ') + '.']));
+}
 function MapaFerias() {
   const anoActual = new Date().getFullYear();
   const [ano, setAno] = React.useState(anoActual);
+  const [vista, setVista] = React.useState('calendario');
+  useBspAbaVoltar(vista, setVista);
+  const [mes, setMes] = React.useState(new Date().getMonth());
   const [linhas, setLinhas] = React.useState(null);
   const [erro, setErro] = React.useState('');
   React.useEffect(() => {
@@ -26971,8 +27022,10 @@ function MapaFerias() {
     React.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' } },
       React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)' } }, 'Mapa de férias da equipa'),
       React.createElement("div", { style: { display: 'flex', gap: 6 } },
-        [anoActual, anoActual + 1].map(a => React.createElement("button", { key: a, type: 'button', onClick: () => setAno(a), style: bspEscChip(ano === a) }, String(a))))),
+        [['calendario', 'Calendário'], ['lista', 'Lista']].map(([k, t]) => React.createElement("button", { key: k, type: 'button', onClick: () => setVista(k), style: bspEscChip(vista === k) }, t)),
+        [anoActual, anoActual + 1].map(a => React.createElement("button", { key: a, type: 'button', onClick: () => { setAno(a); setMes(a === anoActual ? new Date().getMonth() : 0); }, style: bspEscChip(ano === a) }, String(a))))),
     React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginTop: 4 } }, 'Férias aprovadas de toda a equipa. Os outros tipos de ausência não aparecem aqui.'),
+    vista === 'calendario' && !erro && linhas !== null ? React.createElement(CalendarioFerias, { ano, linhas, mes, setMes }) :
     erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13, marginTop: 8 } }, erro)
       : linhas === null ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)', marginTop: 8 } }, 'A carregar…')
       : !total ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)', marginTop: 8 } }, 'Ainda não há férias aprovadas em ' + ano + '.')
