@@ -3648,6 +3648,7 @@ depois a Arlete RH». RI-6.1 (o plano de férias é aprovado pelo superior).
 - Testado no servidor (transacção desfeita): a Arlete não aprova antes do
   Osvaldo; o Osvaldo não dá o 2.º passo; leitura só do próprio, do Osvaldo e
   da Arlete. Ecrã testado a 390 e 1280 px.
-- Por decidir: os pedidos 15 (Solange) e 14 (Déricka), aprovados hoje só pela
-  Arlete, ficam como estão, salvo indicação do Elmar.
+- Pedido 14 (Déricka): o Elmar decidiu «Juliana aprova 1.º». Voltou a
+  «Pedido» com `superior_id` u12; a Juliana recebeu o aviso, depois decide a
+  Arlete. Pedido 15 (Solange), aprovado hoje só pela Arlete: por decidir.
 - Falta confirmar: superior da Juliana (Recepção) e do Dr. Osvaldo.
