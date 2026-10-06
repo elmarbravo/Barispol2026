@@ -3717,3 +3717,22 @@ pediu depois de aprovada» e «um e-mail após aprovação com RH em cc».
   deixa o Emmanuel ler a lista e os PDF (testado com a sessão dele).
 - A janela de avisos mostrou-lhos às 15h54 e ele carregou em «Li»; a leitura
   no menu Documentos ainda não está confirmada. Os dois estão no topo da lista.
+
+## 3-gc. Logística: alimentação e consumíveis de escritório (06-10-2026)
+
+Elmar: «para o controle da Arlete, logística: vê o que fazer com estes dados»
+e «e os alimentos, gestão de comida» (folhas «Controle de gastos com a
+alimentação» e «Consumíveis de escritório»).
+- `logistica-compras.sql` (aplicado): tabela `logistica_compras` (categoria,
+  descrição, data, valor, Compra/Adiantamento, n.º da factura, fornecedor,
+  nota), regra dos consumos; só a gestão apaga.
+- Importadas no servidor as 45 compras das folhas (34 de alimentação desde
+  Março de 2025, 11 de escritório em 2026); totais iguais às folhas.
+- Ecrã: Avarias → «Logística» (`LogisticaPainel`): este mês, média mensal,
+  previsão para o mês (média dos 3 últimos meses fechados), este ano contra o
+  mesmo período do ano anterior, gráfico de 12 meses, meses 30% acima da média
+  a vermelho, adiantamentos por acertar, registar e alterar compras.
+- A confirmar com a Arlete: escritório 2.116,13 Kz a 13-03-2026 (falta um
+  algarismo?) e 132.265,54 Kz a 05-10-2026; alimentação de Agosto de 2026 só
+  50.000 Kz; valores redondos que podem ser adiantamentos.
+- Falta: fotografia da factura (precisa de pasta privada no armazenamento).

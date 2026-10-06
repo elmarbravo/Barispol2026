@@ -26404,7 +26404,8 @@ const BSP_GUIA_FICHAS = [
       ['Enganou-se?', 'Cancele a avaria. Uma avaria criada só a Direcção apaga.'],
       ['Equipamentos e manutenção:', 'o inventário, o plano de manutenção e calibração de cada equipamento, a próxima data e o que se fez. Avisa 14 dias antes, no dia e com 7 dias de atraso.'],
       ['Toners (Recepção, Laboratório, Serviços Gerais e gestão):', 'o nível de cada impressora e o stock no armário. Regista o nível que vê; os Serviços Gerais registam trocas e compras. Avisa quando um toner chega ao mínimo.'],
-      ['Gerador:', 'o gasóleo no depósito (1000 L), o consumo por dia e os dias que restam. Registe a leitura do marcador e cada abastecimento. Abaixo de 30% avisa a gestão e os Serviços Gerais.']
+      ['Gerador:', 'o gasóleo no depósito (1000 L), o consumo por dia e os dias que restam. Registe a leitura do marcador e cada abastecimento. Abaixo de 30% avisa a gestão e os Serviços Gerais.'],
+      ['Logística:', 'as compras de alimentação e de consumíveis de escritório (e limpeza, água, gás). Gasto por mês, média, previsão para o mês e comparação com o ano anterior; os adiantamentos sem factura ficam «por acertar». Vêem o Director Geral, os RH, o Emmanuel e os Serviços Gerais.']
     ],
     quem: 'Toda a equipa reporta. Cada pessoa vê as avarias reportadas pela sua área. A Direcção, os Serviços Gerais e o Emmanuel vêem todas e tratam.',
     dica: 'Carregue uma só vez em «Reportar»: o mesmo texto repetido não cria outra avaria. A Direcção apaga as repetidas.' },
@@ -28574,6 +28575,125 @@ function GeradorPainel() {
         React.createElement("b", { style: { width: 110, flex: 'none', color: x.tipo === 'Abastecimento' ? 'var(--sucesso)' : 'var(--text-1)' } }, x.tipo),
         React.createElement("span", null, (x.tipo === 'Abastecimento' ? '+' : '') + Math.round(Number(x.litros)) + ' L' + (x.valor ? ' · ' + bspPainelKz(x.valor) : '') + (x.horas_motor ? ' · ' + x.horas_motor + ' h de motor' : '') + (x.nota ? ' · ' + x.nota : ''))))));
 }
+/* Despesas da logística (06-10-2026, logistica-compras.sql, Elmar: «para o
+   controle da Arlete, logística» e «e os alimentos, gestão de comida»).
+   Substitui as folhas de Excel da alimentação e dos consumíveis de
+   escritório. Uma linha por compra; a previsão da próxima compra é a média
+   dos últimos 3 meses com compras, e um mês acima da média de 12 meses em
+   mais de 30% aparece a vermelho. Adiantamento sem n.º de factura fica «por
+   acertar». Quem vê: a regra dos consumos (bspVeConsumos / bsp_ve_consumos). */
+const BSP_LOGISTICA_CATS = [['alimentacao', 'Alimentação'], ['escritorio', 'Consumíveis de escritório'], ['limpeza', 'Limpeza'], ['agua', 'Água'], ['gas', 'Gás'], ['outro', 'Outro']];
+const bspLogCat = k => (BSP_LOGISTICA_CATS.find(c => c[0] === k) || [k, k])[1];
+function bspLogMeses(linhas, cat, n) {
+  const hoje = new Date();
+  const lista = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+    const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    lista.push({ k, rotulo: BSP_MESES_LONGOS[d.getMonth()] + ' ' + d.getFullYear(), curto: BSP_MESES_LONGOS[d.getMonth()].slice(0, 3), valor: 0, n: 0 });
+  }
+  (linhas || []).forEach(x => {
+    if (cat !== 'todas' && x.categoria !== cat) return;
+    const m = lista.find(l => l.k === String(x.data).slice(0, 7));
+    if (m) { m.valor += Number(x.valor); m.n++; }
+  });
+  return lista;
+}
+function LogisticaPainel() {
+  const toast = useToast();
+  const eu = window.CURRENT_USER_ID;
+  const gestor = bspCamada(window.userById(eu) || {}).podeGerirUtilizadores;
+  const t = useTabela('logistica_compras', 'data');
+  const [cat, setCat] = React.useState('alimentacao');
+  const [form, setForm] = React.useState(null);
+  const rot = bspTranspRot;
+  const num = v => Number(String(v || '').replace(/\s/g, '').replace(/\.(?=\d{3}\b)/g, '').replace(',', '.'));
+  const linhas = t.linhas || [];
+  const meses = bspLogMeses(linhas, cat, 12);
+  /* Média e previsão só com meses fechados: o mês corrente ainda está a meio. */
+  const comCompras = meses.slice(0, -1).filter(m => m.n > 0);
+  const media = comCompras.length ? comCompras.reduce((a, m) => a + m.valor, 0) / comCompras.length : 0;
+  const ult3 = comCompras.slice(-3);
+  const previsao = ult3.length ? ult3.reduce((a, m) => a + m.valor, 0) / ult3.length : 0;
+  const esteMes = meses[meses.length - 1];
+  const acima = meses.filter(m => m.n > 0 && media > 0 && m.valor > media * 1.3);
+  const ano = new Date().getFullYear(), mesHoje = new Date().getMonth() + 1;
+  const somaAno = a => linhas.filter(x => (cat === 'todas' || x.categoria === cat) && Number(String(x.data).slice(0, 4)) === a && Number(String(x.data).slice(5, 7)) <= mesHoje).reduce((s, x) => s + Number(x.valor), 0);
+  const esteAno = somaAno(ano), anoAntes = somaAno(ano - 1);
+  const porAcertar = linhas.filter(x => x.forma === 'Adiantamento' && !String(x.factura || '').trim());
+  const cats = [['todas', 'Todas']].concat(BSP_LOGISTICA_CATS.filter(c => c[0] === 'alimentacao' || c[0] === 'escritorio' || linhas.some(x => x.categoria === c[0])));
+  async function gravar() {
+    const f = form; const valor = num(f.valor);
+    if (!f.data) { toast('Diga a data.'); return; }
+    if (!(valor > 0)) { toast('Diga o valor.'); return; }
+    const linha = { categoria: f.categoria, descricao: f.descricao.trim(), data: f.data, valor, forma: f.forma, factura: f.factura.trim(), fornecedor: f.fornecedor.trim(), nota: f.nota.trim() };
+    const cl = bspGetClient(); if (!cl) return;
+    const r = f.id ? await cl.from('logistica_compras').update(linha).eq('id', f.id).select('id') : await cl.from('logistica_compras').insert(linha).select('id');
+    if (r.error || !r.data || !r.data.length) { toast('Não foi possível gravar' + (r.error ? ': ' + r.error.message : '.')); return; }
+    toast(f.id ? 'Alterado.' : 'Compra registada.'); setForm(null); t.recarregar();
+  }
+  async function apagar(x) {
+    if (!window.confirm('Apagar a compra de ' + bspPainelKz(x.valor) + ' de ' + bspDataCurta(x.data) + '?')) return;
+    const r = await bspGetClient().from('logistica_compras').delete().eq('id', x.id).select('id');
+    if (r.error || !r.data || !r.data.length) { toast('Não foi possível apagar.'); return; }
+    t.recarregar();
+  }
+  const tile = (titulo, v, sub, cor) => React.createElement("div", { style: Object.assign({}, bspRegCaixa, { flex: '1 1 150px' }) },
+    React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-3)' } }, titulo),
+    React.createElement("div", { style: { fontSize: 20, fontWeight: 700, color: cor || 'var(--text-1)' } }, v),
+    sub && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, sub));
+  const novo = () => setForm({ categoria: cat === 'todas' ? 'alimentacao' : cat, descricao: '', data: bspDataLocalISO(new Date()), valor: '', forma: 'Compra', factura: '', fornecedor: '', nota: '' });
+  const lista = linhas.filter(x => cat === 'todas' || x.categoria === cat).slice(0, 60);
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+    t.erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, t.erro) : null,
+    React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+      cats.map(c => React.createElement("button", { key: c[0], type: 'button', onClick: () => setCat(c[0]), style: bspEscChip(cat === c[0]) }, c[1]))),
+    React.createElement("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' } },
+      tile('Este mês', bspPainelKz(esteMes.valor), esteMes.n + (esteMes.n === 1 ? ' compra' : ' compras'), media > 0 && esteMes.valor > media * 1.3 ? 'var(--perigo)' : null),
+      tile('Média mensal', bspPainelKz(media), 'meses fechados com compras, últimos 11'),
+      tile('Previsão para o mês', bspPainelKz(previsao), 'média dos últimos 3 meses fechados com compras'),
+      tile('Este ano até agora', bspPainelKz(esteAno), anoAntes ? 'Mesmo período de ' + (ano - 1) + ': ' + bspPainelKz(anoAntes) + ' (' + (esteAno >= anoAntes ? '+' : '') + Math.round((esteAno / anoAntes - 1) * 100) + '%)' : 'Sem dados de ' + (ano - 1))),
+    React.createElement("div", { style: bspRegCaixa },
+      React.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', alignItems: 'baseline', marginBottom: 8 } },
+        React.createElement("b", { style: { fontSize: 14, color: 'var(--text-1)' } }, 'Gasto por mês · ' + (cat === 'todas' ? 'todas as categorias' : bspLogCat(cat))),
+        React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, 'Últimos 12 meses')),
+      t.linhas === null ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'A carregar…')
+        : React.createElement(PainelColunas, { dados: meses, formatar: v => bspPainelKz(v), cor: '--serie-1', altura: 190 }),
+      acima.length > 0 && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--perigo)', marginTop: 6 } },
+        'Acima da média em mais de 30%: ' + acima.map(m => m.rotulo + ' (' + bspPainelKz(m.valor) + ')').join('; ') + '.')),
+    porAcertar.length > 0 && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { borderLeft: '4px solid var(--perigo)' }) },
+      React.createElement("b", { style: { fontSize: 13.5, color: 'var(--text-1)' } }, 'Adiantamentos por acertar (' + porAcertar.length + ')'),
+      React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginTop: 2 } }, 'Dinheiro entregue para compras, ainda sem n.º de factura.'),
+      porAcertar.map(x => React.createElement("div", { key: x.id, style: { fontSize: 13, marginTop: 6, color: 'var(--text-1)' } }, bspDataCurta(x.data) + ' · ' + bspLogCat(x.categoria) + ' · ' + bspPainelKz(x.valor)))),
+    React.createElement("div", null, React.createElement("button", { onClick: novo, style: bspEscBotao(true) }, 'Registar compra')),
+    form && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { background: 'var(--surface-2)' }) },
+      React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 } },
+        React.createElement("label", null, rot('Categoria'), React.createElement("select", { value: form.categoria, onChange: e => setForm(Object.assign({}, form, { categoria: e.target.value })), style: bspTranspCampo },
+          BSP_LOGISTICA_CATS.map(c => React.createElement("option", { key: c[0], value: c[0] }, c[1])))),
+        React.createElement("label", null, rot('Data'), React.createElement("input", { type: 'date', value: form.data, onChange: e => setForm(Object.assign({}, form, { data: e.target.value })), style: bspTranspCampo })),
+        React.createElement("label", null, rot('Valor (Kz)'), React.createElement("input", { inputMode: 'decimal', value: form.valor, placeholder: 'Ex.: 150000', onChange: e => setForm(Object.assign({}, form, { valor: e.target.value.replace(/[^0-9.,]/g, '') })), style: bspTranspCampo })),
+        React.createElement("label", null, rot('Tipo'), React.createElement("select", { value: form.forma, onChange: e => setForm(Object.assign({}, form, { forma: e.target.value })), style: bspTranspCampo },
+          React.createElement("option", { value: 'Compra' }, 'Compra (com factura)'), React.createElement("option", { value: 'Adiantamento' }, 'Adiantamento (dinheiro entregue)'))),
+        React.createElement("label", null, rot('N.º da factura'), React.createElement("input", { value: form.factura, onChange: e => setForm(Object.assign({}, form, { factura: e.target.value })), style: bspTranspCampo })),
+        React.createElement("label", null, rot('Fornecedor'), React.createElement("input", { value: form.fornecedor, onChange: e => setForm(Object.assign({}, form, { fornecedor: e.target.value })), placeholder: 'Ex.: Kero, Shoprite', style: bspTranspCampo }))),
+      React.createElement("label", { style: { display: 'block', marginTop: 10 } }, rot('Descrição'), React.createElement("input", { value: form.descricao, onChange: e => setForm(Object.assign({}, form, { descricao: e.target.value })), placeholder: 'Ex.: Compras gerais do mês, reposição de alimentos', style: bspTranspCampo })),
+      React.createElement("label", { style: { display: 'block', marginTop: 10 } }, rot('Nota'), React.createElement("input", { value: form.nota, onChange: e => setForm(Object.assign({}, form, { nota: e.target.value })), style: bspTranspCampo })),
+      React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 } },
+        React.createElement("button", { onClick: () => setForm(null), style: bspEscBotao(false) }, 'Cancelar'),
+        React.createElement("button", { onClick: gravar, style: bspEscBotao(true) }, form.id ? 'Gravar' : 'Registar'))),
+    React.createElement("div", { style: bspRegCaixa },
+      React.createElement("b", { style: { fontSize: 13.5, color: 'var(--text-1)' } }, 'Compras'),
+      !lista.length ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)', marginTop: 6 } }, t.linhas ? 'Sem compras.' : 'A carregar…') :
+      lista.map(x => React.createElement("div", { key: x.id, style: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', padding: '8px 0', borderTop: '1px solid var(--border)', fontSize: 13, color: 'var(--text-1)' } },
+        React.createElement("span", { style: { width: 96, flex: 'none', color: 'var(--text-2)' } }, bspDataCurta(x.data)),
+        React.createElement("div", { style: { flex: '1 1 180px', minWidth: 0 } },
+          React.createElement("div", null, (cat === 'todas' ? bspLogCat(x.categoria) + ' · ' : '') + (x.descricao || bspLogCat(x.categoria))),
+          (x.fornecedor || x.factura || x.nota) && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, [x.fornecedor, x.factura ? 'Factura ' + x.factura : '', x.nota].filter(Boolean).join(' · '))),
+        x.forma === 'Adiantamento' && React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: x.factura ? 'var(--sucesso)' : 'var(--perigo)' } }, x.factura ? 'Acertado' : 'Por acertar'),
+        React.createElement("b", { style: { whiteSpace: 'nowrap' } }, bspPainelKz(x.valor)),
+        React.createElement("button", { onClick: () => setForm({ id: x.id, categoria: x.categoria, descricao: x.descricao || '', data: x.data, valor: String(x.valor), forma: x.forma, factura: x.factura || '', fornecedor: x.fornecedor || '', nota: x.nota || '' }), style: bspEscBotao(false) }, 'Alterar'),
+        gestor && React.createElement("button", { onClick: () => apagar(x), style: bspEscBotao(false) }, 'Apagar')))));
+}
 function AvariasScreen() {
   const [aba, setAba] = React.useState('avarias');
   useBspAbaVoltar(aba, setAba);
@@ -28584,10 +28704,11 @@ function AvariasScreen() {
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' } },
     React.createElement("div", { style: { display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', flex: 'none', overflowX: 'auto' } },
       aba_('avarias', 'Avarias'), aba_('equipamentos', 'Equipamentos e manutenção'), bspVeToners(window.userById(window.CURRENT_USER_ID)) && aba_('toners', 'Toners'),
-      (bspTrataAvarias(window.userById(window.CURRENT_USER_ID)) || bspVeConsumos(window.userById(window.CURRENT_USER_ID))) && aba_('gerador', 'Gerador')),
+      (bspTrataAvarias(window.userById(window.CURRENT_USER_ID)) || bspVeConsumos(window.userById(window.CURRENT_USER_ID))) && aba_('gerador', 'Gerador'),
+      bspVeConsumos(window.userById(window.CURRENT_USER_ID)) && aba_('logistica', 'Logística')),
     React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: 'auto', paddingBottom: 12 } },
       aba === 'avarias' ? React.createElement(AvariasLista, null) : aba === 'toners' ? React.createElement(TonersPainel, null)
-        : aba === 'gerador' ? React.createElement(GeradorPainel, null) : React.createElement(EquipamentosPainel, null)));
+        : aba === 'gerador' ? React.createElement(GeradorPainel, null) : aba === 'logistica' ? React.createElement(LogisticaPainel, null) : React.createElement(EquipamentosPainel, null)));
 }
 
 /* ───────────── Avarias ───────────── */

@@ -481,6 +481,12 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   depósito por leituras e abastecimentos (`bsp_gerador_estado`). Avisos por
   `bsp_aviso_servicos_gerais` (novidade + telemóvel). Leitura automática das
   impressoras ainda não existe (precisa de programa local).
+- Logística (06-10-2026, `logistica-compras.sql`): Avarias → «Logística»
+  (`LogisticaPainel`), compras de alimentação, consumíveis de escritório,
+  limpeza, água e gás (`logistica_compras`, `BSP_LOGISTICA_CATS`), com a regra
+  dos consumos (`bsp_ve_consumos`); só a gestão apaga. Média e previsão só com
+  meses fechados (`bspLogMeses`). As compras antigas vieram das folhas da Arlete
+  (nota «Folha da Arlete»), importadas só no servidor: valores nunca no repositório.
 - Vigilância (03-10-2026, `vigilancia.sql`): `bsp_vigilancia` de 15 em 15 min,
   avisa a gestão no telemóvel; Admin → «Saúde do sistema». Uma verificação
   nova entra em `bsp_vigilancia` e em `BSP_VIGILANCIA_NOMES`.
