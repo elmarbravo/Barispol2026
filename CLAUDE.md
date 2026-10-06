@@ -551,7 +551,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `superior_ok_em` (o estado fica «Pedido»: a regra `ausencias_estado_check`
   não muda); 2.º passo de `final_id` = `bsp_aprovador_final_de` (campo
   `aprovaFerias` na equipa, senão os RH, `bsp_ferias_rh` = u2;
-  `ferias-aprovacao-final.sql`: a Juliana tem Arlete → Elmar). O u1 substitui
+  `ferias-aprovacao-final.sql`: a Juliana tem Arlete → Elmar; o Dr. Osvaldo só
+  o Elmar). Quem pediu recebe janela de aviso a cada passo e, na aprovação
+  final, e-mail com os RH em cópia (`ferias-avisos-email.sql`,
+  `bsp_ausencia_email_aprovado`). O u1 substitui
   em qualquer passo. Ecrã: `bspAusenciaPasso`, `bspAusenciaDecideEu`. Avisos com
   etiqueta `ferias-<id>` (sino, telemóvel, janela de avisos importantes).
   Nas funções pela ferramenta do servidor, nunca a palavra `drop` (fica à
@@ -641,8 +644,13 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   descrição sem pedir nova leitura.
   Para quem (02-10-2026, `documentos-destino.sql`): coluna `grupos` com
   `todos`, `camada:<nome>` ou `cargo:<família>` (nunca pessoas nem áreas,
-  decisão do Elmar); `bsp_doc_no_grupo`/`bsp_cargo_grupos` no servidor e
-  `bspNosGrupos`/`BSP_DOC_CARGOS` no ecrã, mudar os dois juntos. Fora de
+  decisão do Elmar); `bsp_doc_no_grupo`/`bsp_cargo_grupos_membro` no servidor e
+  `bspNosGrupos`/`BSP_DOC_CARGOS` no ecrã, mudar os dois juntos. Desde
+  06-10-2026 (`documentos-destino-areas.sql`, Elmar: «juntaste técnicos de
+  laboratório com os da farmácia») os grupos das áreas de saúde saem do
+  departamento (Técnicos de enfermagem, de laboratório, de farmácia, de
+  radiologia), com o chefe da área; nunca juntar áreas num grupo. A janela
+  mostra «Vão ver (N)» com os nomes antes de publicar. Fora de
   «todos», nada vai para o Feed nem #avisos.
 - Registo clínico (05-10-2026, `registo-clinico.sql`): ecrã `registo`
   (`RegistoClinicoScreen`), um registo por médico e dia (`registo_clinico`,

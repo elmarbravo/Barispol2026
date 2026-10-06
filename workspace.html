@@ -25282,15 +25282,26 @@ const bspDocCategoria = c => (BSP_DOC_CATEGORIAS.find(x => x[0] === c) || [c, 'D
    'camada:<nome>' e 'cargo:<família>'. A família sai do texto do cargo, com
    as mesmas expressões de bsp_cargo_grupos no servidor (bsp_ve_documento /
    bsp_doc_no_grupo): mudar os dois lados juntos. */
+/* Grupos por área (06-10-2026, documentos-destino-areas.sql, Elmar: «juntaste
+   técnicos de laboratório com os da farmácia»; «téc. de farmácia, téc. de
+   enfermagem, téc. de laboratório»). As áreas de saúde saem do departamento
+   da pessoa, com o chefe da área; ninguém de uma área entra no grupo de
+   outra. Igual a bsp_cargo_grupos_membro no servidor. */
+const bspDocArea = u => bspAreaChave(u && u.dept);
+const bspDocCargo = u => String((u && u.role) || '');
+const bspDocChefe = u => /(chefe|supervisor|director)/i.test(bspDocCargo(u));
 const BSP_DOC_CARGOS = [
-  ['cargo:medicos', 'Médicos', /(m[eé]dic|director cl[ií]nico|pediatra)/i],
-  ['cargo:radiologistas', 'Radiologistas', /radiolog/i],
-  ['cargo:enfermeiros', 'Enfermeiros', /enferm/i],
-  ['cargo:tecnicos', 'Técnicos (laboratório e farmácia)', /(t[eé]cnic|analista)/i],
-  ['cargo:chefes', 'Chefes e supervisores', /(chefe|supervisor|director)/i],
-  ['cargo:recepcao', 'Recepção', /recep/i],
-  ['cargo:administrativos', 'Administrativos', /(administrativ|\brh\b|recursos humanos)/i],
-  ['cargo:motorista', 'Motorista', /motorista/i]];
+  ['cargo:medicos', 'Médicos', u => /(m[eé]dic|director cl[ií]nico|pediatra)/i.test(bspDocCargo(u)) && ['clinica', ''].indexOf(bspDocArea(u)) !== -1],
+  ['cargo:enfermeiros', 'Técnicos de enfermagem', u => bspDocArea(u) === 'enfermagem' || (!bspDocArea(u) && /enferm/i.test(bspDocCargo(u)))],
+  ['cargo:tecnicos-laboratorio', 'Técnicos de laboratório', u => bspDocArea(u) === 'laboratorio'],
+  ['cargo:tecnicos-farmacia', 'Técnicos de farmácia', u => bspDocArea(u) === 'farmacia'],
+  ['cargo:radiologistas', 'Técnicos de radiologia', u => bspDocArea(u) === 'radiologia' || (!bspDocArea(u) && /radiolog/i.test(bspDocCargo(u)))],
+  ['cargo:chefes', 'Chefes das áreas e directores', bspDocChefe],
+  ['cargo:recepcao', 'Recepção', u => bspDocArea(u) === 'recepcao' || (!bspDocArea(u) && /recep/i.test(bspDocCargo(u)))],
+  ['cargo:administrativos', 'Administrativos', u => /(administrativ|\brh\b|recursos humanos)/i.test(bspDocCargo(u))],
+  ['cargo:motorista', 'Motorista', u => /motorista/i.test(bspDocCargo(u))]];
+/* Valor antigo, só para ler documentos já publicados (= laboratório + farmácia). */
+const BSP_DOC_CARGOS_ANTIGOS = [['cargo:tecnicos', 'Técnicos de laboratório e de farmácia', u => ['laboratorio', 'farmacia'].indexOf(bspDocArea(u)) !== -1]];
 function bspDocCamadas() {
   const cs = bspCamadas() || {};
   return Object.keys(cs).filter(n => !(cs[n] && cs[n].soNumeros) && n !== 'Sócio').sort(bspCompararTexto).map(n => ['camada:' + n, n]);
@@ -25300,11 +25311,11 @@ function bspNosGrupos(u, grupos) {
   const g = grupos && grupos.length ? grupos : ['todos'];
   if (g.indexOf('todos') !== -1) return true;
   if (g.indexOf('camada:' + (u.accessLevel || '')) !== -1) return true;
-  return BSP_DOC_CARGOS.some(c => g.indexOf(c[0]) !== -1 && c[2].test(String(u.role || '')));
+  return BSP_DOC_CARGOS.concat(BSP_DOC_CARGOS_ANTIGOS).some(c => g.indexOf(c[0]) !== -1 && c[2](u));
 }
 function bspDocGruposTexto(d) {
   return bspDocGrupos(d).map(k => k === 'todos' ? 'Toda a equipa' : k.indexOf('camada:') === 0 ? 'camada ' + k.slice(7)
-    : (BSP_DOC_CARGOS.find(c => c[0] === k) || [k, k])[1]).join(', ');
+    : (BSP_DOC_CARGOS.concat(BSP_DOC_CARGOS_ANTIGOS).find(c => c[0] === k) || [k, k])[1]).join(', ');
 }
 function bspDocGrupos(d) {
   const g = d && Array.isArray(d.grupos) && d.grupos.length ? d.grupos : ['todos'];
@@ -25372,6 +25383,7 @@ function DocsPorLerCartao({ currentUser, onAbrir }) {
    volta a pedir a leitura à equipa (para isso há «Nova versão»). */
 function DocPublicarModal({ open, substituir, editar, onClose }) {
   const toast = useToast();
+  const { state: estadoEquipa } = useStore();
   const vazio = () => editar
     ? { categoria: editar.categoria, titulo: editar.titulo || '', numero: editar.numero || '', descricao: editar.descricao || '', vigor: editar.em_vigor_desde || bspDataLocalISO(new Date()), revisao: editar.revisao_ate || '', grupos: bspDocGrupos(editar) }
     : ({ categoria: substituir ? substituir.categoria : 'comunicado', titulo: substituir ? substituir.titulo : '', numero: '', descricao: '', vigor: bspDataLocalISO(new Date()), revisao: '', grupos: substituir ? bspDocGrupos(substituir) : ['todos'] });
@@ -25443,14 +25455,22 @@ function DocPublicarModal({ open, substituir, editar, onClose }) {
     React.createElement("div", null, bspTranspRot('Para quem'),
       React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
         [['todos', 'Toda a equipa']].map(c => React.createElement("button", { key: c[0], type: 'button', onClick: () => mudarGrupo(c[0]), style: bspEscChip((f.grupos || []).indexOf(c[0]) !== -1) }, c[1]))),
-      React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', margin: '10px 0 4px' } }, 'Ou por camada:'),
+      React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', margin: '10px 0 4px' } }, 'Ou por camada de acesso (atenção: uma camada junta várias profissões e áreas):'),
       React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
         bspDocCamadas().map(c => React.createElement("button", { key: c[0], type: 'button', onClick: () => mudarGrupo(c[0]), style: bspEscChip((f.grupos || []).indexOf(c[0]) !== -1) }, c[1]))),
       React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', margin: '10px 0 4px' } }, 'Ou por cargo:'),
       React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
         BSP_DOC_CARGOS.map(c => React.createElement("button", { key: c[0], type: 'button', onClick: () => mudarGrupo(c[0]), style: bspEscChip((f.grupos || []).indexOf(c[0]) !== -1) }, c[1]))),
       (f.grupos || []).indexOf('todos') === -1 && React.createElement("p", { style: { margin: '8px 0 0', fontSize: 12.5, color: 'var(--text-3)' } },
-        'Só estes grupos o vêem e recebem o aviso. A Direcção, a Coordenação e quem publica documentos vêem sempre.' + (f.categoria === 'comunicado' ? ' Não vai para o Feed nem para o #avisos.' : ''))),
+        'Só estes grupos o vêem e recebem o aviso. A Direcção, a Coordenação e quem publica documentos vêem sempre.' + (f.categoria === 'comunicado' ? ' Não vai para o Feed nem para o #avisos.' : '')),
+      (f.grupos || []).indexOf('todos') === -1 && (() => {
+        /* Quem vai ver, pelo nome, antes de publicar: confirmar que não sai da área certa. */
+        const equipa = bspSemOcultos((estadoEquipa.team && estadoEquipa.team.length ? estadoEquipa.team : USERS)).filter(u => u && u.id !== 'self' && !bspESocio(u) && !u.semEmails && !u.inactivo);
+        const vao = (f.grupos || []).length ? equipa.filter(u => bspNosGrupos(u, f.grupos)) : [];
+        return React.createElement("div", { style: { marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'var(--surface-2)', fontSize: 12.5, color: 'var(--text-2)' } },
+          React.createElement("b", { style: { color: 'var(--text-1)' } }, 'Vão ver (' + vao.length + '): '),
+          vao.length ? vao.map(u => bspNomeCurto(u.id) + (u.dept ? ' (' + u.dept + ')' : '')).join(', ') + '.' : 'escolha pelo menos um grupo.');
+      })()),
     campo('titulo', 'Título', 'Ex.: Regulamento interno da clínica'),
     React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 } },
       campo('numero', 'Número (opcional)', 'Ex.: NI 03/2026'), campo('vigor', 'Em vigor desde', '', 'date'), campo('revisao', 'Rever até (opcional)', '', 'date')),

@@ -3676,3 +3676,44 @@ Elmar: «nas férias coloque calendário além da lista para ver quem sai quando
   aprovadas), setas para mudar de mês. No telemóvel cada dia mostra o número;
   tocar num dia lista quem está fora, com a área e o último dia.
 - Testado a 390 e 1280 px, sem passar da largura do ecrã.
+
+## 3-fz. Documentos: grupos sem misturar áreas (06-10-2026)
+
+Elmar: «ao publicar um documento, para quem pode ver, juntaste técnicos de
+laboratório com os da farmácia; revê todas essas secções para não vazar
+informação» e «gere os cargos como deve ser: téc. de farmácia, téc. de
+enfermagem, téc. de laboratório».
+- `documentos-destino-areas.sql` (aplicado): `bsp_cargo_grupos_membro` lê o
+  cargo e o departamento; `bsp_doc_no_grupo` usa-a. Grupos: Médicos, Técnicos
+  de enfermagem, de laboratório, de farmácia, de radiologia (pela área, com o
+  chefe da área), Chefes das áreas e directores, Recepção, Administrativos,
+  Motorista. Conferido no servidor: ninguém aparece no grupo de outra área.
+- O antigo «cargo:tecnicos» (Laboratório + Farmácia) continua a ser lido mas
+  já não se oferece. O documento 3, que o tinha, ficou com os dois grupos
+  novos (as mesmas pessoas): o Elmar decide se deve ficar só um.
+- Ecrã: `BSP_DOC_CARGOS` com regras por área; aviso de que as camadas juntam
+  profissões; «Vão ver (N)» com os nomes antes de publicar. Testado a 390 e
+  1280 px.
+- Atenção: as camadas de acesso juntam áreas (a camada Clínica tem médicos,
+  o analista do Laboratório, uma técnica da Farmácia e uma radiologista). O
+  documento 8 (camadas Clínica, Enfermagem, Recepcionista) chegou a essas
+  pessoas. Por decidir com o Elmar.
+- A lista embutida `USERS` não tem a Neusa Chimi (Radiologia); o servidor tem.
+
+## 3-ga. Férias: avisos a quem pediu e e-mail na aprovação (06-10-2026)
+
+Elmar: «os pedidos de férias devem vir pop ups a quem deve aprovar e a quem
+pediu depois de aprovada» e «um e-mail após aprovação com RH em cc».
+- `ferias-avisos-email.sql` (aplicado): quem pediu recebe sino + telemóvel +
+  janela de avisos no 1.º passo e na decisão final; na aprovação final,
+  `bsp_ausencia_email_aprovado` manda o e-mail (aspecto do site) a quem pediu
+  com os RH em cópia (só a quem recebe e-mails). Quem aprova já recebia a
+  janela. Testado no servidor (transacção desfeita): janelas e e-mail
+  (destinatário, cópia e assunto) certos.
+
+## 3-gb. Documentos que o Emmanuel «não via» (06-10-2026)
+
+- Documentos 18 e 19 (Arlete, 15h50 e 15h52, «Toda a equipa»): o servidor
+  deixa o Emmanuel ler a lista e os PDF (testado com a sessão dele).
+- A janela de avisos mostrou-lhos às 15h54 e ele carregou em «Li»; a leitura
+  no menu Documentos ainda não está confirmada. Os dois estão no topo da lista.
