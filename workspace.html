@@ -14816,7 +14816,10 @@ function TasksScreen() {
       color: 'var(--text-1)',
       marginTop: 4
     }
-  }, board[c.id].length)))))), React.createElement("div", {
+  }, board[c.id].length)))))), React.createElement(TarefasAtrasadas, {
+    board: board,
+    onOpen: id => setDetalhe(id)
+  }), React.createElement("div", {
     className: "bsp-taskboard",
     style: {
       flex: 1,
@@ -14949,6 +14952,38 @@ function TasksScreen() {
     onOpen: () => setDetalhe(tk.id),
     nComentarios: (state.channelMessages[bspTarefaConv(tk.id)] || []).filter(m => !bspLinhaDeControlo(m.text)).length
   })))))));
+}
+/* Secção «Atrasadas» (06-10-2026, Elmar: «nas tarefas cria a secção
+   atrasadas para ver»): as tarefas fora de «Concluído» com o fim antes de
+   hoje, da equipa e privadas (as que o quadro mostra), da mais antiga para a
+   mais recente. Carregar abre a tarefa. */
+function TarefasAtrasadas({ board, onOpen }) {
+  const hoje = bspDataLocalISO(new Date());
+  const [aberta, setAberta] = React.useState(true);
+  const lista = [];
+  ['todo', 'doing', 'review'].forEach(c => (board[c] || []).forEach(t => {
+    const fim = t.due ? String(t.due).slice(0, 10) : '';
+    if (fim && fim < hoje && !t.done) lista.push({ t, c, fim });
+  }));
+  lista.sort((a, b) => a.fim.localeCompare(b.fim));
+  const dias = fim => Math.round((new Date(hoje + 'T12:00:00') - new Date(fim + 'T12:00:00')) / 86400000);
+  const quem = t => {
+    const us = (t.assignees || []).map(window.userById).filter(Boolean).map(u => bspNomeProprio(u.name).split(' ').slice(0, 2).join(' '));
+    return us.length ? us.join(', ') : t.dono ? String(t.dono) : t.partilhada || t.delegadaPor ? '' : 'Eu';
+  };
+  return React.createElement(Card, { pad: 14, style: { marginBottom: 16, borderLeft: lista.length ? '4px solid var(--perigo)' : undefined, flex: 'none' } },
+    React.createElement("button", { onClick: () => setAberta(v => !v), style: { display: 'flex', alignItems: 'center', gap: 8, width: '100%', border: 0, background: 'transparent', padding: 0, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' } },
+      React.createElement("strong", { style: { fontSize: 14, color: lista.length ? 'var(--perigo)' : 'var(--text-1)' } }, 'Atrasadas'),
+      React.createElement(Badge, { tone: lista.length ? 'danger' : undefined }, lista.length),
+      React.createElement("span", { style: { flex: 1 } }),
+      React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, aberta ? 'Recolher' : 'Ver')),
+    aberta && (!lista.length
+      ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)', marginTop: 8 } }, 'Nenhuma tarefa atrasada.')
+      : React.createElement("div", { style: { marginTop: 8, maxHeight: 260, overflow: 'auto' } }, lista.map(({ t, c, fim }) =>
+        React.createElement("button", { key: t.id, onClick: () => onOpen(t.id), style: { display: 'flex', alignItems: 'baseline', gap: 10, width: '100%', padding: '8px 2px', border: 0, borderTop: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', flexWrap: 'wrap' } },
+          React.createElement("span", { style: { flex: '1 1 220px', minWidth: 0, fontSize: 13.5, fontWeight: 600, color: 'var(--text-1)' } }, t.title),
+          React.createElement("span", { style: { fontSize: 12, color: 'var(--text-2)' } }, [quem(t), BSP_COLUNAS_TAREFA[c]].filter(Boolean).join(' · ')),
+          React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: 'var(--perigo)', whiteSpace: 'nowrap' } }, 'Fim ' + bspDataCurta(fim) + ' · ' + dias(fim) + (dias(fim) === 1 ? ' dia' : ' dias') + ' de atraso'))))));
 }
 function TaskCard({
   t,

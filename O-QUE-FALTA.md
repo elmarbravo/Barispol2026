@@ -3485,3 +3485,12 @@ a mostrar o documento).
 - Verificado no navegador: o botão aparece e o ficheiro desce com o nome certo.
 - Limite: a app Android não descarrega ficheiros (não tem `DownloadListener`
   nem o plugin de partilha); na app, abrir o Workspace no navegador para editar.
+
+## 3-fp. Tarefas: secção «Atrasadas» (06-10-2026)
+
+Elmar: «nas tarefas cria a secção atrasadas para ver».
+- `TarefasAtrasadas` entre o resumo e o quadro: tarefas fora de «Concluído» com
+  o fim antes de hoje (equipa e privadas que o quadro mostra), da mais antiga
+  para a mais recente, com quem, coluna, data de fim e dias de atraso.
+  Carregar abre a tarefa (`TarefaDetalhe`); a secção recolhe-se.
+- Verificado no navegador a 1280 px e 390 px, com dados simulados.
