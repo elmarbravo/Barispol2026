@@ -3652,3 +3652,15 @@ depois a Arlete RH». RI-6.1 (o plano de férias é aprovado pelo superior).
   «Pedido» com `superior_id` u12; a Juliana recebeu o aviso, depois decide a
   Arlete. Pedido 15 (Solange), aprovado hoje só pela Arlete: por decidir.
 - Falta confirmar: superior da Juliana (Recepção) e do Dr. Osvaldo.
+
+## 3-fx. Aprovação final das férias por pessoa (06-10-2026)
+
+Elmar: «Juliana aprovada por Arlete e depois a mim».
+- `ferias-aprovacao-final.sql` (aplicado): coluna `final_id` em `ausencias`,
+  `bsp_aprovador_final_de` (campo `aprovaFerias` na equipa; sem ele, os RH).
+  O 1.º passo salta-se quando coincide com o aprovador final. Quem dá a
+  aprovação final também lê o pedido.
+- Juliana (u12): `superior` = u2 e `aprovaFerias` = u1. Cadeia: Arlete → Elmar.
+- Testado no servidor (transacção desfeita): a Arlete não dá o 2.º passo; o
+  Elmar recebe o aviso e aprova. Ecrã testado a 390 e 1280 px.
+- Por decidir: superior do Dr. Osvaldo; pedido 15 (Solange).

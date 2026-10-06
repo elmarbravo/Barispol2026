@@ -549,8 +549,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   (`superior_id` = `bsp_aprovador_de`: campo `superior`, senão o chefe da área;
   chefes clínicos e radiologistas com `superior` u14), marcado em
   `superior_ok_em` (o estado fica «Pedido»: a regra `ausencias_estado_check`
-  não muda); 2.º passo dos RH (`bsp_ferias_rh` = u2). O u1 substitui em
-  qualquer passo. Ecrã: `bspAusenciaPasso`, `bspAusenciaDecideEu`. Avisos com
+  não muda); 2.º passo de `final_id` = `bsp_aprovador_final_de` (campo
+  `aprovaFerias` na equipa, senão os RH, `bsp_ferias_rh` = u2;
+  `ferias-aprovacao-final.sql`: a Juliana tem Arlete → Elmar). O u1 substitui
+  em qualquer passo. Ecrã: `bspAusenciaPasso`, `bspAusenciaDecideEu`. Avisos com
   etiqueta `ferias-<id>` (sino, telemóvel, janela de avisos importantes).
   Nas funções pela ferramenta do servidor, nunca a palavra `drop` (fica à
   espera de confirmação): `create or replace trigger`, `alter policy`.

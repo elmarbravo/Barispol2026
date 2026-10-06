@@ -26989,7 +26989,10 @@ const BSP_AUSENCIA_TIPOS = ['Férias', 'Doença', 'Falta justificada', 'Formaç�
    (superior_id, calculado no servidor por bsp_aprovador_de) e fica em
    superior_ok_em; o 2.º é dos RH. O Director Geral pode substituir em
    qualquer passo. O servidor decide (bsp_ausencia_decidir); o ecrã só mostra
-   os botões a quem os pode usar. */
+   os botões a quem os pode usar.
+   Aprovação final por pessoa (06-10-2026, ferias-aprovacao-final.sql, Elmar:
+   «Juliana aprovada por Arlete e depois a mim»): campo «aprovaFerias» na
+   equipa, gravado no pedido como final_id; sem ele, os RH. */
 const BSP_FERIAS_RH = 'u2';
 const BSP_FERIAS_SUBSTITUTO = 'u1';
 function bspAusenciaPasso(a) {
@@ -27003,7 +27006,7 @@ function bspAusenciaDecideEu(a, eu) {
   const p = bspAusenciaPasso(a);
   if (!p || a.user_id === eu) return false;
   if (eu === BSP_FERIAS_SUBSTITUTO) return true;
-  return p === 1 ? a.superior_id === eu : eu === BSP_FERIAS_RH;
+  return p === 1 ? a.superior_id === eu : eu === (a.final_id || BSP_FERIAS_RH);
 }
 function AusenciasPainel() {
   const toast = useToast();
@@ -27053,13 +27056,13 @@ function AusenciasPainel() {
       a.motivo ? React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, 'Motivo: ' + a.motivo) : null,
       a.superior_id ? React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)' } }, '1.º passo, ' + bspNomeDe(a.superior_id) + ': '
         + (a.superior_ok_em ? 'aprovado por ' + bspNomeDe(a.superior_ok_por) + ' a ' + bspQuando(a.superior_ok_em) : a.estado === 'Pedido' ? 'por decidir' : '—')
-        + ' · 2.º passo: RH') : null,
+        + ' · 2.º passo: ' + bspNomeDe(a.final_id || BSP_FERIAS_RH)) : null,
       a.decidido_em && a.estado !== 'Pedido' ? React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)' } }, a.estado + ' por ' + bspNomeDe(a.decidido_por) + ' a ' + bspQuando(a.decidido_em)) : null),
     bspEstadoEtiqueta(bspAusenciaEstado(a)), accoes);
   const rot = bspTranspRot;
   const quemDecide = !aprov ? 'Aprova primeiro o seu superior, depois os RH.'
-    : aprov.superior ? 'Aprova primeiro ' + bspNomeDe(aprov.superior) + ', depois os RH (' + bspNomeDe(aprov.rh) + ').'
-    : 'Aprovam os RH (' + bspNomeDe(aprov.rh || BSP_FERIAS_RH) + ').';
+    : aprov.superior ? 'Aprova primeiro ' + bspNomeDe(aprov.superior) + ', depois ' + bspNomeDe(aprov.final || aprov.rh) + '.'
+    : 'Aprova ' + bspNomeDe(aprov.final || aprov.rh || BSP_FERIAS_RH) + '.';
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 14 } },
     t.erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, t.erro) : null,
     porDecidir.length > 0 && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { borderLeft: '4px solid var(--perigo)' }) },
