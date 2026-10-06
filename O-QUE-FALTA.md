@@ -3494,3 +3494,23 @@ Elmar: «nas tarefas cria a secção atrasadas para ver».
   para a mais recente, com quem, coluna, data de fim e dias de atraso.
   Carregar abre a tarefa (`TarefaDetalhe`); a secção recolhe-se.
 - Verificado no navegador a 1280 px e 390 px, com dados simulados.
+
+## 3-fq. Tarefas delegadas: «Concluída» e avisos a quem delegou (06-10-2026)
+
+Elmar: «coloca botão concluído em cada uma delas para ela as marcar como
+concluídas e me notificar todas as atrasadas de manhã e todas concluídas assim
+que ela marcar».
+- Ecrã: botão «✓ Concluída» no cartão (`TaskCard`, `onConcluir`) e na janela
+  da tarefa (`TarefaDetalhe`); passa a tarefa para Concluído (`concluir` no
+  `TasksScreen`). Verificado no navegador.
+- Servidor (`tarefas-conclusao.sql`, aplicado):
+  - `bsp_tarefa_concluida_aviso` (gatilho em `tarefas_pessoais`): tarefa
+    delegada (`criada_por` ≠ `user_id`) que passa a `done` → novidade só para
+    quem delegou + aviso no telemóvel.
+  - `bsp_tarefas_atrasadas_alertar`, cron `bsp-tarefas-atrasadas` às 06h45 de
+    Luanda: lista das delegadas com o prazo passado, por quem delegou. O prazo
+    é texto AAAA-MM-DD e converte-se antes de comparar.
+  - Testados num bloco desfeito no fim (conclusão da tarefa 27; lista com 4
+    atrasadas simuladas).
+- Tarefas delegadas a 06-10 a partir dos e-mails: Juliana (26–31), Rosa (32,
+  36), Solange (33, 35, 37), Filomena (34). Mensagem no Chat a cada uma.

@@ -14647,6 +14647,21 @@ function TasksScreen() {
       pess.mover(idReal(taskId), to);
     } else actions.moveTask(fromCol, to, taskId);
   }
+  /* «Concluída» (06-10-2026, Elmar: «coloca botão concluído em cada uma»):
+     passa a tarefa para Concluído de uma vez. Numa tarefa delegada, o
+     servidor avisa logo quem delegou (bsp_tarefa_concluida_aviso). */
+  function concluir(fromCol, taskId) {
+    if (fromCol === 'done') return;
+    if (ePessoal(taskId)) {
+      const t = (board[fromCol] || []).find(x => x.id === taskId);
+      if (t && t.dono && !bspCamada(window.userById(window.CURRENT_USER_ID)).podeVerTarefasPessoais) {
+        toast('A tarefa pessoal de ' + t.dono + ' só pode ser concluída por ' + String(t.dono).split(' ')[0] + '.');
+        return;
+      }
+      pess.mover(idReal(taskId), 'done');
+    } else actions.moveTask(fromCol, 'done', taskId);
+    toast('Tarefa concluída.');
+  }
   /* A tarefa aberta, procurada no quadro de cada vez (muda de coluna,
      e editada noutro aparelho). */
   let aberta = null;
@@ -14687,6 +14702,7 @@ function TasksScreen() {
     t: aberta,
     col: abertaCol,
     onClose: () => setDetalhe(null),
+    onConcluir: abertaCol !== 'done' ? () => { concluir(abertaCol, aberta.id); setDetalhe(null); } : null,
     onEdit: () => {
       setComposer({ open: true, col: abertaCol, task: aberta });
       setDetalhe(null);
@@ -14950,6 +14966,7 @@ function TasksScreen() {
       task: tk
     }),
     onOpen: () => setDetalhe(tk.id),
+    onConcluir: c.id !== 'done' ? () => concluir(c.id, tk.id) : null,
     nComentarios: (state.channelMessages[bspTarefaConv(tk.id)] || []).filter(m => !bspLinhaDeControlo(m.text)).length
   })))))));
 }
@@ -14998,6 +15015,7 @@ function TaskCard({
   onDelete,
   onEdit,
   onOpen,
+  onConcluir,
   nComentarios
 }) {
   const prioMeta = {
@@ -15217,7 +15235,20 @@ function TaskCard({
     }
   }, React.createElement(I.Chat, {
     size: 13
-  }), nComentarios ? nComentarios : null)), assignees.length > 0 && React.createElement(AvatarGroup, {
+  }), nComentarios ? nComentarios : null), onConcluir && React.createElement("button", {
+    onClick: e => { e.stopPropagation(); onConcluir(); },
+    className: "bsp-iconbtn",
+    title: "Marcar como concluída",
+    style: {
+      height: 26,
+      width: 'auto',
+      padding: '0 8px',
+      gap: 4,
+      fontSize: 11.5,
+      fontWeight: 700,
+      color: 'var(--sucesso)'
+    }
+  }, "\u2713 Concluída")), assignees.length > 0 && React.createElement(AvatarGroup, {
     users: assignees,
     size: 22,
     max: 2
@@ -15232,6 +15263,7 @@ const BSP_COLUNAS_TAREFA = { todo: 'A Fazer', doing: 'Em Progresso', review: 'Em
 function TarefaDetalhe({
   t,
   col,
+  onConcluir,
   onClose,
   onEdit
 }) {
@@ -15302,7 +15334,11 @@ function TarefaDetalhe({
       size: "sm",
       onClick: onEdit,
       icon: React.createElement(I.Edit, { size: 13 })
-    }, "Editar"), React.createElement(Button, {
+    }, "Editar"), onConcluir && React.createElement(Button, {
+      variant: "secondary",
+      size: "sm",
+      onClick: onConcluir
+    }, "\u2713 Concluída"), React.createElement(Button, {
       variant: "primary",
       size: "sm",
       onClick: onClose

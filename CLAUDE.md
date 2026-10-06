@@ -292,6 +292,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   comentários na conversa `tarefa-<id>` (privadas: `tarefa-p<id>`, só quem
   vê a tarefa, em `bsp_ve_conversa`); «Levar para o Chat» termina com
   `[tarefa:<id>]` (`bspTarefaDaMensagem`, `bspAbrirTarefa`).
+- Tarefas delegadas (06-10-2026, `tarefas-conclusao.sql`): «✓ Concluída» no cartão e
+  na janela; ao concluir, quem delegou recebe aviso (`bsp_tarefa_concluida_aviso`);
+  às 06h45 a lista das atrasadas (`bsp_tarefas_atrasadas_alertar`). O `prazo` das
+  privadas é texto: converter antes de comparar. Secção «Atrasadas» no quadro.
 - Datas das tarefas (28-09-2026): início e fim obrigatórios
   (`bspTarefaErroDatas` no `TaskComposer`; gatilho `bsp_tarefa_datas`,
   `tarefas-datas.sql`). Equipa: `start`/`due`; privadas: `inicio`/`prazo`.
