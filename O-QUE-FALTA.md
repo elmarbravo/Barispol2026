@@ -3438,3 +3438,22 @@ facturado por área 1.º».
   seguradoras, notas de crédito, marcações) → «Por receber» (`PainelCobrancas`,
   com a antiguidade) no fim.
 - Verificado no navegador a 1280 px e 390 px, com dados simulados.
+
+## 3-fn. ECG, MAPA e Holter contam como Cardiologia (06-10-2026, servidor por aplicar)
+
+Elmar: «ECG, MAPA e Holter são da Imagiologia?» … «O MetaGest pode estar
+errado». São Cardiologia. No MetaGest há um ECG no grupo ENFERMAGEM e um
+ecocardiograma no grupo ECOGRAFIA; o relatório da Direcção Clínica contava todo
+o grupo CARDIOLOGIA como «exames de imagem».
+- `area-pelo-exame.sql`: `erp.grupo_item(grupo, nome)` põe ECG, MAPA, Holter,
+  ecocardiograma e prova de esforço sempre em CARDIOLOGIA. Usada no `bsp_painel`
+  (facturação por área), `erp.clinico_dados`, `erp.direccao_dados` e
+  `erp.direccao_clinica_dados` (novo tipo `cardiologia`, fora de `imagem`).
+  Altera as funções sobre a versão do servidor; se não encontrar o texto
+  esperado, deixa a função e avisa.
+- **Por fazer:** aplicar no Supabase (o conector perdeu a autorização a
+  06-10-2026) e conferir o Painel de Setembro por área. A Edge Function
+  `relatorios-diarios` ainda não mostra o tipo `cardiologia` no relatório da
+  Direcção Clínica (só deixa de o contar como imagem).
+- Pagamento dos médicos (`bsp_pagamento_linhas`) não muda: um ECG no grupo
+  ENFERMAGEM paga-se como enfermagem até o Elmar decidir.
