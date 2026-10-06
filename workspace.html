@@ -104,7 +104,7 @@
     display: inline-flex !important; flex-basis: 100%; justify-content: flex-end;
     margin-top: 4px; gap: 6px !important; }
   body[data-mobile="true"] .bsp-msg-sel .bsp-msg-acts button { padding: 6px 8px !important; }
-  body[data-mobile="true"] .bsp-msg-sel > div:last-child { background: var(--surface-2); border-radius: 10px; margin: 0 -6px; padding: 4px 6px; }
+  body[data-mobile="true"] .bsp-msg-sel .bsp-msg-bolha { outline: 2px solid var(--accent); outline-offset: 1px; }
 
   /* A caixa de escrita ocupava quase metade do ecrã: a barra de formatação
      e a legenda das teclas não fazem sentido num telemóvel. */
@@ -258,6 +258,8 @@
     --accent: #2291CE;
     --accent-d: #1B6FA0;
     --accent-soft: rgba(34,145,206,.10);
+    /* Balão das mensagens próprias no Chat (06-10-2026, aspecto de WhatsApp). */
+    --bolha-minha: #DCEEF9;
 
     /* Neutros claros e sobrios */
     --bg: #F5F4F2;
@@ -300,6 +302,7 @@
     --navy: #3A4382;
     --navy-d: #2B3268;
     --accent-soft: rgba(34,145,206,.20);
+    --bolha-minha: #1D3A52;
     --bg: #11131C;
     --surface: #1A1D29;
     --surface-2: #222636;
@@ -4561,6 +4564,62 @@ function bspWavDeAmostras(partes, taxaOrig, taxaNova) {
   return new Blob([buf], { type: 'audio/wav' });
 }
 const bspEAudio = nome => /\.(m4a|mp3|ogg|oga|wav|aac|opus)$/i.test(nome || '') || /^nota-de-voz.*\.webm$/i.test(nome || '');
+/* Reacções do Chat (06-10-2026, Elmar: «quanto aos emojis de reacções
+   disponibiliza todos»). A lista sai do próprio navegador: todos os
+   caracteres com apresentação de emoji nos blocos de emojis (\p{Emoji_Presentation}),
+   sem os tons de pele soltos. Bandeiras e tons de pele entram pela caixa
+   «Outro emoji», com o teclado do telemóvel. */
+const BSP_REAC_FREQUENTES = ['\u{1F44D}', '❤️', '\u{1F602}', '\u{1F62E}', '\u{1F622}', '\u{1F64F}', '\u{1F44F}', '\u{1F389}', '✅', '\u{1F525}'];
+let bspEmojisCache = null;
+function bspEmojisTodos() {
+  if (bspEmojisCache) return bspEmojisCache;
+  let apres, pict, modif;
+  try {
+    apres = new RegExp('^\\p{Emoji_Presentation}$', 'u');
+    pict = new RegExp('^\\p{Extended_Pictographic}$', 'u');
+    modif = new RegExp('^\\p{Emoji_Modifier}$', 'u');
+  } catch (e) { bspEmojisCache = [['Frequentes', BSP_REAC_FREQUENTES]]; return bspEmojisCache; }
+  const grupos = [
+    ['Caras', [[0x1F600, 0x1F64F]]],
+    ['Mais caras, gestos e pessoas', [[0x1F900, 0x1F9FF], [0x1FAE0, 0x1FAFF]]],
+    ['Natureza, comida e festa', [[0x1F300, 0x1F3FF]]],
+    ['Animais, pessoas e objectos', [[0x1F400, 0x1F5FF]]],
+    ['Transportes e lugares', [[0x1F680, 0x1F6FF]]],
+    ['Objectos novos', [[0x1FA70, 0x1FADF]]],
+    ['Símbolos', [[0x2190, 0x21FF], [0x2300, 0x23FF], [0x2460, 0x27BF], [0x2900, 0x2BFF], [0x3030, 0x3299], [0x1F000, 0x1F2FF]]]
+  ];
+  bspEmojisCache = [['Frequentes', BSP_REAC_FREQUENTES]].concat(grupos.map(([nome, faixas]) => {
+    const l = [];
+    faixas.forEach(([a, b]) => {
+      for (let c = a; c <= b; c++) {
+        const ch = String.fromCodePoint(c);
+        if (modif.test(ch) || (c >= 0x1F1E6 && c <= 0x1F1FF)) continue;
+        if (apres.test(ch)) l.push(ch);
+        else if (pict.test(ch) && c >= 0x2190 && c < 0x1F000) l.push(ch + '️');
+      }
+    });
+    return [nome, l];
+  })).filter(g => g[1].length);
+  return bspEmojisCache;
+}
+function SeletorReaccao({ onEscolher, onClose }) {
+  const [outro, setOutro] = React.useState('');
+  const grupos = bspEmojisTodos();
+  const total = grupos.reduce((n, g) => n + g[1].length, 0) - BSP_REAC_FREQUENTES.length;
+  const escolher = e => { onEscolher(e); onClose(); };
+  return React.createElement(Modal, { open: true, onClose, width: 460, title: 'Reagir' },
+    React.createElement("div", { style: { padding: '12px 16px 18px', display: 'flex', flexDirection: 'column', gap: 12 } },
+      React.createElement("div", { style: { display: 'flex', gap: 8, alignItems: 'center' } },
+        React.createElement("input", { value: outro, onChange: e => setOutro(e.target.value), placeholder: 'Outro emoji (teclado)', 'aria-label': 'Outro emoji',
+          style: { flex: 1, minWidth: 0, height: 40, padding: '0 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 16 } }),
+        React.createElement(Button, { variant: 'primary', size: 'sm', onClick: () => { const v = Array.from(String(outro).trim()).slice(0, 8).join(''); if (v) escolher(v); } }, 'Usar')),
+      React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, total + ' emojis'),
+      grupos.map(([nome, lista]) => React.createElement("div", { key: nome },
+        React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: 'var(--text-2)', margin: '4px 0 6px' } }, nome),
+        React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(38px, 1fr))', gap: 2 } },
+          lista.map(e => React.createElement("button", { key: e, onClick: () => escolher(e), 'aria-label': 'Reagir com ' + e,
+            style: { height: 38, border: 0, borderRadius: 8, background: 'transparent', cursor: 'pointer', fontSize: 22, lineHeight: 1, padding: 0 } }, e)))))));
+}
 /* Uma reaccao e uma alternancia, e nao um contador que so sabe subir:
    carregar outra vez tira a minha. Por isso guarda-se QUEM reagiu, e nao
    apenas quantos — sem saber quem, carregar cinco vezes dava cinco.
@@ -8639,6 +8698,7 @@ function ChatScreen({
      ha rato, e mostra-los sempre tapava o texto). */
   const [editando, setEditando] = React.useState(null);
   const [accoesDe, setAccoesDe] = React.useState(null);
+  const [reagirA, setReagirA] = React.useState(null);
   React.useEffect(() => { window.__bspAvisar = toast; return () => { if (window.__bspAvisar === toast) window.__bspAvisar = null; }; }, [toast]);
   const [winW, setWinW] = React.useState(typeof window !== 'undefined' ? window.innerWidth : 1400);
   React.useEffect(() => {
@@ -9612,13 +9672,18 @@ function ChatScreen({
       }
     }, React.createElement("span", { style: { flex: 1, height: 1, background: 'var(--border)' } }), dia, React.createElement("span", { style: { flex: 1, height: 1, background: 'var(--border)' } })), React.createElement("div", {
       key: m.id,
+      /* Aspecto de WhatsApp (06-10-2026, Elmar: «eu escrevo e fico do lado
+         direito do chat, o resto no esquerdo»): as minhas mensagens à
+         direita, em bolha azul-clara, sem fotografia nem nome; as dos
+         outros à esquerda, em bolha branca com a fotografia e o nome. */
       style: {
         display: 'flex',
-        gap: 12,
-        marginTop: grouped ? (bspRegistoDaMensagem(bspTextoVisivel(m.text)) ? 10 : 4) : 18
+        flexDirection: isOwn ? 'row-reverse' : 'row',
+        gap: isOwn ? 0 : 12,
+        marginTop: grouped ? (bspRegistoDaMensagem(bspTextoVisivel(m.text)) ? 10 : 4) : 14
       },
-      className: "bsp-msg-row" + (accoesDe === m.id ? " bsp-msg-sel" : "")
-    }, React.createElement("div", {
+      className: "bsp-msg-row" + (isOwn ? " bsp-msg-minha" : "") + (accoesDe === m.id ? " bsp-msg-sel" : "")
+    }, !isOwn && React.createElement("div", {
       style: {
         width: 36,
         flex: 'none'
@@ -9642,9 +9707,12 @@ function ChatScreen({
     }, bspQuandoChat(m.iso, m.ts))), React.createElement("div", {
       style: {
         flex: 1,
-        minWidth: 0
+        minWidth: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: isOwn ? 'flex-end' : 'flex-start'
       }
-    }, !grouped && React.createElement("div", {
+    }, !grouped && !isOwn && React.createElement("div", {
       style: {
         display: 'flex',
         flexWrap: 'wrap',
@@ -9683,8 +9751,10 @@ function ChatScreen({
       },
       style: {
         display: 'flex',
+        flexDirection: isOwn ? 'row-reverse' : 'row',
         alignItems: 'flex-start',
-        gap: 8
+        gap: 8,
+        width: '100%'
       }
     }, editando && editando.id === m.id ? React.createElement("div", {
       style: { flex: 1, minWidth: 0 }
@@ -9723,12 +9793,20 @@ function ChatScreen({
       className: "bsp-composer-tools",
       style: { fontSize: 11, color: 'var(--text-3)' }
     }, "Enter guarda · Esc cancela"))) : React.createElement("div", {
+      className: "bsp-msg-bolha",
       style: {
         fontSize: 14,
         color: 'var(--text-1)',
-        lineHeight: 1.55,
-        flex: 1,
-        minWidth: 0
+        lineHeight: 1.5,
+        flex: '0 1 auto',
+        minWidth: 0,
+        maxWidth: '82%',
+        overflowWrap: 'anywhere',
+        padding: '6px 10px',
+        background: isOwn ? 'var(--bolha-minha)' : 'var(--surface)',
+        border: '1px solid ' + (isOwn ? 'transparent' : 'var(--border)'),
+        borderRadius: grouped ? 12 : (isOwn ? '12px 3px 12px 12px' : '3px 12px 12px 12px'),
+        boxShadow: '0 1px 1px rgba(15,23,42,.06)'
       }
     }, (() => {
       const docM = bspDocumentoDaMensagem(bspTextoVisivel(m.text));
@@ -9753,7 +9831,10 @@ function ChatScreen({
       }, React.createElement("b", { style: { color: 'var(--text-1)' } }, cit.quem), ' · ', cit.excerto), React.createElement("span", { key: 'r', style: { whiteSpace: 'pre-wrap' } }, renderText(cit.resto)), botaoTarefa, botaoDoc];
     })(), React.createElement(AnexoMensagem, {
       a: bspAnexoDaMensagem(m.text)
-    }), grouped && m.editada && React.createElement("em", {
+    }), isOwn ? React.createElement("div", {
+      /* Nas minhas, a data fica dentro da bolha, em baixo à direita. */
+      style: { fontSize: 10.5, color: 'var(--text-3)', textAlign: 'right', marginTop: 2, whiteSpace: 'nowrap' }
+    }, m.editada && React.createElement("em", { style: { marginRight: 6 } }, "editada"), bspQuandoChat(m.iso, m.ts)) : grouped && m.editada && React.createElement("em", {
       style: { fontSize: 11, color: 'var(--text-3)', marginLeft: 6 }
     }, "editada")), React.createElement("div", {
       /* Os quatro botões passam a viver num grupo. No telemóvel são
@@ -9768,8 +9849,12 @@ function ChatScreen({
       }
     }, React.createElement("button", {
       className: "bsp-msg-del",
-      title: "Gosto",
-      onClick: () => actions.reagirMensagem(convKey, m.id, '\ud83d\udc4d'),
+      title: "Reagir (todos os emojis)",
+      "aria-label": "Reagir",
+      onClick: () => {
+        setReagirA(m.id);
+        setAccoesDe(null);
+      },
       style: {
         border: 'none',
         background: 'transparent',
@@ -9781,7 +9866,7 @@ function ChatScreen({
         opacity: 0,
         transition: 'opacity .15s'
       }
-    }, "\ud83d\udc4d"), React.createElement("button", {
+    }, "\ud83d\ude42"), React.createElement("button", {
       className: "bsp-msg-del",
       title: "Responder (fica na conversa, visível a todos)",
       "aria-label": "Responder",
@@ -9877,16 +9962,22 @@ function ChatScreen({
     })))), m.reactions && m.reactions.length > 0 && React.createElement("div", {
       style: {
         display: 'flex',
+        flexWrap: 'wrap',
+        justifyContent: isOwn ? 'flex-end' : 'flex-start',
         gap: 6,
-        marginTop: 6
+        marginTop: 4
       }
     }, m.reactions.map((r, ri) => React.createElement("span", {
       key: ri,
+      role: "button",
+      /* Tocar numa reacção põe ou tira a minha. */
+      title: (r.quem || []).indexOf(currentUser.id) !== -1 ? 'Tirar a minha reacção' : 'Reagir também com ' + r.e,
+      onClick: () => actions.reagirMensagem(convKey, m.id, r.e),
       style: {
         padding: '2px 9px',
         borderRadius: 999,
         background: 'var(--accent-soft)',
-        border: '1px solid rgba(34,145,206,.2)',
+        border: '1px solid ' + ((r.quem || []).indexOf(currentUser.id) !== -1 ? 'var(--accent)' : 'rgba(34,145,206,.2)'),
         fontSize: 12,
         color: 'var(--accent-d)',
         fontWeight: 600,
@@ -9895,7 +9986,15 @@ function ChatScreen({
         gap: 4,
         cursor: 'pointer'
       }
-    }, r.e, " ", React.createElement("span", null, r.n)))), m.sid && (isOwn || (!isDM && bspVeRecibosDeTodos(currentUser))) && React.createElement(RecibosMensagem, {
+    }, r.e, " ", React.createElement("span", null, r.n))), React.createElement("span", {
+      role: "button",
+      title: "Reagir com outro emoji",
+      onClick: () => setReagirA(m.id),
+      style: { padding: '2px 8px', borderRadius: 999, border: '1px solid var(--border)', fontSize: 12, color: 'var(--text-3)', cursor: 'pointer' }
+    }, "+")), reagirA === m.id && React.createElement(SeletorReaccao, {
+      onEscolher: e => actions.reagirMensagem(convKey, m.id, e),
+      onClose: () => setReagirA(null)
+    }), m.sid && (isOwn || (!isDM && bspVeRecibosDeTodos(currentUser))) && React.createElement(RecibosMensagem, {
       m: m,
       convKey: convKey,
       isDM: isDM,

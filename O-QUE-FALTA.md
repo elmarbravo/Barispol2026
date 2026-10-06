@@ -3594,3 +3594,31 @@ passos, documentos» e «vai carregando tudo que formos fazendo».
 - Regra 10 do `CLAUDE.md`: cada alteração nova entra no Notion.
 - Falta: o Elmar diz que já tem uma pasta «Barispol» no Notion, mas não está
   visível para a ligação do Claude; com a ligação dela, mudar a página para lá.
+
+## 3-fu. Escala do Laboratório de Outubro carregada (06-10-2026)
+
+Elmar: «carregue essa escala» (PDF da escala de Outubro do Laboratório).
+- Escala id 10 (laboratorio, 2026-10) substituída pelos dias do PDF, com o
+  visto da Direcção Clínica (u14). Novidade 179 para o Laboratório e u14.
+- Falta: confirmar com a chefe da área a hora do dia 29 (no papel
+  «22:00-22:30», provavelmente 07:00-22:30; nota no próprio dia).
+
+## 3-fv. Chat com aspecto de WhatsApp e todos os emojis (06-10-2026)
+
+Elmar: «o chat quero que tenha aspecto de whatsapp, eu escrevo e fico do lado
+direito do chat, o resto no esquerdo, quanto aos emojis de reacções
+disponibiliza todos».
+- `ChatScreen`: as minhas mensagens à direita, em bolha `--bolha-minha`
+  (azul-claro; no modo escuro, azul-escuro), sem fotografia nem nome, com a
+  data dentro da bolha. As dos outros à esquerda, em bolha branca com
+  fotografia, nome e cargo. Classe `bsp-msg-bolha` (no telemóvel, a mensagem
+  tocada fica com contorno azul).
+- Reacções: o botão 👍 passou a 🙂 e abre `SeletorReaccao` com todos os emojis
+  do navegador (`bspEmojisTodos`, ~1400, por grupos, com «Frequentes» no topo)
+  e a caixa «Outro emoji» para bandeiras e tons de pele. Tocar numa reacção
+  põe ou tira a minha; o «+» ao lado abre o seleccionador. A minha reacção
+  tem contorno azul.
+- Sem mudanças no servidor: a linha de controlo `​r​<sid>​<emoji>​<quem>` aceita
+  qualquer emoji.
+- Testado a 390 e 1280 px: alinhamento, seleccionador (1437 emojis), reagir
+  e tirar a reacção, sem passar da largura do ecrã.

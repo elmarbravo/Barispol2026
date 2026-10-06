@@ -195,6 +195,11 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   canais quem os vê (`push-canais.sql`, mesma regra do `bspVeCanal`). Número no ícone da app: `navigator.setAppBadge` em
   `useChatPorLer`; o `sw.js` põe um ponto quando chega uma mensagem.
 - Abrir uma conversa directa de qualquer ecrã: `bspConversaCom(id)`.
+- Aspecto do Chat (06-10-2026, Elmar: «eu escrevo e fico do lado direito»):
+  as minhas mensagens à direita (`bsp-msg-bolha`, `--bolha-minha`, data dentro
+  da bolha), as dos outros à esquerda com fotografia e nome. Reacções com
+  todos os emojis (`SeletorReaccao`, `bspEmojisTodos`); tocar numa reacção
+  alterna a minha.
 - Botão «voltar» (05-10-2026): cada menu é uma entrada no histórico (`App`);
   sub-páginas com `useBspVoltar(aberto, fechar)` (já em todas as `Modal`, no
   «Mais», no Chat do telemóvel) e separadores com `useBspAbaVoltar(aba,
