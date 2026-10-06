@@ -14651,7 +14651,8 @@ function TasksScreen() {
       pess.mover(idReal(taskId), to);
     } else actions.moveTask(fromCol, to, taskId);
   }
-  /* «Concluída» (06-10-2026, Elmar: «coloca botão concluído em cada uma»):
+  /* «Concluir» (06-10-2026, Elmar: «coloca botão concluído em cada uma»;
+     era «✓ Concluída», que se lia como estado e não como botão):
      passa a tarefa para Concluído de uma vez. Numa tarefa delegada, o
      servidor avisa logo quem delegou (bsp_tarefa_concluida_aviso). */
   function concluir(fromCol, taskId) {
@@ -15256,9 +15257,13 @@ function TaskCard({
       gap: 4,
       fontSize: 11.5,
       fontWeight: 700,
-      color: 'var(--sucesso)'
+      color: 'var(--sucesso)',
+      border: '1px solid var(--sucesso)',
+      borderRadius: 6,
+      background: 'transparent',
+      cursor: 'pointer'
     }
-  }, "\u2713 Concluída")), assignees.length > 0 && React.createElement(AvatarGroup, {
+  }, "\u2713 Concluir")), assignees.length > 0 && React.createElement(AvatarGroup, {
     users: assignees,
     size: 22,
     max: 2
@@ -15348,7 +15353,7 @@ function TarefaDetalhe({
       variant: "secondary",
       size: "sm",
       onClick: onConcluir
-    }, "\u2713 Concluída"), React.createElement(Button, {
+    }, "\u2713 Concluir"), React.createElement(Button, {
       variant: "primary",
       size: "sm",
       onClick: onClose

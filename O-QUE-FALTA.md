@@ -3523,6 +3523,12 @@ que ela marcar».
   «Criada pelo sistema, com base nos e-mails trocados»; `criada_por` continua
   u1 para os avisos. Verificado no navegador.
 
+- 06-10-2026 (Elmar: «As tarefas estão todas concluídas, quem as marcou?»):
+  ninguém; as tarefas 26–37 estavam todas em «A fazer» no servidor. O botão
+  verde «✓ Concluída» lia-se como estado. Passa a «✓ Concluir», com contorno de
+  botão, no cartão e na janela da tarefa. Verificado no navegador: ao carregar,
+  a tarefa passa de «A fazer» para «Concluído».
+
 ## 3-fr. Janela de avisos importantes (06-10-2026)
 
 Elmar: «Pop up de notificações importantes, consegue ter?». Escolheu: tarefas
