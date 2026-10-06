@@ -3517,3 +3517,31 @@ que ela marcar».
 - Coluna `origem` (`emails` nas tarefas 26–37): o ecrã mostra «DE SISTEMA» e
   «Criada pelo sistema, com base nos e-mails trocados»; `criada_por` continua
   u1 para os avisos. Verificado no navegador.
+
+## 3-fr. Janela de avisos importantes (06-10-2026)
+
+Elmar: «Pop up de notificações importantes, consegue ter?». Escolheu: tarefas
+delegadas, documentos obrigatórios, alertas críticos, ligar para utentes e
+marcações da Recepção. As conclusões das tarefas que delegou ficam só no sino
+e no telemóvel.
+- Ecrã: `AvisosImportantes` (montado no `App` ao lado do `PedidoNotificacoes`).
+  Janela por cima de tudo; só fecha com «Li», «Li todos» ou «Abrir» (leva ao
+  ecrã). Lê `bsp_alertas_por_ler` ao entrar, a cada minuto e ao voltar à
+  janela; não aparece em «Ver como» nem a sócios. Verificado no navegador
+  (1280 e 390 px).
+- Servidor (`alertas-importantes.sql`, aplicado):
+  - tabela `alertas_importantes` (`user_id`, `chave`, `lido_em`): regista quem
+    leu e quando; cada um lê as suas (a gestão lê todas).
+  - `bsp_push_post` chama `bsp_alerta_do_push`: os avisos do telemóvel com a
+    etiqueta `tarefa-…`, `frio-…`, `vigilancia-…` (só «possível falha»),
+    `toner-…`, `gerador` e `pedido-site-…` ficam também na janela, mesmo sem
+    telemóvel ligado. Um aviso novo importante usa uma destas etiquetas ou
+    entra na lista da função.
+  - calculados na hora: documentos de leitura obrigatória por confirmar
+    (voltam no dia seguinte até à confirmação), tarefas delegadas atrasadas
+    (uma vez por dia), e na Recepção os utentes «Por ligar» (CRM e site, uma
+    vez por dia) e as marcações de hoje 1 h antes e 30 min depois da hora.
+  - `bsp_alertas_lidos(chaves)` grava o «Li».
+  - Testado como a Juliana num bloco desfeito: 2 avisos, 0 depois do «Li».
+- Falta: o stock esgotado ainda não tem aviso próprio (só no relatório
+  diário); quando tiver, entra com etiqueta na `bsp_alerta_do_push`.

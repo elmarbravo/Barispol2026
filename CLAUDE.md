@@ -563,6 +563,13 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   conversa. Pedido em ecrã inteiro `PedidoNotificacoes`; lista em Admin →
   Notificações. Envios em massa pela base de dados: no máximo 5 por pedido
   (a Resend aceita 10 por segundo).
+- Avisos importantes (06-10-2026, `alertas-importantes.sql`): janela
+  `AvisosImportantes` que só fecha com «Li» (`bsp_alertas_lidos`, regista quem
+  e quando). Entram pela etiqueta do `bsp_push_post` (`bsp_alerta_do_push`:
+  `tarefa-`, `frio-`, `vigilancia-`, `toner-`, `gerador`, `pedido-site-`) e
+  pelos calculados em `bsp_alertas_por_ler` (documentos obrigatórios, tarefas
+  delegadas atrasadas, «Por ligar» e marcações da Recepção). As conclusões das
+  tarefas delegadas ficam fora (só sino e telemóvel, decisão do Elmar).
 - Desactivados (05-10-2026, `utilizadores-desactivar.sql`): `inactivo: true` na
   equipa + conta bloqueada (`criar-utilizador` com `desactivar`); fora das listas
   por `bspSemOcultos`, nome nas mensagens por `__bspInactivos`. Nunca apagar
