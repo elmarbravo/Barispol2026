@@ -3495,6 +3495,11 @@ Elmar: «nas tarefas cria a secção atrasadas para ver».
   Carregar abre a tarefa (`TarefaDetalhe`); a secção recolhe-se.
 - Verificado no navegador a 1280 px e 390 px, com dados simulados.
 
+- 06-10-2026 (Elmar: «As atrasadas quero aqui no gráfico também»): o cartão
+  do gráfico tem um quinto número, «Atrasadas», a vermelho. Conta o mesmo que
+  a secção (`bspTarefasAtrasadas(board)`, usada pelos dois). Verificado no
+  navegador (390 e 1280 px).
+
 ## 3-fq. Tarefas delegadas: «Concluída» e avisos a quem delegou (06-10-2026)
 
 Elmar: «coloca botão concluído em cada uma delas para ela as marcar como

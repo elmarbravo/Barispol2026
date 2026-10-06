@@ -14807,10 +14807,10 @@ function TasksScreen() {
   }), React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(4, 1fr)',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(84px, 1fr))',
       gap: 16
     }
-  }, cols.map(c => React.createElement("div", {
+  }, cols.concat([{ id: '_atrasadas', label: 'Atrasadas', accent: 'var(--perigo)' }]).map(c => React.createElement("div", {
     key: c.id
   }, React.createElement("div", {
     style: {
@@ -14833,10 +14833,10 @@ function TasksScreen() {
     style: {
       fontSize: 22,
       fontWeight: 700,
-      color: 'var(--text-1)',
+      color: c.id === '_atrasadas' ? 'var(--perigo)' : 'var(--text-1)',
       marginTop: 4
     }
-  }, board[c.id].length)))))), React.createElement(TarefasAtrasadas, {
+  }, c.id === '_atrasadas' ? bspTarefasAtrasadas(board).length : board[c.id].length)))))), React.createElement(TarefasAtrasadas, {
     board: board,
     onOpen: id => setDetalhe(id)
   }), React.createElement("div", {
@@ -14978,15 +14978,21 @@ function TasksScreen() {
    atrasadas para ver»): as tarefas fora de «Concluído» com o fim antes de
    hoje, da equipa e privadas (as que o quadro mostra), da mais antiga para a
    mais recente. Carregar abre a tarefa. */
-function TarefasAtrasadas({ board, onOpen }) {
+/* Tarefas com o fim passado e por concluir (a secção «Atrasadas» e o
+   número no cartão do gráfico, 06-10-2026). */
+function bspTarefasAtrasadas(board) {
   const hoje = bspDataLocalISO(new Date());
-  const [aberta, setAberta] = React.useState(true);
   const lista = [];
-  ['todo', 'doing', 'review'].forEach(c => (board[c] || []).forEach(t => {
+  ['todo', 'doing', 'review'].forEach(c => ((board || {})[c] || []).forEach(t => {
     const fim = t.due ? String(t.due).slice(0, 10) : '';
     if (fim && fim < hoje && !t.done) lista.push({ t, c, fim });
   }));
-  lista.sort((a, b) => a.fim.localeCompare(b.fim));
+  return lista.sort((a, b) => a.fim.localeCompare(b.fim));
+}
+function TarefasAtrasadas({ board, onOpen }) {
+  const hoje = bspDataLocalISO(new Date());
+  const [aberta, setAberta] = React.useState(true);
+  const lista = bspTarefasAtrasadas(board);
   const dias = fim => Math.round((new Date(hoje + 'T12:00:00') - new Date(fim + 'T12:00:00')) / 86400000);
   const quem = t => {
     const us = (t.assignees || []).map(window.userById).filter(Boolean).map(u => bspNomeProprio(u.name).split(' ').slice(0, 2).join(' '));
