@@ -24428,7 +24428,7 @@ function TranspJuntarModal({ open, onClose, onGravar }) {
       React.createElement("input", { value: nota, onChange: e => setNota(e.target.value), placeholder: 'Ex.: ficou até mais tarde, substitui colega', style: bspTranspCampo }))));
 }
 function useTransporte() {
-  const [st, setSt] = React.useState({ estado: 'a-carregar', viagens: [], abast: [], zonas: {}, manut: [], erro: '' });
+  const [st, setSt] = React.useState({ estado: 'a-carregar', viagens: [], abast: [], zonas: {}, manut: [], viaturas: [], erro: '' });
   const [tick, setTick] = React.useState(0);
   React.useEffect(() => {
     const cl = bspGetClient();
@@ -24439,20 +24439,21 @@ function useTransporte() {
       cl.from('transporte_viagens').select('*').gte('data', desde).order('km_inicio', { ascending: true }).limit(5000),
       cl.from('transporte_abastecimentos').select('*').gte('quando', desde + 'T00:00:00').order('quando', { ascending: true }).limit(2000),
       cl.from('transporte_zonas').select('*').limit(2000),
-      cl.from('transporte_manutencoes').select('*').order('data', { ascending: false }).limit(1000)
-    ]).then(([v, a, z, mt]) => {
+      cl.from('transporte_manutencoes').select('*').order('data', { ascending: false }).limit(1000),
+      cl.from('transporte_viaturas').select('*').order('id', { ascending: true }).limit(200)
+    ]).then(([v, a, z, mt, vt]) => {
       if (!vivo) return;
       const e = v.error || a.error || z.error;
       if (e) {
         const m = String(e.message || '');
-        setSt({ estado: /relation|does not exist|schema cache/i.test(m) ? 'sem-tabela' : 'erro', viagens: [], abast: [], zonas: {}, manut: [], erro: m });
+        setSt({ estado: /relation|does not exist|schema cache/i.test(m) ? 'sem-tabela' : 'erro', viagens: [], abast: [], zonas: {}, manut: [], viaturas: [], erro: m });
         return;
       }
       const zonas = {};
       (z.data || []).forEach(r => { zonas[r.pessoa] = r.zona; });
       /* Sem a tabela da manutencao (transporte-manutencao.sql por correr),
          o resto do ecra funciona na mesma. */
-      setSt({ estado: 'pronto', viagens: v.data || [], abast: a.data || [], zonas, manut: mt.error ? [] : (mt.data || []), erro: '' });
+      setSt({ estado: 'pronto', viagens: v.data || [], abast: a.data || [], zonas, manut: mt.error ? [] : (mt.data || []), viaturas: vt.error ? [] : (vt.data || []), erro: '' });
     });
     return () => { vivo = false; };
   }, [tick]);
@@ -24518,7 +24519,7 @@ function bspTranspInstante(dia, hora) {
 /* Iniciar uma viagem. Desde 30-09-2026 (pedido do Elmar) o motorista
    escolhe a data: num dia anterior regista a viagem inteira de uma vez
    (km e horas de saida e de chegada), para lancar os dados antigos. */
-function TranspIniciarModal({ open, tipo, diaInicial, ultimoKm, zonas, saidas, viagens, onClose, onFeito, onAvisar }) {
+function TranspIniciarModal({ open, tipo, diaInicial, ultimoKm, zonas, saidas, viagens, viatura, onClose, onFeito, onAvisar }) {
   const toast = useToast();
   const hojeServ = bspDiaServico();
   const [dia, setDia] = React.useState(hojeServ);
@@ -24589,7 +24590,7 @@ function TranspIniciarModal({ open, tipo, diaInicial, ultimoKm, zonas, saidas, v
     const paragens = tipoAct === 'pessoal' ? quem.map(id => Object.assign({ quem: id, zona: zonas[id] || '' }, naEscala.indexOf(id) === -1 ? { fora_escala: true } : {})) : [];
     const linha = { data: dia, tipo: tipoAct, km_inicio: n, km_fim: nFim, hora_inicio: ini ? ini.toISOString() : null, hora_fim: fim.toISOString(),
       destino: tipoAct === 'pessoal' || tipoAct === 'casa' ? '' : destino.trim(), paragens, nota: nota.trim(), foto_inicio: caminho };
-    const r = await cl.from('transporte_viagens').insert(linha);
+    const r = await cl.from('transporte_viagens').insert(Object.assign({ viatura_id: viatura || null }, linha));
     if (r.error) throw r.error;
     const percurso = bspTranspPercurso(Object.assign({ id: -1 }, linha), viagens);
     toast('Viagem de ' + bspDataCurta(dia) + ' gravada: ' + (nFim - n) + ' km.');
@@ -24607,13 +24608,13 @@ function TranspIniciarModal({ open, tipo, diaInicial, ultimoKm, zonas, saidas, v
       if (antigo) { await gravarAntigo(); onFeito(); onClose(); return; }
       const caminho = foto ? await bspTranspFoto(foto) : null;
       if (dif) {
-        const r0 = await cl.from('transporte_viagens').insert({ data: dia, tipo: 'ligacao', km_inicio: ultimoKm, km_fim: n, hora_fim: new Date().toISOString(), nota: motivo.trim() });
+        const r0 = await cl.from('transporte_viagens').insert({ viatura_id: viatura || null, data: dia, tipo: 'ligacao', km_inicio: ultimoKm, km_fim: n, hora_fim: new Date().toISOString(), nota: motivo.trim() });
         if (r0.error) throw r0.error;
       }
       const naEscala = saidasAct.map(x => x.pessoa);
       const paragens = quem.map(id => Object.assign({ quem: id, zona: zonas[id] || '' }, tipoAct === 'pessoal' && naEscala.indexOf(id) === -1 ? { fora_escala: true } : {}));
       const agora = new Date().toISOString();
-      const r = await cl.from('transporte_viagens').insert({ data: dia, tipo: tipoAct, km_inicio: n, hora_inicio: agora, destino: destino.trim(), paragens, foto_inicio: caminho });
+      const r = await cl.from('transporte_viagens').insert({ viatura_id: viatura || null, data: dia, tipo: tipoAct, km_inicio: n, hora_inicio: agora, destino: destino.trim(), paragens, foto_inicio: caminho });
       if (r.error) throw r.error;
       const origem = bspTranspOrigem({ id: -1, tipo: tipoAct, data: dia, km_inicio: n, hora_inicio: agora }, viagens);
       if (onAvisar) onAvisar('🚗 Saída: ' + BSP_TRANSP_TIPOS[tipoAct] + ' · ' + bspHoraCurta(agora) + ' · ' + bspKm(n) + ' km' +
@@ -24685,7 +24686,7 @@ function TranspKmModal({ open, titulo, minimo, pedirFoto, pedirNota, onClose, on
       React.createElement("input", { value: nota, onChange: e => setNota(e.target.value), placeholder: 'Trânsito, avaria, atraso…', style: bspTranspCampo })),
     erro && (km || foto) && React.createElement("div", { role: 'alert', style: { fontSize: 13, color: 'var(--perigo)' } }, erro)));
 }
-function TranspAbastModal({ open, ultimoKm, anteriores, onClose, onFeito, onAvisar }) {
+function TranspAbastModal({ open, ultimoKm, anteriores, viatura, onClose, onFeito, onAvisar }) {
   const toast = useToast();
   const [f, setF] = React.useState({ km: '', litros: '', valor: '', nota: '' });
   const [foto, setFoto] = React.useState(null);
@@ -24703,7 +24704,7 @@ function TranspAbastModal({ open, ultimoKm, anteriores, onClose, onFeito, onAvis
     setAGravar(true);
     try {
       const caminho = foto ? await bspTranspFoto(foto) : null;
-      const r = await bspGetClient().from('transporte_abastecimentos').insert({ km: Math.round(num(f.km)), litros: num(f.litros), valor: num(f.valor) || 0, nota: f.nota.trim(), foto: caminho, quando: quando.toISOString() });
+      const r = await bspGetClient().from('transporte_abastecimentos').insert({ viatura_id: viatura || null, km: Math.round(num(f.km)), litros: num(f.litros), valor: num(f.valor) || 0, nota: f.nota.trim(), foto: caminho, quando: quando.toISOString() });
       if (r.error) throw r.error;
       /* Consumo desde o abastecimento anterior (deposito cheio). */
       const ant = (anteriores || []).filter(a => a.km < num(f.km)).sort((a, b) => b.km - a.km)[0];
@@ -24746,7 +24747,7 @@ function bspManutProxima(manut, ultimoKm) {
   const perto = (faltaKm != null && faltaKm <= 500) || (faltaDias != null && faltaDias <= 14);
   return { m, faltaKm, faltaDias, perto };
 }
-function TranspManutModal({ open, ultimoKm, onClose, onFeito, onAvisar }) {
+function TranspManutModal({ open, ultimoKm, viatura, onClose, onFeito, onAvisar }) {
   const toast = useToast();
   const vazio = () => ({ estado: 'orcamento', data: bspDataLocalISO(new Date()), km: ultimoKm ? String(ultimoKm) : '', descricao: '', valor: '', oficina: '', proxima_km: '', proxima_data: '', nota: '' });
   const [f, setF] = React.useState(vazio);
@@ -24765,7 +24766,7 @@ function TranspManutModal({ open, ultimoKm, onClose, onFeito, onAvisar }) {
       const caminho = foto ? await bspTranspFoto(foto) : null;
       const linha = { estado: f.estado, data: f.data, km: inteiro(f.km), descricao: f.descricao.trim(), valor: num(f.valor) || 0, oficina: f.oficina.trim(), foto: caminho,
         proxima_km: f.estado === 'feita' ? inteiro(f.proxima_km) : null, proxima_data: f.estado === 'feita' && f.proxima_data ? f.proxima_data : null, nota: f.nota.trim() };
-      const r = await bspGetClient().from('transporte_manutencoes').insert(linha);
+      const r = await bspGetClient().from('transporte_manutencoes').insert(Object.assign({ viatura_id: viatura || null }, linha));
       if (r.error) throw r.error;
       toast(f.estado === 'orcamento' ? 'Orçamento gravado. A gestão aprova no Histórico.' : 'Manutenção gravada.');
       if (onAvisar) onAvisar('🔧 Manutenção' + (f.estado === 'orcamento' ? ' (orçamento, por aprovar)' : ' feita') + ': ' + bspPainelKz(linha.valor, true) +
@@ -24817,6 +24818,45 @@ function bspTranspContas(viagens, abast, de, ate) {
   const total = Object.keys(porTipo).reduce((s, k) => s + porTipo[k], 0) + semRegisto;
   return { porTipo, falhas, semRegisto, pessoas, rotas, litros, valor, total, abast: ab };
 }
+/* Viatura nova ou alterada (06-10-2026, transporte-viaturas.sql). Nunca se
+   apaga: a que sai de serviço fica «fora de serviço» e o histórico mantém-se. */
+function TranspViaturaModal({ viatura, onClose, onFeito }) {
+  const toast = useToast();
+  const nova = !viatura || !viatura.id;
+  const [f, setF] = React.useState(() => Object.assign({ nome: '', matricula: '', marca: '', modelo: '', ano: '', combustivel: 'Gasóleo', activa: true, nota: '' }, viatura || {}, { ano: viatura && viatura.ano ? String(viatura.ano) : '' }));
+  const [aGravar, setAGravar] = React.useState(false);
+  const campo = (k, rot, ph, modo) => React.createElement("label", null, bspTranspRot(rot), React.createElement("input", { value: f[k], onChange: e => setF(x => Object.assign({}, x, { [k]: e.target.value })), inputMode: modo || 'text', placeholder: ph, style: bspTranspCampo }));
+  const erro = !f.nome.trim() ? 'Dê um nome à viatura.' : f.ano && !/^\d{4}$/.test(String(f.ano).trim()) ? 'O ano tem 4 algarismos.' : '';
+  const gravar = async () => {
+    if (erro || aGravar) return;
+    setAGravar(true);
+    const linha = { nome: f.nome.trim(), matricula: f.matricula.trim().toUpperCase(), marca: f.marca.trim(), modelo: f.modelo.trim(), ano: f.ano ? Number(f.ano) : null, combustivel: f.combustivel, activa: !!f.activa, nota: f.nota.trim() };
+    const cl = bspGetClient();
+    const r = nova ? await cl.from('transporte_viaturas').insert(linha).select('id') : await cl.from('transporte_viaturas').update(linha).eq('id', viatura.id).select('id');
+    if (r.error || !r.data || !r.data.length) { toast('Não foi possível gravar: ' + (r.error ? r.error.message : 'sem permissão')); setAGravar(false); return; }
+    toast(nova ? 'Viatura acrescentada.' : 'Viatura alterada.');
+    onFeito(r.data[0].id); onClose();
+  };
+  return React.createElement(Modal, {
+    open: true, onClose, width: 480, title: nova ? 'Nova viatura' : 'Alterar viatura',
+    footer: React.createElement(React.Fragment, null,
+      React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: onClose }, 'Cancelar'),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: gravar }, aGravar ? 'A gravar…' : 'Gravar'))
+  }, React.createElement("div", { style: { padding: 20, display: 'flex', flexDirection: 'column', gap: 14 } },
+    campo('nome', 'Nome', 'Ex.: Hiace branca'),
+    React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 } },
+      campo('matricula', 'Matrícula', 'Ex.: LD-00-00-AA'), campo('ano', 'Ano', 'Ex.: 2019', 'numeric')),
+    React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 } },
+      campo('marca', 'Marca', 'Ex.: Toyota'), campo('modelo', 'Modelo', 'Ex.: Hiace')),
+    React.createElement("div", null, bspTranspRot('Combustível'),
+      React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+        ['Gasóleo', 'Gasolina'].map(c => React.createElement("button", { key: c, type: 'button', onClick: () => setF(x => Object.assign({}, x, { combustivel: c })), style: bspEscChip(f.combustivel === c) }, c)))),
+    !nova && React.createElement("div", null, bspTranspRot('Estado'),
+      React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+        [[true, 'Em serviço'], [false, 'Fora de serviço']].map(o => React.createElement("button", { key: String(o[0]), type: 'button', onClick: () => setF(x => Object.assign({}, x, { activa: o[0] })), style: bspEscChip(!!f.activa === o[0]) }, o[1])))),
+    campo('nota', 'Nota (opcional)', 'Ex.: seguro até 03-2027'),
+    erro && f.nome && React.createElement("div", { role: 'alert', style: { fontSize: 13, color: 'var(--perigo)' } }, erro)));
+}
 function TransporteScreen({ currentUser }) {
   const toast = useToast();
   const { state, actions } = useStore();
@@ -24836,8 +24876,28 @@ function TransporteScreen({ currentUser }) {
     cl.rpc('bsp_transporte_saidas', { p_dia: hoje }).then(r => { if (vivo && !r.error) setSaidas(r.data || []); });
     return () => { vivo = false; };
   }, [hoje]);
-  const aberta = t.viagens.slice().reverse().find(v => v.km_fim == null) || null;
-  const ultimoKm = t.viagens.reduce((m, v) => Math.max(m, v.km_fim != null ? v.km_fim : v.km_inicio), 0);
+  /* Viaturas (06-10-2026, transporte-viaturas.sql, sugestões do Emmanuel):
+     o motorista escolhe a viatura que vai usar (o aparelho lembra-se) e o
+     ecrã mostra só os registos dela. Os km contam-se por viatura (cada uma
+     tem o seu conta-quilómetros). Registos sem viatura são da primeira. */
+  const [viaturaEsc, setViaturaEscEstado] = React.useState(() => { try { return Number(localStorage.getItem('bsp-transp-viatura')) || null; } catch (e) { return null; } });
+  const setViaturaEsc = id => { setViaturaEscEstado(id); try { localStorage.setItem('bsp-transp-viatura', String(id)); } catch (e) {} };
+  const [viaturaModal, setViaturaModal] = React.useState(null);
+  const viaturas = t.viaturas || [];
+  const activas = viaturas.filter(v => v.activa);
+  const primeiraId = viaturas.length ? viaturas[0].id : null;
+  const daViatura = r => r.viatura_id || primeiraId;
+  const emCurso = (t.viagens || []).slice().reverse().find(v => v.km_fim == null);
+  const vid = viaturas.some(v => v.id === viaturaEsc) ? viaturaEsc : emCurso ? daViatura(emCurso) : (activas[0] || viaturas[0] || {}).id || null;
+  const viaturaAct = viaturas.find(v => v.id === vid) || null;
+  const bspViaturaNome = v => v ? v.nome + (v.matricula ? ' · ' + v.matricula : '') : '';
+  const tv = {
+    viagens: vid ? (t.viagens || []).filter(r => daViatura(r) === vid) : (t.viagens || []),
+    abast: vid ? (t.abast || []).filter(r => daViatura(r) === vid) : (t.abast || []),
+    manut: vid ? (t.manut || []).filter(r => daViatura(r) === vid) : (t.manut || [])
+  };
+  const aberta = tv.viagens.slice().reverse().find(v => v.km_fim == null) || null;
+  const ultimoKm = tv.viagens.reduce((m, v) => Math.max(m, v.km_fim != null ? v.km_fim : v.km_inicio), 0);
   const nomeDe = id => { const u = String(id).indexOf('x:') === 0 ? null : window.userById(id); return u ? String(u.name).split(/\s+/).slice(0, 2).join(' ') : bspNomeCurto(id); };
   const mudarAberta = async campos => {
     const r = await bspGetClient().from('transporte_viagens').update(campos).eq('id', aberta.id).select('id');
@@ -24866,6 +24926,7 @@ function TransporteScreen({ currentUser }) {
     /* Pelo papel do grupo (funcao: 'transporte'), para nao se perder se
        o nome mudar; o nome fica como recurso. */
     const canal = (state.extraChannels || []).find(c => c.funcao === 'transporte') || (state.extraChannels || []).find(c => String(c.name || '').toLowerCase() === 'transporte');
+    if (activas.length > 1 && viaturaAct) texto += '\nViatura: ' + bspViaturaNome(viaturaAct);
     if (canal && !bspEmVerComo()) actions.sendMessage(canal.id, { userId: currentUser.id, text: texto });
   };
   const publicarResumo = v => {
@@ -24874,7 +24935,7 @@ function TransporteScreen({ currentUser }) {
     const vf = bspTranspVerificacao(v.paragens);
     if ((v.paragens || []).length) linhas.push('Usaram: ' + vf.usaram + ' · Não usaram: ' + vf.naoUsaram + (vf.fora ? ' · Fora da escala: ' + vf.fora + ' (verificar a escala)' : ''));
     const texto = '🚗 ' + BSP_TRANSP_TIPOS[v.tipo] + ' · ' + bspDataCurta(v.data) + '\n' +
-      (v.destino ? (bspTranspOrigem(v, t.viagens) ? 'Percurso: ' + bspTranspPercurso(v, t.viagens) : 'Destino: ' + v.destino) + '\n' : '') +
+      (v.destino ? (bspTranspOrigem(v, tv.viagens) ? 'Percurso: ' + bspTranspPercurso(v, tv.viagens) : 'Destino: ' + v.destino) + '\n' : '') +
       (linhas.length ? linhas.join('\n') + '\n' : '') +
       'Km: ' + bspKm(v.km_inicio) + ' → ' + bspKm(v.km_fim) + ' = ' + km + ' km' +
       (v.hora_inicio ? ' · ' + bspHoraCurta(v.hora_inicio) + '–' + bspHoraCurta(v.hora_fim) : '') + (v.nota ? '\nNota: ' + v.nota : '');
@@ -24889,7 +24950,7 @@ function TransporteScreen({ currentUser }) {
   };
   const casa = async (n, foto) => {
     const caminho = foto ? await bspTranspFoto(foto).catch(() => null) : null;
-    const r = await bspGetClient().from('transporte_viagens').insert({ data: bspDiaServico(), tipo: 'casa', km_inicio: ultimoKm, km_fim: n, hora_fim: new Date().toISOString(), foto_fim: caminho });
+    const r = await bspGetClient().from('transporte_viagens').insert({ viatura_id: vid, data: bspDiaServico(), tipo: 'casa', km_inicio: ultimoKm, km_fim: n, hora_fim: new Date().toISOString(), foto_fim: caminho });
     if (r.error) { toast('Não foi possível gravar: ' + r.error.message); return false; }
     t.recarregar(); toast('Registado: ' + (n - ultimoKm) + ' km até casa.');
     avisarChat('🏠 Em casa · ' + bspHoraCurta(new Date().toISOString()) + '\nKm: ' + bspKm(ultimoKm) + ' → ' + bspKm(n) + ' = ' + (n - ultimoKm) + ' km');
@@ -24913,8 +24974,8 @@ function TransporteScreen({ currentUser }) {
     t.recarregar();
     if (aviso) avisarChat(aviso);
   };
-  const proxima = bspManutProxima(t.manut, ultimoKm);
-  const porAprovar = (t.manut || []).filter(m => m.estado === 'orcamento');
+  const proxima = bspManutProxima(tv.manut, ultimoKm);
+  const porAprovar = (tv.manut || []).filter(m => m.estado === 'orcamento');
   const linhaManut = m => React.createElement("div", { key: m.id, style: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 10, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' } },
     React.createElement("div", { style: { minWidth: 0, fontSize: 13, color: 'var(--text-1)' } },
       React.createElement("div", { style: { fontWeight: 700 } }, bspDataCurta(m.data) + ' · ' + BSP_MANUT_ESTADOS[m.estado] + ' · ' + bspPainelKz(m.valor, true)),
@@ -24932,14 +24993,18 @@ function TransporteScreen({ currentUser }) {
   if (t.estado === 'erro') return vazio('Não foi possível carregar. ' + t.erro);
   const botaoGrande = (rotulo, onClick, principal, icone) => React.createElement("button", { onClick, style: Object.assign(bspEscBotao(principal), { height: 52, fontSize: 15, justifyContent: 'center', flex: '1 1 200px' }) }, icone, rotulo);
   const abas = React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap', flex: 'none' } },
-    [['hoje', 'Hoje'], ['historico', 'Histórico e contas'], ['zonas', 'Bairros']].map(a => React.createElement("button", { key: a[0], onClick: () => setAba(a[0]), style: bspEscChip(aba === a[0]) }, a[1])),
+    [['hoje', 'Hoje'], ['historico', 'Histórico e contas'], ['viaturas', 'Viaturas'], ['zonas', 'Bairros']].map(a => React.createElement("button", { key: a[0], onClick: () => setAba(a[0]), style: bspEscChip(aba === a[0]) }, a[1])),
     React.createElement("span", { style: { flex: 1 } }),
     React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-3)', alignSelf: 'center' } }, 'Último registo: ' + bspKm(ultimoKm) + ' km'));
+  const escolhaViatura = viaturas.length > 0 && aba !== 'zonas' && React.createElement("label", { style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: 'none' } },
+    React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: 'var(--text-2)' } }, aba === 'hoje' ? 'Viatura que vou usar' : 'Viatura'),
+    React.createElement("select", { value: vid || '', onChange: e => setViaturaEsc(Number(e.target.value)), style: Object.assign({}, bspTranspCampo, { width: 'auto', minWidth: 0, maxWidth: '100%', flex: '1 1 220px', height: 40, fontSize: 16 }) },
+      viaturas.filter(v => v.activa || v.id === vid).map(v => React.createElement("option", { key: v.id, value: v.id }, bspViaturaNome(v) + (v.activa ? '' : ' (fora de serviço)')))));
   let corpo;
   if (aba === 'hoje') {
     corpo = aberta ? React.createElement(Card, { pad: 18, style: { borderLeft: '4px solid var(--accent)' } },
       React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: 'var(--accent-d)', textTransform: 'uppercase', letterSpacing: '.06em' } }, 'Em curso'),
-      React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: 'var(--text-1)', marginTop: 4 } }, BSP_TRANSP_TIPOS[aberta.tipo] + (aberta.destino ? ' · ' + bspTranspPercurso(aberta, t.viagens) : '')),
+      React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: 'var(--text-1)', marginTop: 4 } }, BSP_TRANSP_TIPOS[aberta.tipo] + (aberta.destino ? ' · ' + bspTranspPercurso(aberta, tv.viagens) : '')),
       React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 2 } }, 'Saída às ' + bspHoraCurta(aberta.hora_inicio) + ' com ' + bspKm(aberta.km_inicio) + ' km'),
       paragens.length > 0 && React.createElement("div", { style: { marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 } },
         paragens.map((p, i) => React.createElement("div", { key: i, style: { display: 'grid', gridTemplateColumns: 'auto minmax(0,1fr) auto', gap: 10, alignItems: 'center', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8, background: p.deixado_em ? 'var(--surface-2)' : 'var(--surface)', opacity: p.falta ? .55 : 1 } },
@@ -24986,10 +25051,10 @@ function TransporteScreen({ currentUser }) {
           porAprovar.map(linhaManut)));
   } else if (aba === 'historico') {
     const fimMes = bspSomarDias(bspSomarMeses(mes, 1), -1);
-    const c = bspTranspContas(t.viagens, t.abast, mes, fimMes);
-    const manutMes = (t.manut || []).filter(m => m.data >= mes && m.data <= fimMes);
+    const c = bspTranspContas(tv.viagens, tv.abast, mes, fimMes);
+    const manutMes = (tv.manut || []).filter(m => m.data >= mes && m.data <= fimMes);
     const gastoManut = manutMes.filter(m => m.estado === 'feita').reduce((s, m) => s + Number(m.valor || 0), 0);
-    const doMes = t.viagens.filter(v => v.data >= mes && v.data <= fimMes).slice().sort((a, b) => b.km_inicio - a.km_inicio);
+    const doMes = tv.viagens.filter(v => v.data >= mes && v.data <= fimMes).slice().sort((a, b) => b.km_inicio - a.km_inicio);
     const falhaDepois = {};
     c.falhas.forEach(f => { falhaDepois[f.antes.id] = f; });
     const tile = (rot, val, perigo) => React.createElement(Card, { pad: 14, style: { flex: '1 1 140px' } },
@@ -25019,7 +25084,7 @@ function TransporteScreen({ currentUser }) {
           g.l.map(v => React.createElement(React.Fragment, { key: v.id },
             React.createElement("div", { style: { padding: '10px 16px', borderBottom: '1px solid var(--border)', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 10 } },
               React.createElement("div", { style: { minWidth: 0 } },
-                React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)' } }, BSP_TRANSP_TIPOS[v.tipo] + (v.destino ? ' · ' + bspTranspPercurso(v, t.viagens) : '') + (v.hora_inicio || v.hora_fim ? ' · ' + [bspHoraCurta(v.hora_inicio), bspHoraCurta(v.hora_fim)].filter(Boolean).join('–') : '')),
+                React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)' } }, BSP_TRANSP_TIPOS[v.tipo] + (v.destino ? ' · ' + bspTranspPercurso(v, tv.viagens) : '') + (v.hora_inicio || v.hora_fim ? ' · ' + [bspHoraCurta(v.hora_inicio), bspHoraCurta(v.hora_fim)].filter(Boolean).join('–') : '')),
                 (v.paragens || []).length > 0 && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', marginTop: 2 } }, (v.paragens || []).map(p => bspParagemTexto(p, nomeDe)).join(' · ')),
                 (v.paragens || []).some(p => p.falta || p.fora_escala) && (() => { const vf = bspTranspVerificacao(v.paragens); return React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: vf.fora ? 'var(--perigo)' : 'var(--text-3)', marginTop: 2 } }, 'Usaram ' + vf.usaram + ' · não usaram ' + vf.naoUsaram + (vf.fora ? ' · fora da escala ' + vf.fora : '')); })(),
                 v.nota && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2, fontStyle: 'italic' } }, v.nota),
@@ -25040,8 +25105,46 @@ function TransporteScreen({ currentUser }) {
         c.abast.map(a => React.createElement("div", { key: a.id, style: { fontSize: 13, color: 'var(--text-1)', padding: '4px 0' } },
           bspDataExacta(new Date(a.quando)) + ' · ' + bspKm(a.km) + ' km · ' + Number(a.litros).toLocaleString('pt-PT') + ' L · ' + bspPainelKz(a.valor, true) + (a.nota ? ' · ' + a.nota : ''),
           a.foto && React.createElement("button", { onClick: () => bspVerFotoTransp(a.foto), style: { marginLeft: 8, border: 0, background: 'transparent', color: 'var(--accent-d)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, padding: 0 } }, 'Recibo')))));
+  } else if (aba === 'viaturas') {
+    const umAno = bspSomarDias(bspDataLocalISO(new Date()), -365);
+    const dias30 = bspSomarDias(bspDataLocalISO(new Date()), -30);
+    corpo = React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+      React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } },
+        React.createElement("span", { style: { fontSize: 13, color: 'var(--text-2)', flex: '1 1 220px' } }, 'Viaturas da clínica. Cada uma tem os seus km, combustível e manutenção.'),
+        React.createElement("button", { onClick: () => setViaturaModal({}), style: Object.assign(bspEscBotao(true), { height: 40 }) }, React.createElement(I.Plus, { size: 15 }), 'Nova viatura')),
+      viaturas.map(v => {
+        const vg = (t.viagens || []).filter(r => daViatura(r) === v.id);
+        const ab = (t.abast || []).filter(r => daViatura(r) === v.id);
+        const mn = (t.manut || []).filter(r => daViatura(r) === v.id);
+        const ultKm = vg.reduce((m, x) => Math.max(m, x.km_fim != null ? x.km_fim : x.km_inicio), 0);
+        const km30 = bspTranspContas(vg, ab, dias30, bspDataLocalISO(new Date())).total;
+        const abAno = ab.filter(a => String(a.quando).slice(0, 10) >= umAno);
+        const litros = abAno.reduce((s2, a) => s2 + Number(a.litros || 0), 0);
+        const gastoComb = abAno.reduce((s2, a) => s2 + Number(a.valor || 0), 0);
+        const gastoManut = mn.filter(m => m.estado === 'feita' && m.data >= umAno).reduce((s2, m) => s2 + Number(m.valor || 0), 0);
+        const ultima = vg.filter(x => x.data).map(x => x.data).sort().pop();
+        const linha = (rot, val) => React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)' } }, rot + ': ', React.createElement("b", { style: { color: 'var(--text-1)' } }, val));
+        return React.createElement(Card, { key: v.id, pad: 16, style: { borderLeft: '4px solid ' + (v.id === vid ? 'var(--accent)' : 'var(--border)'), opacity: v.activa ? 1 : .7 } },
+          React.createElement("div", { style: { display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' } },
+            React.createElement("span", { style: { fontSize: 16, fontWeight: 700, color: 'var(--text-1)' } }, v.nome),
+            v.matricula && React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: 'var(--accent-d)' } }, v.matricula),
+            !v.activa && React.createElement(Badge, null, 'Fora de serviço'),
+            v.id === vid && React.createElement(Badge, { tone: 'accent' }, 'Escolhida')),
+          React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)', marginTop: 2 } }, [v.marca, v.modelo, v.ano, v.combustivel].filter(Boolean).join(' · ') || 'Marca e modelo por indicar', v.nota ? ' · ' + v.nota : ''),
+          React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '4px 16px', marginTop: 10 } },
+            linha('Conta-quilómetros', ultKm ? bspKm(ultKm) + ' km' : 'sem registos'),
+            linha('Km nos últimos 30 dias', bspKm(km30)),
+            linha('Última viagem', ultima ? bspDataCurta(ultima) : '—'),
+            linha('Viagens registadas', vg.length),
+            linha('Combustível (12 meses)', litros ? litros.toLocaleString('pt-PT') + ' L · ' + bspPainelKz(gastoComb, true) : '—'),
+            linha('Manutenção (12 meses)', gastoManut ? bspPainelKz(gastoManut, true) : '—')),
+          React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 } },
+            v.activa && v.id !== vid && React.createElement("button", { onClick: () => { setViaturaEsc(v.id); setAba('hoje'); }, style: Object.assign(bspEscBotao(true), { height: 38 }) }, 'Usar esta'),
+            React.createElement("button", { onClick: () => { setViaturaEsc(v.id); setAba('historico'); }, style: Object.assign(bspEscBotao(false), { height: 38 }) }, 'Histórico'),
+            React.createElement("button", { onClick: () => setViaturaModal(v), style: Object.assign(bspEscBotao(false), { height: 38 }) }, 'Alterar')));
+      }));
   } else {
-    const conhecidos = Array.from(new Set(Object.keys(t.zonas).concat(t.viagens.reduce((l, v) => l.concat((v.paragens || []).map(p => p.quem)), []))));
+    const conhecidos = Array.from(new Set(Object.keys(t.zonas).concat(tv.viagens.reduce((l, v) => l.concat((v.paragens || []).map(p => p.quem)), []))));
     const lista = conhecidos.map(id => ({ id, nome: nomeDe(id) })).sort((a, b) => bspCompararTexto(a.nome, b.nome));
     const gravarZona = async (id, zona) => {
       const r = await bspGetClient().from('transporte_zonas').upsert({ pessoa: id, zona: zona.trim() });
@@ -25054,14 +25157,15 @@ function TransporteScreen({ currentUser }) {
         React.createElement("input", { defaultValue: t.zonas[p.id] || '', onBlur: e => { if (e.target.value.trim() !== (t.zonas[p.id] || '')) gravarZona(p.id, e.target.value); }, placeholder: 'Bairro', style: Object.assign({}, bspTranspCampo, { height: 38, fontSize: 14 }) }))));
   }
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'auto', paddingBottom: 12 } },
-    React.createElement(TranspIniciarModal, { open: modal === 'iniciar', tipo: tipoNovo, diaInicial: diaNovo, ultimoKm, zonas: t.zonas, saidas: tipoNovo === 'pessoal' ? saidas : [], viagens: t.viagens, onClose: () => setModal(''), onFeito: t.recarregar, onAvisar: avisarChat }),
+    React.createElement(TranspIniciarModal, { open: modal === 'iniciar', viatura: vid, tipo: tipoNovo, diaInicial: diaNovo, ultimoKm, zonas: t.zonas, saidas: tipoNovo === 'pessoal' ? saidas : [], viagens: tv.viagens, onClose: () => setModal(''), onFeito: t.recarregar, onAvisar: avisarChat }),
     aberta && React.createElement(TranspKmModal, { open: modal === 'terminar', titulo: 'Terminar viagem', minimo: aberta.km_inicio, pedirFoto: false, pedirNota: true, onClose: () => setModal(''), onGravar: terminar }),
     React.createElement(TranspKmModal, { open: modal === 'casa', titulo: 'Cheguei a casa', minimo: ultimoKm, pedirFoto: true, onClose: () => setModal(''), onGravar: casa }),
-    React.createElement(TranspAbastModal, { open: modal === 'abast', ultimoKm, anteriores: t.abast, onClose: () => setModal(''), onFeito: t.recarregar, onAvisar: avisarChat }),
-    React.createElement(TranspManutModal, { open: modal === 'manut', ultimoKm, onClose: () => setModal(''), onFeito: t.recarregar, onAvisar: avisarChat }),
+    React.createElement(TranspAbastModal, { open: modal === 'abast', viatura: vid, ultimoKm, anteriores: tv.abast, onClose: () => setModal(''), onFeito: t.recarregar, onAvisar: avisarChat }),
+    React.createElement(TranspManutModal, { open: modal === 'manut', viatura: vid, ultimoKm, onClose: () => setModal(''), onFeito: t.recarregar, onAvisar: avisarChat }),
     React.createElement(TranspJuntarModal, { open: modal === 'juntar', onClose: () => setModal(''), onGravar: juntar }),
     React.createElement(TranspNaoFoiModal, { open: naoFoi != null, nome: naoFoi != null && paragens[naoFoi] ? nomeDe(paragens[naoFoi].quem) : '', onClose: () => setNaoFoi(null), onGravar: gravarNaoFoi }),
-    abas, corpo);
+    viaturaModal && React.createElement(TranspViaturaModal, { viatura: viaturaModal, onClose: () => setViaturaModal(null), onFeito: id => { t.recarregar(); if (!viaturaModal.id) setViaturaEsc(id); } }),
+    abas, escolhaViatura, corpo);
 }
 /* Documentos da clinica (30-09-2026, documentos.sql): regulamento interno,
    notas internas, comunicados, procedimentos e formularios. Toda a equipa
@@ -26047,8 +26151,10 @@ const BSP_GUIA_FICHAS = [
     quem: 'Cada área vê a sua. Fazem-na o chefe da área, a Direcção Clínica e a Direcção e Coordenação.',
     dica: 'De 20 a 29 de cada mês, o chefe recebe um aviso diário até publicar a escala do mês seguinte.' },
   { icone: 'Car', nome: 'Transporte',
-    serve: 'O registo da viatura: rotas, viagens, combustível e manutenção.',
+    serve: 'O registo das viaturas: rotas, viagens, combustível e manutenção.',
     faz: [
+      ['Escolha no topo a viatura que vai usar:', 'cada uma tem os seus km; o aparelho lembra-se da última.'],
+      ['Em «Viaturas»', 'veja a lista, acrescente ou altere uma viatura e abra o histórico de cada uma.'],
       ['Faça a rota das 22:30:', 'quem sai vem das escalas; marque «Deixado» ou «Não foi».'],
       ['Registe viagens de dia', '(amostras, compras) e a chegada a casa.'],
       ['Lance abastecimentos e manutenção,', 'com fotografia do recibo ou do orçamento.'],

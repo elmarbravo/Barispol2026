@@ -3556,3 +3556,28 @@ e no telemóvel.
   - Testado como a Juliana num bloco desfeito: 2 avisos, 0 depois do «Li».
 - Falta: o stock esgotado ainda não tem aviso próprio (só no relatório
   diário); quando tiver, entra com etiqueta na `bsp_alerta_do_push`.
+
+## 3-fs. Transporte: viaturas (06-10-2026)
+
+Sugestões do Emmanuel no #transporte: «Lista de viaturas da clínica · opção
+para escolher a viatura que vou usar · histórico para cada uma delas».
+- Servidor (`transporte-viaturas.sql`, aplicado): tabela `transporte_viaturas`
+  (nome, matrícula, marca, modelo, ano, combustível, `activa`, nota), com a
+  regra `bsp_ve_transporte` para ler, criar e alterar; nunca se apaga (fora de
+  serviço = `activa = false`). `viatura_id` em `transporte_viagens`,
+  `transporte_abastecimentos` e `transporte_manutencoes`. Os 330 registos
+  antigos ficaram na «Viatura 1» (matrícula por indicar). O gatilho
+  `bsp_transp_viatura_omissao` põe a viatura activa mais antiga num registo
+  novo sem viatura (aparelho com a página antiga).
+- Ecrã (`TransporteScreen`): escolha «Viatura que vou usar» no topo (guardada
+  no aparelho, `bsp-transp-viatura`; com uma viagem em curso, abre na viatura
+  dessa viagem). Hoje, Histórico e contas mostram só a viatura escolhida; os km
+  contam-se por viatura. Separador «Viaturas» com o resumo de cada uma
+  (conta-quilómetros, km em 30 dias, última viagem, combustível e manutenção
+  em 12 meses), «Usar esta», «Histórico», «Alterar» e «Nova viatura»
+  (`TranspViaturaModal`). Com mais de uma viatura em serviço, as mensagens do
+  #transporte levam a linha «Viatura: …». Verificado no navegador (390 px).
+- Falta: a matrícula e os dados da «Viatura 1» (o Emmanuel preenche em
+  Viaturas → Alterar). O relatório semanal ao motorista (`resumo-matinal`,
+  tipo `transporte`) ainda soma todas as viaturas juntas: mudar quando houver
+  uma segunda viatura em serviço.
