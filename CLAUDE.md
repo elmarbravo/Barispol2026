@@ -544,6 +544,16 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   (`bspTrataAvarias` = gestão + Serviços Gerais, que vêem todas; os outros só
   as da sua área, `avarias-por-area.sql`, 02-10-2026), Stock →
   `PedidosCompraPainel` (só a gestão aprova).
+  Duas aprovações (06-10-2026, `ferias-duas-aprovacoes.sql`, Elmar: «1.º o Dr.
+  Osvaldo, depois a Arlete RH»): 1.º passo do superior gravado no pedido
+  (`superior_id` = `bsp_aprovador_de`: campo `superior`, senão o chefe da área;
+  chefes clínicos e radiologistas com `superior` u14), marcado em
+  `superior_ok_em` (o estado fica «Pedido»: a regra `ausencias_estado_check`
+  não muda); 2.º passo dos RH (`bsp_ferias_rh` = u2). O u1 substitui em
+  qualquer passo. Ecrã: `bspAusenciaPasso`, `bspAusenciaDecideEu`. Avisos com
+  etiqueta `ferias-<id>` (sino, telemóvel, janela de avisos importantes).
+  Nas funções pela ferramenta do servidor, nunca a palavra `drop` (fica à
+  espera de confirmação): `create or replace trigger`, `alter policy`.
   Mapa de férias (02-10-2026, `ferias-mapa.sql`): `bsp_mapa_ferias(ano)` /
   `MapaFerias`; toda a equipa vê só as férias aprovadas (pessoa e datas). Os
   outros tipos de ausência nunca entram no mapa.

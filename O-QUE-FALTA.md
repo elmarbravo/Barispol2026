@@ -3622,3 +3622,32 @@ disponibiliza todos».
   qualquer emoji.
 - Testado a 390 e 1280 px: alinhamento, seleccionador (1437 emojis), reagir
   e tirar a reacção, sem passar da largura do ecrã.
+
+## 3-fw. Férias e ausências com duas aprovações (06-10-2026)
+
+Elmar: «os pedidos de férias não chegaram ao Dr. Osvaldo, nota que todos os
+chefes das áreas clínicas devem ter duas aprovações, 1.º o Dr. Osvaldo, depois
+a Arlete RH. Todos os técnicos devem ter aprovação do superior hierárquico e
+depois a Arlete RH». RI-6.1 (o plano de férias é aprovado pelo superior).
+- Causa: o aviso do pedido ia para o «superior» e para o chefe da área. Os
+  chefes das áreas clínicas não tinham «superior» e são o chefe da própria
+  área: o pedido só chegava à gestão, só no sino, e a Arlete aprovava logo.
+- `ferias-duas-aprovacoes.sql` (aplicado): colunas `superior_id`,
+  `superior_ok_por`, `superior_ok_em`; `bsp_aprovador_de`,
+  `bsp_ferias_aprovadores`, `bsp_ferias_rh`, gatilho `bsp_ausencia_superior`,
+  `bsp_ausencia_avisar` (sino + telemóvel + janela de avisos, etiqueta
+  `ferias-<id>`), `bsp_ausencia_pedida` e `bsp_ausencia_decidir` novos, leitura
+  também para o `superior_id`.
+- Equipa: `superior` = u14 para Filomena (Enfermagem), Solange (Farmácia), Rosa
+  Queirós (Laboratório) e as duas radiologistas.
+- Cadeia hoje: médicos → Osvaldo; enfermeiros → Filomena; Farmácia → Solange;
+  Laboratório → Rosa Queirós; Recepção → Juliana; chefes clínicos e
+  radiologistas → Osvaldo; depois sempre a Arlete. Sem superior (Osvaldo,
+  Juliana, Emmanuel, Administração): só a Arlete. O Elmar pode substituir em
+  qualquer passo.
+- Testado no servidor (transacção desfeita): a Arlete não aprova antes do
+  Osvaldo; o Osvaldo não dá o 2.º passo; leitura só do próprio, do Osvaldo e
+  da Arlete. Ecrã testado a 390 e 1280 px.
+- Por decidir: os pedidos 15 (Solange) e 14 (Déricka), aprovados hoje só pela
+  Arlete, ficam como estão, salvo indicação do Elmar.
+- Falta confirmar: superior da Juliana (Recepção) e do Dr. Osvaldo.

@@ -4088,7 +4088,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_alertas_por_ler', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
+const BSP_RPC_LEITURA = ['bsp_alertas_por_ler', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -26362,7 +26362,7 @@ const BSP_GUIA_FICHAS = [
     serve: 'Os contactos da equipa, as férias e ausências e as formações.',
     faz: [
       ['Procure um colega', 'e ligue ou escreva-lhe.'],
-      ['Peça férias ou uma ausência;', 'decide o seu superior, o chefe da área ou a Direcção, e recebe o aviso.'],
+      ['Peça férias ou uma ausência;', 'aprova primeiro o seu superior (os chefes das áreas clínicas: o Director Clínico), depois os RH. Cada passo recebe o aviso no telemóvel.'],
       ['Veja quem vai estar fora', 'nos próximos 30 dias.'],
       ['Consulte o mapa de férias', 'de toda a equipa, mês a mês, com aviso quando a mesma área fica com duas pessoas fora.'],
       ['Registe as suas formações;', 'os certificados a caducar aparecem em destaque.'],
@@ -26923,7 +26923,7 @@ function useTabela(tabela, ordem, colunas) {
   return { linhas, erro, recarregar: () => setTick(t => t + 1) };
 }
 const bspNomeDe = id => { const u = window.userById(id); return u ? u.name : 'Antigo colaborador'; };
-const BSP_ESTADO_COR = { Pedido: 'var(--accent-d)', Aprovado: 'var(--sucesso)', Recusado: 'var(--perigo)', Cancelado: 'var(--text-3)', Aberta: 'var(--perigo)', 'Em reparação': 'var(--accent-d)', Resolvida: 'var(--sucesso)', Cancelada: 'var(--text-3)', Comprado: 'var(--accent-d)', Recebido: 'var(--sucesso)' };
+const BSP_ESTADO_COR = { Pedido: 'var(--accent-d)', 'Aprovado pelo superior': 'var(--accent-d)', Aprovado: 'var(--sucesso)', Recusado: 'var(--perigo)', Cancelado: 'var(--text-3)', Aberta: 'var(--perigo)', 'Em reparação': 'var(--accent-d)', Resolvida: 'var(--sucesso)', Cancelada: 'var(--text-3)', Comprado: 'var(--accent-d)', Recebido: 'var(--sucesso)' };
 const bspEstadoEtiqueta = e => React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: BSP_ESTADO_COR[e] || 'var(--text-2)', whiteSpace: 'nowrap' } }, e);
 const bspRegCaixa = { padding: 14, border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)' };
 function bspDiasEntre(a, b) { return Math.round((bspDataDe(b) - bspDataDe(a)) / 86400000) + 1; }
@@ -26983,10 +26983,38 @@ function MapaFerias() {
           m.choques.length > 0 && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--perigo)', marginTop: 6 } }, 'Ao mesmo tempo na mesma área: ' + m.choques.join('; ') + '.'))));
 }
 const BSP_AUSENCIA_TIPOS = ['Férias', 'Doença', 'Falta justificada', 'Formação', 'Licença', 'Outro'];
+/* Duas aprovações (06-10-2026, ferias-duas-aprovacoes.sql, Elmar: «1.º o
+   Dr. Osvaldo, depois a Arlete RH»; «todos os técnicos: superior hierárquico
+   e depois a Arlete RH»). O 1.º passo é do superior gravado no pedido
+   (superior_id, calculado no servidor por bsp_aprovador_de) e fica em
+   superior_ok_em; o 2.º é dos RH. O Director Geral pode substituir em
+   qualquer passo. O servidor decide (bsp_ausencia_decidir); o ecrã só mostra
+   os botões a quem os pode usar. */
+const BSP_FERIAS_RH = 'u2';
+const BSP_FERIAS_SUBSTITUTO = 'u1';
+function bspAusenciaPasso(a) {
+  if (a.estado !== 'Pedido') return 0;
+  return a.superior_id && !a.superior_ok_em ? 1 : 2;
+}
+function bspAusenciaEstado(a) {
+  return a.estado === 'Pedido' && a.superior_ok_em ? 'Aprovado pelo superior' : a.estado;
+}
+function bspAusenciaDecideEu(a, eu) {
+  const p = bspAusenciaPasso(a);
+  if (!p || a.user_id === eu) return false;
+  if (eu === BSP_FERIAS_SUBSTITUTO) return true;
+  return p === 1 ? a.superior_id === eu : eu === BSP_FERIAS_RH;
+}
 function AusenciasPainel() {
   const toast = useToast();
   const eu = window.CURRENT_USER_ID;
   const t = useTabela('ausencias', 'inicio');
+  const [aprov, setAprov] = React.useState(null);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    cl.rpc('bsp_ferias_aprovadores').then(r => { if (!r.error && r.data) setAprov(r.data); }, () => {});
+  }, []);
   const hoje = bspDataLocalISO(new Date());
   const [f, setF] = React.useState({ tipo: 'Férias', inicio: '', fim: '', nota: '' });
   const [busy, setBusy] = React.useState(false);
@@ -27015,22 +27043,29 @@ function AusenciasPainel() {
   const linhas = t.linhas || [];
   const meus = linhas.filter(a => a.user_id === eu);
   const outros = linhas.filter(a => a.user_id !== eu);
-  const porDecidir = outros.filter(a => a.estado === 'Pedido');
+  const porDecidir = outros.filter(a => bspAusenciaDecideEu(a, eu));
+  const emCurso = outros.filter(a => a.estado === 'Pedido' && !bspAusenciaDecideEu(a, eu));
   const ausentes = outros.filter(a => a.estado === 'Aprovado' && a.fim >= hoje && a.inicio <= bspSomarDias(hoje, 30)).sort((a, b) => a.inicio.localeCompare(b.inicio));
   const linha = (a, accoes) => React.createElement("div", { key: a.id, style: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 0', borderTop: '1px solid var(--border)' } },
     React.createElement("div", { style: { flex: '1 1 220px', minWidth: 0 } },
       React.createElement("div", { style: { fontSize: 13.5, fontWeight: 600, color: 'var(--text-1)' } }, (a.user_id !== eu ? bspNomeDe(a.user_id) + ' · ' : '') + a.tipo),
       React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)' } }, bspDataCurta(a.inicio) + ' a ' + bspDataCurta(a.fim) + ' · ' + bspDiasEntre(a.inicio, a.fim) + ' dia(s)' + (a.nota ? ' · ' + a.nota : '')),
       a.motivo ? React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, 'Motivo: ' + a.motivo) : null,
+      a.superior_id ? React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)' } }, '1.º passo, ' + bspNomeDe(a.superior_id) + ': '
+        + (a.superior_ok_em ? 'aprovado por ' + bspNomeDe(a.superior_ok_por) + ' a ' + bspQuando(a.superior_ok_em) : a.estado === 'Pedido' ? 'por decidir' : '—')
+        + ' · 2.º passo: RH') : null,
       a.decidido_em && a.estado !== 'Pedido' ? React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)' } }, a.estado + ' por ' + bspNomeDe(a.decidido_por) + ' a ' + bspQuando(a.decidido_em)) : null),
-    bspEstadoEtiqueta(a.estado), accoes);
+    bspEstadoEtiqueta(bspAusenciaEstado(a)), accoes);
   const rot = bspTranspRot;
+  const quemDecide = !aprov ? 'Aprova primeiro o seu superior, depois os RH.'
+    : aprov.superior ? 'Aprova primeiro ' + bspNomeDe(aprov.superior) + ', depois os RH (' + bspNomeDe(aprov.rh) + ').'
+    : 'Aprovam os RH (' + bspNomeDe(aprov.rh || BSP_FERIAS_RH) + ').';
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 14 } },
     t.erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, t.erro) : null,
     porDecidir.length > 0 && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { borderLeft: '4px solid var(--perigo)' }) },
       React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)' } }, 'Para decidir (' + porDecidir.length + ')'),
       porDecidir.map(a => linha(a, React.createElement("div", { style: { display: 'flex', gap: 6 } },
-        React.createElement("button", { onClick: () => decidir(a, 'Aprovado'), style: bspEscBotao(true) }, 'Aprovar'),
+        React.createElement("button", { onClick: () => decidir(a, 'Aprovado'), style: bspEscBotao(true) }, bspAusenciaPasso(a) === 1 ? 'Aprovar (1.º passo)' : 'Aprovar'),
         React.createElement("button", { onClick: () => decidir(a, 'Recusado'), style: bspEscBotao(false) }, 'Recusar'))))),
     React.createElement("div", { style: bspRegCaixa },
       React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } }, 'Pedir férias ou ausência'),
@@ -27040,8 +27075,12 @@ function AusenciasPainel() {
         React.createElement("label", null, rot('Último dia'), React.createElement("input", { type: 'date', value: f.fim, min: f.inicio || undefined, onChange: e => setF(Object.assign({}, f, { fim: e.target.value })), style: bspTranspCampo }))),
       React.createElement("label", { style: { display: 'block', marginTop: 10 } }, rot('Nota (opcional)'), React.createElement("input", { value: f.nota, onChange: e => setF(Object.assign({}, f, { nota: e.target.value })), placeholder: 'Ex.: troca combinada com a colega', style: bspTranspCampo })),
       React.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginTop: 12, flexWrap: 'wrap' } },
-        React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, f.inicio && f.fim && f.fim >= f.inicio ? bspDiasEntre(f.inicio, f.fim) + ' dia(s) de calendário. Decide o seu superior, o chefe da área ou a Direcção.' : 'Decide o seu superior, o chefe da área ou a Direcção.'),
+        React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, f.inicio && f.fim && f.fim >= f.inicio ? bspDiasEntre(f.inicio, f.fim) + ' dia(s) de calendário. ' + quemDecide : quemDecide),
         React.createElement("button", { onClick: pedir, disabled: busy, style: bspEscBotao(true) }, busy ? 'A enviar…' : 'Pedir'))),
+    emCurso.length > 0 && React.createElement("div", { style: bspRegCaixa },
+      React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)' } }, 'Pedidos em curso (' + emCurso.length + ')'),
+      React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2 } }, 'À espera do outro passo de aprovação.'),
+      emCurso.map(a => linha(a, null))),
     ausentes.length > 0 && React.createElement("div", { style: bspRegCaixa },
       React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)' } }, 'Quem vai estar fora (próximos 30 dias)'),
       ausentes.map(a => linha(a, null))),
