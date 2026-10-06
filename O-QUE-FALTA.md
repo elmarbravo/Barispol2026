@@ -3514,3 +3514,6 @@ que ela marcar».
     atrasadas simuladas).
 - Tarefas delegadas a 06-10 a partir dos e-mails: Juliana (26–31), Rosa (32,
   36), Solange (33, 35, 37), Filomena (34). Mensagem no Chat a cada uma.
+- Coluna `origem` (`emails` nas tarefas 26–37): o ecrã mostra «DE SISTEMA» e
+  «Criada pelo sistema, com base nos e-mails trocados»; `criada_por` continua
+  u1 para os avisos. Verificado no navegador.

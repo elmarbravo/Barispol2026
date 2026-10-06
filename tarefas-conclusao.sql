@@ -73,3 +73,9 @@ revoke all on function public.bsp_tarefas_atrasadas_alertar() from public, anon,
 
 -- 06h45 de Luanda (05h45 UTC), todos os dias (o mesmo nome substitui o anterior).
 select cron.schedule('bsp-tarefas-atrasadas', '45 5 * * *', $$select public.bsp_tarefas_atrasadas_alertar()$$);
+
+-- Origem «emails» (06-10-2026, Elmar: «as tarefas ficam delegadas pelo sistema
+-- e não por mim, diz que é com base nos e-mails trocados»). criada_por fica com
+-- quem recebe os avisos; o ecrã mostra «Sistema (com base nos e-mails trocados)».
+alter table public.tarefas_pessoais add column if not exists origem text;
+update public.tarefas_pessoais set origem = 'emails' where id between 26 and 37 and criada_por = 'u1';

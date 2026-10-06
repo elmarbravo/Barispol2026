@@ -14536,7 +14536,11 @@ function useTarefasPessoais() {
            outros. Mostrar de quem é, senão aparecia uma tarefa sem dono. */
         dono: meu ? null : (window.userById(t.user_id) || {}).name || 'Colega',
         /* Quem a delegou, quando nao foi o proprio dono. */
-        delegadaPor: t.criada_por && t.criada_por !== t.user_id ? ((window.userById(t.criada_por) || {}).name || 'Colega') : null,
+        /* origem «emails» (06-10-2026, Elmar: «ficam delegadas pelo sistema e
+           não por mim, com base nos e-mails trocados»): criada_por continua a
+           ser quem recebe os avisos, mas o ecrã mostra o Sistema. */
+        delegadaPor: t.origem === 'emails' ? 'Sistema (com base nos e-mails trocados)' : t.criada_por && t.criada_por !== t.user_id ? ((window.userById(t.criada_por) || {}).name || 'Colega') : null,
+        origem: t.origem || '',
         title: t.titulo,
         desc: t.descricao || '',
         criadoPor: t.criada_por || t.user_id,
@@ -15358,7 +15362,7 @@ function TarefaDetalhe({
     style: { fontSize: 12.5, color: 'var(--text-3)' }
   }, "Sem descrição. Carregue em «Editar» para a escrever.")), criador && React.createElement("div", {
     style: { fontSize: 11.5, color: 'var(--text-3)' }
-  }, 'Criada por ' + criador.name + (t.criadoEm && bspQuando(t.criadoEm) ? ' a ' + bspQuando(t.criadoEm) : '') + (t.delegadaPor ? ' · delegada por ' + t.delegadaPor : '')), levar && React.createElement("div", {
+  }, t.origem === 'emails' ? 'Criada pelo sistema, com base nos e-mails trocados' + (t.criadoEm && bspQuando(t.criadoEm) ? ', a ' + bspQuando(t.criadoEm) : '') : 'Criada por ' + criador.name + (t.criadoEm && bspQuando(t.criadoEm) ? ' a ' + bspQuando(t.criadoEm) : '') + (t.delegadaPor ? ' · delegada por ' + t.delegadaPor : '')), levar && React.createElement("div", {
     style: { border: '1px solid var(--accent-d)', background: 'var(--accent-soft)', borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }
   }, React.createElement("div", { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--texto-sobre-pastel)' } }, "Levar a tarefa para uma conversa"), React.createElement("select", {
     value: destino,
