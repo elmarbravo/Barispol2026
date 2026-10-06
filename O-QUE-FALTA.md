@@ -3461,3 +3461,16 @@ o grupo CARDIOLOGIA como «exames de imagem».
   Direcção Clínica (só deixa de o contar como imagem).
 - Pagamento dos médicos (`bsp_pagamento_linhas`) não muda: um ECG no grupo
   ENFERMAGEM paga-se como enfermagem até o Elmar decidir.
+
+## 3-fo. Editar um Word aberto no Chat (06-10-2026)
+
+Arlete: «não consigo editar o contrato». O visor (`VisorImagem` com
+`LeitorWord`) só mostra; o «Guardar» era um link directo ao armazenamento, de
+outro domínio, e o navegador ignorava o pedido de descarga (no telemóvel voltava
+a mostrar o documento).
+- `bspGuardarFicheiro(url, nome)`: descarrega o ficheiro como blob com o nome
+  certo; no telemóvel abre a partilha («Abrir no Word», «Guardar em Ficheiros»).
+- Nos Word e PowerPoint o botão chama-se «Descarregar para editar».
+- Verificado no navegador: o botão aparece e o ficheiro desce com o nome certo.
+- Limite: a app Android não descarrega ficheiros (não tem `DownloadListener`
+  nem o plugin de partilha); na app, abrir o Workspace no navegador para editar.

@@ -209,6 +209,8 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   (`LeitorWord`, `vendor/docx`, 01-10-2026); o .doc antigo é recusado nas
   conversas. PowerPoint .pptx em `bspVerPptx(url, nome)` (`LeitorPptx`,
   leitor próprio sobre o JSZip, 02-10-2026). `bspAbrirFicheiro` escolhe sozinho.
+  O «Guardar» do visor é `bspGuardarFicheiro` (blob com o nome certo, partilha no
+  telemóvel; nos Word «Descarregar para editar», 06-10-2026): nunca um link directo.
 - Logotipo (02-10-2026): `BarispolLogo` com `sm` 38, `md` 64, `lg` 104 px;
   no site, 72 px no cabeçalho (60 no telemóvel). Nunca voltar a tamanhos
   menores (pedido do Elmar). Círculo branco sempre com 13% de margem

@@ -5017,6 +5017,30 @@ function LeitorPdf({ url }) {
         React.createElement("button", { onClick: () => setZoom(z => Math.min(3, +(z + 0.25).toFixed(2))), style: bz, 'aria-label': 'Ampliar' }, '+')),
     React.createElement("div", { ref: caixa, style: { flex: 1, minHeight: 0, overflow: 'auto', padding: '0 4px calc(env(safe-area-inset-bottom, 0px) + 14px)', WebkitOverflowScrolling: 'touch' } }));
 }
+/* Guardar o ficheiro aberto no visor (06-10-2026, Arlete: «não consigo editar
+   o contrato»). O visor só mostra; para editar um Word é preciso o ficheiro.
+   O link directo ao armazenamento é de outro domínio e o navegador ignora o
+   «download» (no telemóvel voltava a mostrar o documento): descarrega-se como
+   blob com o nome certo e, no iPhone e no Android, abre-se a partilha
+   («Abrir no Word», «Guardar em Ficheiros»). */
+async function bspGuardarFicheiro(url, nome) {
+  const n = nome || 'ficheiro';
+  try {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const blob = await r.blob();
+    const tactil = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    if (tactil && navigator.share && window.File) {
+      const f = new File([blob], n, { type: blob.type || 'application/octet-stream' });
+      if (navigator.canShare && navigator.canShare({ files: [f] })) {
+        try { await navigator.share({ files: [f], title: n }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+      }
+    }
+    bspDescarregarBlob(n, blob);
+  } catch (e) {
+    window.open(url, '_blank', 'noopener');
+  }
+}
 function VisorImagem() {
   const [img, setImg] = React.useState(null);
   const comHistorico = React.useRef(false);
@@ -5070,9 +5094,10 @@ function VisorImagem() {
     }
   }, React.createElement("span", {
     style: { flex: 1, minWidth: 0, color: '#fff', fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
-  }, img.nome), React.createElement("a", {
-    href: img.url, download: img.nome || 'imagem', target: '_blank', rel: 'noopener noreferrer', style: botao
-  }, "Guardar"), React.createElement("button", {
+  }, img.nome), React.createElement("button", {
+    onClick: () => bspGuardarFicheiro(img.url, img.nome || 'imagem'), style: botao,
+    title: img.word || img.pptx ? 'O visor só mostra. Descarregue para abrir e editar no Word ou no PowerPoint.' : 'Guardar o ficheiro no aparelho'
+  }, img.word || img.pptx ? "Descarregar para editar" : "Guardar"), React.createElement("button", {
     onClick: fechar, style: botao, "aria-label": "Fechar"
   }, "✕ Fechar")), img.pptx ? React.createElement(LeitorPptx, { url: img.url }) : img.word ? React.createElement(LeitorWord, { url: img.url }) : img.pdf ? React.createElement(LeitorPdf, { url: img.url }) : React.createElement("div", {
     style: {
