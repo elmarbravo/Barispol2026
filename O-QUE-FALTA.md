@@ -3035,8 +3035,19 @@ de 01-04 a 31-08 (só no servidor; a folha não entra no repositório).
   - O valor é litros × 300 Kz, o preço de todos os registos de Setembro.
   - Os km são os do odómetro no fim do dia, porque a folha não traz o km do
     abastecimento.
-  - Nota em cada linha. Os km diários não se carregaram, porque não são
-    viagens.
+  - Nota em cada linha.
+- Km dos turnos carregados a 06-10-2026 (Elmar: «falta as kms»): 240 viagens
+  «Rota do pessoal» (manhã e noite) em `transporte_viagens`, motorista u22,
+  nota «Turno da manhã/noite (folha de Abril a Agosto de 2026)», 12.468 km.
+  - Ficaram de fora as 17 noites de 26-04 a 12-05 que já estavam (vindas do
+    WhatsApp, iguais ao km), 5 manhãs com 0 km (30-04, 01-06, 15-06, 17-08,
+    24-08) e a noite de 28-06, igual à manhã na folha (44.208 → 44.239):
+    confirmar com o Emmanuel.
+  - Por mês (turnos / km): Abr 50 / 2.471, Mai 52 / 2.622, Jun 51 / 2.497,
+    Jul 54 / 2.694, Ago 50 / 2.898. Total 13.182 km, igual à folha menos o
+    turno repetido.
+  - Os km entre turnos não se inventaram: o Histórico mostra-os como «km sem
+    registo».
 - **Conferido:**
   - Sem erros de conta e sem odómetro a recuar.
   - O odómetro andou 17.817 km, mas só 13.213 km estão em turnos
