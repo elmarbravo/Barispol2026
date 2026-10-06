@@ -30,8 +30,8 @@ grant execute on function erp.grupo_item(text, text) to authenticated, service_r
 do $$ declare d text; n text;
 begin
   d := pg_get_functiondef('public.bsp_painel(date,date)'::regprocedure);
-  n := replace(d, 'select i.grupo, i.valor from crm.mg_factura_itens i', 'select erp.grupo_item(i.grupo, i.item_nome), i.valor from crm.mg_factura_itens i');
-  n := replace(n, 'select i.item_group, i.amount from erp.sales_invoice_item i', 'select erp.grupo_item(i.item_group, i.item_name), i.amount from erp.sales_invoice_item i');
+  n := replace(d, 'select i.grupo, i.valor from crm.mg_factura_itens i', 'select erp.grupo_item(i.grupo, i.item_nome) grupo, i.valor from crm.mg_factura_itens i');
+  n := replace(n, 'select i.item_group, i.amount from erp.sales_invoice_item i', 'select erp.grupo_item(i.item_group, i.item_name) grupo, i.amount from erp.sales_invoice_item i');
   if n = d or position('erp.grupo_item(i.grupo' in n) = 0 or position('erp.grupo_item(i.item_group' in n) = 0 then
     raise notice 'bsp_painel: texto esperado não encontrado, não mudou';
   else execute n; end if;
