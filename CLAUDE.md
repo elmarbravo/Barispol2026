@@ -195,6 +195,8 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   canais quem os vê (`push-canais.sql`, mesma regra do `bspVeCanal`). Número no ícone da app: `navigator.setAppBadge` em
   `useChatPorLer`; o `sw.js` põe um ponto quando chega uma mensagem.
 - Abrir uma conversa directa de qualquer ecrã: `bspConversaCom(id)`.
+- Anexos do Feed (06-10-2026): `ComposePostModal` aceita vários (`atts`); cada
+  um vai para o Drive e entra no texto como `[anexo:nome]`.
 - Aspecto do Chat (06-10-2026, Elmar: «eu escrevo e fico do lado direito»):
   as minhas mensagens à direita (`bsp-msg-bolha`, `--bolha-minha`, data dentro
   da bolha), as dos outros à esquerda com fotografia e nome. Reacções com
@@ -463,6 +465,12 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   Tempo de espera (03-10-2026, `qualidade-espera.sql`): `erp.espera_utente`
   (triagem, consulta e última factura do MetaGest, sem nomes),
   `bsp_qualidade_espera(de, ate)`, separador `QualidadeEspera`.
+  Voz dos utentes no Feed (06-10-2026, `feedback-feed-semanal.sql`):
+  `bsp_feedback_post_feed(de, ate)` publica elogios, reclamações, sugestões e
+  outras opiniões numa só publicação (autor u1, `cid` «fb-<de>-<ate>», nunca
+  duas vezes); cron `bsp-feedback-feed` à segunda às 08h00 (semana anterior, a
+  partir do fim da última). Nomes de utentes tapados por `bsp_feedback_sem_nomes`
+  («o/a <Nome>» → «o/a utente», salvo a equipa); nunca telefones nem médicos.
   Auditorias (03-10-2026, `auditorias.sql`): `auditoria_modelos` + `auditorias`
   (respostas `{item: {r: sim|nao|na, n}}`); a conformidade calcula-se no
   servidor (`bsp_auditoria_calcular`); `bsp_faz_auditorias(area)` /

@@ -3736,3 +3736,18 @@ alimentação» e «Consumíveis de escritório»).
   algarismo?) e 132.265,54 Kz a 05-10-2026; alimentação de Agosto de 2026 só
   50.000 Kz; valores redondos que podem ser adiantamentos.
 - Falta: fotografia da factura (precisa de pasta privada no armazenamento).
+
+## 3-gd. Feed: vários anexos e «Voz dos utentes» semanal (06-10-2026)
+
+Elmar: «nos anexos só permite um» e «faz um post no feed com os feedback
+todos; passa a postar os elogios e reclamações da semana num post».
+- Feed: a janela de publicação aceita vários ficheiros de uma vez (`atts`),
+  com a lista e um botão para tirar cada um. Testado.
+- `feedback-feed-semanal.sql` (aplicado): `bsp_feedback_sem_nomes`,
+  `bsp_feedback_post_feed`, `bsp_feedback_post_semana`; cron `bsp-feedback-feed`
+  (segunda, 08h00 de Luanda).
+- Publicação 37 no Feed: todas as opiniões de 16-09 a 06-10-2026 (14 elogios,
+  2 reclamações, 1 sugestão, 6 outras; nota média 4,3 em 23 avaliações).
+- Opinião 57: nota corrigida de 1 para 5 (o texto diz «seria 5»).
+- Limite: só se tapam nomes depois de «o/a»; um nome solto no início da frase
+  passa. A Qualidade deve escrever as notas sem nomes.

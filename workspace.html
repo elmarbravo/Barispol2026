@@ -11311,17 +11311,19 @@ function FeedScreen({
     currentUser: currentUser,
     onClose: () => setComposeType(null),
     onPublish: post => {
-      if (post.att) {
-        actions.uploadFile({
-          name: post.att.name,
-          size: post.att.sizeLabel,
-          bytes: post.att.bytes,
-          owner: currentUser.id,
-          path: post.att.path,
-          dept: ''
+      if (post.atts && post.atts.length) {
+        post.atts.forEach(a => {
+          actions.uploadFile({
+            name: a.name,
+            size: a.sizeLabel,
+            bytes: a.bytes,
+            owner: currentUser.id,
+            path: a.path,
+            dept: ''
+          });
+          post.body = (post.body ? post.body + '\n' : '') + '[anexo:' + a.name + ']';
         });
-        post.body = (post.body ? post.body + '\n' : '') + '[anexo:' + post.att.name + ']';
-        delete post.att;
+        delete post.atts;
       }
       actions.publishPost(post);
       setComposeType(null);
@@ -11351,7 +11353,11 @@ function ComposePostModal({
   const [eventDate, setEventDate] = React.useState('');
   const [eventLocation, setEventLocation] = React.useState('');
   const [pinned, setPinned] = React.useState(false);
-  const [att, setAtt] = React.useState(null);
+  /* Vários anexos por publicação (06-10-2026, Elmar: «nos anexos só permite
+     um»). Cada um entra no Drive e no texto como [anexo:nome]; o cartão da
+     publicação já mostrava todos. */
+  const [atts, setAtts] = React.useState([]);
+  const [aCarregar, setACarregar] = React.useState(0);
   const attRef = React.useRef(null);
   React.useEffect(() => {
     if (!open) {
@@ -11361,32 +11367,36 @@ function ComposePostModal({
       setEventDate('');
       setEventLocation('');
       setPinned(false);
-      setAtt(null);
+      setAtts([]);
     }
   }, [open]);
   async function onPickAtt(e) {
-    const f = (e.target.files || [])[0];
+    const lista = Array.from(e.target.files || []);
     e.target.value = '';
-    if (!f) return;
+    if (!lista.length) return;
     if (!bspGetClient()) {
       window.alert('O servidor não está ligado neste dispositivo.');
       return;
     }
-    if (f.size > BSP_MAX_BYTES) {
-      window.alert('O ficheiro excede 25 MB.');
-      return;
-    }
-    try {
-      const caminho = await bspUploadToStorage(f);
-      setAtt({
-        name: f.name,
-        bytes: f.size,
-        sizeLabel: fmtSize(f.size),
-        path: caminho,
-        isImg: /^image\//.test(f.type)
-      });
-    } catch (err) {
-      window.alert('Não foi possível carregar o ficheiro.');
+    for (const f of lista) {
+      if (f.size > BSP_MAX_BYTES) {
+        window.alert('«' + f.name + '» excede 25 MB e ficou de fora.');
+        continue;
+      }
+      setACarregar(n => n + 1);
+      try {
+        const caminho = await bspUploadToStorage(f);
+        setAtts(a => a.concat([{
+          name: f.name,
+          bytes: f.size,
+          sizeLabel: fmtSize(f.size),
+          path: caminho,
+          isImg: /^image\//.test(f.type)
+        }]));
+      } catch (err) {
+        window.alert('Não foi possível carregar «' + f.name + '».');
+      }
+      setACarregar(n => n - 1);
     }
   }
   const typeMeta = {
@@ -11413,7 +11423,8 @@ function ComposePostModal({
   };
   const meta = typeMeta[type] || typeMeta.normal;
   function publish() {
-    if (!body.trim() && !att) return;
+    if (aCarregar > 0) { window.alert('Espere que os anexos acabem de carregar.'); return; }
+    if (!body.trim() && !atts.length) return;
     if (type === 'comunicado') {
       window.alert('Os comunicados oficiais publicam-se em Documentos (categoria «Comunicados»): têm leitura confirmada e aparecem sozinhos no Feed e em #avisos.');
       if (window.bspIrParaEcra) window.bspIrParaEcra('documentos');
@@ -11424,7 +11435,7 @@ function ComposePostModal({
       type: type || 'normal',
       body: body.trim()
     };
-    if (att) base.att = att;
+    if (atts.length) base.atts = atts;
     if (type === 'comunicado' || type === 'evento') base.title = title.trim() || (type === 'comunicado' ? 'Comunicado' : 'Evento');
     if (type === 'comunicado' && pinned) base.pinned = true;
     if (type === 'reconhecimento') base.highlight = highlight;
@@ -11496,11 +11507,13 @@ function ComposePostModal({
   })), React.createElement("input", {
     ref: attRef,
     type: "file",
+    multiple: true,
     style: {
       display: 'none'
     },
     onChange: onPickAtt
-  }), att ? React.createElement("div", {
+  }), atts.map((att, ia) => React.createElement("div", {
+    key: att.path || ia,
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -11509,7 +11522,7 @@ function ComposePostModal({
       borderRadius: 10,
       border: '1px solid var(--border)',
       background: 'var(--surface-2)',
-      marginBottom: 16
+      marginBottom: 8
     }
   }, att.isImg ? React.createElement(FicheiroImg, {
     f: att,
@@ -11554,7 +11567,8 @@ function ComposePostModal({
       color: 'var(--text-3)'
     }
   }, att.sizeLabel, " · partilhado também no Drive")), React.createElement("button", {
-    onClick: () => setAtt(null),
+    onClick: () => setAtts(a => a.filter((_, j) => j !== ia)),
+    "aria-label": "Tirar " + att.name,
     className: "bsp-iconbtn",
     style: {
       width: 28,
@@ -11562,7 +11576,9 @@ function ComposePostModal({
     }
   }, React.createElement(I.X, {
     size: 13
-  }))) : React.createElement("button", {
+  })))), aCarregar > 0 && React.createElement("div", {
+    style: { fontSize: 12.5, color: 'var(--text-3)', marginBottom: 8 }
+  }, 'A carregar ' + aCarregar + (aCarregar === 1 ? ' ficheiro…' : ' ficheiros…')), React.createElement("button", {
     onClick: () => attRef.current && attRef.current.click(),
     style: {
       display: 'inline-flex',
@@ -11581,7 +11597,7 @@ function ComposePostModal({
     }
   }, React.createElement(I.Paperclip, {
     size: 14
-  }), " Anexar foto ou ficheiro (até 25 MB)"), type === 'reconhecimento' && React.createElement(FormField, {
+  }), atts.length ? " Anexar mais fotos ou ficheiros" : " Anexar fotos ou ficheiros (até 25 MB cada)"), type === 'reconhecimento' && React.createElement(FormField, {
     label: "Colaborador a reconhecer"
   }, React.createElement(Select, {
     value: highlight,
