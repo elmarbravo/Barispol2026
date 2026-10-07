@@ -1,4 +1,5 @@
--- Pedidos do Elmar de 07-10-2026, preparados quando o Supabase recusava as
+-- Pedidos do Elmar de 07-10-2026 (aplicado a 07-10-2026: acesso da Rosa e 4
+-- mensagens, ids 5570 a 5573). Preparados quando o Supabase recusava as
 -- ligações. Correr de uma vez quando a ligação voltar. Sem «drop» nem «truncate».
 --
 -- 1. «Dou à Rosa acesso ao Stock do Laboratório?» → sim. A Rosa Queirós (u13,

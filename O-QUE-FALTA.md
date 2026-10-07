@@ -3816,3 +3816,18 @@ recepcionista».
     `u13: ['LABORATÓRIO - CBL']` em `BSP_STOCK_RESPONSAVEIS`;
   - mensagem no #recepção e uma directa a cada pessoa da Recepção, do Elmar,
     sobre as presenças dos médicos (cid `presencas-2026-10-07-…`, não repete).
+
+## 3-gi. Menus aprovados, «Serviços gerais», Rosa no Stock, mensagens enviadas (07-10-2026)
+
+Elmar: «aprovo esses menus sugeridos e use sim serviços gerais»; «Supabase on».
+- «Instalações e manutenção» passou a **Serviços gerais** (menu, título, guia,
+  pasta dos avisos). Os menus da 3-gg ficam aprovados.
+- `presencas-mensagens-stock-lab.sql` aplicado: a Rosa (u13) vê o armazém
+  LABORATÓRIO - CBL (testado no servidor: 6 artigos; o MetaGest tem poucos
+  artigos do Laboratório); no ecrã `BSP_STOCK_RESPONSAVEIS` com u13. Mensagens
+  5570 (#recepção) e 5571–5573 (directas à Déricka, à Joaquina e à Juliana),
+  do Elmar, com aviso no telemóvel.
+- `toners-aviso-destino.sql` aplicado: avisos de toners (novidade e telemóvel)
+  abrem `#/stock`; o gerador continua em `#/avarias`.
+- Novidades 225 (todos: menus novos) e 226 (Rosa e gestão: Stock do
+  Laboratório).

@@ -480,12 +480,12 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   u14 registam, cada médico lê as suas); avisos por `bsp_credenciais_alertar`
   nas novidades. Ecrã Equipa → `MedicosCredenciaisPainel`.
 - Menus (07-10-2026, Elmar: «o separador Avarias teria de trocar de nome»): a rota
-  `avarias` chama-se «Instalações e manutenção» (Avarias, Equipamentos e
-  manutenção, Gerador); a rota `stock` chama-se «Logística e stock»
+  `avarias` chama-se «Serviços gerais» (Avarias, Equipamentos e
+  manutenção, Gerador; aprovado pelo Elmar); a rota `stock` chama-se «Logística e stock»
   (`LogisticaStockScreen`: Stock com os pedidos de compra, Compras correntes,
   Toners; menu por `bspVeLogistica`, separador por `__bspStockAba` + evento
   `bsp-stock-aba`); «Calendário» passou a «Agenda» em todo o lado. Os ids das
-  rotas não mudaram.
+  rotas não mudaram. Avisos de toners vão para `#/stock` (`toners-aviso-destino.sql`).
 - Equipamentos e manutenção preventiva (03-10-2026, `manutencao-preventiva.sql`):
   `equipamentos`, `manutencoes_plano`, `manutencoes_registo`; ecrã Avarias →
   `EquipamentosPainel` (o ecrã antigo chama-se `AvariasLista`).

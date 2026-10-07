@@ -2866,7 +2866,7 @@ const NAV_ITEMS = [{
   /* Avarias (01-10-2026, auditoria): toda a equipa reporta; a gestao e os
      Servicos Gerais tratam (equipa-registos.sql). */
   id: 'avarias',
-  label: 'Instalações e manutenção',
+  label: 'Serviços gerais',
   icon: 'Cog',
   badge: null
 }, {
@@ -3269,7 +3269,7 @@ function Topbar({
     documentos: 'Documentos da clínica',
     actividade: 'Actividade e registo',
     directory: 'Equipa',
-    avarias: 'Instalações e manutenção',
+    avarias: 'Serviços gerais',
     qualidade: 'Qualidade',
     admin: 'Painel de Administração',
     notifications: 'Notificações'
@@ -17652,8 +17652,9 @@ const BSP_ALERTA_PASTAS = {
   tarefas: { nome: 'Tarefas', ecra: 'tasks' },
   seguimento: { nome: 'Utentes por ligar', ecra: 'seguimento' },
   marcacoes: { nome: 'Marcações', ecra: 'marcacoes' },
-  avarias: { nome: 'Instalações e manutenção', ecra: 'avarias' },
+  avarias: { nome: 'Serviços gerais', ecra: 'avarias' },
   toners: { nome: 'Toners', ecra: 'stock', abaStock: 'toners' },
+  stock: { nome: 'Logística e stock', ecra: 'stock' },
   relatorios: { nome: 'Relatórios', ecra: 'relatorios' },
   qualidade: { nome: 'Qualidade', ecra: 'qualidade' },
   admin: { nome: 'Saúde do sistema', ecra: 'admin' }
@@ -20452,7 +20453,7 @@ function MobileTopbar({
     admin: 'Admin',
     notifications: 'Notificações',
     directory: 'Equipa',
-    avarias: 'Instalações e manutenção',
+    avarias: 'Serviços gerais',
     qualidade: 'Qualidade',
     escalas: 'Escalas',
     transporte: 'Transporte',
@@ -20771,7 +20772,7 @@ function MobileMore({
     icon: 'Users'
   }, {
     id: 'avarias',
-    label: 'Instalações e manutenção',
+    label: 'Serviços gerais',
     icon: 'Cog'
   }, {
     id: 'qualidade',
@@ -26494,7 +26495,7 @@ const BSP_GUIA_FICHAS = [
     ],
     quem: 'Toda a equipa. Cada pessoa vê só as suas coisas; o superior e o chefe vêem as da sua equipa. O mapa de férias aprovadas é de todos. As credenciais: a Direcção e a Direcção Clínica registam; cada médico vê as suas.',
     dica: 'Peça as férias com antecedência: o chefe precisa de acertar a escala.' },
-  { icone: 'Cog', nome: 'Instalações e manutenção',
+  { icone: 'Cog', nome: 'Serviços gerais',
     serve: 'O registo das avarias e dos danos em todo o património (equipamento, lâmpadas, portas, mobiliário, canalização…) até estarem resolvidos.',
     faz: [
       ['Reporte uma avaria ou dano:', 'o tipo, o que precisa de reparação, onde e a prioridade.'],
@@ -26825,7 +26826,7 @@ function MetagestEscolha({ valor, onMudar }) {
    (stock_responsaveis, bsp_ve_stock); isto so serve para mostrar o menu.
    A Arlete (Administracao) ve todos os armazens; a Solange, a Farmacia; a
    gestao, todos. */
-const BSP_STOCK_RESPONSAVEIS = { u2: ['*'], u17: ['FARMÁCIA - CBL'] };
+const BSP_STOCK_RESPONSAVEIS = { u2: ['*'], u17: ['FARMÁCIA - CBL'], u13: ['LABORATÓRIO - CBL'] };
 function bspVeStock(u) {
   if (!u || bspESocio(u)) return false;
   return bspVeConsumos(u) || !!BSP_STOCK_RESPONSAVEIS[u.id];
@@ -31005,7 +31006,7 @@ function App() {
       const d = String(n.destino || '');
       if (d === 'directory' && /f[ée]rias|aus[êe]ncia|licen|doen|falta/i.test(String(n.text || '') + ' ' + String(n.preview || ''))) window.__bspEquipaAba = 'ausencias';
       /* Os toners passaram para Logística e stock (07-10-2026). */
-      if (d === 'avarias' && /toner/i.test(String(n.text || '') + ' ' + String(n.preview || ''))) {
+      if ((d === 'avarias' || d === 'stock') && /toner/i.test(String(n.text || '') + ' ' + String(n.preview || ''))) {
         window.__bspStockAba = 'toners';
         try { window.dispatchEvent(new Event('bsp-stock-aba')); } catch (e) {}
         setPage('stock');
