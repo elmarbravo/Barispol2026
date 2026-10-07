@@ -3917,3 +3917,18 @@ média leva quanto tempo com a paciente?».
   psicologia 50; ecografia 20 (obstétrica/trimestre 30, morfológica 45);
   ecocardiograma 30; ECG 10; MAPA/Holter 15; o resto 15. Conferido com os
   actos escritos nas marcações reais (com e sem acentos). Novidade 232.
+- Regra confirmada em vigor (gatilho `bsp_marc_espacar` activo) e anunciada no
+  canal #recepção pelo Elmar (mensagem 6246, cid `marcacoes-regra-2026-10-07`).
+
+## 3-go. Pagamento dos médicos de Setembro: o que falta (07-10-2026)
+
+Elmar: «os pagamentos dos médicos, falta a Luidmila, certo?».
+- Luidmila Chitata (prestador 17, u6): 6 dias de Setembro gravados da lista de
+  presenças, com entrada e saída, mas sem mapa individual: faltam as consultas
+  e reconsultas de cada dia (a ficha que ela assina).
+- Alice Francó (prestador 4): nenhum dia de Setembro gravado.
+- Ludmila Da Silva (prestador 16) está completa (11 dias com a ficha).
+- Médicos activos sem nenhum dia de Setembro: Braúlio Andrade, Catarina Quiala
+  (nutrição), Catiana dos Anjos, Conceição Calunga, Maria Ester Ramiro, Micaela
+  Mangunda (psicologia), Miguel Pemba. A confirmar se não trabalharam ou se
+  falta a ficha (a Elizabeth Holoca é só por ecografia).
