@@ -3777,3 +3777,25 @@ Elmar: «ao clicar não fecha o pop-up, na mesma incomoda o utilizador».
   `sessionStorage`). A janela só volta a abrir sozinha com um aviso novo.
   A actualização de cada minuto não fecha a janela reaberta pela pessoa.
 - Testado a 390 e 1280 px.
+
+## 3-gg. Menus: «Instalações e manutenção», «Logística e stock» e «Agenda» (07-10-2026)
+
+Elmar: «o separador Avarias teria de trocar de nome; reveja os nomes dos
+separadores e o que lá tem dentro». Aprovou os pontos 1 e 3 da proposta.
+- «Avarias e património» → **Instalações e manutenção**: Avarias, Equipamentos
+  e manutenção, Gerador.
+- «Stock» → **Logística e stock** (`LogisticaStockScreen`): Stock (com os
+  pedidos de compra), Compras correntes (a antiga «Logística») e Toners. Cada
+  separador mantém a sua regra; o menu aparece a quem vê pelo menos um
+  (`bspVeLogistica`). A Recepção e o Laboratório passam a ter este menu só
+  com os Toners.
+- «Calendário» → **Agenda** no computador (no telemóvel já era assim), também
+  no Início, nas Reuniões e no guia.
+- Avisos de toners (janela de avisos e sino) abrem Logística e stock → Toners.
+- Ficam como estavam: «Admin» e «Presenças dos médicos» em Utentes.
+- Falta no servidor (o Supabase recusa ligações desde 07-10-2026): o
+  `bsp_aviso_servicos_gerais` ainda manda `#/avarias` no aviso do telemóvel dos
+  toners (abre Instalações e manutenção); mudar para `#/stock` quando o
+  `p_tag` começar por `toner`. E a novidade à equipa sobre os nomes novos.
+- Testado: Arlete e Emmanuel vêem os 3 separadores; a Solange só o Stock; a
+  Recepção só os Toners.

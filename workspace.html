@@ -2788,7 +2788,7 @@ const NAV_ITEMS = [{
   badge: null
 }, {
   id: 'calendar',
-  label: 'Calendário',
+  label: 'Agenda',
   icon: 'Cal',
   badge: null
 }, {
@@ -2812,7 +2812,7 @@ const NAV_ITEMS = [{
 }, {
   /* Stock (01-10-2026): quem gere o stock (stock.sql). */
   id: 'stock',
-  label: 'Stock',
+  label: 'Logística e stock',
   icon: 'Box',
   badge: null,
   stockOnly: true
@@ -2866,7 +2866,7 @@ const NAV_ITEMS = [{
   /* Avarias (01-10-2026, auditoria): toda a equipa reporta; a gestao e os
      Servicos Gerais tratam (equipa-registos.sql). */
   id: 'avarias',
-  label: 'Avarias e património',
+  label: 'Instalações e manutenção',
   icon: 'Cog',
   badge: null
 }, {
@@ -3033,7 +3033,7 @@ function Sidebar({
     if (item.utentesOnly && !bspVeCrm(currentUser) && !bspVeMarcacoes(currentUser)) return null;
     if (item.painelOnly && !bspVePainel(currentUser)) return null;
     if (item.transporteOnly && !bspVeTransporte(currentUser)) return null;
-    if (item.stockOnly && !bspVeStock(currentUser)) return null;
+    if (item.stockOnly && !bspVeLogistica(currentUser)) return null;
     if (item.actividadeOnly && !bspVeActividade(currentUser)) return null;
     if (item.clinicoOnly && !bspVePainelClinico(currentUser)) return null;
     if (bspESocio(currentUser) && item.id !== 'painel') return null;
@@ -3256,20 +3256,20 @@ function Topbar({
     meetings: 'Reuniões',
     feed: 'Feed',
     drive: 'Drive',
-    calendar: 'Calendário',
+    calendar: 'Agenda',
     tasks: 'Tarefas',
     seguimento: 'Utentes',
     marcacoes: 'Utentes',
     escalas: 'Escalas de serviço',
     transporte: 'Transporte',
-    stock: 'Stock',
+    stock: 'Logística e stock',
     painel: 'Painel financeiro',
     'painel-clinico': 'Painel clínico',
     relatorios: 'Relatórios do dia',
     documentos: 'Documentos da clínica',
     actividade: 'Actividade e registo',
     directory: 'Equipa',
-    avarias: 'Avarias e património',
+    avarias: 'Instalações e manutenção',
     qualidade: 'Qualidade',
     admin: 'Painel de Administração',
     notifications: 'Notificações'
@@ -8054,7 +8054,7 @@ function DashboardScreen({
       cursor: 'pointer',
       fontFamily: 'inherit'
     }
-  }, "Calendário →")), upcoming.length === 0 ? React.createElement(Empty, {
+  }, "Agenda →")), upcoming.length === 0 ? React.createElement(Empty, {
     icon: React.createElement(I.Cal, {
       size: 20
     }),
@@ -13377,8 +13377,8 @@ function MeetingsScreen() {
     bg: 'rgba(41,47,88,.10)',
     fg: 'var(--navy-texto)',
     title: 'Agendar',
-    sub: 'Use o Calendário',
-    onClick: () => toast('Para agendar, crie um evento no Calendário.')
+    sub: 'Use a Agenda',
+    onClick: () => toast('Para agendar, crie um evento na Agenda.')
   }];
   return React.createElement("div", {
     style: {
@@ -13517,7 +13517,7 @@ function MeetingsScreen() {
       color: 'var(--text-3)',
       marginTop: 4
     }
-  }, "Inicie uma reunião instantânea acima ou agende no Calendário.")) : React.createElement("div", {
+  }, "Inicie uma reunião instantânea acima ou agende na Agenda.")) : React.createElement("div", {
     style: {
       display: 'flex',
       flexDirection: 'column',
@@ -17652,7 +17652,8 @@ const BSP_ALERTA_PASTAS = {
   tarefas: { nome: 'Tarefas', ecra: 'tasks' },
   seguimento: { nome: 'Utentes por ligar', ecra: 'seguimento' },
   marcacoes: { nome: 'Marcações', ecra: 'marcacoes' },
-  avarias: { nome: 'Avarias, toners e gerador', ecra: 'avarias' },
+  avarias: { nome: 'Instalações e manutenção', ecra: 'avarias' },
+  toners: { nome: 'Toners', ecra: 'stock', abaStock: 'toners' },
   relatorios: { nome: 'Relatórios', ecra: 'relatorios' },
   qualidade: { nome: 'Qualidade', ecra: 'qualidade' },
   admin: { nome: 'Saúde do sistema', ecra: 'admin' }
@@ -17661,6 +17662,7 @@ function bspAlertaPasta(a) {
   const ch = String((a && a.chave) || '');
   const d = String((a && a.destino) || '').replace(/^#\/?/, '').split('/')[0];
   if (/^ferias-/.test(ch) || d === 'directory') return 'ferias';
+  if (/^toner-/.test(ch)) return 'toners';
   const d2 = { tasks: 'tarefas', agenda: 'calendar' }[d] || d;
   if (d2) return d2;
   return { documento: 'documentos', tarefa: 'tarefas', ligar: 'seguimento', marcacao: 'marcacoes', critico: 'admin' }[a && a.tipo] || 'notifications';
@@ -17670,6 +17672,10 @@ function bspAbrirPastaAviso(pasta) {
   if (p && p.aba) {
     window.__bspEquipaAba = p.aba;
     try { window.dispatchEvent(new Event('bsp-equipa-aba')); } catch (e) {}
+  }
+  if (p && p.abaStock) {
+    window.__bspStockAba = p.abaStock;
+    try { window.dispatchEvent(new Event('bsp-stock-aba')); } catch (e) {}
   }
   const ecra = p ? p.ecra : ({ tarefas: 'tasks', agenda: 'calendar', notificacoes: 'notifications' }[pasta] || pasta);
   if (typeof window.bspIrParaEcra !== 'function') return false;
@@ -20434,7 +20440,7 @@ function MobileTopbar({
     meetings: 'Reuniões',
     feed: 'Feed',
     drive: 'Drive',
-    calendar: 'Calendário',
+    calendar: 'Agenda',
     tasks: 'Tarefas',
     seguimento: 'Utentes',
     marcacoes: 'Utentes',
@@ -20446,11 +20452,11 @@ function MobileTopbar({
     admin: 'Admin',
     notifications: 'Notificações',
     directory: 'Equipa',
-    avarias: 'Avarias e património',
+    avarias: 'Instalações e manutenção',
     qualidade: 'Qualidade',
     escalas: 'Escalas',
     transporte: 'Transporte',
-    stock: 'Stock'
+    stock: 'Logística e stock'
   };
   return React.createElement("div", {
     style: {
@@ -20757,7 +20763,7 @@ function MobileMore({
     icon: 'Cal'
   }, {
     id: 'stock',
-    label: 'Stock',
+    label: 'Logística e stock',
     icon: 'Box'
   }, {
     id: 'directory',
@@ -20765,7 +20771,7 @@ function MobileMore({
     icon: 'Users'
   }, {
     id: 'avarias',
-    label: 'Avarias e património',
+    label: 'Instalações e manutenção',
     icon: 'Cog'
   }, {
     id: 'qualidade',
@@ -20813,7 +20819,7 @@ function MobileMore({
     const k = items.findIndex(x => x.id === 'seguimento');
     if (k !== -1) items.splice(k, 1);
   }
-  if (!bspVeStock(window.userById(window.CURRENT_USER_ID))) {
+  if (!bspVeLogistica(window.userById(window.CURRENT_USER_ID))) {
     const k = items.findIndex(x => x.id === 'stock');
     if (k !== -1) items.splice(k, 1);
   }
@@ -26328,7 +26334,7 @@ const BSP_GUIA_FICHAS = [
     ],
     quem: 'Toda a equipa. A pasta pessoal só a vê o dono.',
     dica: 'Ficheiros mandados numa conversa ficam nessa conversa, e não no Drive de todos.' },
-  { icone: 'Cal', nome: 'Calendário',
+  { icone: 'Cal', nome: 'Agenda',
     serve: 'A sua agenda e a da equipa: eventos semanais, eventos numa data e convites.',
     faz: [
       ['Crie um evento semanal', 'ou numa data concreta.'],
@@ -26459,16 +26465,18 @@ const BSP_GUIA_FICHAS = [
     ],
     quem: 'Direcção e Coordenação.',
     dica: 'A área de cada pessoa decide os canais e as escalas que ela vê.' },
-  { icone: 'Box', nome: 'Stock',
-    serve: 'O stock de cada armazém, lido do MetaGest de 15 em 15 minutos.',
+  { icone: 'Box', nome: 'Logística e stock',
+    serve: 'O stock de cada armazém (lido do MetaGest de 15 em 15 minutos), os pedidos de compra, as compras correntes e os toners.',
     faz: [
       ['Veja os alertas:', 'lotes caducados, esgotados, a acabar (menos de 7 dias) e lotes a caducar (até 60 dias).'],
       ['Procure um artigo', 'e veja a quantidade, as saídas dos últimos 30 dias, quanto tempo dura e a validade do lote mais próximo.'],
       ['Em «Validades»,', 'veja cada lote com a sua data e quantidade, do que caduca primeiro ao último, e imprima a lista.'],
       ['Imprima a lista', 'para a encomenda ou a contagem.'],
-      ['Os alertas chegam ao sino', 'e ao Início.']
+      ['Os alertas chegam ao sino', 'e ao Início.'],
+      ['Compras correntes:', 'alimentação, consumíveis de escritório, limpeza, água e gás. Gasto por mês, média, previsão para o mês e comparação com o ano anterior; os adiantamentos sem factura ficam «por acertar».'],
+      ['Toners:', 'o nível de cada impressora e o stock no armário. Regista o nível que vê; os Serviços Gerais registam trocas e compras. Avisa quando um toner chega ao mínimo.']
     ],
-    quem: 'A Arlete (todos os armazéns), a Solange (Farmácia) e a Direcção. Os pedidos de compra (separador próprio) são aprovados pela Direcção.',
+    quem: 'Stock: a Arlete (todos os armazéns), a Solange (Farmácia) e a Direcção; os pedidos de compra são aprovados pela Direcção. Compras correntes: o Director Geral, os RH, o Emmanuel e os Serviços Gerais. Toners: Recepção, Laboratório, Serviços Gerais e gestão.',
     dica: 'Os números vêm do MetaGest: para corrigir uma quantidade, corrija no MetaGest.' },
   { icone: 'Users', nome: 'Equipa',
     serve: 'Os contactos da equipa, as férias e ausências e as formações.',
@@ -26486,7 +26494,7 @@ const BSP_GUIA_FICHAS = [
     ],
     quem: 'Toda a equipa. Cada pessoa vê só as suas coisas; o superior e o chefe vêem as da sua equipa. O mapa de férias aprovadas é de todos. As credenciais: a Direcção e a Direcção Clínica registam; cada médico vê as suas.',
     dica: 'Peça as férias com antecedência: o chefe precisa de acertar a escala.' },
-  { icone: 'Cog', nome: 'Avarias e património',
+  { icone: 'Cog', nome: 'Instalações e manutenção',
     serve: 'O registo das avarias e dos danos em todo o património (equipamento, lâmpadas, portas, mobiliário, canalização…) até estarem resolvidos.',
     faz: [
       ['Reporte uma avaria ou dano:', 'o tipo, o que precisa de reparação, onde e a prioridade.'],
@@ -26495,9 +26503,8 @@ const BSP_GUIA_FICHAS = [
       ['Quem trata regista', 'o responsável, o custo e o que se fez, e carrega em «Concluída» no fim.'],
       ['Enganou-se?', 'Cancele a avaria. Uma avaria criada só a Direcção apaga.'],
       ['Equipamentos e manutenção:', 'o inventário, o plano de manutenção e calibração de cada equipamento, a próxima data e o que se fez. Avisa 14 dias antes, no dia e com 7 dias de atraso.'],
-      ['Toners (Recepção, Laboratório, Serviços Gerais e gestão):', 'o nível de cada impressora e o stock no armário. Regista o nível que vê; os Serviços Gerais registam trocas e compras. Avisa quando um toner chega ao mínimo.'],
       ['Gerador:', 'o gasóleo no depósito (1000 L), o consumo por dia e os dias que restam. Registe a leitura do marcador e cada abastecimento. Abaixo de 30% avisa a gestão e os Serviços Gerais.'],
-      ['Logística:', 'as compras de alimentação e de consumíveis de escritório (e limpeza, água, gás). Gasto por mês, média, previsão para o mês e comparação com o ano anterior; os adiantamentos sem factura ficam «por acertar». Vêem o Director Geral, os RH, o Emmanuel e os Serviços Gerais.']
+      ['Toners e compras correntes?', 'Passaram para o menu «Logística e stock».']
     ],
     quem: 'Toda a equipa reporta. Cada pessoa vê as avarias reportadas pela sua área. A Direcção, os Serviços Gerais e o Emmanuel vêem todas e tratam.',
     dica: 'Carregue uma só vez em «Reportar»: o mesmo texto repetido não cria outra avaria. A Direcção apaga as repetidas.' },
@@ -28801,12 +28808,42 @@ function AvariasScreen() {
   }, txt);
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' } },
     React.createElement("div", { style: { display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', flex: 'none', overflowX: 'auto' } },
-      aba_('avarias', 'Avarias'), aba_('equipamentos', 'Equipamentos e manutenção'), bspVeToners(window.userById(window.CURRENT_USER_ID)) && aba_('toners', 'Toners'),
-      (bspTrataAvarias(window.userById(window.CURRENT_USER_ID)) || bspVeConsumos(window.userById(window.CURRENT_USER_ID))) && aba_('gerador', 'Gerador'),
-      bspVeConsumos(window.userById(window.CURRENT_USER_ID)) && aba_('logistica', 'Logística')),
+      aba_('avarias', 'Avarias'), aba_('equipamentos', 'Equipamentos e manutenção'),
+      (bspTrataAvarias(window.userById(window.CURRENT_USER_ID)) || bspVeConsumos(window.userById(window.CURRENT_USER_ID))) && aba_('gerador', 'Gerador')),
     React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: 'auto', paddingBottom: 12 } },
-      aba === 'avarias' ? React.createElement(AvariasLista, null) : aba === 'toners' ? React.createElement(TonersPainel, null)
-        : aba === 'gerador' ? React.createElement(GeradorPainel, null) : aba === 'logistica' ? React.createElement(LogisticaPainel, null) : React.createElement(EquipamentosPainel, null)));
+      aba === 'avarias' ? React.createElement(AvariasLista, null)
+        : aba === 'gerador' ? React.createElement(GeradorPainel, null) : React.createElement(EquipamentosPainel, null)));
+}
+/* Logística e stock (07-10-2026, Elmar: «o separador Avarias teria de trocar de
+   nome»): o Stock do MetaGest (com os pedidos de compra), as compras correntes
+   (a antiga «Logística» das Avarias) e os toners. Cada separador mantém a sua
+   regra; o menu aparece a quem vê pelo menos um (bspVeLogistica). Abrir num
+   separador: window.__bspStockAba + evento bsp-stock-aba. */
+function bspVeLogistica(u) {
+  return bspVeStock(u) || bspVeConsumos(u) || bspVeToners(u);
+}
+function LogisticaStockScreen() {
+  const eu = window.userById(window.CURRENT_USER_ID);
+  const abas = [bspVeStock(eu) && ['stock', 'Stock'], bspVeConsumos(eu) && ['compras', 'Compras correntes'], bspVeToners(eu) && ['toners', 'Toners']].filter(Boolean);
+  const [aba, setAba] = React.useState(() => {
+    const pedida = window.__bspStockAba;
+    return abas.some(a => a[0] === pedida) ? pedida : (abas[0] ? abas[0][0] : 'stock');
+  });
+  useBspAbaVoltar(aba, setAba);
+  React.useEffect(() => {
+    window.__bspStockAba = null;
+    const f = () => { const p = window.__bspStockAba; if (p) { setAba(p); window.__bspStockAba = null; } };
+    window.addEventListener('bsp-stock-aba', f);
+    return () => window.removeEventListener('bsp-stock-aba', f);
+  }, []);
+  const aba_ = (id, txt) => React.createElement("button", {
+    key: id, onClick: () => setAba(id),
+    style: { padding: '9px 16px', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700, background: 'transparent', whiteSpace: 'nowrap', flex: 'none', color: aba === id ? 'var(--accent-d)' : 'var(--text-2)', borderBottom: '2px solid ' + (aba === id ? 'var(--accent)' : 'transparent') }
+  }, txt);
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' } },
+    abas.length > 1 && React.createElement("div", { style: { display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', flex: 'none', overflowX: 'auto' } }, abas.map(a => aba_(a[0], a[1]))),
+    React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: 'auto', paddingBottom: 12 } },
+      aba === 'compras' ? React.createElement(LogisticaPainel, null) : aba === 'toners' ? React.createElement(TonersPainel, null) : React.createElement(StockScreen, null)));
 }
 
 /* ───────────── Avarias ───────────── */
@@ -30953,6 +30990,13 @@ function App() {
     if (n.type === 'sistema') {
       const d = String(n.destino || '');
       if (d === 'directory' && /f[ée]rias|aus[êe]ncia|licen|doen|falta/i.test(String(n.text || '') + ' ' + String(n.preview || ''))) window.__bspEquipaAba = 'ausencias';
+      /* Os toners passaram para Logística e stock (07-10-2026). */
+      if (d === 'avarias' && /toner/i.test(String(n.text || '') + ' ' + String(n.preview || ''))) {
+        window.__bspStockAba = 'toners';
+        try { window.dispatchEvent(new Event('bsp-stock-aba')); } catch (e) {}
+        setPage('stock');
+        return;
+      }
       setPage({ tarefas: 'tasks', agenda: 'calendar' }[d] || d || 'dashboard');
       return;
     }
@@ -31092,7 +31136,7 @@ function App() {
   }), pg === 'meetings' && React.createElement(MeetingsScreen, null), pg === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), (pg === 'seguimento' || pg === 'marcacoes') && (bspVeCrm(currentUser) || bspVeMarcacoes(currentUser) ? React.createElement(CrmScreen, { key: pg, inicial: pg === 'marcacoes' ? 'marcacoes' : null }) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'stock' && (bspVeStock(currentUser) ? React.createElement(StockScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'painel-clinico' && (bspVePainelClinico(currentUser) ? React.createElement(PainelClinicoScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(AvisoVersaoNova, null), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(AvisosImportantes, { currentUser: currentUser }), React.createElement(PedidoNotificacoes, { currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), (pg === 'actividade' || pg === 'registo') && (bspVeActividade(currentUser) ? React.createElement(MedicosScreen, { key: pg, currentUser: currentUser, inicial: pg === 'registo' ? 'registo' : 'actividade' }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(EquipaScreen, null), pg === 'avarias' && (!bspESocio(currentUser) ? React.createElement(AvariasScreen, null) : null), pg === 'qualidade' && (!bspESocio(currentUser) ? React.createElement(QualidadeScreen, null) : null), pg === 'admin' && React.createElement(AdminScreen, {
+  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), (pg === 'seguimento' || pg === 'marcacoes') && (bspVeCrm(currentUser) || bspVeMarcacoes(currentUser) ? React.createElement(CrmScreen, { key: pg, inicial: pg === 'marcacoes' ? 'marcacoes' : null }) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'stock' && (bspVeLogistica(currentUser) ? React.createElement(LogisticaStockScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'painel-clinico' && (bspVePainelClinico(currentUser) ? React.createElement(PainelClinicoScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(AvisoVersaoNova, null), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(AvisosImportantes, { currentUser: currentUser }), React.createElement(PedidoNotificacoes, { currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), (pg === 'actividade' || pg === 'registo') && (bspVeActividade(currentUser) ? React.createElement(MedicosScreen, { key: pg, currentUser: currentUser, inicial: pg === 'registo' ? 'registo' : 'actividade' }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(EquipaScreen, null), pg === 'avarias' && (!bspESocio(currentUser) ? React.createElement(AvariasScreen, null) : null), pg === 'qualidade' && (!bspESocio(currentUser) ? React.createElement(QualidadeScreen, null) : null), pg === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
   }), pg === 'notifications' && React.createElement(NotificationsScreen, {
     onAbrir: abrirNotificacao

@@ -479,18 +479,25 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   copiado do MetaGest todos os dias; validades em `credenciais` (gestão e
   u14 registam, cada médico lê as suas); avisos por `bsp_credenciais_alertar`
   nas novidades. Ecrã Equipa → `MedicosCredenciaisPainel`.
+- Menus (07-10-2026, Elmar: «o separador Avarias teria de trocar de nome»): a rota
+  `avarias` chama-se «Instalações e manutenção» (Avarias, Equipamentos e
+  manutenção, Gerador); a rota `stock` chama-se «Logística e stock»
+  (`LogisticaStockScreen`: Stock com os pedidos de compra, Compras correntes,
+  Toners; menu por `bspVeLogistica`, separador por `__bspStockAba` + evento
+  `bsp-stock-aba`); «Calendário» passou a «Agenda» em todo o lado. Os ids das
+  rotas não mudaram.
 - Equipamentos e manutenção preventiva (03-10-2026, `manutencao-preventiva.sql`):
   `equipamentos`, `manutencoes_plano`, `manutencoes_registo`; ecrã Avarias →
   `EquipamentosPainel` (o ecrã antigo chama-se `AvariasLista`).
-- Toners e gerador (04-10-2026, `toners-gerador.sql`): Avarias → `TonersPainel`
+- Toners e gerador (04-10-2026, `toners-gerador.sql`): Logística e stock → `TonersPainel`
   (só Recepção, Laboratório, Serviços Gerais e gestão: `bspVeToners` /
   `bsp_ve_toners`, `toners-acesso.sql`, 05-10-2026) e `GeradorPainel` (só
   `bspTrataAvarias`). Stock e níveis por movimentos (`bsp_toners_estado`);
   depósito por leituras e abastecimentos (`bsp_gerador_estado`). Avisos por
   `bsp_aviso_servicos_gerais` (novidade + telemóvel). Leitura automática das
   impressoras ainda não existe (precisa de programa local).
-- Logística (06-10-2026, `logistica-compras.sql`): Avarias → «Logística»
-  (`LogisticaPainel`), compras de alimentação, consumíveis de escritório,
+- Logística (06-10-2026, `logistica-compras.sql`): Logística e stock → «Compras
+  correntes» (`LogisticaPainel`), compras de alimentação, consumíveis de escritório,
   limpeza, água e gás (`logistica_compras`, `BSP_LOGISTICA_CATS`), com a regra
   dos consumos (`bsp_ve_consumos`); só a gestão apaga. Média e previsão só com
   meses fechados (`bspLogMeses`). As compras antigas vieram das folhas da Arlete
