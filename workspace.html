@@ -26474,7 +26474,7 @@ const BSP_GUIA_FICHAS = [
       ['Compras correntes:', 'alimentação, consumíveis de escritório, limpeza, água e gás. Gasto por mês, média, previsão para o mês e comparação com o ano anterior; os adiantamentos sem factura ficam «por acertar».'],
       ['Toners:', 'o nível de cada impressora e o stock no armário. Regista o nível que vê; os Serviços Gerais registam trocas e compras. Avisa quando um toner chega ao mínimo.']
     ],
-    quem: 'Stock: a Arlete (todos os armazéns), a Solange (Farmácia) e a Direcção; os pedidos de compra são aprovados pela Direcção. Compras correntes: o Director Geral, os RH, o Emmanuel e os Serviços Gerais. Toners: Recepção, Laboratório, Serviços Gerais e gestão.',
+    quem: 'Stock: o Director Geral e a Arlete (todos os armazéns), a Solange (Farmácia, Laboratório e Enfermagem) e a Rosa (Laboratório); os pedidos de compra são aprovados pela Direcção. Compras correntes: só o Director Geral e a Arlete. Toners: Recepção, Laboratório, Serviços Gerais e gestão.',
     dica: 'Os números vêm do MetaGest: para corrigir uma quantidade, corrija no MetaGest.' },
   { icone: 'Users', nome: 'Equipa',
     serve: 'Os contactos da equipa, as férias e ausências e as formações.',
@@ -26823,11 +26823,18 @@ function MetagestEscolha({ valor, onMudar }) {
    (stock_responsaveis, bsp_ve_stock); isto so serve para mostrar o menu.
    A Arlete (Administracao) ve todos os armazens; a Solange, a Farmacia; a
    gestao, todos. */
-const BSP_STOCK_RESPONSAVEIS = { u2: ['*'], u17: ['FARMÁCIA - CBL'], u13: ['LABORATÓRIO - CBL'] };
+/* Quem vê o Stock (07-10-2026, Elmar: «a Solange vê todos os stocks de saúde,
+   a Rosa apenas o Laboratório, a Arlete todos da empresa»). Igual a
+   stock_responsaveis no servidor (bsp_ve_stock): mudar os dois juntos. */
+const BSP_STOCK_RESPONSAVEIS = { u1: ['*'], u2: ['*'], u17: ['FARMÁCIA - CBL', 'LABORATÓRIO - CBL', 'ENFERMAGEM - CBL'], u13: ['LABORATÓRIO - CBL'] };
 function bspVeStock(u) {
   if (!u || bspESocio(u)) return false;
-  return bspVeConsumos(u) || !!BSP_STOCK_RESPONSAVEIS[u.id];
+  return !!BSP_STOCK_RESPONSAVEIS[u.id];
 }
+/* Compras correntes (alimentação, limpeza, escritório, água, gás): só o Elmar
+   e a Arlete (07-10-2026, «só a Arlete vê comigo»). Servidor:
+   bsp_ve_compras_gerais. */
+function bspVeComprasGerais(u) { return !!u && (u.id === 'u1' || u.id === 'u2'); }
 function bspStockArmazemNome(a) {
   const n = String(a || '').replace(/\s*-\s*CBL$/i, '').trim();
   return ({ 'Stores': 'Armazém central', 'STOCK GERALL': 'Stock geral', 'SERVIÇOS GERAIS-LIMPEZA': 'Limpeza (Serviços gerais)' })[n] || n.charAt(0) + n.slice(1).toLowerCase();
@@ -28853,14 +28860,14 @@ function AvariasScreen() {
    regra; o menu aparece a quem vê pelo menos um (bspVeLogistica). Abrir num
    separador: window.__bspStockAba + evento bsp-stock-aba. */
 function bspVeLogistica(u) {
-  return bspVeStock(u) || bspVeConsumos(u) || bspVeToners(u);
+  return bspVeStock(u) || bspVeComprasGerais(u) || bspVeToners(u);
 }
 function LogisticaStockScreen() {
   const eu = window.userById(window.CURRENT_USER_ID);
   /* Quem não responde por um armazém (Serviços Gerais, Emmanuel) abre nas
      compras correntes: alimentação, limpeza, escritório, água e gás. */
   const doStock = !!BSP_STOCK_RESPONSAVEIS[eu && eu.id];
-  const abaStock = bspVeStock(eu) && ['stock', 'Stock'], abaCompras = bspVeConsumos(eu) && ['compras', 'Compras correntes'];
+  const abaStock = bspVeStock(eu) && ['stock', 'Stock'], abaCompras = bspVeComprasGerais(eu) && ['compras', 'Compras correntes'];
   const abas = (doStock ? [abaStock, abaCompras] : [abaCompras, abaStock]).concat([bspVeToners(eu) && ['toners', 'Toners']]).filter(Boolean);
   const [aba, setAba] = React.useState(() => {
     const pedida = window.__bspStockAba;

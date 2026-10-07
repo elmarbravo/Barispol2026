@@ -48,9 +48,14 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   equipa), o chefe da área (`bsp_chefe_de` / `bsp_edita_escala`) e a gestão
   (Director Geral e RH). Nunca «todos os autenticados».
 - Salários e valores pagos: só o Elmar (u1) e a Arlete (u2), `bsp_ve_salarios`.
-- Consumos (toners, gerador, combustível e viatura, stock): o Elmar, a Arlete e
+- Consumos (toners, gerador, combustível e viatura): o Elmar, a Arlete e
   o Emmanuel pelo nome, a área Serviços Gerais e a gestão: `bsp_ve_consumos` / `bspVeConsumos`
   (`consumos-acesso.sql`, 05-10-2026). Um consumo novo usa esta regra.
+- Stock e compras correntes (07-10-2026, `stock-acesso-pessoas.sql`): Stock só
+  por `stock_responsaveis` (Elmar e Arlete todos os armazéns; Solange Farmácia,
+  Laboratório e Enfermagem; Rosa Laboratório), sem a regra dos consumos; compras
+  correntes (alimentação, limpeza, escritório, água, gás) só u1 e u2
+  (`bsp_ve_compras_gerais` / `bspVeComprasGerais`).
 - Qualquer tabela nova com dados de uma pessoa segue esta regra no servidor
   (RLS) e no ecrã.
 
@@ -498,8 +503,8 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   impressoras ainda não existe (precisa de programa local).
 - Logística (06-10-2026, `logistica-compras.sql`): Logística e stock → «Compras
   correntes» (`LogisticaPainel`), compras de alimentação, consumíveis de escritório,
-  limpeza, água e gás (`logistica_compras`, `BSP_LOGISTICA_CATS`), com a regra
-  dos consumos (`bsp_ve_consumos`); só a gestão apaga. Média e previsão só com
+  limpeza, água e gás (`logistica_compras`, `BSP_LOGISTICA_CATS`), só o Elmar e
+  a Arlete (`bsp_ve_compras_gerais`, 07-10-2026). Média e previsão só com
   meses fechados (`bspLogMeses`). As compras antigas vieram das folhas da Arlete
   (nota «Folha da Arlete»), importadas só no servidor: valores nunca no repositório.
 - Vigilância (03-10-2026, `vigilancia.sql`): `bsp_vigilancia` de 15 em 15 min,

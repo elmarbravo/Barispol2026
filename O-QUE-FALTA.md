@@ -3861,3 +3861,21 @@ principal. O stock só aparece pop up 2 vezes ao dia».
   (`bsp-stock-aviso-<id>-<dia>`). O servidor não manda avisos de stock ao
   telemóvel (só dos toners).
 - Novidade 228. Testado no navegador.
+
+## 3-gl. Quem vê o Stock e as compras correntes (07-10-2026)
+
+Elmar: «a Solange vê todos os stocks de saúde; a Rosa apenas o Laboratório; a
+Arlete vê todos da empresa. O das compras que nem são de saúde só a Arlete vê
+comigo».
+- `stock-acesso-pessoas.sql` (aplicado): `stock_responsaveis` = u1 e u2 todos;
+  u17 Farmácia, Laboratório e Enfermagem; u13 Laboratório. `bsp_ve_stock` deixou
+  a regra dos consumos. `bsp_ve_compras_gerais` (u1, u2) nas 4 regras de
+  `logistica_compras`.
+- Conferido no servidor como cada pessoa: Elmar e Arlete 6 armazéns e 45
+  compras; Solange 3 armazéns de saúde, 0 compras; Rosa só o Laboratório;
+  Emmanuel nada no Stock nem nas compras.
+- Ecrã igual (`BSP_STOCK_RESPONSAVEIS`, `bspVeStock`, `bspVeComprasGerais`).
+  O Emmanuel e a Recepção ficam só com os Toners; o Gerador não mudou.
+- Novidades 229 (correcção ao Emmanuel e Serviços Gerais) e 230 (Solange e Rosa).
+- Por decidir: itens em cada compra corrente (produto, quantidade, preço) e a
+  fotografia da factura (proposta de 07-10-2026).
