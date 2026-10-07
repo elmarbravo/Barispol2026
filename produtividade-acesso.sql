@@ -36,3 +36,23 @@ $f$;
 
 alter policy hist_ler on public.desempenho_historico
   using (user_id = (select public.bsp_meu_id()) or public.bsp_produtividade_trata(null, user_id));
+
+-- Revisto a 07-10-2026 (Elmar: «a Juliana não pode ver mais além dela, da Joice
+-- e da Déricka; a Rosa só vê o Nicolau e a Cássia»). Aplicado. Quem não tem
+-- conta deixa de ir para o chefe que é da própria área: o superior passa a ser
+-- o responsável de fora da área (a Direcção Clínica nas áreas de saúde, a
+-- gestão na Recepção e nos Serviços Gerais). Testado: u12 vê u12, u8, u15;
+-- u13 vê u13, u3, u19; u9 e u17 só a sua equipa com conta.
+create or replace function public.bsp_superior_area(p_area text)
+returns text language sql stable security definer set search_path to 'public'
+as $f$
+  select c.rid
+    from public.bsp_escalas_responsaveis() r, unnest(r.ids) c(rid)
+   where r.area = p_area
+     and (c.rid = 'u14' or not exists (
+           select 1 from public.shared_state s, jsonb_array_elements(coalesce(s.team, '[]'::jsonb)) e
+            where s.id = 1 and e->>'id' = c.rid and public.bsp_area_chave(e->>'dept') = p_area))
+   order by (c.rid = 'u14') desc, c.rid
+   limit 1
+$f$;
+revoke all on function public.bsp_superior_area(text) from public, anon, authenticated;

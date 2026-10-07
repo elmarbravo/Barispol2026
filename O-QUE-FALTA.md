@@ -4001,3 +4001,41 @@ Elmar: «a produtividade só o próprio funcionário, o superior e a gestão pod
 - Testado no servidor: Elmar e Arlete 33; Dr. Osvaldo 8; Juliana 8; Rosa 6;
   Filomena 3; Solange 3; Emmanuel e Nicolau só a sua. O ecrã não mudou (mostra
   o que o servidor devolve). Novidade 233.
+
+## 3-gs. Produtividade: cada chefe só a sua equipa com conta (07-10-2026)
+
+Elmar: «a Juliana não pode ver mais além dela, da Joice e da Déricka; a Rosa só
+vê o Nicolau e a Cássia».
+- Antes, as pessoas sem conta da Recepção (5) e do Laboratório (3) iam para a
+  Juliana e a Rosa, como chefes da área.
+- `produtividade-acesso.sql` (revisto, aplicado): `bsp_superior_area` passa a
+  devolver o responsável de fora da área: Direcção Clínica nas áreas de saúde,
+  gestão na Recepção e nos Serviços Gerais.
+- Testado no servidor: Juliana vê u12, u8 e u15; Rosa vê u13, u3 e u19;
+  Filomena e Solange só a sua equipa com conta; Dr. Osvaldo passa a ver as 3
+  pessoas sem conta do Laboratório. Novidade 235.
+
+## 3-gt. Pagamento dos médicos por etapas (07-10-2026)
+
+Elmar: «tem a opção de ter mapas individuais dos médicos pronto a imprimir na sua
+aba? Tem como escolher que médicos colocar na planilha para pagar? Vou pagar por
+etapas, há escassez de valores» e «os pagos tenho de validar no perfil de cada um».
+- `pagamento-etapas.sql` (aplicado): tabela `pagamento_etapas` (médico e mês:
+  data, banco e valor do mapa; data, valor e quem validou o pago). Só u1 e u2,
+  pelas funções `bsp_pagamento_etapas` (ler) e `bsp_pagamento_etapa` (mapa,
+  pago, tirar_mapa, tirar_pago). Testado: o u1 grava; o u12 não lê nem grava.
+- Ecrã (Equipa → Pagamento dos médicos):
+  - Caixa «Pagar por etapas»: totais de pagos, em mapa e por pagar.
+  - Caixa em cada médico para o escolher. Botões «Marcar os por pagar»,
+    «+ Clínica geral», «+ Pediatria» e «Limpar a escolha».
+  - Os mapas «BAI → BAI» e «Outros bancos» levam só os escolhidos de cada banco.
+    Sem escolha, levam os que ainda não estão pagos nem noutro mapa. Ao gerar,
+    os médicos ficam «No mapa … de DD/MM».
+  - Na ficha de cada médico: «Imprimir mapa individual» (o mesmo do zip),
+    «Validar pago» (com confirmação; guarda quem, quando e o valor), «Tirar
+    pago» e «Tirar do mapa». Se o líquido mudar depois de pago, aparece a
+    vermelho.
+  - «Validar pagos os que estão em mapa»: valida todos de uma vez.
+- Testado no navegador com dados simulados: escolha, mapa BAI só com o médico
+  escolhido do BAI, registo da etapa, impressão individual e validação.
+  Novidade 234 (u1 e u2).

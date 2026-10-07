@@ -56,6 +56,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   Laboratório e Enfermagem; Rosa Laboratório), sem a regra dos consumos; compras
   correntes (alimentação, limpeza, escritório, água, gás) só u1 e u2
   (`bsp_ve_compras_gerais` / `bspVeComprasGerais`).
+- Produtividade (07-10-2026): o próprio, o superior e a gestão. Quem não tem
+  conta vai para o responsável de fora da área (`bsp_superior_area`: Direcção
+  Clínica ou gestão), nunca para o chefe da própria área (a Juliana vê só ela, a
+  Joaquina e a Déricka; a Rosa só ela, o Nicolau e a Cássia).
 - Qualquer tabela nova com dados de uma pessoa segue esta regra no servidor
   (RLS) e no ecrã.
 
@@ -572,7 +576,14 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   Pagamentos Médicos do BAI» (Início, Movimentos, Motivos escondida), com a data
   do dia em que se tira; BAI = código 0040 no IBAN; ordem clínica geral/medicina
   interna, pediatria, outros. NIB a debitar só no servidor (`pagamento_banco`,
-  `bsp_pagamento_banco`, u1 e u2): nunca no repositório. Taxas de permanência: 15.000, 20.000 ou 25.000. Médico «off» =
+  `bsp_pagamento_banco`, u1 e u2): nunca no repositório.
+  Por etapas (07-10-2026, `pagamento-etapas.sql`, Elmar: «vou pagar por etapas»;
+  «os pagos tenho de validar no perfil de cada um»): `pagamento_etapas` (mapa do
+  banco e pago por médico e mês), só por `bsp_pagamento_etapas` /
+  `bsp_pagamento_etapa`, u1 e u2. O mapa do banco leva só os médicos escolhidos
+  (caixa na lista; sem escolha, os que não estão pagos nem noutro mapa) e regista a
+  etapa; «Validar pago» e «Imprimir mapa individual» na ficha de cada médico
+  (`bspPagEtapa`). Taxas de permanência: 15.000, 20.000 ou 25.000. Médico «off» =
   `activo = false`, nunca apagar.
   Presenças (05-10-2026, `medicos-presencas.sql`): a Recepção marca «Chegou»/«Saiu»
   (`PresencasMedicos`, Utentes e Início) por `bsp_presenca_marcar`, com hora do

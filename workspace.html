@@ -4088,7 +4088,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_alertas_por_ler', 'bsp_pagamento_banco', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
+const BSP_RPC_LEITURA = ['bsp_alertas_por_ler', 'bsp_pagamento_banco', 'bsp_pagamento_etapas', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -26488,7 +26488,7 @@ const BSP_GUIA_FICHAS = [
       ['Integração:', 'o plano de acolhimento de cada pessoa nova (RI-2.2), passo a passo, com prazos e avisos.'],
       ['Avaliação:', 'a avaliação de desempenho anual (RI-5.3), com os seis factores do formulário (A a D). O superior avalia; cada pessoa lê a sua e confirma que tomou conhecimento.'],
       ['Produtividade:', 'o chefe dá nota de 1 a 3 a cada objectivo da sua equipa; o Workspace calcula a percentagem; a Direcção aprova e o mês entra na avaliação anual. Cada pessoa vê só as suas notas. Os valores só os vêem o Director Geral e os RH.'],
-      ['Pagamento dos médicos', '(só o Director Geral e os RH): o mapa do mês a partir do MetaGest e das fichas assinadas, fechar, imprimir e tirar os mapas do banco no formato do BAI: «BAI → BAI» e «Outros bancos», sempre separados (clínicos gerais primeiro, depois pediatria).']
+      ['Pagamento dos médicos', '(só o Director Geral e os RH): o mapa do mês a partir do MetaGest e das fichas assinadas, fechar, imprimir e tirar os mapas do banco no formato do BAI: «BAI → BAI» e «Outros bancos», sempre separados (clínicos gerais primeiro, depois pediatria). Para pagar por etapas, marque a caixa dos médicos a pagar: o mapa do banco leva só esses. Na ficha de cada médico: «Imprimir mapa individual» e «Validar pago».']
     ],
     quem: 'Toda a equipa. Cada pessoa vê só as suas coisas; o superior e o chefe vêem as da sua equipa. O mapa de férias aprovadas é de todos. As credenciais: a Direcção e a Direcção Clínica registam; cada médico vê as suas.',
     dica: 'Peça as férias com antecedência: o chefe precisa de acertar a escala.' },
@@ -29519,10 +29519,10 @@ function bspPagListaBanco(medicos, codigo, deBai) {
     .filter(m => (bspPagIban(m.iban).slice(4, 8) === codigo) === deBai)
     .slice().sort((a, b) => bspPagGrupoBanco(a) - bspPagGrupoBanco(b) || bspCompararTexto(a.nome, b.nome));
 }
-async function bspPagMapaBanco({ medicos, ano, mes, banco, deBai }) {
+async function bspPagMapaBanco({ medicos, ano, mes, banco, deBai, ids }) {
   const XLSX = await bspCarregarSheetJs();
   const mesNome = bspPagMesNome(ano, mes).split(' ')[0];
-  const lista = bspPagListaBanco(medicos, banco.banco_codigo || '0040', deBai);
+  const lista = bspPagListaBanco(medicos, banco.banco_codigo || '0040', deBai).filter(m => !ids || ids.indexOf(m.id) !== -1);
   const hoje = bspDataLocalISO(new Date());
   const txt = v => ({ t: 's', v: String(v), z: '@' });
   const inicio = [
@@ -29548,8 +29548,13 @@ async function bspPagMapaBanco({ medicos, ano, mes, banco, deBai }) {
   XLSX.utils.book_append_sheet(wb, folha(motivos, [7.9, 32.4, 30.4]), 'Motivos');
   wb.Workbook = { Sheets: [{ Hidden: 0 }, { Hidden: 0 }, { Hidden: 1 }] };
   const dados = XLSX.write(wb, { bookType: 'biff8', type: 'array' });
-  return { blob: new Blob([dados], { type: 'application/vnd.ms-excel' }), n: lista.length, total: lista.reduce((t, m) => t + bspPagR2(m.liquido), 0),
+  return { blob: new Blob([dados], { type: 'application/vnd.ms-excel' }), n: lista.length, ids: lista.map(m => m.id), valores: lista.reduce((o, m) => (o[m.id] = bspPagR2(m.liquido), o), {}), total: lista.reduce((t, m) => t + bspPagR2(m.liquido), 0),
     nome: 'Template de Pagamentos Medicos ' + (deBai ? 'do BAI' : 'Outros Bancos') + ' - ' + mesNome + ' ' + ano + ' (' + hoje + ').xls' };
+}
+/* Etapa de pagamento de um médico (pagamento-etapas.sql). */
+function bspPagEtapa(etapas, m) {
+  const x = (etapas || {})[String(m.id)] || {};
+  return Object.assign({}, x, { mapa: !!x.mapa_em, pago: !!x.pago_em });
 }
 function bspDescarregarBlob(nome, blob) {
   const a = document.createElement('a');
@@ -29798,6 +29803,11 @@ function PagamentoMedicosPainel() {
   const [fichas, setFichas] = React.useState(null);
   const [conferir, setConferir] = React.useState({});
   const [aGerar, setAGerar] = React.useState('');
+  /* Pagamento por etapas (07-10-2026, pagamento-etapas.sql): escolher os médicos
+     de cada mapa do banco e validar o pago na ficha de cada um. Só u1 e u2. */
+  const [etapas, setEtapas] = React.useState({});
+  const [escolha, setEscolha] = React.useState([]);
+  React.useEffect(() => { setEscolha([]); }, [mesSel]);
   React.useEffect(() => { bspRegistarAcesso('pagamento-medicos', mesSel); }, [mesSel]);
   React.useEffect(() => {
     const cl = bspGetClient();
@@ -29810,6 +29820,7 @@ function PagamentoMedicosPainel() {
       setMapa(a.data || {}); setExtra((b && b.data) || { dias: {}, ajustes: {} });
     });
     cl.rpc('bsp_pagamento_conferir', { p_ano: ano, p_mes: mes }).then(r => { if (vivo && !r.error) setConferir(r.data || {}); });
+    cl.rpc('bsp_pagamento_etapas', { p_ano: ano, p_mes: mes }).then(r => { if (vivo && !r.error) setEtapas(r.data || {}); });
     return () => { vivo = false; };
   }, [mesSel, tick]);
   const fechado = mapa && mapa.estado && mapa.estado !== 'Aberto';
@@ -29874,14 +29885,43 @@ function PagamentoMedicosPainel() {
   async function mapaBanco(deBai) {
     const r = await bspGetClient().rpc('bsp_pagamento_banco');
     if (r.error || !r.data || !r.data.nib_debito) { toast('Falta a conta a debitar no servidor (pagamento_banco).'); return; }
-    const semIban = medicos.filter(m => Number(m.liquido) > 0 && !bspPagIban(m.iban)).map(m => bspNomeProprio(m.nome));
+    /* Com médicos escolhidos, só esses; sem escolha, todos os que ainda não
+       estão pagos nem noutro mapa. */
+    const ids = escolha.length ? escolha : medicos.filter(m => !bspPagEtapa(etapas, m).pago && !bspPagEtapa(etapas, m).mapa).map(m => m.id);
+    const semIban = medicos.filter(m => ids.indexOf(m.id) !== -1 && Number(m.liquido) > 0 && !bspPagIban(m.iban)).map(m => bspNomeProprio(m.nome));
+    const repetidos = medicos.filter(m => ids.indexOf(m.id) !== -1 && (bspPagEtapa(etapas, m).pago || bspPagEtapa(etapas, m).mapa)).map(m => bspNomeProprio(m.nome));
+    if (repetidos.length && !window.confirm('Já estão pagos ou noutro mapa: ' + repetidos.join(', ') + '. Incluir na mesma?')) return;
     try {
-      const x = await bspPagMapaBanco({ medicos, ano, mes, banco: r.data, deBai });
-      if (!x.n) { toast(deBai ? 'Nenhum médico com conta no BAI a receber.' : 'Nenhum médico com conta noutro banco a receber.'); return; }
+      const x = await bspPagMapaBanco({ medicos, ano, mes, banco: r.data, deBai, ids });
+      if (!x.n) { toast((deBai ? 'Nenhum médico com conta no BAI' : 'Nenhum médico com conta noutro banco') + (escolha.length ? ' entre os escolhidos.' : ' por pagar.')); return; }
       bspDescarregarBlob(x.nome, x.blob);
-      toast(x.n + (x.n === 1 ? ' médico' : ' médicos') + ' · ' + bspPagKz(x.total) + (semIban.length ? ' · sem IBAN (fora do mapa): ' + semIban.join(', ') : ''));
+      const g = await bspGetClient().rpc('bsp_pagamento_etapa', { p_ano: ano, p_mes: mes, p_accao: 'mapa', p_ids: x.ids, p_valores: x.valores, p_banco: deBai ? 'bai' : 'outros' });
+      toast(x.n + (x.n === 1 ? ' médico' : ' médicos') + ' · ' + bspPagKz(x.total) + (semIban.length ? ' · sem IBAN (fora do mapa): ' + semIban.join(', ') : '') + (g.error ? ' · não ficou registado: ' + g.error.message : ''));
+      setEscolha([]); setTick(t => t + 1);
     } catch (e) { toast('Não foi possível gerar: ' + (e && e.message || e)); }
   }
+  async function etapa(accao, lista, msg) {
+    const r = await bspGetClient().rpc('bsp_pagamento_etapa', { p_ano: ano, p_mes: mes, p_accao: accao, p_ids: lista.map(m => m.id), p_valores: lista.reduce((o, m) => (o[m.id] = bspPagR2(m.liquido), o), {}) });
+    if (r.error) { toast(r.error.message); return; }
+    toast(msg); setTick(t => t + 1);
+  }
+  /* Mapa individual pronto a imprimir, na ficha do médico (o mesmo do zip). */
+  async function imprimirIndividual(m) {
+    setAGerar('ind-' + m.id);
+    try {
+      const r = await bspGetClient().rpc('bsp_pagamento_actos', { p_ano: ano, p_mes: mes });
+      if (r.error) { toast('Não foi possível ler os actos: ' + r.error.message); return; }
+      bspImprimirHtml(bspPagMapaIndividualHtml(m, bspPagFichasDe(extra, m.id), (r.data || []).filter(a => a.id === m.id), ano, mes));
+    } finally { setAGerar(''); }
+  }
+  const alternar = id => setEscolha(escolha.indexOf(id) !== -1 ? escolha.filter(x => x !== id) : escolha.concat([id]));
+  const escolhidos = medicos.filter(m => escolha.indexOf(m.id) !== -1);
+  const etiquetaEtapa = m => {
+    const x = bspPagEtapa(etapas, m);
+    return x.pago ? React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: 'var(--sucesso)' } }, '✓ Pago ' + bspDataExacta(new Date(x.pago_em)).replace(/,.*$/, ''))
+      : x.mapa ? React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: 'var(--accent-d)' } }, 'No mapa ' + (x.mapa_banco === 'bai' ? 'BAI' : 'outros bancos') + ' de ' + bspMarcDataPt(x.mapa_em))
+      : null;
+  };
   const tile = (r, v, s, cor) => React.createElement("div", { style: Object.assign({}, bspRegCaixa, { flex: '1 1 150px' }) },
     React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-3)' } }, r),
     React.createElement("div", { style: { fontSize: 20, fontWeight: 700, color: cor || 'var(--text-1)', fontVariantNumeric: 'tabular-nums' } }, v),
@@ -29982,7 +30022,19 @@ function PagamentoMedicosPainel() {
         React.createElement("td", { style: { padding: '5px 6px', color: 'var(--text-2)' } }, base, linhasRub && React.createElement("button", { onClick: () => verLinhas(m, linhasRub), style: { marginLeft: 8, border: 'none', background: 'none', color: 'var(--accent-d)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, padding: 0 } }, 'ver linhas')),
         React.createElement("td", { style: { padding: '5px 6px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--text-1)' } }, bspPagKz(x.valor)));
     });
+    const et = bspPagEtapa(etapas, m);
     return React.createElement("div", { style: { marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 12 } },
+      React.createElement("div", { style: Object.assign({}, bspRegCaixa, { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }) },
+        React.createElement("div", { style: { flex: '1 1 220px', fontSize: 13, color: 'var(--text-2)' } },
+          et.pago ? React.createElement("b", { style: { color: 'var(--sucesso)' } }, '✓ Pago, validado por ' + bspNomeProprio((window.userById(et.pago_por) || {}).name || et.pago_por) + ' a ' + bspDataExacta(new Date(et.pago_em)) + (et.pago_valor != null ? ' · ' + bspPagKz(et.pago_valor) : ''))
+            : et.mapa ? 'No mapa ' + (et.mapa_banco === 'bai' ? 'BAI → BAI' : 'outros bancos') + ' de ' + bspMarcDataPt(et.mapa_em) + (et.mapa_valor != null ? ' · ' + bspPagKz(et.mapa_valor) : '') + '. Falta validar o pago.'
+            : 'Ainda não está em nenhum mapa do banco nem pago.',
+          et.pago && et.pago_valor != null && Math.abs(Number(et.pago_valor) - bspPagR2(m.liquido)) >= 0.01 && React.createElement("div", { style: { color: 'var(--perigo)', fontWeight: 600 } }, 'O líquido mudou depois de pago: agora ' + bspPagKz(m.liquido) + '.')),
+        React.createElement("button", { disabled: aGerar === 'ind-' + m.id, onClick: () => imprimirIndividual(m), style: bspEscBotao(false) }, aGerar === 'ind-' + m.id ? 'A preparar…' : 'Imprimir mapa individual'),
+        escreve && (et.pago
+          ? React.createElement("button", { onClick: () => window.confirm('Tirar a validação de pago de ' + bspNomeProprio(m.nome) + '?') && etapa('tirar_pago', [m], 'Validação tirada.'), style: bspEscBotao(false) }, 'Tirar «pago»')
+          : React.createElement("button", { onClick: () => window.confirm('Confirma que ' + bspNomeProprio(m.nome) + ' recebeu ' + bspPagKz(m.liquido) + '?') && etapa('pago', [m], 'Pago validado.'), style: bspEscBotao(true) }, 'Validar pago')),
+        escreve && et.mapa && !et.pago && React.createElement("button", { onClick: () => window.confirm('Tirar ' + bspNomeProprio(m.nome) + ' do mapa de ' + bspMarcDataPt(et.mapa_em) + '? Volta a poder entrar num mapa novo.') && etapa('tirar_mapa', [m], 'Tirado do mapa.'), style: bspEscBotao(false) }, 'Tirar do mapa')),
       React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, (m.especialidade || '') + ' · ' + (m.regime ? 'regime ' + m.regime + ', ' + BSP_PAG_REGIMES[m.regime] + ', taxa ' + bspPagKz(m.taxa_permanencia) : 'sem permanência') + ' · NIF ' + (m.nif || 'em falta') + ' · IBAN ' + (m.iban || 'em falta')),
       React.createElement("div", { style: { overflowX: 'auto' } }, React.createElement("table", { style: { width: '100%', borderCollapse: 'collapse', fontSize: 13 } }, React.createElement("tbody", null, rubs,
         Number(m.outros) ? React.createElement("tr", null, React.createElement("td", { style: { padding: '5px 6px' } }, 'Outros'), React.createElement("td", { style: { padding: '5px 6px', color: 'var(--text-2)' } }, m.nota || ''), React.createElement("td", { style: { padding: '5px 6px', textAlign: 'right' } }, bspPagKz(m.outros))) : null,
@@ -30029,12 +30081,31 @@ function PagamentoMedicosPainel() {
       avisos.length > 0 && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-2)', display: 'flex', flexDirection: 'column', gap: 4 }) },
         React.createElement("b", { style: { color: 'var(--text-1)' } }, 'A conferir antes de fechar'),
         avisos.map((t, i) => React.createElement("div", { key: i }, '· ' + t))),
+      (() => {
+        const pagos = medicos.filter(m => bspPagEtapa(etapas, m).pago);
+        const emMapa = medicos.filter(m => !bspPagEtapa(etapas, m).pago && bspPagEtapa(etapas, m).mapa);
+        const soma = l => l.reduce((t, m) => t + bspPagR2(m.liquido), 0);
+        const porPagar = medicos.filter(m => Number(m.liquido) > 0 && !bspPagEtapa(etapas, m).pago);
+        return React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-2)', display: 'flex', flexDirection: 'column', gap: 6 }) },
+          React.createElement("b", { style: { color: 'var(--text-1)' } }, 'Pagar por etapas'),
+          React.createElement("div", null, 'Pagos: ' + pagos.length + ' (' + bspPagKz(soma(pagos)) + ') · em mapa, por validar: ' + emMapa.length + ' (' + bspPagKz(soma(emMapa)) + ') · por pagar: ' + porPagar.length + ' (' + bspPagKz(soma(porPagar)) + ').'),
+          React.createElement("div", null, escolha.length
+            ? 'Escolhidos para o próximo mapa: ' + escolhidos.length + ' · ' + bspPagKz(soma(escolhidos)) + '. Os mapas BAI e outros bancos levam só estes (cada um os do seu banco).'
+            : 'Marque a caixa dos médicos a pagar nesta etapa. Sem nenhuma marcada, os mapas do banco levam todos os que ainda não estão pagos nem noutro mapa.'),
+          React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+            React.createElement("button", { onClick: () => setEscolha(medicos.filter(m => Number(m.liquido) > 0 && !bspPagEtapa(etapas, m).pago && !bspPagEtapa(etapas, m).mapa).map(m => m.id)), style: bspEscBotao(false) }, 'Marcar os por pagar'),
+            [0, 1].map(g => React.createElement("button", { key: g, onClick: () => setEscolha(escolha.concat(medicos.filter(m => Number(m.liquido) > 0 && bspPagGrupoBanco(m) === g && !bspPagEtapa(etapas, m).pago && !bspPagEtapa(etapas, m).mapa && escolha.indexOf(m.id) === -1).map(m => m.id))), style: bspEscBotao(false) }, g === 0 ? '+ Clínica geral' : '+ Pediatria')),
+            escolha.length > 0 && React.createElement("button", { onClick: () => setEscolha([]), style: bspEscBotao(false) }, 'Limpar a escolha'),
+            escreve && emMapa.length > 0 && React.createElement("button", { onClick: () => window.confirm('Validar como pagos os ' + emMapa.length + ' médicos que estão em mapa (' + bspPagKz(soma(emMapa)) + ')?') && etapa('pago', emMapa, emMapa.length + ' pagos validados.'), style: bspEscBotao(false) }, 'Validar pagos os que estão em mapa')));
+      })(),
       medicos.map(m => {
         const cons = Number(m.clinica_geral.valor) + Number(m.pediatria.valor) + Number(m.especialidades.valor);
         const dif = m.anterior == null ? null : Number(m.liquido) - Number(m.anterior);
         return React.createElement("div", { key: m.id, style: Object.assign({}, bspRegCaixa, { padding: 12 }) },
           React.createElement("div", { onClick: () => abrir(m), style: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline', cursor: 'pointer' } },
-            React.createElement("b", { style: { flex: '1 1 220px', fontSize: 14, color: 'var(--text-1)' } }, bspNomeProprio(m.nome)),
+            React.createElement("input", { type: 'checkbox', title: 'Pagar nesta etapa', checked: escolha.indexOf(m.id) !== -1, disabled: !(Number(m.liquido) > 0), onClick: e => e.stopPropagation(), onChange: () => alternar(m.id), style: { width: 18, height: 18, alignSelf: 'center', cursor: 'pointer' } }),
+            React.createElement("b", { style: { flex: '1 1 200px', fontSize: 14, color: 'var(--text-1)' } }, bspNomeProprio(m.nome)),
+            etiquetaEtapa(m),
             React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Permanência ' + bspPagKz(m.permanencia.valor) + ' · consultas ' + bspPagKz(cons)),
             m.sem_presenca && React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: 'var(--perigo)' } }, 'sem presenças'),
             React.createElement("b", { style: { fontSize: 14, color: 'var(--text-1)', fontVariantNumeric: 'tabular-nums' } }, bspPagKz(m.liquido)),
