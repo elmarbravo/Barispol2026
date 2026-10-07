@@ -6268,7 +6268,9 @@ function StoreProvider({
   }, []);
   /* Alertas de stock (01-10-2026, stock.sql): a quem gere o stock (Arlete,
      Solange, gestao), no sino, quando ha artigos esgotados, a acabar ou
-     lotes a caducar. Volta a avisar no mesmo dia so se o numero subir. */
+     lotes a caducar. Desde 07-10-2026 (Elmar: «o stock só aparece pop up 2
+     vezes ao dia»): um so aviso de manha (antes das 13h00) e outro a tarde,
+     com todos os armazens juntos; nunca mais de 2 por dia. */
   React.useEffect(() => {
     let vivo = true;
     const ver = async () => {
@@ -6279,27 +6281,24 @@ function StoreProvider({
       const r = await cl.rpc('bsp_stock_resumo');
       if (!vivo || r.error || !r.data) return;
       const hoje = bspDataLocalISO(new Date());
+      const periodo = new Date().getHours() < 13 ? 'manha' : 'tarde';
       const chave = 'bsp-stock-aviso-' + eu.id + '-' + hoje;
-      let antes = {};
-      try { antes = JSON.parse(localStorage.getItem(chave) || '{}'); } catch (e) {}
-      const depois = {};
-      const novos = [];
-      (r.data.armazens || []).forEach(a => {
-        const falta = (a.caducado || 0) + (a.esgotado || 0) + (a.a_acabar || 0);
-        depois[a.armazem] = { f: falta, c: a.a_caducar || 0 };
-        const v = antes[a.armazem] || { f: 0, c: 0 };
-        if (falta > v.f || (a.a_caducar || 0) > v.c) novos.push(a);
-      });
-      if (!novos.length) return;
-      novos.forEach(a => setState(s => pushNotif(s, {
+      let feito = {};
+      try { feito = JSON.parse(localStorage.getItem(chave) || '{}') || {}; } catch (e) {}
+      if (feito[periodo]) return;
+      const comAlerta = (r.data.armazens || []).filter(a => (a.caducado || 0) + (a.esgotado || 0) + (a.a_acabar || 0) + (a.a_caducar || 0) > 0);
+      if (!comAlerta.length) return;
+      const partes = a => [a.caducado ? a.caducado + ' com lote caducado' : '', a.esgotado ? a.esgotado + ' esgotado' + (a.esgotado === 1 ? '' : 's') : '', a.a_acabar ? a.a_acabar + ' a acabar' : '', a.a_caducar ? a.a_caducar + ' a caducar' : ''].filter(Boolean).join(', ');
+      setState(s => pushNotif(s, {
         type: 'sistema',
         destino: 'stock',
-        text: 'Stock ' + bspStockArmazemNome(a.armazem) + ': ' + [a.caducado ? a.caducado + ' com lote caducado' : '', a.esgotado ? a.esgotado + ' esgotado' + (a.esgotado === 1 ? '' : 's') : '', a.a_acabar ? a.a_acabar + ' a acabar' : '', a.a_caducar ? a.a_caducar + ' com lote a caducar' : ''].filter(Boolean).join(', '),
-        preview: 'Abra o Stock para ver os artigos.'
-      })));
+        text: 'Stock: ' + comAlerta.map(a => bspStockArmazemNome(a.armazem) + ' (' + partes(a) + ')').join('; '),
+        preview: periodo === 'manha' ? 'Resumo da manhã. Abra o Stock para ver os artigos.' : 'Resumo da tarde. Abra o Stock para ver os artigos.'
+      }));
       bspPlayChime();
       try {
-        localStorage.setItem(chave, JSON.stringify(depois));
+        feito[periodo] = true;
+        localStorage.setItem(chave, JSON.stringify(feito));
         Object.keys(localStorage).filter(k => k.indexOf('bsp-stock-aviso-') === 0 && k !== chave).forEach(k => localStorage.removeItem(k));
       } catch (e) {}
     };
@@ -7925,8 +7924,6 @@ function DashboardScreen({
     }
   }, bspVePainel(currentUser) && React.createElement(PainelAtalho, {
     onAbrir: () => onSwitch && onSwitch('painel')
-  }), bspVeStock(currentUser) && React.createElement(StockAlertaCartao, {
-    onAbrir: () => onSwitch && onSwitch('stock')
   }), bspVePainelClinico(currentUser) && React.createElement(PainelClinicoCartao, {
     onAbrir: () => onSwitch && onSwitch('painel-clinico')
   }), bspVeActividade(currentUser) && React.createElement(ActividadeAtalho, {
@@ -26473,7 +26470,7 @@ const BSP_GUIA_FICHAS = [
       ['Procure um artigo', 'e veja a quantidade, as saídas dos últimos 30 dias, quanto tempo dura e a validade do lote mais próximo.'],
       ['Em «Validades»,', 'veja cada lote com a sua data e quantidade, do que caduca primeiro ao último, e imprima a lista.'],
       ['Imprima a lista', 'para a encomenda ou a contagem.'],
-      ['Os alertas chegam ao sino', 'e ao Início.'],
+      ['Os alertas chegam ao sino', 'duas vezes por dia (manhã e tarde). No Painel clínico, «Ver o stock completo» abre o armazém da área.'],
       ['Compras correntes:', 'alimentação, consumíveis de escritório, limpeza, água e gás. Gasto por mês, média, previsão para o mês e comparação com o ano anterior; os adiantamentos sem factura ficam «por acertar».'],
       ['Toners:', 'o nível de cada impressora e o stock no armário. Regista o nível que vê; os Serviços Gerais registam trocas e compras. Avisa quando um toner chega ao mínimo.']
     ],
@@ -26902,7 +26899,20 @@ function StockScreen() {
     return pa - pb || bspCompararTexto(bspStockArmazemNome(a), bspStockArmazemNome(b));
   }), [linhas]);
   /* Serviços Gerais e Emmanuel abrem no armazém da limpeza (07-10-2026). */
+  /* Pedido do Painel clínico (bspAbrirStockArmazem). */
+  const armazemPedido = React.useCallback(() => {
+    const re = BSP_STOCK_ARMAZEM_AREA[window.__bspStockArmazem];
+    const a = re && armazens.find(x => re.test(x));
+    if (a) { window.__bspStockArmazem = null; setArmazem(a); setAbaS('artigos'); }
+    return !!a;
+  }, [armazens]);
   React.useEffect(() => {
+    const f = () => armazemPedido();
+    window.addEventListener('bsp-stock-armazem', f);
+    return () => window.removeEventListener('bsp-stock-armazem', f);
+  }, [armazemPedido]);
+  React.useEffect(() => {
+    if (armazens.length && armazemPedido()) return;
     if (armazem || !armazens.length) return;
     const eu = window.userById(window.CURRENT_USER_ID);
     const sg = eu && (eu.id === 'u22' || bspAreaChave(eu.dept) === 'servicos gerais') && armazens.find(a => /SERVI[ÇC]OS GERAIS/i.test(a));
@@ -29297,6 +29307,22 @@ function PainelClinicoCartao({ onAbrir }) {
       React.createElement(PainelClinicoAlertas, { alertas: al, max: 4 }),
       al.length > 4 && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 6 } }, 'E mais ' + (al.length - 4) + (al.length - 4 === 1 ? ' alerta.' : ' alertas.'))));
 }
+/* Atalho do Painel clínico para o Stock da área (07-10-2026, Elmar: «o stock
+   e o painel clínico não têm redundância? É mais fácil colocar atalho no
+   painel clínico para ver a farmácia»). Abre Logística e stock → Stock, no
+   armazém da área (window.__bspStockArmazem). Só a quem vê o Stock. */
+const BSP_STOCK_ARMAZEM_AREA = { farmacia: /FARM/i, laboratorio: /LABORAT/i, enfermagem: /ENFERM/i, 'servicos gerais': /SERVI[ÇC]OS GERAIS/i };
+function bspAbrirStockArmazem(area) {
+  window.__bspStockArmazem = area;
+  window.__bspStockAba = 'stock';
+  try { window.dispatchEvent(new Event('bsp-stock-aba')); window.dispatchEvent(new Event('bsp-stock-armazem')); } catch (e) {}
+  if (typeof window.bspIrParaEcra === 'function') window.bspIrParaEcra('stock');
+}
+function bspAtalhoStock(area) {
+  const eu = window.userById(window.CURRENT_USER_ID);
+  if (!BSP_STOCK_ARMAZEM_AREA[area] || !bspVeStock(eu)) return null;
+  return React.createElement("button", { type: 'button', onClick: () => bspAbrirStockArmazem(area), style: { alignSelf: 'flex-start', border: 'none', background: 'transparent', padding: '0 0 8px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, color: 'var(--accent-d)' } }, 'Ver o stock completo ›');
+}
 function PainelClinicoScreen() {
   const hoje = bspDataLocalISO(new Date());
   const periodos = [
@@ -29332,6 +29358,7 @@ function PainelClinicoScreen() {
       (s.a_caducar || []).map(x => [bspFrase(x.nome), 'Caduca a ' + bspMarcDataPt(x.validade) + ' (' + qtd(x.qtd) + ')', 'aviso']));
     if (!linhas.length) return null;
     return React.createElement(Card, { pad: 16 }, tit('Stock · ' + BSP_CLINICO_AREAS[k]),
+      bspAtalhoStock(k),
       React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 320, overflow: 'auto' } },
         linhas.map((l, i) => React.createElement("div", { key: i, style: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 10, fontSize: 13, borderBottom: '1px solid var(--border)', paddingBottom: 5 } },
           React.createElement("span", { style: { color: 'var(--text-1)', overflowWrap: 'anywhere' } }, l[0]),
@@ -29341,7 +29368,7 @@ function PainelClinicoScreen() {
   /* O que vinha nos relatórios antigos das áreas (02-10-2026, erp.clinico_extra):
      cada pessoa só recebe o da sua área (bsp_painel_clinico). */
   const ex = d && d.extra || {};
-  const tabelaEx = (titulo, cab, linhas, nota) => linhas.length ? React.createElement(Card, { pad: 16 }, tit(titulo),
+  const tabelaEx = (titulo, cab, linhas, nota, area) => linhas.length ? React.createElement(Card, { pad: 16 }, tit(titulo), area && bspAtalhoStock(area),
     nota && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginTop: -6, marginBottom: 10 } }, nota),
     React.createElement("div", { style: { maxHeight: 340, overflow: 'auto' } },
       React.createElement("table", { style: { width: '100%', borderCollapse: 'collapse', fontSize: 13 } },
@@ -29356,8 +29383,8 @@ function PainelClinicoScreen() {
     Number(mf.total) > 0 && tabelaEx('Marcações passadas por fechar', ['Mês', 'Qtd'], (mf.por_mes || []).map(x => [MESES_C[Number(x.mes.slice(5, 7)) - 1] + ' ' + x.mes.slice(0, 4), qtd(x.n)]),
       qtd(mf.total) + ' ainda em «Agendada» ou «Confirmada». Marque Compareceu, Faltou, Cancelou ou Remarcado.'),
     tabelaEx('Farmácia: vendido e stock que fica', ['Produto', 'Qtd', 'Fica'], (ex.farmacia_vendido || []).map(x => [bspFrase(x.nome), qtd(x.qtd), x.fica == null ? '—' : qtd(x.fica)])),
-    tabelaEx('Farmácia: stock a repor', ['Produto', 'Stock', 'Saídas 30 d', 'Dá para'], (ex.farmacia_repor || []).map(x => [bspFrase(x.nome), qtd(x.stock), qtd(x.saidas_30d), diasTxt(x.dias)])),
-    tabelaEx('Laboratório: testes e consumíveis', ['Artigo', 'Stock', 'Saídas 30 d', 'Dá para'], (ex.lab_consumiveis || []).map(x => [bspFrase(x.nome), qtd(x.stock), qtd(x.saidas_30d), diasTxt(x.dias)]))
+    tabelaEx('Farmácia: stock a repor', ['Produto', 'Stock', 'Saídas 30 d', 'Dá para'], (ex.farmacia_repor || []).map(x => [bspFrase(x.nome), qtd(x.stock), qtd(x.saidas_30d), diasTxt(x.dias)]), null, 'farmacia'),
+    tabelaEx('Laboratório: testes e consumíveis', ['Artigo', 'Stock', 'Saídas 30 d', 'Dá para'], (ex.lab_consumiveis || []).map(x => [bspFrase(x.nome), qtd(x.stock), qtd(x.saidas_30d), diasTxt(x.dias)]), null, 'laboratorio')
   ].filter(Boolean);
   const grelha = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: 14 };
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 14, height: '100%', overflow: 'auto', paddingBottom: 12 } },

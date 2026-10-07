@@ -3843,3 +3843,21 @@ Elmar: «Emmanuel não vê alimentação nem produtos de limpeza».
   armazém (Serviços Gerais, Emmanuel) abre Logística e stock em «Compras
   correntes»; no Stock abre no armazém «Limpeza (Serviços gerais)».
 - Novidade 227 para o Emmanuel e os Serviços Gerais.
+
+## 3-gk. Stock: atalho no Painel clínico, fora do Início, aviso 2 vezes por dia (07-10-2026)
+
+Elmar: «o stock e o painel clínico não têm redundância? É mais fácil colocar
+atalho no painel clínico para ver a farmácia, assim tem menos coisas no ecrã
+principal. O stock só aparece pop up 2 vezes ao dia».
+- Painel clínico: nos quadros «Stock · <área>», «Farmácia: stock a repor» e
+  «Laboratório: testes e consumíveis», o botão «Ver o stock completo ›»
+  (`bspAtalhoStock`, só a quem vê o Stock) abre Logística e stock → Stock no
+  armazém da área (`bspAbrirStockArmazem`, `BSP_STOCK_ARMAZEM_AREA`,
+  `__bspStockArmazem` + evento `bsp-stock-armazem`).
+- Início: o cartão do Stock (`StockAlertaCartao`) saiu; fica o do Painel
+  clínico.
+- Aviso do Stock no sino: um só aviso com todos os armazéns, no máximo 2 por
+  dia (manhã antes das 13h00 e tarde), por pessoa e aparelho
+  (`bsp-stock-aviso-<id>-<dia>`). O servidor não manda avisos de stock ao
+  telemóvel (só dos toners).
+- Novidade 228. Testado no navegador.
