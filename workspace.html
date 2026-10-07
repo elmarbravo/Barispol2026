@@ -26833,7 +26833,7 @@ function bspVeStock(u) {
 }
 function bspStockArmazemNome(a) {
   const n = String(a || '').replace(/\s*-\s*CBL$/i, '').trim();
-  return ({ 'Stores': 'Armazém central', 'STOCK GERALL': 'Stock geral' })[n] || n.charAt(0) + n.slice(1).toLowerCase();
+  return ({ 'Stores': 'Armazém central', 'STOCK GERALL': 'Stock geral', 'SERVIÇOS GERAIS-LIMPEZA': 'Limpeza (Serviços gerais)' })[n] || n.charAt(0) + n.slice(1).toLowerCase();
 }
 const BSP_STOCK_ESTADOS = {
   caducado: { nome: 'Lote caducado', cor: 'var(--perigo)' },
@@ -26901,7 +26901,13 @@ function StockScreen() {
     const pa = /FARM/i.test(a) ? 0 : 1, pb = /FARM/i.test(b) ? 0 : 1;
     return pa - pb || bspCompararTexto(bspStockArmazemNome(a), bspStockArmazemNome(b));
   }), [linhas]);
-  React.useEffect(() => { if (!armazem && armazens.length) setArmazem(armazens[0]); }, [armazens, armazem]);
+  /* Serviços Gerais e Emmanuel abrem no armazém da limpeza (07-10-2026). */
+  React.useEffect(() => {
+    if (armazem || !armazens.length) return;
+    const eu = window.userById(window.CURRENT_USER_ID);
+    const sg = eu && (eu.id === 'u22' || bspAreaChave(eu.dept) === 'servicos gerais') && armazens.find(a => /SERVI[ÇC]OS GERAIS/i.test(a));
+    setArmazem(sg || armazens[0]);
+  }, [armazens, armazem]);
   const doArmazem = (linhas || []).filter(l => l.armazem === armazem);
   const conta = e => doArmazem.filter(l => l.estado === e).length;
   const q = String(busca || '').trim().toLowerCase();
@@ -28727,7 +28733,9 @@ function LogisticaPainel() {
   const somaAno = a => linhas.filter(x => (cat === 'todas' || x.categoria === cat) && Number(String(x.data).slice(0, 4)) === a && Number(String(x.data).slice(5, 7)) <= mesHoje).reduce((s, x) => s + Number(x.valor), 0);
   const esteAno = somaAno(ano), anoAntes = somaAno(ano - 1);
   const porAcertar = linhas.filter(x => x.forma === 'Adiantamento' && !String(x.factura || '').trim());
-  const cats = [['todas', 'Todas']].concat(BSP_LOGISTICA_CATS.filter(c => c[0] === 'alimentacao' || c[0] === 'escritorio' || linhas.some(x => x.categoria === c[0])));
+  /* Todas as categorias sempre à vista (07-10-2026, Elmar: «Emmanuel não vê
+     alimentação nem produtos de limpeza»): a Limpeza ainda não tinha compras. */
+  const cats = [['todas', 'Todas']].concat(BSP_LOGISTICA_CATS);
   async function gravar() {
     const f = form; const valor = num(f.valor);
     if (!f.data) { toast('Diga a data.'); return; }
@@ -28839,7 +28847,11 @@ function bspVeLogistica(u) {
 }
 function LogisticaStockScreen() {
   const eu = window.userById(window.CURRENT_USER_ID);
-  const abas = [bspVeStock(eu) && ['stock', 'Stock'], bspVeConsumos(eu) && ['compras', 'Compras correntes'], bspVeToners(eu) && ['toners', 'Toners']].filter(Boolean);
+  /* Quem não responde por um armazém (Serviços Gerais, Emmanuel) abre nas
+     compras correntes: alimentação, limpeza, escritório, água e gás. */
+  const doStock = !!BSP_STOCK_RESPONSAVEIS[eu && eu.id];
+  const abaStock = bspVeStock(eu) && ['stock', 'Stock'], abaCompras = bspVeConsumos(eu) && ['compras', 'Compras correntes'];
+  const abas = (doStock ? [abaStock, abaCompras] : [abaCompras, abaStock]).concat([bspVeToners(eu) && ['toners', 'Toners']]).filter(Boolean);
   const [aba, setAba] = React.useState(() => {
     const pedida = window.__bspStockAba;
     return abas.some(a => a[0] === pedida) ? pedida : (abas[0] ? abas[0][0] : 'stock');

@@ -3831,3 +3831,15 @@ Elmar: «aprovo esses menus sugeridos e use sim serviços gerais»; «Supabase o
   abrem `#/stock`; o gerador continua em `#/avarias`.
 - Novidades 225 (todos: menus novos) e 226 (Rosa e gestão: Stock do
   Laboratório).
+
+## 3-gj. Emmanuel: alimentação e limpeza à vista (07-10-2026)
+
+Elmar: «Emmanuel não vê alimentação nem produtos de limpeza».
+- Servidor conferido como o Emmanuel (u22): lê as 45 compras (34 de
+  alimentação, 11 de escritório) e os 6 armazéns do Stock, incluindo
+  SERVIÇOS GERAIS-LIMPEZA - CBL (6 artigos). Não era falta de acesso.
+- Ecrã: em Compras correntes aparecem sempre as 6 categorias (a Limpeza só
+  aparecia com compras, e ainda não há nenhuma). Quem não responde por um
+  armazém (Serviços Gerais, Emmanuel) abre Logística e stock em «Compras
+  correntes»; no Stock abre no armazém «Limpeza (Serviços gerais)».
+- Novidade 227 para o Emmanuel e os Serviços Gerais.
