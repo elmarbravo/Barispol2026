@@ -3943,3 +3943,11 @@ Elmar: «os pagamentos dos médicos, falta a Luidmila, certo?».
     «11/9» gravada a 12 (lista de presenças e facturas); o dia 24 passou a
     15:57–22:20 (a lista dizia 07:00–22:24). Sem ficha: 28 e 29 (há facturas).
 - Falta: Alice Francó (29) e Catarina Quiala (30); confirmar os dias sem ficha.
+- Dias com factura e sem ficha explicados pelas facturas (Elmar: «não serão
+  facturas após notas de crédito ou feitas tarde?»): Conceição 06 e 13
+  (domingos, utentes já vistos antes: facturação tardia), 08, 10 e 13
+  (refacturação depois de nota de crédito; no 10, 2 notas de crédito), 18 (17:03,
+  dentro do horário da ficha datada de 19: data da ficha provavelmente trocada),
+  24 (10:30, a seguir à ficha de 23). Luidmila: 03 (factura criada a 01-09 e
+  emitida a 03), 28 (utente já visto) e 29 (nota de crédito e refacturação).
+  Nenhum destes dias pede ficha nova; falta só decidir a data 18/19.
