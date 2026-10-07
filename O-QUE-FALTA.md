@@ -3799,3 +3799,20 @@ separadores e o que lá tem dentro». Aprovou os pontos 1 e 3 da proposta.
   `p_tag` começar por `toner`. E a novidade à equipa sobre os nomes novos.
 - Testado: Arlete e Emmanuel vêem os 3 separadores; a Solange só o Stock; a
   Recepção só os Toners.
+
+## 3-gh. Teste da Arlete, Stock do Laboratório para a Rosa, mensagens das presenças (07-10-2026)
+
+Elmar: «o 1 e 3 era da Arlete e Rosa» (as perguntas sobre a logística, e não
+os menus da 3-gg; os menus novos ficaram publicados e aguardam a decisão dele)
+e «da presença dos médicos faz uma mensagem para a recepção e para cada
+recepcionista».
+- Feito (ecrã): em Logística e stock → Compras correntes, o cartão «Primeiros
+  passos» com os 4 passos do teste da Arlete (compra, adiantamento, acertar,
+  ler a previsão e o gráfico). Fecha com «Já sei» (`bsp-log-guia-<id>`).
+- Preparado, por correr (o Supabase recusa ligações):
+  `presencas-mensagens-stock-lab.sql`:
+  - a Rosa (u13) passa a ver o armazém LABORATÓRIO - CBL
+    (`stock_responsaveis`). Ao correr, acrescentar no ecrã
+    `u13: ['LABORATÓRIO - CBL']` em `BSP_STOCK_RESPONSAVEIS`;
+  - mensagem no #recepção e uma directa a cada pessoa da Recepção, do Elmar,
+    sobre as presenças dos médicos (cid `presencas-2026-10-07-…`, não repete).

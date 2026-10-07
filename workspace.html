@@ -28749,7 +28749,21 @@ function LogisticaPainel() {
     sub && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, sub));
   const novo = () => setForm({ categoria: cat === 'todas' ? 'alimentacao' : cat, descricao: '', data: bspDataLocalISO(new Date()), valor: '', forma: 'Compra', factura: '', fornecedor: '', nota: '' });
   const lista = linhas.filter(x => cat === 'todas' || x.categoria === cat).slice(0, 60);
+  /* Primeiros passos (07-10-2026, teste com a Arlete: «podemos fazer um teste
+     para eu aprender»). Fecha-se com «Já sei» e fica fechado neste aparelho. */
+  const [guiaFechado, setGuiaFechado] = React.useState(() => { try { return localStorage.getItem('bsp-log-guia-' + window.CURRENT_USER_ID) === '1'; } catch (e) { return false; } });
+  const passo = (n, titulo, txt) => React.createElement("li", { key: n, style: { marginBottom: 6 } }, React.createElement("b", null, titulo), ' ', txt);
+  const guia = !guiaFechado && React.createElement("div", { style: { border: '1px solid var(--border)', borderLeft: '4px solid var(--accent)', borderRadius: 8, padding: '12px 14px', background: 'var(--accent-soft)', color: 'var(--texto-sobre-pastel)' } },
+    React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, marginBottom: 6 } }, 'Primeiros passos: as compras desta semana'),
+    React.createElement("ol", { style: { margin: '0 0 8px', paddingLeft: 20, fontSize: 13.5, lineHeight: 1.5 } },
+      passo(1, 'Registe uma compra:', '«Registar compra», escolha a categoria, a data, o valor e o n.º da factura. Tipo: «Compra (com factura)».'),
+      passo(2, 'Registe um adiantamento:', 'quando entrega dinheiro antes da compra, escolha o tipo «Adiantamento». Fica em «Adiantamentos por acertar».'),
+      passo(3, 'Acerte o adiantamento:', 'quando tiver a factura, carregue em «Alterar» nessa linha e escreva o n.º da factura. Passa a «Acertado».'),
+      passo(4, 'Leia os números:', '«Previsão para o mês» é a média dos 3 últimos meses fechados; no gráfico, um mês a vermelho gastou mais 30% do que a média. Já não precisa de somar no Excel.')),
+    React.createElement("div", { style: { fontSize: 12.5, marginBottom: 8 } }, 'Viu um valor antigo errado (vêm das folhas, com a nota «Folha da Arlete»)? Corrija com «Alterar».'),
+    React.createElement(Button, { size: 'sm', variant: 'secondary', onClick: () => { try { localStorage.setItem('bsp-log-guia-' + window.CURRENT_USER_ID, '1'); } catch (e) {} setGuiaFechado(true); } }, 'Já sei'));
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+    guia,
     t.erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, t.erro) : null,
     React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
       cats.map(c => React.createElement("button", { key: c[0], type: 'button', onClick: () => setCat(c[0]), style: bspEscChip(cat === c[0]) }, c[1]))),
