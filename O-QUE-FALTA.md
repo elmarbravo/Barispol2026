@@ -3890,3 +3890,24 @@ Elmar: «acrescente esse» (folha da Arlete com os consumíveis de higienizaçã
 - A folha, como as outras, não tem itens, fornecedor nem n.º de factura (só
   actividade, frequência, data e valor). Vários valores redondos podem ser
   adiantamentos: confirmar com a Arlete.
+
+## 3-gn. Marcações com intervalo entre utentes (07-10-2026)
+
+Elmar: «nas marcações não permita marcar todas no mesmo minuto; ginecologia em
+média leva quanto tempo com a paciente?».
+- Medido nas facturas do MetaGest (6 meses, 153 consultas de ginecologia, 2
+  médicos; o MetaGest não regista o fim da consulta): intervalo mediano 25 min,
+  médio 34 min entre utentes seguidos do mesmo médico.
+- Nos últimos 60 dias havia até 7 marcações à mesma hora e 17 casos de dois
+  utentes à mesma hora com o mesmo médico.
+- `marcacoes-intervalo.sql` (aplicado): `marcacoes_duracoes` (ginecologia e
+  obstetrícia 30 min; o resto 15), `bsp_marc_minutos`, `bsp_marc_duracao`,
+  gatilho `bsp_marc_espacar`: recusa com a hora ocupada e a próxima hora livre.
+  Só Agendada/Confirmada, hoje e datas futuras; mudar só o estado não conta.
+- Testado no servidor (desfeito no fim): mesmo minuto e 20 min depois
+  recusados com «Próxima hora livre: 08:30»; 08:30 aceite; outro médico à mesma
+  hora aceite; cardiologia a 10 min recusada, a 15 min aceite.
+- O ecrã já mostra a mensagem do servidor e deixa a janela aberta. Atenção: a
+  importação por CSV pára se uma linha futura colidir (a mensagem diz qual).
+- Novidade 231 (Recepção, gestão, Direcção Clínica). Por decidir: durações das
+  outras especialidades (pediatria, cardiologia, ecografias…).

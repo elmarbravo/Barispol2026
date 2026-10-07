@@ -336,6 +336,12 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   Lembretes para a Recepção (29-09-2026): 1 h antes e 30 min depois de
   cada marcação de hoje em aberto (`bspMarcLembretes`, `MarcLembretes`,
   sino com `lembrete: true`; no Início, `MarcLembretesInicio`, 30-09-2026).
+  Intervalo entre utentes (07-10-2026, `marcacoes-intervalo.sql`, Elmar: «não
+  permita marcar todas no mesmo minuto»): gatilho `bsp_marc_espacar` recusa duas
+  marcações em aberto do mesmo médico (sem médico: mesmo acto) no mesmo dia mais
+  perto do que `bsp_marc_duracao(acto)` (tabela `marcacoes_duracoes`; ginecologia
+  e obstetrícia 30 min, resto 15) e diz a próxima hora livre. Só hoje e datas
+  futuras; `set_config('bsp.marc_livre', '1', true)` para passar por cima.
   Telemóvel do próprio (`contacto`, de onde sai o `tel9`) e de familiar
   (`contacto_familiar`, `familiar_quem`), 03-10-2026, `telefones-familiar.sql`.
   Pedidos do site (03-10-2026, `pedidos-site.sql`): `contacto.html` e a página
