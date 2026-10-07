@@ -3911,3 +3911,9 @@ média leva quanto tempo com a paciente?».
   importação por CSV pára se uma linha futura colidir (a mensagem diz qual).
 - Novidade 231 (Recepção, gestão, Direcção Clínica). Por decidir: durações das
   outras especialidades (pediatria, cardiologia, ecografias…).
+- Durações de referência geral (Elmar: «vê de forma geral, o MetaGest tem dado
+  errado»), em `marcacoes_duracoes`: ginecologia/obstetrícia e cardiologia 30;
+  pediatria, urologia, clínica geral/medicina interna 20; nutrição 45;
+  psicologia 50; ecografia 20 (obstétrica/trimestre 30, morfológica 45);
+  ecocardiograma 30; ECG 10; MAPA/Holter 15; o resto 15. Conferido com os
+  actos escritos nas marcações reais (com e sem acentos). Novidade 232.

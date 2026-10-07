@@ -96,3 +96,22 @@ create or replace trigger bsp_marc_espacar
   for each row execute function public.bsp_marc_espacar();
 
 notify pgrst, 'reload schema';
+
+-- Durações de referência geral (07-10-2026, Elmar: «vê de forma geral, o
+-- MetaGest tem dado errado»): as facturas não medem a duração da consulta.
+-- Aplicado. bsp_marc_duracao usa o maior valor entre os padrões que batem.
+insert into public.marcacoes_duracoes (padrao, minutos, nota) values
+  ('consulta.*(ginecolog|obstetr|obstétr)', 30, 'Referência geral'),
+  ('consulta.*cardiolog', 30, 'Referência geral'),
+  ('consulta.*pediatr', 20, 'Referência geral'),
+  ('consulta.*urolog', 20, 'Referência geral'),
+  ('consulta.*(cl[ií]nica geral|medicina geral|medicina interna)', 20, 'Referência geral'),
+  ('consulta.*nutri', 45, 'Referência geral'),
+  ('consulta.*psicolog', 50, 'Referência geral'),
+  ('ecografia', 20, 'Referência geral'),
+  ('ecografia.*(obst[eé]tric|obstÉtric|trimestre)', 30, 'Referência geral'),
+  ('ecografia.*morfol', 45, 'Referência geral'),
+  ('ecoc?g?cardiograma', 30, 'Referência geral'),
+  ('(^|[^a-z])ecg([^a-z]|$)|electrocardiograma', 10, 'Referência geral'),
+  ('mapa|holter', 15, 'Referência geral')
+on conflict (padrao) do update set minutos = excluded.minutos, nota = excluded.nota;
