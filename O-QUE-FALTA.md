@@ -3879,3 +3879,14 @@ comigo».
 - Novidades 229 (correcção ao Emmanuel e Serviços Gerais) e 230 (Solange e Rosa).
 - Por decidir: itens em cada compra corrente (produto, quantidade, preço) e a
   fotografia da factura (proposta de 07-10-2026).
+
+## 3-gm. Limpeza: folha «Mapa de controle Serviços Gerais» importada (07-10-2026)
+
+Elmar: «acrescente esse» (folha da Arlete com os consumíveis de higienização).
+- 16 compras quinzenais de «Consumíveis de higienização», de 12-01-2026 a
+  05-10-2026, gravadas só no servidor em `logistica_compras`, categoria
+  `limpeza`, nota «Folha da Arlete (Mapa de controle Serviços Gerais)». Total
+  igual ao da folha. Valores nunca no repositório.
+- A folha, como as outras, não tem itens, fornecedor nem n.º de factura (só
+  actividade, frequência, data e valor). Vários valores redondos podem ser
+  adiantamentos: confirmar com a Arlete.
