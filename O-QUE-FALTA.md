@@ -3932,3 +3932,14 @@ Elmar: «os pagamentos dos médicos, falta a Luidmila, certo?».
   (nutrição), Catiana dos Anjos, Conceição Calunga, Maria Ester Ramiro, Micaela
   Mangunda (psicologia), Miguel Pemba. A confirmar se não trabalharam ou se
   falta a ficha (a Elizabeth Holoca é só por ecografia).
+- Mapas de Setembro recebidos e gravados (07-10-2026, por `bsp_pagamento_fichas`,
+  em nome do Elmar; só as folhas «Actividades realizadas», sem o registo de
+  pacientes):
+  - Conceição Calunga (9): 8 dias (02, 04, 09, 11, 16, 19, 23, 30), consultas e
+    ecografias (em «outros»). As facturas têm 12 dias: sem ficha os dias 06, 08,
+    10, 13, 18 e 24; as fichas de 19 e 23 não têm factura nesse dia (talvez as de
+    18 e 24).
+  - Luidmila Chitata (17): 8 dias (03, 06, 09, 12, 18, 20, 24, 26). A ficha de
+    «11/9» gravada a 12 (lista de presenças e facturas); o dia 24 passou a
+    15:57–22:20 (a lista dizia 07:00–22:24). Sem ficha: 28 e 29 (há facturas).
+- Falta: Alice Francó (29) e Catarina Quiala (30); confirmar os dias sem ficha.
