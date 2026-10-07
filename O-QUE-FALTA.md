@@ -3965,3 +3965,25 @@ clínicos gerais no mapa do BAI, depois pediatria».
   bruto, IRT, líquido e linha TOTAL; clínica geral e medicina interna primeiro,
   depois pediatria, depois os outros, por nome. Só u1 e u2 (sai no aparelho de
   quem carrega). Testado: ordem e carga da página.
+
+## 3-gq. Mapas para o banco no formato do BAI (07-10-2026)
+
+Elmar: «o formato deve ser sempre esse [Template de Pagamentos Médicos do BAI],
+data do dia que extraio, mapa para BAI-BAI e mapa para outros bancos, nunca
+junte; a conta de origem é a que está no template».
+- `pagamento-banco.sql` (aplicado): `pagamento_banco` (NIB a debitar, tipo de
+  operação 33, e-mail, código do BAI 0040) e `bsp_pagamento_banco()` só para u1 e
+  u2 (testado: u1 e u2 lêem; u14 recebe nada). O NIB do modelo foi gravado só no
+  servidor; não está no repositório.
+- Ecrã (Equipa → Pagamento dos médicos): «Mapa BAI → BAI (.xls)» e «Mapa outros
+  bancos (.xls)» em vez do CSV. Ficheiro .xls (BIFF8, SheetJS 0.18.5 em
+  `vendor/sheetjs`, licença Apache 2.0) com as folhas do modelo: Início (33, NIB,
+  data de hoje AAAA-MM-DD, «prestacao <mês> medicos»), Movimentos (IBAN sem
+  espaços, montante = líquido, nome em maiúsculas sem acentos, «prestacao de
+  <Mês>», Financas@barispol.com) e Motivos escondida. Ordem: clínica
+  geral/medicina interna, pediatria, outros. Fora: líquido 0 e sem IBAN (o aviso
+  diz quem).
+- Testado: os dois ficheiros lidos de volta com o leitor de .xls (xlrd): folhas,
+  células de texto «@», ordem e separação BAI/outros. Hoje: 11 médicos activos
+  com conta BAI, 11 noutros bancos, 2 sem IBAN (Braúlio Andrade e Maria Ester
+  Ramiro).

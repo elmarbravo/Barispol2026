@@ -4088,7 +4088,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_alertas_por_ler', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
+const BSP_RPC_LEITURA = ['bsp_alertas_por_ler', 'bsp_pagamento_banco', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -26488,7 +26488,7 @@ const BSP_GUIA_FICHAS = [
       ['Integração:', 'o plano de acolhimento de cada pessoa nova (RI-2.2), passo a passo, com prazos e avisos.'],
       ['Avaliação:', 'a avaliação de desempenho anual (RI-5.3), com os seis factores do formulário (A a D). O superior avalia; cada pessoa lê a sua e confirma que tomou conhecimento.'],
       ['Produtividade:', 'o chefe dá nota de 1 a 3 a cada objectivo da sua equipa; o Workspace calcula a percentagem; a Direcção aprova e o mês entra na avaliação anual. Cada pessoa vê só as suas notas. Os valores só os vêem o Director Geral e os RH.'],
-      ['Pagamento dos médicos', '(só o Director Geral e os RH): o mapa do mês a partir do MetaGest e das fichas assinadas, fechar, imprimir e tirar o «Mapa do BAI» (clínicos gerais primeiro, depois pediatria).']
+      ['Pagamento dos médicos', '(só o Director Geral e os RH): o mapa do mês a partir do MetaGest e das fichas assinadas, fechar, imprimir e tirar os mapas do banco no formato do BAI: «BAI → BAI» e «Outros bancos», sempre separados (clínicos gerais primeiro, depois pediatria).']
     ],
     quem: 'Toda a equipa. Cada pessoa vê só as suas coisas; o superior e o chefe vêem as da sua equipa. O mapa de férias aprovadas é de todos. As credenciais: a Direcção e a Direcção Clínica registam; cada médico vê as suas.',
     dica: 'Peça as férias com antecedência: o chefe precisa de acertar a escala.' },
@@ -29499,6 +29499,58 @@ async function bspXlsx(folhas) {
   });
   return z.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 }
+/* Mapas para o banco (07-10-2026, Elmar: «o formato deve ser sempre esse
+   [Template de Pagamentos Médicos do BAI], data do dia que extraio, mapa para
+   BAI-BAI e mapa para outros bancos, nunca junte; a conta de origem é a do
+   template»). Ficheiro .xls (BIFF8, SheetJS em vendor/sheetjs) igual ao modelo:
+   «Início» (tipo de operação, NIB a debitar, data de hoje, referência),
+   «Movimentos» (IBAN, montante, nome sem acentos em maiúsculas, referência,
+   e-mail) e «Motivos» escondida. O NIB e o e-mail vêm do servidor
+   (bsp_pagamento_banco, só u1 e u2); nunca no código. BAI = código 0040 no IBAN.
+   Ordem: clínica geral e medicina interna, depois pediatria, depois os outros. */
+function bspCarregarSheetJs() {
+  return window.XLSX ? Promise.resolve(window.XLSX) : bspCarregarScript('vendor/sheetjs/xlsx.core.min.js').then(() => window.XLSX);
+}
+const bspPagSemAcentos = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+const bspPagIban = t => String(t || '').replace(/\s+/g, '').toUpperCase();
+const bspPagGrupoBanco = m => { const e = String(m.especialidade || '').toUpperCase(); return /GERAL|INTERNA/.test(e) ? 0 : /PEDIATR/.test(e) ? 1 : 2; };
+function bspPagListaBanco(medicos, codigo, deBai) {
+  return (medicos || []).filter(m => Number(m.liquido) > 0 && bspPagIban(m.iban))
+    .filter(m => (bspPagIban(m.iban).slice(4, 8) === codigo) === deBai)
+    .slice().sort((a, b) => bspPagGrupoBanco(a) - bspPagGrupoBanco(b) || bspCompararTexto(a.nome, b.nome));
+}
+async function bspPagMapaBanco({ medicos, ano, mes, banco, deBai }) {
+  const XLSX = await bspCarregarSheetJs();
+  const mesNome = bspPagMesNome(ano, mes).split(' ')[0];
+  const lista = bspPagListaBanco(medicos, banco.banco_codigo || '0040', deBai);
+  const hoje = bspDataLocalISO(new Date());
+  const txt = v => ({ t: 's', v: String(v), z: '@' });
+  const inicio = [
+    ['INFORMAÇÕES DE PREENCHIMENTO', 'Valores possíveis: \n01 - Água\n02 - Gás\n08 - Salários\n09 - Fornecedores\n31 - Indemnizações/Reembolsos\n32 - Comissões\n33 - Pagamentos de Diversos/Outros\n', '', 'Formato: \nAAAA-MM-DD', ''],
+    ['EXEMPLO DE PREENCHIMENTO', 8, '004000000011903110000', '2016-06-28', 'salarios'],
+    ['', 'Tipo Operação', 'NIB Conta a Debitar', 'Data Processamento', 'Referência do Ordenante'],
+    ['PREENCHER LINHA →', txt(banco.tipo_operacao || '33'), txt(banco.nib_debito || ''), txt(hoje), txt('prestacao ' + mesNome.toLowerCase() + ' medicos' + (deBai ? '' : ' outros bancos'))]
+  ];
+  const movs = [
+    ['EXEMPLO DE PREENCHIMENTO', 'AO06003400000500243472661', '1000.00', 'Coutinho Butoto', 'Ordenado de Junho', 'coutinhobutoto@xpto.com'],
+    ['', 'IBAN', 'Montante', 'Nome', 'Referência', 'Email']
+  ].concat(lista.map((m, i) => [i === 0 ? 'PREENCHER  LINHAS  ' : i === 1 ? '↓' : '', txt(bspPagIban(m.iban)), bspPagR2(m.liquido), txt(bspPagSemAcentos(m.nome)), txt('prestacao de ' + mesNome), txt(banco.email || 'Financas@barispol.com')]));
+  const motivos = [['Motivo ', 'Descrição', 'Válidos por tipo de transferencia'], ['ALMY', 'Alimony payments', 'PENS'], ['BECH', 'Family benefits (Abono de Família)', 'PENS'], ['BENE', 'Unemployment Benefits', 'SSBE'], ['CASH', 'Payments', 'CASH'], ['CMDT', 'Commodities', 'SUPP'], ['GDDS', 'General Purchase/Sale of Goods', 'TRAD'], ['GOVT', 'Government reimbursements', 'GOVT'], ['HSPC', 'Hospital Care', 'OTRF'], ['MDCS', 'Medical Care', 'OTRF'], ['MSVC', 'Multiple types of services', 'SUPP'], ['OTHR', 'Other', 'OTRF'], ['PENS', 'Pensions / Benefits', 'PENS'], ['RCPT', 'Payment Receipt', 'SUPP'], ['RINP', 'Return invoice payment', 'CASH'], ['SALA', 'Salaries', 'SALA'], ['SCVE', 'Purchase/Sale of services', 'TRAD'], ['SUPP', 'Suppliers', 'TRAD'], ['SSBE', 'Social Security benefits', 'SSBE'], ['TRAD', 'Goods', 'TRAD'], ['UTIL', 'Utilities', 'OTRF']];
+  const folha = (linhas, larguras) => {
+    const ws = XLSX.utils.aoa_to_sheet(linhas.map(l => l.map(c => (c && typeof c === 'object') ? c.v : c)));
+    linhas.forEach((l, r) => l.forEach((c, k) => { if (c && typeof c === 'object') { const ref = XLSX.utils.encode_cell({ r, c: k }); ws[ref] = c; } }));
+    ws['!cols'] = larguras.map(w => ({ wch: w }));
+    return ws;
+  };
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, folha(inicio, [18.7, 30.7, 30.7, 30.7, 30.7]), 'Início');
+  XLSX.utils.book_append_sheet(wb, folha(movs, [18.7, 28.1, 15.3, 18.7, 26.9, 32.7]), 'Movimentos');
+  XLSX.utils.book_append_sheet(wb, folha(motivos, [7.9, 32.4, 30.4]), 'Motivos');
+  wb.Workbook = { Sheets: [{ Hidden: 0 }, { Hidden: 0 }, { Hidden: 1 }] };
+  const dados = XLSX.write(wb, { bookType: 'biff8', type: 'array' });
+  return { blob: new Blob([dados], { type: 'application/vnd.ms-excel' }), n: lista.length, total: lista.reduce((t, m) => t + bspPagR2(m.liquido), 0),
+    nome: 'Template de Pagamentos Medicos ' + (deBai ? 'do BAI' : 'Outros Bancos') + ' - ' + mesNome + ' ' + ano + ' (' + hoje + ').xls' };
+}
 function bspDescarregarBlob(nome, blob) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -29817,21 +29869,18 @@ function PagamentoMedicosPainel() {
     } catch (e) { toast('Não foi possível gerar: ' + (e && e.message || e)); }
     finally { setAGerar(''); }
   }
-  /* Mapa do BAI (07-10-2026, Elmar: «prioridade clínicos gerais no mapa do BAI,
-     depois pediatria»): clínica geral e medicina interna primeiro, depois
-     pediatria, depois os outros; dentro de cada grupo por nome. Só sai no
-     aparelho de quem carrega (u1/u2): IBAN e valores nunca saem por outra via. */
-  function exportar() {
-    const grupo = m => { const e = String(m.especialidade || '').toUpperCase(); return /GERAL|INTERNA/.test(e) ? 0 : /PEDIATR/.test(e) ? 1 : 2; };
-    const lista = medicos.filter(m => Number(m.liquido) > 0).slice().sort((a, b) => grupo(a) - grupo(b) || bspCompararTexto(a.nome, b.nome));
-    const cab = ['N.º', 'Prestador', 'Especialidade', 'NIF', 'IBAN', 'Bruto', 'IRT', 'Liquido'];
-    const total = k => lista.reduce((t, m) => t + Number(m[k] || 0), 0);
-    const csv = '\ufeff' + [cab].concat(lista.map((m, i) => [i + 1, m.nome, m.especialidade || '', m.nif, m.iban, m.bruto, m.irt, m.liquido]))
-      .concat([['', 'TOTAL', '', '', '', total('bruto'), total('irt'), total('liquido')]])
-      .map(l => l.map(x => '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"').join(';')).join('\r\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    a.download = 'mapa-bai-medicos-' + mesSel + '.csv'; a.click();
+  /* Mapas para o banco (07-10-2026): BAI→BAI e outros bancos, nunca juntos,
+     no formato do modelo do BAI (bspPagMapaBanco). Só u1 e u2. */
+  async function mapaBanco(deBai) {
+    const r = await bspGetClient().rpc('bsp_pagamento_banco');
+    if (r.error || !r.data || !r.data.nib_debito) { toast('Falta a conta a debitar no servidor (pagamento_banco).'); return; }
+    const semIban = medicos.filter(m => Number(m.liquido) > 0 && !bspPagIban(m.iban)).map(m => bspNomeProprio(m.nome));
+    try {
+      const x = await bspPagMapaBanco({ medicos, ano, mes, banco: r.data, deBai });
+      if (!x.n) { toast(deBai ? 'Nenhum médico com conta no BAI a receber.' : 'Nenhum médico com conta noutro banco a receber.'); return; }
+      bspDescarregarBlob(x.nome, x.blob);
+      toast(x.n + (x.n === 1 ? ' médico' : ' médicos') + ' · ' + bspPagKz(x.total) + (semIban.length ? ' · sem IBAN (fora do mapa): ' + semIban.join(', ') : ''));
+    } catch (e) { toast('Não foi possível gerar: ' + (e && e.message || e)); }
   }
   const tile = (r, v, s, cor) => React.createElement("div", { style: Object.assign({}, bspRegCaixa, { flex: '1 1 150px' }) },
     React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-3)' } }, r),
@@ -29975,7 +30024,8 @@ function PagamentoMedicosPainel() {
         React.createElement("button", { onClick: imprimir, style: bspEscBotao(false) }, 'Imprimir mapa'),
         React.createElement("button", { disabled: !!aGerar, onClick: () => gerar('excel'), style: bspEscBotao(false) }, aGerar === 'excel' ? 'A gerar o Excel…' : 'Excel do mês'),
         React.createElement("button", { disabled: !!aGerar, onClick: () => gerar('mapas'), style: bspEscBotao(false) }, aGerar === 'mapas' ? 'A gerar os mapas…' : 'Mapas individuais (zip)'),
-        React.createElement("button", { onClick: exportar, style: bspEscBotao(false) }, 'Mapa do BAI (CSV)')),
+        React.createElement("button", { onClick: () => mapaBanco(true), style: bspEscBotao(false) }, 'Mapa BAI → BAI (.xls)'),
+        React.createElement("button", { onClick: () => mapaBanco(false), style: bspEscBotao(false) }, 'Mapa outros bancos (.xls)')),
       avisos.length > 0 && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-2)', display: 'flex', flexDirection: 'column', gap: 4 }) },
         React.createElement("b", { style: { color: 'var(--text-1)' } }, 'A conferir antes de fechar'),
         avisos.map((t, i) => React.createElement("div", { key: i }, '· ' + t))),

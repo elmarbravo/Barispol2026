@@ -560,9 +560,14 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   quantidades por dia em `pagamento_permanencias`, gravadas só por
   `bsp_pagamento_fichas` (as consultas da ficha vão para os ajustes);
   `bsp_pagamento_conferir` (ficha × MetaGest), `bsp_pagamento_actos` (sem
-  doentes). «Excel do mês», «Mapas individuais» e «Mapa do BAI» saem do ecrã (`bspPagExcel`,
-  `bspPagMapasZip`; o BAI ordena clínica geral/medicina interna, depois pediatria,
-  depois os outros, 07-10-2026). Taxas de permanência: 15.000, 20.000 ou 25.000. Médico «off» =
+  doentes). «Excel do mês» e «Mapas individuais» saem do ecrã (`bspPagExcel`,
+  `bspPagMapasZip`). Mapas para o banco (07-10-2026, `pagamento-banco.sql`, Elmar:
+  «o formato deve ser sempre esse; BAI-BAI e outros bancos, nunca junte»):
+  `bspPagMapaBanco` faz o .xls (SheetJS, `vendor/sheetjs`) igual ao «Template de
+  Pagamentos Médicos do BAI» (Início, Movimentos, Motivos escondida), com a data
+  do dia em que se tira; BAI = código 0040 no IBAN; ordem clínica geral/medicina
+  interna, pediatria, outros. NIB a debitar só no servidor (`pagamento_banco`,
+  `bsp_pagamento_banco`, u1 e u2): nunca no repositório. Taxas de permanência: 15.000, 20.000 ou 25.000. Médico «off» =
   `activo = false`, nunca apagar.
   Presenças (05-10-2026, `medicos-presencas.sql`): a Recepção marca «Chegou»/«Saiu»
   (`PresencasMedicos`, Utentes e Início) por `bsp_presenca_marcar`, com hora do
