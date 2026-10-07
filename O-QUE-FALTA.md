@@ -3751,3 +3751,18 @@ todos; passa a postar os elogios e reclamações da semana num post».
 - Opinião 57: nota corrigida de 1 para 5 (o texto diz «seria 5»).
 - Limite: só se tapam nomes depois de «o/a»; um nome solto no início da frase
   passa. A Qualidade deve escrever as notas sem nomes.
+
+## 3-ge. Avisos importantes: «Abrir» leva à pasta, resumo, sem «Li» (07-10-2026)
+
+Elmar: «ao clicar ver não abre nada e desaparece a seleccionada da lista;
+quando forem muitas, melhor aparecer resumo para abrir a pasta; retira a opção
+lida sem abrirem».
+- Causa: os avisos de férias abriam a Equipa no separador «Contactos» (parecia
+  que não abria nada) e o aviso saía da lista antes de o ecrã mudar.
+- `AvisosImportantes`: sem «Li» nem «Li todos». Só «Abrir <pasta>»: primeiro
+  abre o ecrã (`bspAbrirPastaAviso`), depois marca como lido. Férias abrem
+  Equipa → Férias e ausências (evento `bsp-equipa-aba`, também com a Equipa
+  já aberta).
+- Mais de 3 avisos: resumo por pasta (`bspAlertaPasta`, `BSP_ALERTA_PASTAS`),
+  com o número e os primeiros títulos; «Abrir» trata todos os dessa pasta.
+- Testado a 390 e 1280 px. Só no ecrã; o servidor não mudou.

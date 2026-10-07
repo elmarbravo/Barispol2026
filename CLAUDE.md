@@ -619,6 +619,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   pelos calculados em `bsp_alertas_por_ler` (documentos obrigatórios, tarefas
   delegadas atrasadas, «Por ligar» e marcações da Recepção). As conclusões das
   tarefas delegadas ficam fora (só sino e telemóvel, decisão do Elmar).
+  Sem «Li» (07-10-2026, Elmar: «retira a opção lida sem abrirem»): só «Abrir»,
+  que vai à pasta (`bspAbrirPastaAviso`, `BSP_ALERTA_PASTAS`; férias →
+  Equipa → Férias e ausências) e só depois marca lido; com mais de 3, resumo
+  por pasta. Um tipo de aviso novo leva a sua pasta em `bspAlertaPasta`.
 - Desactivados (05-10-2026, `utilizadores-desactivar.sql`): `inactivo: true` na
   equipa + conta bloqueada (`criar-utilizador` com `desactivar`); fora das listas
   por `bspSemOcultos`, nome nas mensagens por `__bspInactivos`. Nunca apagar

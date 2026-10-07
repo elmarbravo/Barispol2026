@@ -17626,11 +17626,14 @@ function NotificationsScreen({
    deixa continuar. Na app Android nao aparece (la e o Firebase, ideia C). */
 /* Avisos importantes (06-10-2026, alertas-importantes.sql, Elmar: «Pop up de
    notificações importantes, consegue ter?»). Tarefas delegadas, documentos
-   obrigatórios, alertas críticos, utentes por ligar e marcações da Recepção.
-   A janela só fecha com «Li» ou «Abrir» (que leva ao ecrã); a leitura fica no
-   servidor (bsp_alertas_lidos). Quem não estava ligado vê-os na entrada
-   seguinte. As conclusões das tarefas delegadas ficam só no sino e no
-   telemóvel. */
+   obrigatórios, alertas críticos, utentes por ligar, marcações da Recepção e
+   férias para decidir. A leitura fica no servidor (bsp_alertas_lidos).
+   07-10-2026 (Elmar: «ao clicar ver não abre nada e desaparece da lista;
+   quando forem muitas, melhor um resumo para abrir a pasta; retira a opção
+   lida sem abrirem»): não há «Li»; só «Abrir», que leva ao ecrã certo
+   (bspAbrirPastaAviso: férias abrem Equipa → Férias e ausências) e só depois
+   marca como lido. Com mais de 3 avisos, a janela mostra um resumo por pasta.
+   As conclusões das tarefas delegadas ficam só no sino e no telemóvel. */
 const BSP_ALERTA_TIPOS = {
   tarefa: { nome: 'Tarefa', cor: 'var(--accent-d)', fundo: 'var(--accent-soft)' },
   documento: { nome: 'Documento obrigatório', cor: 'var(--accent-d)', fundo: 'var(--accent-soft)' },
@@ -17638,9 +17641,39 @@ const BSP_ALERTA_TIPOS = {
   ligar: { nome: 'Ligar a utentes', cor: 'var(--accent-d)', fundo: 'var(--accent-soft)' },
   marcacao: { nome: 'Marcações', cor: 'var(--accent-d)', fundo: 'var(--accent-soft)' }
 };
+/* Pasta (ecrã) de cada aviso: o destino gravado ou, sem ele, o do tipo. */
+const BSP_ALERTA_PASTAS = {
+  ferias: { nome: 'Férias e ausências', ecra: 'directory', aba: 'ausencias' },
+  documentos: { nome: 'Documentos', ecra: 'documentos' },
+  tarefas: { nome: 'Tarefas', ecra: 'tasks' },
+  seguimento: { nome: 'Utentes por ligar', ecra: 'seguimento' },
+  marcacoes: { nome: 'Marcações', ecra: 'marcacoes' },
+  avarias: { nome: 'Avarias, toners e gerador', ecra: 'avarias' },
+  relatorios: { nome: 'Relatórios', ecra: 'relatorios' },
+  qualidade: { nome: 'Qualidade', ecra: 'qualidade' },
+  admin: { nome: 'Saúde do sistema', ecra: 'admin' }
+};
+function bspAlertaPasta(a) {
+  const ch = String((a && a.chave) || '');
+  const d = String((a && a.destino) || '').replace(/^#\/?/, '').split('/')[0];
+  if (/^ferias-/.test(ch) || d === 'directory') return 'ferias';
+  const d2 = { tasks: 'tarefas', agenda: 'calendar' }[d] || d;
+  if (d2) return d2;
+  return { documento: 'documentos', tarefa: 'tarefas', ligar: 'seguimento', marcacao: 'marcacoes', critico: 'admin' }[a && a.tipo] || 'notifications';
+}
+function bspAbrirPastaAviso(pasta) {
+  const p = BSP_ALERTA_PASTAS[pasta];
+  if (p && p.aba) {
+    window.__bspEquipaAba = p.aba;
+    try { window.dispatchEvent(new Event('bsp-equipa-aba')); } catch (e) {}
+  }
+  const ecra = p ? p.ecra : ({ tarefas: 'tasks', agenda: 'calendar', notificacoes: 'notifications' }[pasta] || pasta);
+  if (typeof window.bspIrParaEcra !== 'function') return false;
+  window.bspIrParaEcra(ecra);
+  return true;
+}
 function AvisosImportantes({ currentUser }) {
   const [lista, setLista] = React.useState([]);
-  const [aGravar, setAGravar] = React.useState(false);
   const vistos = React.useRef({});
   const activo = !!(currentUser && currentUser.id && currentUser.id !== 'self' && !bspEmVerComo() && !bspESocio(currentUser));
   const carregar = React.useCallback(() => {
@@ -17665,24 +17698,50 @@ function AvisosImportantes({ currentUser }) {
     return () => { clearTimeout(t); clearInterval(iv); window.removeEventListener('focus', f); document.removeEventListener('visibilitychange', f); };
   }, [activo, carregar]);
   if (!activo || !lista.length) return null;
-  const marcar = (chaves, depois) => {
-    setAGravar(true);
+  /* Primeiro abre o ecrã; só se abrir é que os avisos dessa pasta saem da
+     lista e ficam lidos no servidor. */
+  const abrir = (pasta, chaves) => {
+    if (!bspAbrirPastaAviso(pasta)) return;
     chaves.forEach(c => { vistos.current[c] = true; });
     setLista(l => l.filter(a => chaves.indexOf(a.chave) === -1));
-    Promise.resolve(bspGetClient().rpc('bsp_alertas_lidos', { p_chaves: chaves })).then(() => setAGravar(false), () => setAGravar(false));
-    if (depois) depois();
+    try { Promise.resolve(bspGetClient().rpc('bsp_alertas_lidos', { p_chaves: chaves })).then(() => {}, () => {}); } catch (e) {}
   };
+  const etiqueta = t => React.createElement("span", { style: { fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: t.cor, background: t.fundo, padding: '2px 8px', borderRadius: 999 } }, t.nome);
   const cartao = a => {
     const t = BSP_ALERTA_TIPOS[a.tipo] || BSP_ALERTA_TIPOS.tarefa;
+    const pasta = bspAlertaPasta(a);
+    const pn = BSP_ALERTA_PASTAS[pasta];
     return React.createElement("div", { key: a.chave, style: { border: '1px solid var(--border)', borderLeft: '4px solid ' + t.cor, borderRadius: 8, padding: '12px 14px', background: 'var(--surface)' } },
       React.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' } },
-        React.createElement("span", { style: { fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: t.cor, background: t.fundo, padding: '2px 8px', borderRadius: 999 } }, t.nome),
+        etiqueta(t),
         a.criado_em && React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, bspDataExacta(new Date(a.criado_em)))),
       React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)', lineHeight: 1.35 } }, a.titulo),
       a.texto && React.createElement("div", { style: { fontSize: 14, color: 'var(--text-2)', lineHeight: 1.5, whiteSpace: 'pre-line', marginTop: 4, overflowWrap: 'anywhere' } }, a.texto),
       React.createElement("div", { style: { display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' } },
-        a.destino && React.createElement(Button, { size: 'sm', variant: 'ghost', onClick: () => marcar([a.chave], () => bspIrPara('#/' + a.destino)) }, 'Abrir'),
-        React.createElement(Button, { size: 'sm', variant: 'primary', disabled: aGravar, icon: React.createElement(I.Check, { size: 14 }), onClick: () => marcar([a.chave]) }, 'Li')));
+        React.createElement(Button, { size: 'sm', variant: 'primary', icon: React.createElement(I.ChevR, { size: 14 }), onClick: () => abrir(pasta, [a.chave]) }, pn ? 'Abrir ' + pn.nome : 'Abrir')));
+  };
+  /* Resumo: uma linha por pasta, com o número e os primeiros títulos. */
+  const grupos = [];
+  lista.forEach(a => {
+    const p = bspAlertaPasta(a);
+    let g = grupos.find(x => x.pasta === p);
+    if (!g) { g = { pasta: p, itens: [] }; grupos.push(g); }
+    g.itens.push(a);
+  });
+  const resumo = lista.length > 3;
+  const linhaGrupo = g => {
+    const pn = BSP_ALERTA_PASTAS[g.pasta] || { nome: g.pasta };
+    const t = BSP_ALERTA_TIPOS[g.itens[0].tipo] || BSP_ALERTA_TIPOS.tarefa;
+    const critico = g.itens.some(a => a.tipo === 'critico');
+    return React.createElement("div", { key: g.pasta, style: { border: '1px solid var(--border)', borderLeft: '4px solid ' + (critico ? 'var(--perigo)' : t.cor), borderRadius: 8, padding: '12px 14px', background: 'var(--surface)' } },
+      React.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
+        React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)' } }, pn.nome),
+        React.createElement("span", { style: { fontSize: 12.5, fontWeight: 700, color: 'var(--accent-d)', background: 'var(--accent-soft)', padding: '2px 10px', borderRadius: 999 } }, g.itens.length + (g.itens.length === 1 ? ' aviso' : ' avisos'))),
+      React.createElement("ul", { style: { margin: '6px 0 0', paddingLeft: 18, fontSize: 13.5, color: 'var(--text-2)', lineHeight: 1.5 } },
+        g.itens.slice(0, 3).map(a => React.createElement("li", { key: a.chave, style: { overflowWrap: 'anywhere' } }, a.titulo)),
+        g.itens.length > 3 && React.createElement("li", { key: 'mais', style: { listStyle: 'none', marginLeft: -18, color: 'var(--text-3)' } }, 'e mais ' + (g.itens.length - 3) + '.')),
+      React.createElement("div", { style: { marginTop: 10 } },
+        React.createElement(Button, { size: 'sm', variant: 'primary', icon: React.createElement(I.ChevR, { size: 14 }), onClick: () => abrir(g.pasta, g.itens.map(a => a.chave)) }, 'Abrir ' + pn.nome)));
   };
   return ReactDOM.createPortal(React.createElement("div", {
     role: 'alertdialog', 'aria-modal': true, 'aria-label': 'Avisos importantes',
@@ -17693,10 +17752,8 @@ function AvisosImportantes({ currentUser }) {
       React.createElement("span", { style: { width: 40, height: 40, borderRadius: 999, background: 'var(--accent-soft)', color: 'var(--accent-d)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } }, React.createElement(I.Bell, { size: 20 })),
       React.createElement("div", null,
         React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: 'var(--navy-texto)' } }, lista.length === 1 ? 'Aviso importante' : lista.length + ' avisos importantes'),
-        React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)' } }, 'Leia e carregue em «Li». Fica registado.'))),
-    React.createElement("div", { style: { overflowY: 'auto', padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 10 } }, lista.map(cartao)),
-    React.createElement("div", { style: { padding: '14px 20px 18px', display: 'flex', justifyContent: 'flex-end' } },
-      lista.length > 1 && React.createElement(Button, { variant: 'primary', disabled: aGravar, icon: React.createElement(I.Check, { size: 15 }), onClick: () => marcar(lista.map(a => a.chave)) }, 'Li todos')))), document.body);
+        React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)' } }, resumo ? 'Abra cada pasta para tratar os avisos. Fica registado.' : 'Abra cada aviso para o tratar. Fica registado.'))),
+    React.createElement("div", { style: { overflowY: 'auto', padding: '0 20px 18px', display: 'flex', flexDirection: 'column', gap: 10 } }, resumo ? grupos.map(linhaGrupo) : lista.map(cartao)))), document.body);
 }
 function PedidoNotificacoes({ currentUser }) {
   const [perm, setPerm] = React.useState(bspPermissaoNotif());
@@ -27249,7 +27306,13 @@ function FormacoesPainel() {
 function EquipaScreen() {
   const [aba, setAba] = React.useState(() => window.__bspEquipaAba || 'contactos');
   useBspAbaVoltar(aba, setAba);
-  React.useEffect(() => { window.__bspEquipaAba = null; }, []);
+  React.useEffect(() => {
+    window.__bspEquipaAba = null;
+    /* Avisos importantes com a Equipa já aberta (07-10-2026). */
+    const f = () => { if (window.__bspEquipaAba) { setAba(window.__bspEquipaAba); window.__bspEquipaAba = null; } };
+    window.addEventListener('bsp-equipa-aba', f);
+    return () => window.removeEventListener('bsp-equipa-aba', f);
+  }, []);
   const aba_ = (id, txt) => React.createElement("button", {
     key: id, onClick: () => setAba(id),
     style: { padding: '9px 16px', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700, background: 'transparent', whiteSpace: 'nowrap', flex: 'none', color: aba === id ? 'var(--accent-d)' : 'var(--text-2)', borderBottom: '2px solid ' + (aba === id ? 'var(--accent)' : 'transparent') }
