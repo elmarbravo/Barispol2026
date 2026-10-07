@@ -3951,3 +3951,17 @@ Elmar: «os pagamentos dos médicos, falta a Luidmila, certo?».
   24 (10:30, a seguir à ficha de 23). Luidmila: 03 (factura criada a 01-09 e
   emitida a 03), 28 (utente já visto) e 29 (nota de crédito e refacturação).
   Nenhum destes dias pede ficha nova; falta só decidir a data 18/19.
+
+## 3-gp. Setembro recalculado e «Mapa do BAI» por especialidade (07-10-2026)
+
+Elmar: «avance com o que tem, actualize os mapas dos médicos, prioridade
+clínicos gerais no mapa do BAI, depois pediatria».
+- Ficha da Dra. Conceição Calunga de «19/9» gravada a 18 (factura às 17:03 de
+  18/9, dentro do horário da ficha). Mapa de Setembro recalculado
+  (`bsp_pagamento_calcular(2026, 9, true)`), estado «Aberto». Pendência que fica:
+  Alice Francó sem fichas de presença.
+- Ecrã: o botão «Exportar para o banco» passou a «Mapa do BAI (CSV)»
+  (`mapa-bai-medicos-<mês>.csv`): N.º, prestador, especialidade, NIF, IBAN,
+  bruto, IRT, líquido e linha TOTAL; clínica geral e medicina interna primeiro,
+  depois pediatria, depois os outros, por nome. Só u1 e u2 (sai no aparelho de
+  quem carrega). Testado: ordem e carga da página.

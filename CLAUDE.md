@@ -560,8 +560,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   quantidades por dia em `pagamento_permanencias`, gravadas só por
   `bsp_pagamento_fichas` (as consultas da ficha vão para os ajustes);
   `bsp_pagamento_conferir` (ficha × MetaGest), `bsp_pagamento_actos` (sem
-  doentes). «Excel do mês» e «Mapas individuais» saem do ecrã (`bspPagExcel`,
-  `bspPagMapasZip`). Taxas de permanência: 15.000, 20.000 ou 25.000. Médico «off» =
+  doentes). «Excel do mês», «Mapas individuais» e «Mapa do BAI» saem do ecrã (`bspPagExcel`,
+  `bspPagMapasZip`; o BAI ordena clínica geral/medicina interna, depois pediatria,
+  depois os outros, 07-10-2026). Taxas de permanência: 15.000, 20.000 ou 25.000. Médico «off» =
   `activo = false`, nunca apagar.
   Presenças (05-10-2026, `medicos-presencas.sql`): a Recepção marca «Chegou»/«Saiu»
   (`PresencasMedicos`, Utentes e Início) por `bsp_presenca_marcar`, com hora do

@@ -26488,7 +26488,7 @@ const BSP_GUIA_FICHAS = [
       ['Integração:', 'o plano de acolhimento de cada pessoa nova (RI-2.2), passo a passo, com prazos e avisos.'],
       ['Avaliação:', 'a avaliação de desempenho anual (RI-5.3), com os seis factores do formulário (A a D). O superior avalia; cada pessoa lê a sua e confirma que tomou conhecimento.'],
       ['Produtividade:', 'o chefe dá nota de 1 a 3 a cada objectivo da sua equipa; o Workspace calcula a percentagem; a Direcção aprova e o mês entra na avaliação anual. Cada pessoa vê só as suas notas. Os valores só os vêem o Director Geral e os RH.'],
-      ['Pagamento dos médicos', '(só o Director Geral e os RH): o mapa do mês a partir do MetaGest e das fichas assinadas, fechar, imprimir e exportar para o banco.']
+      ['Pagamento dos médicos', '(só o Director Geral e os RH): o mapa do mês a partir do MetaGest e das fichas assinadas, fechar, imprimir e tirar o «Mapa do BAI» (clínicos gerais primeiro, depois pediatria).']
     ],
     quem: 'Toda a equipa. Cada pessoa vê só as suas coisas; o superior e o chefe vêem as da sua equipa. O mapa de férias aprovadas é de todos. As credenciais: a Direcção e a Direcção Clínica registam; cada médico vê as suas.',
     dica: 'Peça as férias com antecedência: o chefe precisa de acertar a escala.' },
@@ -29817,13 +29817,21 @@ function PagamentoMedicosPainel() {
     } catch (e) { toast('Não foi possível gerar: ' + (e && e.message || e)); }
     finally { setAGerar(''); }
   }
+  /* Mapa do BAI (07-10-2026, Elmar: «prioridade clínicos gerais no mapa do BAI,
+     depois pediatria»): clínica geral e medicina interna primeiro, depois
+     pediatria, depois os outros; dentro de cada grupo por nome. Só sai no
+     aparelho de quem carrega (u1/u2): IBAN e valores nunca saem por outra via. */
   function exportar() {
-    const cab = ['Prestador', 'NIF', 'IBAN', 'Bruto', 'IRT', 'Liquido'];
-    const csv = '﻿' + [cab].concat(medicos.filter(m => Number(m.liquido) > 0).map(m => [m.nome, m.nif, m.iban, m.bruto, m.irt, m.liquido]))
+    const grupo = m => { const e = String(m.especialidade || '').toUpperCase(); return /GERAL|INTERNA/.test(e) ? 0 : /PEDIATR/.test(e) ? 1 : 2; };
+    const lista = medicos.filter(m => Number(m.liquido) > 0).slice().sort((a, b) => grupo(a) - grupo(b) || bspCompararTexto(a.nome, b.nome));
+    const cab = ['N.º', 'Prestador', 'Especialidade', 'NIF', 'IBAN', 'Bruto', 'IRT', 'Liquido'];
+    const total = k => lista.reduce((t, m) => t + Number(m[k] || 0), 0);
+    const csv = '\ufeff' + [cab].concat(lista.map((m, i) => [i + 1, m.nome, m.especialidade || '', m.nif, m.iban, m.bruto, m.irt, m.liquido]))
+      .concat([['', 'TOTAL', '', '', '', total('bruto'), total('irt'), total('liquido')]])
       .map(l => l.map(x => '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"').join(';')).join('\r\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    a.download = 'pagamento-medicos-' + mesSel + '.csv'; a.click();
+    a.download = 'mapa-bai-medicos-' + mesSel + '.csv'; a.click();
   }
   const tile = (r, v, s, cor) => React.createElement("div", { style: Object.assign({}, bspRegCaixa, { flex: '1 1 150px' }) },
     React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-3)' } }, r),
@@ -29967,7 +29975,7 @@ function PagamentoMedicosPainel() {
         React.createElement("button", { onClick: imprimir, style: bspEscBotao(false) }, 'Imprimir mapa'),
         React.createElement("button", { disabled: !!aGerar, onClick: () => gerar('excel'), style: bspEscBotao(false) }, aGerar === 'excel' ? 'A gerar o Excel…' : 'Excel do mês'),
         React.createElement("button", { disabled: !!aGerar, onClick: () => gerar('mapas'), style: bspEscBotao(false) }, aGerar === 'mapas' ? 'A gerar os mapas…' : 'Mapas individuais (zip)'),
-        React.createElement("button", { onClick: exportar, style: bspEscBotao(false) }, 'Exportar para o banco (CSV)')),
+        React.createElement("button", { onClick: exportar, style: bspEscBotao(false) }, 'Mapa do BAI (CSV)')),
       avisos.length > 0 && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-2)', display: 'flex', flexDirection: 'column', gap: 4 }) },
         React.createElement("b", { style: { color: 'var(--text-1)' } }, 'A conferir antes de fechar'),
         avisos.map((t, i) => React.createElement("div", { key: i }, '· ' + t))),
