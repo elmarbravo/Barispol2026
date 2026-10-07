@@ -17633,6 +17633,10 @@ function NotificationsScreen({
    lida sem abrirem»): não há «Li»; só «Abrir», que leva ao ecrã certo
    (bspAbrirPastaAviso: férias abrem Equipa → Férias e ausências) e só depois
    marca como lido. Com mais de 3 avisos, a janela mostra um resumo por pasta.
+   07-10-2026 (Elmar: «ao clicar não fecha o pop-up, incomoda»): «Abrir» fecha a
+   janela inteira; os que faltam ficam no botão «N avisos por abrir» no canto
+   (adiados nesta sessão, `bsp-avisos-adiados`). A janela só volta sozinha com
+   um aviso novo.
    As conclusões das tarefas delegadas ficam só no sino e no telemóvel. */
 const BSP_ALERTA_TIPOS = {
   tarefa: { nome: 'Tarefa', cor: 'var(--accent-d)', fundo: 'var(--accent-soft)' },
@@ -17674,7 +17678,10 @@ function bspAbrirPastaAviso(pasta) {
 }
 function AvisosImportantes({ currentUser }) {
   const [lista, setLista] = React.useState([]);
+  const [fechada, setFechada] = React.useState(false);
+  const primeira = React.useRef(true);
   const vistos = React.useRef({});
+  const adiados = React.useRef((() => { try { return JSON.parse(sessionStorage.getItem('bsp-avisos-adiados') || '{}') || {}; } catch (e) { return {}; } })());
   const activo = !!(currentUser && currentUser.id && currentUser.id !== 'self' && !bspEmVerComo() && !bspESocio(currentUser));
   const carregar = React.useCallback(() => {
     if (!activo || document.hidden) return;
@@ -17684,6 +17691,11 @@ function AvisosImportantes({ currentUser }) {
       if (r.error || !Array.isArray(r.data)) return;
       const novos = r.data.filter(a => !vistos.current[a.chave]);
       if (novos.length && r.data.some(a => !(a.chave in vistos.current))) bspPlayChime();
+      /* Aviso novo abre a janela; na primeira leitura (página recarregada),
+         só os adiados ficam no botão. */
+      if (novos.some(a => !adiados.current[a.chave])) setFechada(false);
+      else if (primeira.current) setFechada(novos.length > 0);
+      primeira.current = false;
       r.data.forEach(a => { if (!(a.chave in vistos.current)) vistos.current[a.chave] = false; });
       setLista(novos);
     }, () => {});
@@ -17703,6 +17715,9 @@ function AvisosImportantes({ currentUser }) {
   const abrir = (pasta, chaves) => {
     if (!bspAbrirPastaAviso(pasta)) return;
     chaves.forEach(c => { vistos.current[c] = true; });
+    lista.forEach(a => { adiados.current[a.chave] = true; });
+    try { sessionStorage.setItem('bsp-avisos-adiados', JSON.stringify(adiados.current)); } catch (e) {}
+    setFechada(true);
     setLista(l => l.filter(a => chaves.indexOf(a.chave) === -1));
     try { Promise.resolve(bspGetClient().rpc('bsp_alertas_lidos', { p_chaves: chaves })).then(() => {}, () => {}); } catch (e) {}
   };
@@ -17729,6 +17744,10 @@ function AvisosImportantes({ currentUser }) {
     g.itens.push(a);
   });
   const resumo = lista.length > 3;
+  if (fechada) return ReactDOM.createPortal(React.createElement("button", {
+    onClick: () => setFechada(false), 'aria-label': 'Ver os avisos importantes por abrir',
+    style: { position: 'fixed', left: 12, bottom: 'calc(' + (window.innerWidth < 768 ? 76 : 16) + 'px + env(safe-area-inset-bottom, 0px))', zIndex: 98000, display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 14px', border: '1px solid var(--border)', borderRadius: 999, background: 'var(--surface)', color: 'var(--navy-texto)', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', boxShadow: '0 6px 20px rgba(0,0,0,.18)' }
+  }, React.createElement(I.Bell, { size: 16 }), lista.length + (lista.length === 1 ? ' aviso por abrir' : ' avisos por abrir')), document.body);
   const linhaGrupo = g => {
     const pn = BSP_ALERTA_PASTAS[g.pasta] || { nome: g.pasta };
     const t = BSP_ALERTA_TIPOS[g.itens[0].tipo] || BSP_ALERTA_TIPOS.tarefa;

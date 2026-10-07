@@ -3766,3 +3766,14 @@ lida sem abrirem».
 - Mais de 3 avisos: resumo por pasta (`bspAlertaPasta`, `BSP_ALERTA_PASTAS`),
   com o número e os primeiros títulos; «Abrir» trata todos os dessa pasta.
 - Testado a 390 e 1280 px. Só no ecrã; o servidor não mudou.
+
+## 3-gf. Avisos importantes: «Abrir» fecha a janela (07-10-2026)
+
+Elmar: «ao clicar não fecha o pop-up, na mesma incomoda o utilizador».
+- «Abrir» fecha a janela inteira e leva ao ecrã. Os avisos que faltam ficam
+  num botão pequeno no canto inferior esquerdo («N avisos por abrir»), que
+  reabre a janela quando a pessoa quiser.
+- Os avisos já mostrados ficam adiados nesta sessão (`bsp-avisos-adiados` no
+  `sessionStorage`). A janela só volta a abrir sozinha com um aviso novo.
+  A actualização de cada minuto não fecha a janela reaberta pela pessoa.
+- Testado a 390 e 1280 px.
