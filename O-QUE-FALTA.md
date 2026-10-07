@@ -3987,3 +3987,17 @@ junte; a conta de origem é a que está no template».
   células de texto «@», ordem e separação BAI/outros. Hoje: 11 médicos activos
   com conta BAI, 11 noutros bancos, 2 sem IBAN (Braúlio Andrade e Maria Ester
   Ramiro).
+
+## 3-gr. Produtividade: só o próprio, o superior e a gestão (07-10-2026)
+
+Elmar: «a produtividade só o próprio funcionário, o superior e a gestão podem ver».
+- Antes viam também quem edita a escala da área (a Direcção Clínica em todas as
+  áreas de saúde) e os responsáveis da área.
+- `produtividade-acesso.sql` (aplicado): `bsp_produtividade_trata` = gestão, o
+  superior (`bsp_aprovador_de`: campo «superior», senão o chefe da área, como nas
+  férias) e, para as 17 pessoas sem conta, o chefe da área (`bsp_superior_area`,
+  a Direcção Clínica só quando não há outro). Vale para ver e para lançar notas.
+  `desempenho_historico` (histórico mensal) com a mesma regra.
+- Testado no servidor: Elmar e Arlete 33; Dr. Osvaldo 8; Juliana 8; Rosa 6;
+  Filomena 3; Solange 3; Emmanuel e Nicolau só a sua. O ecrã não mudou (mostra
+  o que o servidor devolve). Novidade 233.

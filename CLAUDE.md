@@ -532,6 +532,11 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   (por número BRP; `user_id` só quem tem conta), `produtividade_mensal`
   (Rascunho → Aprovado → Pago), `produtividade_objectivos` (catálogo, só no
   servidor). Escrita só por `bsp_produtividade_gravar` / `_estado` / `_pessoa`.
+  Quem vê (07-10-2026, `produtividade-acesso.sql`, Elmar: «só o próprio, o
+  superior e a gestão»): `bsp_produtividade_trata` = gestão, o superior
+  (`bsp_aprovador_de`) e, para quem não tem conta, o chefe da área
+  (`bsp_superior_area`); o mesmo no histórico (`desempenho_historico`). Nunca
+  voltar a dar acesso a quem só edita a escala da área.
   Ao aprovar, o mês entra em `desempenho_historico` (fonte `apuramento`), que a
   avaliação anual lê. Equipa → `ProdutividadePainel`. Valores nunca no repositório.
   Salários (03-10-2026, `salarios-privados.sql`, Elmar: «Salários são
