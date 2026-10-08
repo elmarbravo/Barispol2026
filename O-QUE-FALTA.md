@@ -4145,3 +4145,20 @@ de 5 em 5 dias para a área administrativa e a Direcção Clínica, com o emisso
   tem o Outlook ligado. Depois de o Elmar ligar a conta, cria-se o fluxo «New
   Email Matching Search» (avaria, avariado, «não funciona», estragado…) →
   `bsp_avaria_do_email`.
+- 08-10-2026 (Elmar: «não tem nenhum relatório a falar de manutenção da máquina
+  BS200, máquina de bioquímica»):
+  - Nos dois meses não há nenhum e-mail nem relatório de turno sobre a BS-200.
+    Os relatórios diários do Laboratório só trazem o registo de doentes e exames.
+  - A história está antes da janela:
+    - Novembro de 2025: intervenções e proformas da lâmpada;
+    - 17/18-02: «Já temos em funcionamento a BS200?»; ureia e creatinina
+      instáveis;
+    - 26-06: a Rosa avisa que a lâmpada tem de ser trocada e que os resultados
+      perderam fiabilidade;
+    - 30-06: a Arlete envia duas propostas.
+    Depois disso não há registo de compra nem de instalação. Os controlos do
+    analisador esgotaram a 14-08 (cobrado a 21-08).
+  - Registada como avaria n.º 33, «Urgente», «Por confirmar», em nome da Rosa
+    (tarefa até 11-10). A BS-200 não está na lista de equipamentos (Serviços
+    gerais → Equipamentos e manutenção): falta registá-la com o plano de
+    manutenção.
