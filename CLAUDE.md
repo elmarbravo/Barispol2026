@@ -551,7 +551,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   (nota «Folha da Arlete»), importadas só no servidor: valores nunca no repositório.
 - Vigilância (03-10-2026, `vigilancia.sql`): `bsp_vigilancia` de 15 em 15 min,
   avisa a gestão no telemóvel; Admin → «Saúde do sistema». Uma verificação
-  nova entra em `bsp_vigilancia` e em `BSP_VIGILANCIA_NOMES`.
+  nova entra em `bsp_vigilancia` e em `BSP_VIGILANCIA_NOMES`. Agendamentos
+  (08-10-2026): só conta a falha sem execução boa depois (falhas passageiras
+  não dão alerta crítico).
 - Registo de acessos (03-10-2026, `acessos-registo.sql`, RI-3.3):
   `bspRegistarAcesso(ecra, detalhe)`; um ecrã novo com dados sensíveis entra
   em `BSP_ECRAS_SENSIVEIS` e passa a ser registado. Detalhe nunca com nomes.

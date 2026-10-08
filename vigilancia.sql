@@ -36,11 +36,14 @@ declare
   r record; n int := 0; gestao text[];
   v jsonb := '[]';
 begin
-  -- agendamentos
+  -- agendamentos: só conta a falha que continua (08-10-2026: um arranque falhado
+  -- isolado, já seguido de uma execução boa, dava alerta crítico)
   v := v || jsonb_build_object('chave', 'agendamento', 'ok', not exists (
-         select 1 from cron.job_run_details d where d.status = 'failed' and d.start_time > now() - interval '30 minutes'),
+         select 1 from cron.job_run_details d where d.status = 'failed' and d.start_time > now() - interval '30 minutes'
+                               and not exists (select 1 from cron.job_run_details o where o.jobid = d.jobid and o.status = 'succeeded' and o.start_time > d.start_time)),
        'detalhe', coalesce((select 'Falhou: ' || string_agg(distinct j.jobname, ', ') from cron.job_run_details d join cron.job j on j.jobid = d.jobid
-                             where d.status = 'failed' and d.start_time > now() - interval '30 minutes'), ''));
+                             where d.status = 'failed' and d.start_time > now() - interval '30 minutes'
+                               and not exists (select 1 from cron.job_run_details o where o.jobid = d.jobid and o.status = 'succeeded' and o.start_time > d.start_time)), ''));
   -- funções
   v := v || jsonb_build_object('chave', 'funcoes', 'ok', (select count(*) from net._http_response
            where created > now() - interval '30 minutes' and (status_code >= 500 or error_msg is not null)) < 5,

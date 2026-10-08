@@ -4184,3 +4184,9 @@ de 5 em 5 dias para a área administrativa e a Direcção Clínica, com o emisso
   - Ferramenta do servidor: certos textos em `update`/`insert` deixam-na à
     espera sem fim (não é a base de dados). Enviar o texto em base64:
     `convert_from(decode('…','base64'),'UTF8')`.
+- 08-10-2026 (Elmar: alerta crítico «Workspace: possível falha (agendamento)» às
+  16h00 com `bsp-avisos-mensagens`, `bsp-clinico-carga` e `bsp-painel-hoje`):
+  falha passageira do servidor às 15h45-15h46 (arranque do agendador e ligação
+  ao MetaGest); os três voltaram a correr bem no minuto seguinte, sem mais
+  falhas. A `bsp_vigilancia` (`vigilancia.sql`) passou a contar só a falha que
+  continua: um agendamento com uma execução boa depois da falha não dá alerta.
