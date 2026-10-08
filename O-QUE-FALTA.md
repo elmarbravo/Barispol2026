@@ -4065,3 +4065,25 @@ Elmar: «ponto 1 do HubSpot» (segmentos: listas de utentes por critério).
 - Testado: sessão da Juliana no servidor (sim); Filomena recusada (não vê o
   CRM); ecrã com dados simulados, a 1280 e 390 px.
 - Por fazer: medir, ao fim de um mês, quantos voltaram por segmento.
+
+## 3-gv. Contactos da SendPulse na base de utentes (08-10-2026)
+
+Elmar: «podes nos utentes importar todos os dias os que contactam pelo
+SendPulse, mesmo os que não chegam até ao centro? Para o CRM base de dados».
+- As conversas já entravam de 15 em 15 min (`crm.pedidos` / `crm.caixa`, 3072
+  telefones desde 20-05-2026), mas só como pedidos, fora de `utentes`.
+- `contactos-whatsapp.sql` (aplicado):
+  - colunas novas em `utentes`: `origem`, `primeiro_contacto`,
+    `ultimo_contacto`, `pedido`, `conversas`, `convertido_em`;
+  - `crm.actualizar_contactos_whatsapp()`, todos os dias às 05h30 de Luanda
+    (cron `crm-contactos-whatsapp`, depois da cópia do MetaGest);
+  - primeira corrida: 2752 contactos que nunca vieram, com origem «whatsapp»;
+    514 fichas de utentes completadas com os dados do WhatsApp; a segunda
+    corrida mudou 1 contacto;
+  - quando o telemóvel de um contacto aparece no MetaGest, ganha
+    `convertido_em`; se tinha sido contactado, passa a «Voltou».
+- Segmento novo «Escreveram e nunca vieram» (`nunca-vieram`): escreveram há
+  mais de 3 dias (os recentes estão em «Pedidos do WhatsApp») e até 12 meses;
+  mostra os 600 mais recentes, com o que pediram.
+- «Não identificado» (serviço que a SendPulse não percebeu) não conta como pedido.
+- Os números de `crm.contactos_excluidos` (equipa, testes) ficam de fora.

@@ -22209,6 +22209,7 @@ const BSP_SEGMENTOS = [
   { id: 'sem-voltar', nome: 'Não voltam', ajuda: 'Última visita há muito tempo.' },
   { id: 'pacote', nome: 'Check-up anual em atraso', ajuda: 'Último pacote promocional há 11 a 24 meses: está na altura do próximo.' },
   { id: 'faltou', nome: 'Faltaram e não remarcaram', ajuda: 'Faltou ou cancelou nos últimos 60 dias e não voltou a marcar nem veio.' },
+  { id: 'nunca-vieram', nome: 'Escreveram e nunca vieram', ajuda: 'Escreveram pelo WhatsApp (SendPulse) há mais de 3 dias e nunca vieram à clínica. Os 600 mais recentes; entram todos os dias.' },
   { id: 'so-servicos', nome: 'Nunca fizeram consulta', ajuda: 'Usaram o laboratório, a farmácia, a enfermagem ou a imagem no último ano, mas nunca uma consulta na clínica.' }
 ];
 const bspTelWhatsapp = t => { const d = String(t || '').replace(/\D/g, '').slice(-9); return d.length === 9 ? 'https://wa.me/244' + d : ''; };
@@ -22612,7 +22613,7 @@ function SeguimentoScreen() {
     }, "Segmentos de utentes"),
     React.createElement("p", {
       style: { fontSize: 12.5, color: 'var(--text-2)', margin: '4px 0 0', maxWidth: 620, lineHeight: 1.5 }
-    }, segInfo.ajuda + " Os dados vêm do MetaGest todos os dias; aqui regista-se o que se fez para os trazer de volta. Quem foi contactado e depois veio passa sozinho a «Voltou».")),
+    }, segInfo.ajuda + " Os dados vêm do MetaGest e da SendPulse todos os dias; aqui regista-se o que se fez para os trazer de volta. Quem foi contactado e depois veio passa sozinho a «Voltou».")),
     podeImportar && React.createElement(Button, {
       variant: "primary", size: "sm",
       icon: React.createElement(I.Upload, { size: 13 }),
@@ -26430,7 +26431,7 @@ const BSP_GUIA_FICHAS = [
       ['Acompanhe os pedidos do WhatsApp:', 'o que pediram e se foram facturados.'],
       ['Ligue a quem está «Por ligar»:', 'ficou sem resposta no WhatsApp. Registe o resultado no pedido.'],
       ['Veja o funil de vendas:', 'quantos escreveram, foram respondidos, marcados e vieram, e onde se perdem.'],
-      ['Ligue aos «Segmentos»:', 'check-up anual em atraso, faltaram e não remarcaram, nunca fizeram consulta, não voltam. Ligue ou mande WhatsApp e registe o resultado; quem vem depois passa sozinho a «Voltou».'],
+      ['Ligue aos «Segmentos»:', 'check-up anual em atraso, faltaram e não remarcaram, escreveram pelo WhatsApp e nunca vieram, nunca fizeram consulta, não voltam. Ligue ou mande WhatsApp e registe o resultado; quem vem depois passa sozinho a «Voltou».'],
       ['Abra a ficha do paciente', 'com marcações e histórico.'],
       ['Veja os resultados', 'do seguimento.']
     ],

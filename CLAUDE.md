@@ -501,6 +501,14 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   actualiza todos os dias. Chamadas em `seguimentos`; «Voltou» automático por
   `bsp_segmentos_voltou` (cron `bsp-segmentos-voltou`, 07h00). As reconsultas quase
   nunca se facturam: nenhum segmento pode depender de «voltou à consulta».
+  Contactos do WhatsApp (08-10-2026, `contactos-whatsapp.sql`, Elmar: «importar
+  todos os dias os que contactam pelo SendPulse, mesmo os que não chegam»):
+  `crm.actualizar_contactos_whatsapp` (cron `crm-contactos-whatsapp`, 05h30) lê
+  `crm.caixa` e grava em `utentes` com `origem = 'whatsapp'`, chave `wa:<tel9>`,
+  `primeiro_contacto`/`ultimo_contacto`/`pedido`/`conversas`; quem já é utente
+  fica só com esses campos; `convertido_em` quando o telemóvel aparece no MetaGest.
+  Segmento `nunca-vieram`. Qualquer leitura nova de `utentes` tem de contar com
+  linhas sem `ultima_visita` (origem whatsapp).
 - Médicos e credenciais (03-10-2026, `medicos-credenciais.sql`): `erp.medicos`
   copiado do MetaGest todos os dias; validades em `credenciais` (gestão e
   u14 registam, cada médico lê as suas); avisos por `bsp_credenciais_alertar`

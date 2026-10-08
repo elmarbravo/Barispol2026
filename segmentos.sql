@@ -9,6 +9,9 @@
 --   pacote      último pacote promocional (o «check-up») há 11 a 24 meses
 --   faltou      faltou ou cancelou uma marcação nos últimos 60 dias e não
 --               remarcou nem veio depois (ligação pelo telefone)
+--   nunca-vieram escreveram pelo WhatsApp nos últimos 12 meses (há mais de 3
+--               dias: os recentes estão em «Pedidos do WhatsApp») e nunca vieram
+--               (contactos-whatsapp.sql; até 600, os mais recentes)
 --   so-servicos usou laboratório, farmácia, enfermagem ou imagem nos últimos
 --               12 meses e nunca teve consulta na clínica
 -- «Exames sem consulta de resultados» ficou de fora: a reconsulta quase nunca
@@ -72,6 +75,19 @@ begin
       into res
       from f join public.utentes u on u.chave = f.patient
      where not f.consulta and f.n > 0;
+  elsif p_seg = 'nunca-vieram' then
+    -- Escreveram pelo WhatsApp nos últimos 12 meses e nunca vieram
+    -- (contactos-whatsapp.sql). Os mais recentes primeiro.
+    select coalesce(jsonb_agg(jsonb_build_object('id', u.id, 'desde', (u.ultimo_contacto at time zone 'Africa/Luanda')::date,
+             'detalhe', 'Escreveu pelo WhatsApp a ' || to_char(u.ultimo_contacto at time zone 'Africa/Luanda', 'DD-MM-YYYY')
+               || coalesce(' · pediu ' || nullif(btrim(u.pedido), ''), '')
+               || case when u.conversas > 1 then ' · ' || u.conversas || ' conversas' else '' end)
+             order by u.ultimo_contacto desc), '[]'::jsonb)
+      into res
+      from (select * from public.utentes
+             where origem = 'whatsapp' and convertido_em is null
+               and ultimo_contacto >= now() - interval '12 months' and ultimo_contacto < now() - interval '3 days'
+             order by ultimo_contacto desc limit 600) u;
   else
     raise exception 'Segmento desconhecido: %', p_seg;
   end if;
@@ -85,7 +101,7 @@ grant execute on function public.bsp_segmento(text) to authenticated;
 create or replace function public.bsp_segmentos_voltou()
 returns int language plpgsql security definer set search_path to 'public'
 as $f$
-declare n int;
+declare n int; m int;
 begin
   insert into public.seguimentos (utente_id, estado, nota, user_id)
   select ult.utente_id, 'voltou', 'Automático: factura do MetaGest de ' || to_char(fa.dia, 'DD-MM-YYYY'), null
@@ -97,6 +113,15 @@ begin
                            and s.posting_date >= (ult.created_at at time zone 'Africa/Luanda')::date) fa
    where ult.estado in ('contactado', 'marcado') and fa.dia is not null;
   get diagnostics n = row_count;
+  -- Contactos do WhatsApp que entretanto vieram (convertido_em).
+  insert into public.seguimentos (utente_id, estado, nota, user_id)
+  select ult.utente_id, 'voltou', 'Automático: veio à clínica (registado no MetaGest a ' || to_char(u.convertido_em, 'DD-MM-YYYY') || ')', null
+    from (select distinct on (utente_id) utente_id, estado, created_at
+            from public.seguimentos order by utente_id, created_at desc) ult
+    join public.utentes u on u.id = ult.utente_id
+   where u.origem = 'whatsapp' and u.convertido_em is not null and ult.estado in ('contactado', 'marcado');
+  get diagnostics m = row_count;
+  n := n + m;
   return n;
 end $f$;
 revoke all on function public.bsp_segmentos_voltou() from public, anon, authenticated;
