@@ -520,6 +520,19 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   Toners; menu por `bspVeLogistica`, separador por `__bspStockAba` + evento
   `bsp-stock-aba`); «Calendário» passou a «Agenda» em todo o lado. Os ids das
   rotas não mudaram. Avisos de toners vão para `#/stock` (`toners-aviso-destino.sql`).
+- Avarias por confirmar e e-mails (08-10-2026, `avarias-confirmar.sql`, Elmar:
+  «as avarias devem ser reportadas primordialmente pelo Workspace; o e-mail é para
+  reforçar ou cobrar»): estado «Por confirmar» (avaria vinda de e-mail ou relatório,
+  `origem`/`fonte`), 72 h (`confirmar_ate`) para quem reportou responder por
+  `bsp_avaria_confirmar` (tarefa privada `tarefa_id`, origem `emails`); sem resposta,
+  `bsp_avarias_prazo` (de hora a hora) passa a «Aberta» com `confirmacao =
+  'sem-resposta'`. Cada avaria aberta → e-mail (`bsp_avaria_email`) a u1, u2 e u14,
+  com quem reportou e u22 em cópia; lembrete `bsp_avarias_lembrete` de 5 em 5 dias
+  desde 08-10-2026 (cron `bsp-avarias-lembrete`, 07h20). Entrada pelo e-mail:
+  `bsp_avaria_do_email` (código no cofre `bsp_avarias_codigo`, nunca mostrar; só
+  remetentes da equipa, comparados sem pontos antes do @; mesmo assunto = cobrança)
+  responde a quem escreveu com o modo de reportar. A mudança de estado por quem não
+  trata as avarias só passa com `bsp.avaria_confirmar = '1'` (dentro das funções).
 - Equipamentos e manutenção preventiva (03-10-2026, `manutencao-preventiva.sql`):
   `equipamentos`, `manutencoes_plano`, `manutencoes_registo`; ecrã Avarias →
   `EquipamentosPainel` (o ecrã antigo chama-se `AvariasLista`).

@@ -26543,6 +26543,8 @@ const BSP_GUIA_FICHAS = [
       ['Acompanhe o estado:', 'Aberta, Em reparação, Resolvida.'],
       ['Quem trata regista', 'o responsável, o custo e o que se fez, e carrega em «Concluída» no fim.'],
       ['Enganou-se?', 'Cancele a avaria. Uma avaria criada só a Direcção apaga.'],
+      ['Confirme as «Por confirmar»:', 'as avarias que reportou por e-mail ou relatório entram aqui em seu nome e ficam nas suas tarefas. Em 72 horas, carregue em «Confirmo que existe» ou «Já não existe».'],
+      ['Reporte primeiro aqui:', 'até Novembro, o e-mail serve só para reforçar ou cobrar. A Administração e a Direcção Clínica recebem cada avaria por e-mail e um lembrete de 5 em 5 dias.'],
       ['Equipamentos e manutenção:', 'o inventário, o plano de manutenção e calibração de cada equipamento, a próxima data e o que se fez. Avisa 14 dias antes, no dia e com 7 dias de atraso.'],
       ['Gerador:', 'o gasóleo no depósito (1000 L), o consumo por dia e os dias que restam. Registe a leitura do marcador e cada abastecimento. Abaixo de 30% avisa a gestão e os Serviços Gerais.'],
       ['Toners e compras correntes?', 'Passaram para o menu «Logística e stock».']
@@ -27110,7 +27112,7 @@ function useTabela(tabela, ordem, colunas) {
   return { linhas, erro, recarregar: () => setTick(t => t + 1) };
 }
 const bspNomeDe = id => { const u = window.userById(id); return u ? u.name : 'Antigo colaborador'; };
-const BSP_ESTADO_COR = { Pedido: 'var(--accent-d)', 'Aprovado pelo superior': 'var(--accent-d)', Aprovado: 'var(--sucesso)', Recusado: 'var(--perigo)', Cancelado: 'var(--text-3)', Aberta: 'var(--perigo)', 'Em reparação': 'var(--accent-d)', Resolvida: 'var(--sucesso)', Cancelada: 'var(--text-3)', Comprado: 'var(--accent-d)', Recebido: 'var(--sucesso)' };
+const BSP_ESTADO_COR = { Pedido: 'var(--accent-d)', 'Aprovado pelo superior': 'var(--accent-d)', Aprovado: 'var(--sucesso)', Recusado: 'var(--perigo)', Cancelado: 'var(--text-3)', 'Por confirmar': 'var(--serie-4)', Aberta: 'var(--perigo)', 'Em reparação': 'var(--accent-d)', Resolvida: 'var(--sucesso)', Cancelada: 'var(--text-3)', Comprado: 'var(--accent-d)', Recebido: 'var(--sucesso)' };
 const bspEstadoEtiqueta = e => React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: BSP_ESTADO_COR[e] || 'var(--text-2)', whiteSpace: 'nowrap' } }, e);
 const bspRegCaixa = { padding: 14, border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)' };
 function bspDiasEntre(a, b) { return Math.round((bspDataDe(b) - bspDataDe(a)) / 86400000) + 1; }
@@ -28984,7 +28986,7 @@ function AvariasLista() {
     const r = await bspGetClient().from('avarias').insert({ categoria: f.categoria, equipamento: f.equipamento.trim(), local: f.local.trim(), area: f.area, prioridade: f.prioridade, descricao: f.descricao.trim() });
     setAEnviar(false);
     if (r.error) { toast('Não foi possível reportar: ' + r.error.message); return; }
-    toast('Reportado. A gestão e os Serviços Gerais recebem o aviso.');
+    toast('Reportado. A Administração, a Direcção Clínica e os Serviços Gerais recebem o aviso por e-mail.');
     setF(vazio); setAberto(false); t.recarregar();
   }
   async function mudar(a, campos, msg) {
@@ -29006,14 +29008,28 @@ function AvariasLista() {
     t.recarregar();
   }
   const podeApagar = () => director;
-  const podeEditar = a => trata || (a.criado_por === eu && a.estado === 'Aberta');
+  const podeEditar = a => trata || (a.criado_por === eu && (a.estado === 'Aberta' || a.estado === 'Por confirmar'));
+  /* Confirmação em 72 h (08-10-2026, avarias-confirmar.sql): avarias que vieram
+     de e-mails ou relatórios ficam «Por confirmar» até quem as reportou dizer se
+     ainda existem; sem resposta, passam a «Aberta» como não confirmadas. */
+  const porConfirmar = a => a.estado === 'Por confirmar' || (a.estado === 'Aberta' && a.confirmacao === 'sem-resposta');
+  async function confirmar(a, existe) {
+    const nota = existe ? (window.prompt('Confirma que «' + a.equipamento + '» ainda está avariado. Quer acrescentar alguma informação? (opcional)', '') || '')
+      : window.prompt('Porque já não existe? (por exemplo: reparado a 20-09 pelo técnico X)', '');
+    if (!existe && nota === null) return;
+    const r = await bspGetClient().rpc('bsp_avaria_confirmar', { p_id: a.id, p_existe: existe, p_nota: nota || '' });
+    if (r.error) { toast('Não foi possível: ' + r.error.message); return; }
+    toast(existe ? 'Confirmada. A Administração e a Direcção Clínica recebem o aviso.' : 'Registado: a avaria já não existe.');
+    t.recarregar();
+  }
   const linhas = t.linhas || [];
   /* Repetidas: a mesma pessoa, o mesmo texto, ainda abertas. Fica a primeira. */
   const chaveRep = a => [a.criado_por, String(a.equipamento).trim().toLowerCase(), String(a.descricao).trim().toLowerCase()].join('|');
   const primeiras = {};
   linhas.slice().sort((a, b) => String(a.criado_em).localeCompare(String(b.criado_em))).forEach(a => { if (a.estado === 'Aberta' && !primeiras[chaveRep(a)]) primeiras[chaveRep(a)] = a.id; });
   const repetidas = linhas.filter(a => a.estado === 'Aberta' && primeiras[chaveRep(a)] !== a.id);
-  const abertas = linhas.filter(a => a.estado === 'Aberta' || a.estado === 'Em reparação');
+  const abertas = linhas.filter(a => a.estado === 'Aberta' || a.estado === 'Em reparação' || a.estado === 'Por confirmar');
+  const minhasPorConfirmar = linhas.filter(a => a.criado_por === eu && porConfirmar(a));
   const base = filtro === 'abertas' ? abertas : filtro === 'resolvidas' ? linhas.filter(a => a.estado === 'Resolvida') : linhas;
   const lista = base.filter(a => !cat || (a.categoria || 'Outro') === cat)
     .slice().sort((a, b) => ({ Urgente: 0, Alta: 1, Normal: 2 }[a.prioridade] - { Urgente: 0, Alta: 1, Normal: 2 }[b.prioridade]) || String(b.criado_em).localeCompare(String(a.criado_em)));
@@ -29042,6 +29058,9 @@ function AvariasLista() {
     director && repetidas.length > 0 && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { borderLeft: '4px solid var(--perigo)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }) },
       React.createElement("div", { style: { flex: '1 1 220px', fontSize: 13.5, color: 'var(--text-1)' } }, React.createElement("b", null, repetidas.length === 1 ? 'Há uma avaria repetida' : 'Há ' + repetidas.length + ' avarias repetidas'), ' (a mesma pessoa, o mesmo texto). Fica a primeira de cada.'),
       React.createElement("button", { onClick: () => apagar(repetidas, 'Apagar ' + repetidas.length + ' avaria(s) repetida(s)? Fica a primeira de cada.'), style: bspEscBotao(true) }, 'Apagar as repetidas')),
+    minhasPorConfirmar.length > 0 && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { borderLeft: '4px solid var(--perigo)', fontSize: 13.5, color: 'var(--text-1)' }) },
+      React.createElement("b", null, minhasPorConfirmar.length === 1 ? 'Tem 1 avaria por confirmar' : 'Tem ' + minhasPorConfirmar.length + ' avarias por confirmar'),
+      ': reportou-as por e-mail ou relatório. Diga em cada uma se ainda existe («Confirmo que existe» ou «Já não existe»). As avarias reportam-se primeiro aqui; o e-mail serve para reforçar ou cobrar.'),
     aberto && React.createElement("div", { style: bspRegCaixa },
       campos(f, setF, true),
       React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', marginTop: 12 } }, React.createElement("button", { onClick: reportar, disabled: aEnviar, style: Object.assign(bspEscBotao(true), { opacity: aEnviar ? .6 : 1 }) }, aEnviar ? 'A enviar…' : 'Reportar'))),
@@ -29055,6 +29074,13 @@ function AvariasLista() {
             React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 4 } }, 'Reportada por ' + bspNomeDe(a.criado_por) + ' a ' + bspQuando(a.criado_em)
               + (a.responsavel ? ' · trata: ' + a.responsavel : '') + (a.custo ? ' · custo ' + Number(a.custo).toLocaleString('pt-PT') + ' Kz' : '')
               + (a.resolvido_em ? ' · resolvida a ' + bspQuando(a.resolvido_em) : '')),
+            (a.origem && a.origem !== 'workspace') ? React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2 } }, 'Veio de: ' + (a.fonte || a.origem)
+              + (a.cobrancas ? ' · ' + a.cobrancas + (a.cobrancas === 1 ? ' cobrança' : ' cobranças') + ' por e-mail' : '')) : null,
+            porConfirmar(a) ? React.createElement("div", { style: { fontSize: 12.5, fontWeight: 700, color: 'var(--perigo)', marginTop: 3 } },
+              a.estado === 'Por confirmar' ? 'Por confirmar por ' + bspNomeDe(a.criado_por) + ' até ' + bspQuando(a.confirmar_ate) : 'Não confirmada: o prazo de 72 h passou sem resposta.') : null,
+            (porConfirmar(a) && (a.criado_por === eu || trata)) ? React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 } },
+              React.createElement("button", { onClick: () => confirmar(a, true), style: bspEscBotao(true) }, 'Confirmo que existe'),
+              React.createElement("button", { onClick: () => confirmar(a, false), style: bspEscBotao(false) }, 'Já não existe')) : null,
             a.resolucao ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--sucesso)', marginTop: 3 } }, a.resolucao) : null),
           bspEstadoEtiqueta(a.estado),
           trata && a.estado !== 'Resolvida' && a.estado !== 'Cancelada' && React.createElement("button", { onClick: () => { setEdTexto(null); setEd(ed && ed.id === a.id ? null : { id: a.id, estado: a.estado, responsavel: a.responsavel, custo: a.custo || '', resolucao: a.resolucao }); }, style: bspEscBotao(false) }, 'Tratar'),

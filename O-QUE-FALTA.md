@@ -4087,3 +4087,61 @@ SendPulse, mesmo os que não chegam até ao centro? Para o CRM base de dados».
   mostra os 600 mais recentes, com o que pediram.
 - «Não identificado» (serviço que a SendPulse não percebeu) não conta como pedido.
 - Os números de `crm.contactos_excluidos` (equipa, testes) ficam de fora.
+
+## 3-gw. Avarias: confirmação em 72 h, e-mails e entrada pelo e-mail (08-10-2026)
+
+Elmar: «corre todos os e-mails e vê os problemas dos últimos dois meses que nos
+foram reportados e põe nas avarias da respectiva área, criada pelo funcionário
+que mandou o e-mail; antes, põe a opção de ele confirmar que a avaria existe, com
+prazo de 72 horas, como tarefa de cada um»; «sempre que no meu e-mail entrar
+alguma avaria, que suba para o sistema e que receba um e-mail automático a dizer
+como se informa no Workspace»; «até Novembro, as avarias devem ser reportadas
+primordialmente pelo Workspace; o e-mail é para reforçar ou cobrar»; «lembretes
+de 5 em 5 dias para a área administrativa e a Direcção Clínica, com o emissor».
+
+- **Levantamento** (caixa do Elmar, 08-08 a 08-10, cerca de 185 e-mails, e os
+  relatórios de turno, que não tinham avarias): 19 casos.
+  - 6 já estavam no Workspace: n.º 3, 4, 5, 6, 8 e 18.
+  - 4 estão resolvidos segundo os e-mails, por isso não entraram: cabo da
+    impressora do hemograma, AC do Consultório 2, esgoto do AC da cozinha, AC
+    dos bastidores.
+  - **10 entraram como «Por confirmar»** (n.º 21–30), em nome de quem reportou,
+    cada uma com tarefa até 11-10 às 21h44:
+    - UPS do Laboratório, ralos de 5 WC, WC do consultório de Ginecologia,
+      impressora da Recepção e porta da Recepção: Emmanuel;
+    - impressora de películas do Raio-X: Joana Tati;
+    - hemograma (Lyse Diff): Rosa;
+    - rato da Farmácia: Solange (o relatório não diz quem reportou);
+    - baldes do lixo hospitalar e cabos do ECG: Domingos.
+  - Fora da janela, talvez ainda por resolver: pontas dos cabos de rede (03-08)
+    e arrancador da lâmpada do WC da Observação 1 (09-07).
+- **`avarias-confirmar.sql`** (aplicado):
+  - estado «Por confirmar»; colunas `origem`, `fonte`, `fonte_id`,
+    `confirmar_ate`, `confirmada_em`/`_por`, `confirmacao`, `tarefa_id`,
+    `cobrancas`, `resposta_email_em`;
+  - `bsp_avaria_confirmar` («Confirmo que existe» ou «Já não existe»; conclui a
+    tarefa);
+  - `bsp_avarias_prazo` (cron `bsp-avarias-prazo`, de hora a hora): sem
+    resposta em 72 h, a avaria passa a «Aberta» como não confirmada;
+  - `bsp_avaria_email`: cada avaria aberta no Workspace ou confirmada vai por
+    e-mail a Elmar, Arlete e Dr. Osvaldo, com quem a reportou e o Emmanuel em
+    cópia;
+  - `bsp_avarias_lembrete` (cron `bsp-avarias-lembrete`, 07h20 de Luanda, de 5
+    em 5 dias a contar de 08-10; o primeiro sai a 13-10, depois do prazo das 72 h);
+  - `bsp_avaria_do_email`: entrada pelo e-mail, com o código do cofre
+    `bsp_avarias_codigo`, nunca mostrar.
+- **Testado** em transacções desfeitas:
+  - confirmação pela Rosa: avaria «Aberta», tarefa concluída e e-mail na fila,
+    com os destinatários certos;
+  - entrada pelo e-mail: cria a avaria em nome do Domingos e responde-lhe; o
+    mesmo assunto conta como cobrança; um fornecedor é ignorado; um e-mail
+    repetido não cria nada.
+- **Ecrã** (Serviços gerais → Avarias):
+  - faixa «Tem N avarias por confirmar», «Veio de:», cobranças, prazo, botões
+    «Confirmo que existe» e «Já não existe»;
+  - guia actualizado. Testado no navegador com dados simulados, a 390 px.
+- **Novidade a toda a equipa:** «Avarias: reporte primeiro no Workspace».
+- **Por fazer: ligar a caixa do Elmar ao servidor.** O Zapier desta conta não
+  tem o Outlook ligado. Depois de o Elmar ligar a conta, cria-se o fluxo «New
+  Email Matching Search» (avaria, avariado, «não funciona», estragado…) →
+  `bsp_avaria_do_email`.
