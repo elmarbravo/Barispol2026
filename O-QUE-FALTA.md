@@ -4160,5 +4160,27 @@ de 5 em 5 dias para a área administrativa e a Direcção Clínica, com o emisso
     analisador esgotaram a 14-08 (cobrado a 21-08).
   - Registada como avaria n.º 33, «Urgente», «Por confirmar», em nome da Rosa
     (tarefa até 11-10). A BS-200 não está na lista de equipamentos (Serviços
-    gerais → Equipamentos e manutenção): falta registá-la com o plano de
-    manutenção.
+    gerais → Equipamentos e manutenção): registada no dia
+    seguinte (ver abaixo).
+- 08-10-2026 (Elmar: «A lâmpada foi trocada, temos agora problema dos exames
+  darem parâmetros errados»; «Ve todos canais se tem problema»):
+  - Avaria 33 passou a «Analisador de bioquímica BS-200 (parâmetros errados)»,
+    confirmada pelo Elmar e aberta (e-mail a u1, u2 e u14, com a Rosa e o
+    Emmanuel em cópia; tarefa 60 fechada). No canal do Laboratório: LDL e HDL
+    sem leitura desde 26-09; a 07-10 os triglicerídeos muito abaixo do
+    aceitável e os exames suspensos; calibradores e controlos selados e por
+    usar. Passo seguinte: calibrar, correr os dois controlos e só depois
+    retomar; se falhar, técnico da Farwell.
+  - Equipamentos 24 (BS-200, Mindray, «Avariado») e 25 (analisador de
+    hematologia, «Em uso»), área Laboratório, fornecedor Farwell. Planos:
+    manutenção preventiva de 180 em 180 dias (Farwell; BS-200 a 09-10, hemograma
+    a 09-11) e calibração de 30 em 30 dias (Rosa, a 09-10). Números de série a
+    confirmar; a Rosa acrescenta os outros aparelhos (novidade 257).
+  - Avarias novas «Por confirmar», vindas do Chat: 34 cerca eléctrica com
+    choque fraco (Emmanuel, 02-10, Alta, tarefa 61) e 35 cheiro estranho na sala
+    do técnico de Raio-X (Radiologia, 06-10, tarefa 62).
+  - Nos outros canais: hemograma normal desde 01-10 (avaria 25: a Rosa deve
+    responder «Já não existe»); impressora NCR já na avaria 29.
+  - Ferramenta do servidor: certos textos em `update`/`insert` deixam-na à
+    espera sem fim (não é a base de dados). Enviar o texto em base64:
+    `convert_from(decode('…','base64'),'UTF8')`.
