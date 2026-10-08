@@ -4088,7 +4088,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_alertas_por_ler', 'bsp_pagamento_banco', 'bsp_pagamento_etapas', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
+const BSP_RPC_LEITURA = ['bsp_alertas_por_ler', 'bsp_pagamento_banco', 'bsp_pagamento_etapas', 'bsp_segmento', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -22202,7 +22202,17 @@ function bspHaQuanto(dias) {
 
 /* Carrega os utentes que nao vem ha mais de `meses`, com o estado de
    seguimento mais recente de cada um. */
-function useSeguimento(meses) {
+/* Segmentos (08-10-2026, segmentos.sql, Elmar: «ponto 1 do HubSpot»): listas
+   de utentes por critério, calculadas no servidor (bsp_segmento), com o mesmo
+   registo de chamadas. «sem-voltar» é a lista antiga, pela última visita. */
+const BSP_SEGMENTOS = [
+  { id: 'sem-voltar', nome: 'Não voltam', ajuda: 'Última visita há muito tempo.' },
+  { id: 'pacote', nome: 'Check-up anual em atraso', ajuda: 'Último pacote promocional há 11 a 24 meses: está na altura do próximo.' },
+  { id: 'faltou', nome: 'Faltaram e não remarcaram', ajuda: 'Faltou ou cancelou nos últimos 60 dias e não voltou a marcar nem veio.' },
+  { id: 'so-servicos', nome: 'Nunca fizeram consulta', ajuda: 'Usaram o laboratório, a farmácia, a enfermagem ou a imagem no último ano, mas nunca uma consulta na clínica.' }
+];
+const bspTelWhatsapp = t => { const d = String(t || '').replace(/\D/g, '').slice(-9); return d.length === 9 ? 'https://wa.me/244' + d : ''; };
+function useSeguimento(meses, segmento) {
   const [linhas, setLinhas] = React.useState([]);
   const [estado, setEstado] = React.useState('inicio');
   const [erro, setErro] = React.useState('');
@@ -22223,8 +22233,18 @@ function useSeguimento(meses) {
         const corte = new Date();
         corte.setMonth(corte.getMonth() - meses);
         const limite = corte.toISOString().slice(0, 10);
-
-        const u = await cl.from('utentes').select('*')
+        let porId = null;
+        if (segmento && segmento !== 'sem-voltar') {
+          const r = await cl.rpc('bsp_segmento', { p_seg: segmento });
+          if (!vivo) return;
+          if (r.error) { setEstado('erro'); setErro(r.error.message || ''); return; }
+          porId = {};
+          (r.data || []).slice(0, 600).forEach(x => { porId[x.id] = x; });
+          if (!Object.keys(porId).length) { setLinhas([]); setEstado('pronto'); return; }
+        }
+        const u = porId
+          ? await cl.from('utentes').select('*').in('id', Object.keys(porId).map(Number))
+          : await cl.from('utentes').select('*')
           .lte('ultima_visita', limite)
           .order('ultima_visita', { ascending: true })
           .limit(600);
@@ -22253,7 +22273,8 @@ function useSeguimento(meses) {
         });
         setLinhas(utentes.map(x => ({
           ...x,
-          dias: bspDiasDesde(x.ultima_visita),
+          dias: bspDiasDesde(porId ? porId[x.id].desde : x.ultima_visita),
+          detalhe: porId ? porId[x.id].detalhe : '',
           seg: ultimo[x.id] || null
         })));
         setEstado('pronto');
@@ -22264,7 +22285,7 @@ function useSeguimento(meses) {
       }
     })();
     return () => { vivo = false; };
-  }, [meses, tick]);
+  }, [meses, segmento, tick]);
 
   return { linhas, estado, erro, recarregar };
 }
@@ -22534,7 +22555,10 @@ function SeguimentoScreen() {
   const [filtro, setFiltro] = React.useState('todos');
   const [busca, setBusca] = React.useState('');
   const [importar, setImportar] = React.useState(false);
-  const { linhas, estado, erro, recarregar } = useSeguimento(meses);
+  const [segmento, setSegmento] = React.useState('sem-voltar');
+  useBspAbaVoltar(segmento, setSegmento);
+  const segInfo = BSP_SEGMENTOS.find(x => x.id === segmento) || BSP_SEGMENTOS[0];
+  const { linhas, estado, erro, recarregar } = useSeguimento(meses, segmento);
 
   const equipa = (state.team && state.team.length) ? state.team : USERS;
   const eu = bspResolveUser(null, equipa);
@@ -22585,10 +22609,10 @@ function SeguimentoScreen() {
   }, React.createElement("div", { style: { minWidth: 0 } },
     React.createElement("h2", {
       style: { fontSize: 18, fontWeight: 700, margin: 0, color: 'var(--text-1)' }
-    }, "Seguimento e retorno"),
+    }, "Segmentos de utentes"),
     React.createElement("p", {
       style: { fontSize: 12.5, color: 'var(--text-2)', margin: '4px 0 0', maxWidth: 620, lineHeight: 1.5 }
-    }, "Quem esteve na clínica e não voltou. Os dados vêm do MetaGest — aqui guarda-se apenas o que já se fez para os trazer de volta.")),
+    }, segInfo.ajuda + " Os dados vêm do MetaGest todos os dias; aqui regista-se o que se fez para os trazer de volta. Quem foi contactado e depois veio passa sozinho a «Voltou».")),
     podeImportar && React.createElement(Button, {
       variant: "primary", size: "sm",
       icon: React.createElement(I.Upload, { size: 13 }),
@@ -22598,9 +22622,17 @@ function SeguimentoScreen() {
   /* filtros */
   React.createElement("div", {
     style: { display: 'flex', gap: 8, flexWrap: 'wrap', flex: 'none', alignItems: 'center' }
+  }, BSP_SEGMENTOS.map(x => React.createElement("button", {
+    key: x.id, onClick: () => { setSegmento(x.id); setFiltro('todos'); }, style: chip(segmento === x.id, 'var(--navy-texto)', 'var(--surface-2)')
+  }, x.nome))),
+  segmento === 'sem-voltar' && React.createElement("div", {
+    style: { display: 'flex', gap: 8, flexWrap: 'wrap', flex: 'none', alignItems: 'center' }
   }, [3, 6, 12, 24].map(m => React.createElement("button", {
     key: m, onClick: () => setMeses(m), style: chip(meses === m)
-  }, "Há mais de " + (m === 12 ? '1 ano' : m === 24 ? '2 anos' : m + ' meses'))),
+  }, "Há mais de " + (m === 12 ? '1 ano' : m === 24 ? '2 anos' : m + ' meses')))),
+  React.createElement("div", {
+    style: { display: 'flex', gap: 8, flexWrap: 'wrap', flex: 'none', alignItems: 'center' }
+  },
     React.createElement("span", { style: { flex: 1 } }),
     React.createElement("input", {
       value: busca, onChange: e => setBusca(e.target.value),
@@ -22649,8 +22681,8 @@ function SeguimentoScreen() {
       }, l.nome),
       React.createElement("div", {
         style: { fontSize: 12, color: 'var(--text-3)', marginTop: 2, lineHeight: 1.5 }
-      }, bspHaQuanto(l.dias),
-        l.ultimo_servico ? ' · ' + l.ultimo_servico : '',
+      }, l.detalhe ? l.detalhe : bspHaQuanto(l.dias),
+        !l.detalhe && l.ultimo_servico ? ' · ' + l.ultimo_servico : '',
         l.visitas > 1 ? ' · ' + l.visitas + ' visitas' : '',
         l.telefone ? React.createElement("span", { style: { display: 'block' } }, l.telefone) : null)),
 
@@ -22674,6 +22706,16 @@ function SeguimentoScreen() {
           color: 'var(--accent-d)', display: 'grid', placeItems: 'center'
         }
       }, React.createElement(I.Phone, { size: 15 })),
+      bspTelWhatsapp(l.telefone) && React.createElement("a", {
+        href: bspTelWhatsapp(l.telefone), target: '_blank', rel: 'noopener',
+        title: "WhatsApp",
+        onClick: () => marcar(l, 'contactado'),
+        style: {
+          height: 34, padding: '0 10px', borderRadius: 9, flex: 'none', fontSize: 12, fontWeight: 700,
+          border: '1px solid var(--border)', background: 'var(--surface-2)', textDecoration: 'none',
+          color: 'var(--sucesso)', display: 'grid', placeItems: 'center'
+        }
+      }, "WhatsApp"),
       React.createElement("select", {
         value: l.seg ? l.seg.estado : 'por-contactar',
         onChange: e => marcar(l, e.target.value),
@@ -26388,7 +26430,7 @@ const BSP_GUIA_FICHAS = [
       ['Acompanhe os pedidos do WhatsApp:', 'o que pediram e se foram facturados.'],
       ['Ligue a quem está «Por ligar»:', 'ficou sem resposta no WhatsApp. Registe o resultado no pedido.'],
       ['Veja o funil de vendas:', 'quantos escreveram, foram respondidos, marcados e vieram, e onde se perdem.'],
-      ['Recupere utentes', 'a partir de um ficheiro CSV do MetaGest.'],
+      ['Ligue aos «Segmentos»:', 'check-up anual em atraso, faltaram e não remarcaram, nunca fizeram consulta, não voltam. Ligue ou mande WhatsApp e registe o resultado; quem vem depois passa sozinho a «Voltou».'],
       ['Abra a ficha do paciente', 'com marcações e histórico.'],
       ['Veja os resultados', 'do seguimento.']
     ],
@@ -30383,7 +30425,7 @@ function CrmScreen({ inicial }) {
     style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' }
   }, React.createElement("div", {
     style: { display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', flex: 'none', overflowX: 'auto' }
-  }, veMarc && aba_('marcacoes', 'Marcações'), veMarc && aba_('presencas', 'Presenças dos médicos'), veCrm && aba_('pedidos', 'Pedidos do WhatsApp'), veCrm && aba_('funil', 'Funil de vendas'), veCrm && aba_('recuperar', 'Recuperar utentes'), veCrm && aba_('fichas', 'Fichas de pacientes'), veCrm && aba_('resultados', 'Resultados')),
+  }, veMarc && aba_('marcacoes', 'Marcações'), veMarc && aba_('presencas', 'Presenças dos médicos'), veCrm && aba_('pedidos', 'Pedidos do WhatsApp'), veCrm && aba_('funil', 'Funil de vendas'), veCrm && aba_('recuperar', 'Segmentos'), veCrm && aba_('fichas', 'Fichas de pacientes'), veCrm && aba_('resultados', 'Resultados')),
   React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: aba === 'marcacoes' || aba === 'presencas' ? 'auto' : 'hidden' } },
     aba === 'marcacoes' && veMarc && React.createElement(MarcacoesScreen, null),
     aba === 'presencas' && veMarc && React.createElement(PresencasMedicos, null),

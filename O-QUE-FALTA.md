@@ -4039,3 +4039,29 @@ etapas, há escassez de valores» e «os pagos tenho de validar no perfil de cad
 - Testado no navegador com dados simulados: escolha, mapa BAI só com o médico
   escolhido do BAI, registo da etapa, impressão individual e validação.
   Novidade 234 (u1 e u2).
+
+## 3-gu. Segmentos de utentes (08-10-2026)
+
+Elmar: «ponto 1 do HubSpot» (segmentos: listas de utentes por critério).
+- Já existia o separador «Recuperar utentes» (`SeguimentoScreen`): a tabela
+  `utentes` actualiza-se todos os dias a partir do MetaGest (5054 utentes) e
+  só a lê quem vê o CRM. Mas ninguém o usou: 0 registos em `seguimentos`.
+- `segmentos.sql` (aplicado): `bsp_segmento(p_seg)`, só para `crm.pode_ver_crm`.
+  Valores a 08-10-2026:
+  - `pacote`: check-up anual em atraso (pacote promocional há 11–24 meses): 53;
+  - `faltou`: faltou ou cancelou em 60 dias sem remarcar nem vir: 5;
+  - `so-servicos`: laboratório, farmácia, enfermagem ou imagem no último ano,
+    nunca consulta: 382.
+  Os três levam cerca de 1,7 s.
+- Ficou de fora «exames sem consulta de resultados»: só 25 reconsultas
+  facturadas em 12 meses (cerca de 2500 consultas), por isso as facturas não
+  mostram quem voltou com os resultados.
+- «Voltou» automático: `bsp_segmentos_voltou` (cron `bsp-segmentos-voltou`,
+  07h00 de Luanda). Quem foi contactado ou marcado e depois teve factura passa
+  a «Voltou», com nota.
+- Ecrã: Utentes → «Segmentos» (antes «Recuperar utentes»). Botões dos 4
+  segmentos, o motivo em cada utente, «Ligar» e «WhatsApp» (os dois registam
+  «Contactado»). O «voltar» do telemóvel muda de segmento.
+- Testado: sessão da Juliana no servidor (sim); Filomena recusada (não vê o
+  CRM); ecrã com dados simulados, a 1280 e 390 px.
+- Por fazer: medir, ao fim de um mês, quantos voltaram por segmento.

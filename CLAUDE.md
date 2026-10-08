@@ -491,6 +491,16 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   (respostas `{item: {r: sim|nao|na, n}}`); a conformidade calcula-se no
   servidor (`bsp_auditoria_calcular`); `bsp_faz_auditorias(area)` /
   `bspFazAuditorias`; separador `QualidadeAuditorias`.
+- Segmentos (08-10-2026, `segmentos.sql`, Elmar: «ponto 1 do HubSpot»): o
+  separador «Segmentos» de Utentes (antigo «Recuperar utentes», `SeguimentoScreen`,
+  `BSP_SEGMENTOS`). `bsp_segmento(p_seg)` (só `crm.pode_ver_crm`) devolve ids de
+  `utentes` com o motivo: `pacote` (pacote promocional há 11–24 meses),
+  `faltou` (faltou/cancelou em 60 dias, sem remarcar nem vir; pelo `tel9`),
+  `so-servicos` (laboratório, farmácia, enfermagem ou imagem no último ano, nunca
+  consulta). `utentes.chave` = `erp.sales_invoice.patient`; a tabela já se
+  actualiza todos os dias. Chamadas em `seguimentos`; «Voltou» automático por
+  `bsp_segmentos_voltou` (cron `bsp-segmentos-voltou`, 07h00). As reconsultas quase
+  nunca se facturam: nenhum segmento pode depender de «voltou à consulta».
 - Médicos e credenciais (03-10-2026, `medicos-credenciais.sql`): `erp.medicos`
   copiado do MetaGest todos os dias; validades em `credenciais` (gestão e
   u14 registam, cada médico lê as suas); avisos por `bsp_credenciais_alertar`
