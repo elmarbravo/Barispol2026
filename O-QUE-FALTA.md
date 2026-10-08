@@ -4190,3 +4190,14 @@ de 5 em 5 dias para a área administrativa e a Direcção Clínica, com o emisso
   ao MetaGest); os três voltaram a correr bem no minuto seguinte, sem mais
   falhas. A `bsp_vigilancia` (`vigilancia.sql`) passou a contar só a falha que
   continua: um agendamento com uma execução boa depois da falha não dá alerta.
+- 08-10-2026 (Elmar: «As avarias apenas os da mesma área e nós superiores vemos,
+  não podem todos ver tudo»): `avarias-acesso-area.sql` (aplicado). Avarias: quem
+  reportou, a área de quem reportou, a área da avaria, o superior/chefe de quem
+  reportou, a Direcção Clínica nas áreas de saúde, a gestão e os Serviços
+  Gerais. Equipamentos, planos e registos de manutenção (antes abertos a todos):
+  só a área do equipamento, a Direcção Clínica nas áreas de saúde e quem trata
+  as avarias; sem área (ar condicionado), só quem trata. Testado com contas
+  reais: Recepção 2 avarias e 0 equipamentos; Radiologia 2 e 0; Laboratório 3 e
+  2; Direcção Clínica 13 (áreas de saúde) e 2; Elmar e Emmanuel todas (19 e 23).
+  Textos do ecrã e do guia actualizados.
+

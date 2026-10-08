@@ -26549,7 +26549,7 @@ const BSP_GUIA_FICHAS = [
       ['Gerador:', 'o gasóleo no depósito (1000 L), o consumo por dia e os dias que restam. Registe a leitura do marcador e cada abastecimento. Abaixo de 30% avisa a gestão e os Serviços Gerais.'],
       ['Toners e compras correntes?', 'Passaram para o menu «Logística e stock».']
     ],
-    quem: 'Toda a equipa reporta. Cada pessoa vê as avarias reportadas pela sua área. A Direcção, os Serviços Gerais e o Emmanuel vêem todas e tratam.',
+    quem: 'Toda a equipa reporta. Cada pessoa vê só as avarias da sua área (as que a área reporta e as dos seus equipamentos) e os equipamentos da sua área. O superior vê as da sua equipa; a Direcção Clínica, as das áreas de saúde. A Direcção, os Serviços Gerais e o Emmanuel vêem todas e tratam.',
     dica: 'Carregue uma só vez em «Reportar»: o mesmo texto repetido não cria outra avaria. A Direcção apaga as repetidas.' },
   { icone: 'Heart', nome: 'Painel clínico',
     serve: 'O trabalho de cada área, em números e sem valores: utentes, consultas, exames, actos e stock.',
@@ -28446,8 +28446,9 @@ function QualidadeScreen() {
 
 /* Equipamentos e manutenção preventiva (03-10-2026, manutencao-preventiva.sql).
    Inventário, plano de cada equipamento (manutenção, calibração, segurança
-   eléctrica…) com a próxima data, e registo do que se fez. Toda a equipa
-   consulta; registam os que tratam as avarias (bspTrataAvarias). Avisos 14
+   eléctrica…) com a próxima data, e registo do que se fez. Cada área consulta
+   só os seus (08-10-2026, avarias-acesso-area.sql); registam os que tratam as
+   avarias (bspTrataAvarias). Avisos 14
    dias antes, no dia e com 7 dias de atraso (novidades). */
 const BSP_MANUT_TIPOS = ['Manutenção preventiva', 'Calibração', 'Verificação de segurança eléctrica', 'Inspecção obrigatória', 'Limpeza técnica', 'Substituição de filtros', 'Outro'];
 const BSP_MANUT_PERIODOS = [[30, 'Mensal'], [90, 'Trimestral'], [180, 'Semestral'], [365, 'Anual'], [730, 'De 2 em 2 anos']];
@@ -29053,8 +29054,10 @@ function AvariasLista() {
       React.createElement("span", { style: { flex: 1 } }),
       React.createElement("button", { onClick: () => setAberto(a => !a), style: bspEscBotao(true) }, aberto ? 'Fechar' : 'Reportar avaria ou dano')),
     t.erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, t.erro) : null,
-    /* Cada área vê só as suas (02-10-2026, avarias-por-area.sql). */
-    !trata && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Vê as avarias reportadas pela sua área. A Direcção e os Serviços Gerais vêem todas.'),
+    /* Cada área vê só as suas (02-10-2026, avarias-por-area.sql; 08-10-2026,
+       avarias-acesso-area.sql: também a área da avaria, o superior e a
+       Direcção Clínica nas áreas de saúde). */
+    !trata && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Vê só as avarias da sua área. A Direcção e os Serviços Gerais vêem todas.'),
     director && repetidas.length > 0 && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { borderLeft: '4px solid var(--perigo)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }) },
       React.createElement("div", { style: { flex: '1 1 220px', fontSize: 13.5, color: 'var(--text-1)' } }, React.createElement("b", null, repetidas.length === 1 ? 'Há uma avaria repetida' : 'Há ' + repetidas.length + ' avarias repetidas'), ' (a mesma pessoa, o mesmo texto). Fica a primeira de cada.'),
       React.createElement("button", { onClick: () => apagar(repetidas, 'Apagar ' + repetidas.length + ' avaria(s) repetida(s)? Fica a primeira de cada.'), style: bspEscBotao(true) }, 'Apagar as repetidas')),

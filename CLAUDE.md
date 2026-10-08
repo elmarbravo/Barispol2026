@@ -536,6 +536,11 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
 - Equipamentos e manutenção preventiva (03-10-2026, `manutencao-preventiva.sql`):
   `equipamentos`, `manutencoes_plano`, `manutencoes_registo`; ecrã Avarias →
   `EquipamentosPainel` (o ecrã antigo chama-se `AvariasLista`).
+  Quem vê (08-10-2026, `avarias-acesso-area.sql`, Elmar: «As avarias apenas os
+  da mesma área e nós superiores vemos»): avarias pela área de quem reportou e
+  pela coluna `area`, mais o superior (`bsp_chefe_de`), a Direcção Clínica nas
+  áreas de saúde e quem trata; equipamentos, planos e registos só da área (sem
+  área: só quem trata). Nunca voltar a abrir a toda a equipa.
 - Toners e gerador (04-10-2026, `toners-gerador.sql`): Logística e stock → `TonersPainel`
   (só Recepção, Laboratório, Serviços Gerais e gestão: `bspVeToners` /
   `bsp_ve_toners`, `toners-acesso.sql`, 05-10-2026) e `GeradorPainel` (só
