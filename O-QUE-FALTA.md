@@ -4211,8 +4211,7 @@ de 5 em 5 dias para a área administrativa e a Direcção Clínica, com o emisso
   baixo corrigir km mal escritos), `bspTranspContas` sem «km sem registo» no
   salto explicado por um acerto; «Último acerto» no cartão da viatura; aviso
   «📝 Km acertados» no grupo do Transporte.
-  - **Por fazer:** aplicar `transporte-acertos.sql` (o Supabase recusou o acesso
-    a 09-10) e gravar o acerto da ambulância: **6 946 km** (fotografia do painel
-    do Elmar, 09-10-2026; o 9,5 km é o parcial). Só depois publicar em `main`.
-    Ver se as viagens antigas da ambulância têm km acima de 6 946: uma viagem
-    inteira de outro dia pode chocar com elas (`TranspIniciarModal`).
+  - Aplicado a 09-10-2026. Acerto n.º 1: Ambulância (viatura 2, LD-30-88-GR)
+    = **6 946 km** (fotografia do painel do Elmar; o 9,5 km é o parcial), em nome
+    do Elmar. A ambulância não tinha viagens. Testado no servidor: o Elmar lê e
+    grava; o Emmanuel (motorista) lê e não grava; a Recepção não lê.

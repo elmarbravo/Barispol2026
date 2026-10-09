@@ -403,6 +403,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `viatura_id` nas viagens, abastecimentos e manutenções; os km contam-se por
   viatura (cada uma tem o seu conta-quilómetros). No ecrã, a viatura escolhida
   (`bsp-transp-viatura`) filtra tudo; qualquer conta nova de km é por viatura.
+  Acertos de km (09-10-2026, `transporte-acertos.sql`): «Acertar km» só da
+  gestão; o último acerto é o ponto de partida e só contam as viagens
+  registadas depois dele (`bspTranspUltimoKm`); nunca se apagam.
   Fotografias (02-10-2026): só 4 por dia, na primeira saída de cada turno
   (`bspTranspPrimeiraDoTurno`) e no «Cheguei a casa». Os km são sempre
   obrigatórios.
