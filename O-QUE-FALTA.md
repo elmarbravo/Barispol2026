@@ -4201,3 +4201,18 @@ de 5 em 5 dias para a área administrativa e a Direcção Clínica, com o emisso
   2; Direcção Clínica 13 (áreas de saúde) e 2; Elmar e Emmanuel todas (19 e 23).
   Textos do ecrã e do guia actualizados.
 
+- 09-10-2026 (Elmar: «actualizar a quilometragem inicial da ambulância»; «editar
+  as quilometragens mesmo sem actividade… coloca a quilometragem agora e depois
+  soma a cada movimentação»): `transporte-acertos.sql` (tabela
+  `transporte_acertos`: viatura, km, motivo, quem e quando; só a gestão grava,
+  nunca se apaga). Ecrã: botão «Acertar km» (gestão, sem viagem em curso),
+  `TranspAcertoModal`, `bspTranspUltimoKm` (o último acerto é o ponto de
+  partida; só contam as viagens registadas depois dele, para um acerto para
+  baixo corrigir km mal escritos), `bspTranspContas` sem «km sem registo» no
+  salto explicado por um acerto; «Último acerto» no cartão da viatura; aviso
+  «📝 Km acertados» no grupo do Transporte.
+  - **Por fazer:** aplicar `transporte-acertos.sql` (o Supabase recusou o acesso
+    a 09-10) e gravar o acerto da ambulância: **6 946 km** (fotografia do painel
+    do Elmar, 09-10-2026; o 9,5 km é o parcial). Só depois publicar em `main`.
+    Ver se as viagens antigas da ambulância têm km acima de 6 946: uma viagem
+    inteira de outro dia pode chocar com elas (`TranspIniciarModal`).

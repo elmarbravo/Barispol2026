@@ -24678,8 +24678,9 @@ function useTransporte() {
       cl.from('transporte_abastecimentos').select('*').gte('quando', desde + 'T00:00:00').order('quando', { ascending: true }).limit(2000),
       cl.from('transporte_zonas').select('*').limit(2000),
       cl.from('transporte_manutencoes').select('*').order('data', { ascending: false }).limit(1000),
-      cl.from('transporte_viaturas').select('*').order('id', { ascending: true }).limit(200)
-    ]).then(([v, a, z, mt, vt]) => {
+      cl.from('transporte_viaturas').select('*').order('id', { ascending: true }).limit(200),
+      cl.from('transporte_acertos').select('*').order('criado_em', { ascending: true }).limit(2000)
+    ]).then(([v, a, z, mt, vt, ac]) => {
       if (!vivo) return;
       const e = v.error || a.error || z.error;
       if (e) {
@@ -24691,7 +24692,7 @@ function useTransporte() {
       (z.data || []).forEach(r => { zonas[r.pessoa] = r.zona; });
       /* Sem a tabela da manutencao (transporte-manutencao.sql por correr),
          o resto do ecra funciona na mesma. */
-      setSt({ estado: 'pronto', viagens: v.data || [], abast: a.data || [], zonas, manut: mt.error ? [] : (mt.data || []), viaturas: vt.error ? [] : (vt.data || []), erro: '' });
+      setSt({ estado: 'pronto', viagens: v.data || [], abast: a.data || [], zonas, manut: mt.error ? [] : (mt.data || []), viaturas: vt.error ? [] : (vt.data || []), acertos: ac.error ? [] : (ac.data || []), erro: '' });
     });
     return () => { vivo = false; };
   }, [tick]);
@@ -24985,6 +24986,40 @@ function bspManutProxima(manut, ultimoKm) {
   const perto = (faltaKm != null && faltaKm <= 500) || (faltaDias != null && faltaDias <= 14);
   return { m, faltaKm, faltaDias, perto };
 }
+/* Acertar os km de uma viatura sem viagem (09-10-2026, transporte-acertos.sql).
+   Só a gestão; fica no histórico e no grupo do Transporte. */
+function TranspAcertoModal({ open, ultimoKm, viatura, onClose, onFeito, onAvisar }) {
+  const toast = useToast();
+  const [km, setKm] = React.useState('');
+  const [motivo, setMotivo] = React.useState('');
+  const [aGravar, setAGravar] = React.useState(false);
+  React.useEffect(() => { if (open) { setKm(''); setMotivo(''); setAGravar(false); } }, [open]);
+  if (!open) return null;
+  const n = parseInt(String(km).replace(/\D/g, ''), 10);
+  const erro = !(n >= 0) || String(km).trim() === '' ? 'Escreva os km que o conta-quilómetros marca.' : n === ultimoKm ? 'Os km já estão assim.' : !motivo.trim() ? 'Diga o motivo (ex.: leitura do painel, erro de digitação).' : '';
+  const gravar = async () => {
+    if (erro || aGravar) return;
+    setAGravar(true);
+    const r = await bspGetClient().from('transporte_acertos').insert({ viatura_id: viatura, km: n, motivo: motivo.trim(), criado_por: window.CURRENT_USER_ID }).select('id');
+    setAGravar(false);
+    if (r.error || !r.data || !r.data.length) { toast('Não foi possível gravar: ' + (r.error ? r.error.message : 'sem permissão')); return; }
+    onAvisar('📝 Km acertados · ' + bspHoraCurta(new Date().toISOString()) + '\nKm: ' + bspKm(ultimoKm) + ' → ' + bspKm(n) + '\nMotivo: ' + motivo.trim());
+    toast('Km acertados: ' + bspKm(n) + ' km. As viagens seguintes somam a partir daqui.');
+    onFeito(); onClose();
+  };
+  return React.createElement(Modal, {
+    open, onClose, title: 'Acertar km', width: 460,
+    footer: React.createElement(React.Fragment, null,
+      React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: onClose }, 'Cancelar'),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: gravar, disabled: !!erro || aGravar }, aGravar ? 'A gravar…' : 'Gravar'))
+  }, React.createElement("div", { style: { padding: 20, display: 'flex', flexDirection: 'column', gap: 16 } },
+    React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)' } }, 'Último registo: ' + bspKm(ultimoKm) + ' km. Escreva o que o conta-quilómetros marca agora. Não conta como km andados; as viagens seguintes somam a partir daqui.'),
+    React.createElement("label", null, bspTranspRot('Km no conta-quilómetros'),
+      React.createElement("input", { value: km, onChange: e => setKm(e.target.value), inputMode: 'numeric', placeholder: 'Ex.: 6946', style: bspTranspCampo })),
+    React.createElement("label", null, bspTranspRot('Motivo'),
+      React.createElement("input", { value: motivo, onChange: e => setMotivo(e.target.value), placeholder: 'Ex.: leitura do painel', style: bspTranspCampo })),
+    km && erro && React.createElement("div", { role: 'alert', style: { fontSize: 13, color: 'var(--perigo)' } }, erro)));
+}
 function TranspManutModal({ open, ultimoKm, viatura, onClose, onFeito, onAvisar }) {
   const toast = useToast();
   const vazio = () => ({ estado: 'orcamento', data: bspDataLocalISO(new Date()), km: ultimoKm ? String(ultimoKm) : '', descricao: '', valor: '', oficina: '', proxima_km: '', proxima_data: '', nota: '' });
@@ -25035,9 +25070,21 @@ function TranspManutModal({ open, ultimoKm, viatura, onClose, onFeito, onAvisar 
     React.createElement(CampoFoto, { valor: foto, onMudar: setFoto, rotulo: f.estado === 'orcamento' ? 'Fotografia do orçamento' : 'Fotografia da factura' }),
     erro && (f.descricao || f.valor) && React.createElement("div", { role: 'alert', style: { fontSize: 13, color: 'var(--perigo)' } }, erro)));
 }
+/* Acertos de km (09-10-2026, transporte-acertos.sql, Elmar: «coloca a
+   quilometragem agora e depois soma a cada movimentação»): o acerto mais
+   recente do que a última viagem da viatura é o ponto de partida. */
+function bspTranspUltimoKm(viagens, acertos) {
+  const kmDe = v => v.km_fim != null ? v.km_fim : v.km_inicio;
+  const ac = (acertos || []).slice().sort((a, b) => String(b.criado_em).localeCompare(String(a.criado_em)))[0];
+  /* Só contam as viagens registadas depois do último acerto (um acerto para
+     baixo corrige km mal escritos antes). */
+  const depois = (viagens || []).filter(v => !ac || String(v.criado_em || '') > String(ac.criado_em));
+  return depois.reduce((m, v) => Math.max(m, kmDe(v)), ac ? ac.km : 0);
+}
 /* Contas de um periodo: km por tipo, km sem registo entre viagens,
-   pessoas levadas e combustivel. */
-function bspTranspContas(viagens, abast, de, ate) {
+   pessoas levadas e combustivel. Um acerto entre duas viagens explica o
+   salto: conta só o que falta desde o acerto. */
+function bspTranspContas(viagens, abast, de, ate, acertos) {
   const v = viagens.filter(x => x.data >= de && x.data <= ate && x.km_fim != null);
   const porTipo = {};
   v.forEach(x => { porTipo[x.tipo] = (porTipo[x.tipo] || 0) + (x.km_fim - x.km_inicio); });
@@ -25045,7 +25092,10 @@ function bspTranspContas(viagens, abast, de, ate) {
   const falhas = [];
   for (let i = 1; i < ord.length; i++) {
     const a = ord[i - 1], b = ord[i];
-    if (b.km_inicio > a.km_fim && b.data >= de && b.data <= ate) falhas.push({ depois: a, antes: b, km: b.km_inicio - a.km_fim });
+    if (!(b.km_inicio > a.km_fim && b.data >= de && b.data <= ate)) continue;
+    const ac = (acertos || []).filter(k => k.km > a.km_fim && k.km <= b.km_inicio).reduce((m, k) => Math.max(m, k.km), 0);
+    const km = b.km_inicio - (ac || a.km_fim);
+    if (km > 0) falhas.push({ depois: a, antes: b, km });
   }
   const semRegisto = falhas.reduce((s, x) => s + x.km, 0);
   const pessoas = v.filter(x => x.tipo === 'pessoal').reduce((s, x) => s + (x.paragens || []).filter(p => !p.falta).length, 0);
@@ -25132,10 +25182,11 @@ function TransporteScreen({ currentUser }) {
   const tv = {
     viagens: vid ? (t.viagens || []).filter(r => daViatura(r) === vid) : (t.viagens || []),
     abast: vid ? (t.abast || []).filter(r => daViatura(r) === vid) : (t.abast || []),
-    manut: vid ? (t.manut || []).filter(r => daViatura(r) === vid) : (t.manut || [])
+    manut: vid ? (t.manut || []).filter(r => daViatura(r) === vid) : (t.manut || []),
+    acertos: vid ? (t.acertos || []).filter(r => r.viatura_id === vid) : (t.acertos || [])
   };
   const aberta = tv.viagens.slice().reverse().find(v => v.km_fim == null) || null;
-  const ultimoKm = tv.viagens.reduce((m, v) => Math.max(m, v.km_fim != null ? v.km_fim : v.km_inicio), 0);
+  const ultimoKm = bspTranspUltimoKm(tv.viagens, tv.acertos);
   const nomeDe = id => { const u = String(id).indexOf('x:') === 0 ? null : window.userById(id); return u ? String(u.name).split(/\s+/).slice(0, 2).join(' ') : bspNomeCurto(id); };
   const mudarAberta = async campos => {
     const r = await bspGetClient().from('transporte_viagens').update(campos).eq('id', aberta.id).select('id');
@@ -25233,7 +25284,8 @@ function TransporteScreen({ currentUser }) {
   const abas = React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap', flex: 'none' } },
     [['hoje', 'Hoje'], ['historico', 'Histórico e contas'], ['viaturas', 'Viaturas'], ['zonas', 'Bairros']].map(a => React.createElement("button", { key: a[0], onClick: () => setAba(a[0]), style: bspEscChip(aba === a[0]) }, a[1])),
     React.createElement("span", { style: { flex: 1 } }),
-    React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-3)', alignSelf: 'center' } }, 'Último registo: ' + bspKm(ultimoKm) + ' km'));
+    React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-3)', alignSelf: 'center' } }, 'Último registo: ' + bspKm(ultimoKm) + ' km'),
+    gestao && vid && aba !== 'zonas' && React.createElement("button", { onClick: () => { if (aberta) { toast('Há uma viagem em curso nesta viatura. Termine-a antes de acertar os km.'); return; } setModal('acerto'); }, style: Object.assign(bspEscBotao(false), { height: 32, fontSize: 12.5 }) }, 'Acertar km'));
   const escolhaViatura = viaturas.length > 0 && aba !== 'zonas' && React.createElement("label", { style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: 'none' } },
     React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: 'var(--text-2)' } }, aba === 'hoje' ? 'Viatura que vou usar' : 'Viatura'),
     React.createElement("select", { value: vid || '', onChange: e => setViaturaEsc(Number(e.target.value)), style: Object.assign({}, bspTranspCampo, { width: 'auto', minWidth: 0, maxWidth: '100%', flex: '1 1 220px', height: 40, fontSize: 16 }) },
@@ -25289,7 +25341,7 @@ function TransporteScreen({ currentUser }) {
           porAprovar.map(linhaManut)));
   } else if (aba === 'historico') {
     const fimMes = bspSomarDias(bspSomarMeses(mes, 1), -1);
-    const c = bspTranspContas(tv.viagens, tv.abast, mes, fimMes);
+    const c = bspTranspContas(tv.viagens, tv.abast, mes, fimMes, tv.acertos);
     const manutMes = (tv.manut || []).filter(m => m.data >= mes && m.data <= fimMes);
     const gastoManut = manutMes.filter(m => m.estado === 'feita').reduce((s, m) => s + Number(m.valor || 0), 0);
     const doMes = tv.viagens.filter(v => v.data >= mes && v.data <= fimMes).slice().sort((a, b) => b.km_inicio - a.km_inicio);
@@ -25354,8 +25406,9 @@ function TransporteScreen({ currentUser }) {
         const vg = (t.viagens || []).filter(r => daViatura(r) === v.id);
         const ab = (t.abast || []).filter(r => daViatura(r) === v.id);
         const mn = (t.manut || []).filter(r => daViatura(r) === v.id);
-        const ultKm = vg.reduce((m, x) => Math.max(m, x.km_fim != null ? x.km_fim : x.km_inicio), 0);
-        const km30 = bspTranspContas(vg, ab, dias30, bspDataLocalISO(new Date())).total;
+        const acV = (t.acertos || []).filter(r => r.viatura_id === v.id);
+        const ultKm = bspTranspUltimoKm(vg, acV);
+        const km30 = bspTranspContas(vg, ab, dias30, bspDataLocalISO(new Date()), acV).total;
         const abAno = ab.filter(a => String(a.quando).slice(0, 10) >= umAno);
         const litros = abAno.reduce((s2, a) => s2 + Number(a.litros || 0), 0);
         const gastoComb = abAno.reduce((s2, a) => s2 + Number(a.valor || 0), 0);
@@ -25371,6 +25424,7 @@ function TransporteScreen({ currentUser }) {
           React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)', marginTop: 2 } }, [v.marca, v.modelo, v.ano, v.combustivel].filter(Boolean).join(' · ') || 'Marca e modelo por indicar', v.nota ? ' · ' + v.nota : ''),
           React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '4px 16px', marginTop: 10 } },
             linha('Conta-quilómetros', ultKm ? bspKm(ultKm) + ' km' : 'sem registos'),
+            acV.length > 0 && linha('Último acerto', (a => bspKm(a.km) + ' km · ' + bspDataExacta(new Date(a.criado_em)) + ' · ' + a.motivo)(acV[acV.length - 1])),
             linha('Km nos últimos 30 dias', bspKm(km30)),
             linha('Última viagem', ultima ? bspDataCurta(ultima) : '—'),
             linha('Viagens registadas', vg.length),
@@ -25401,6 +25455,7 @@ function TransporteScreen({ currentUser }) {
     React.createElement(TranspAbastModal, { open: modal === 'abast', viatura: vid, ultimoKm, anteriores: tv.abast, onClose: () => setModal(''), onFeito: t.recarregar, onAvisar: avisarChat }),
     React.createElement(TranspManutModal, { open: modal === 'manut', viatura: vid, ultimoKm, onClose: () => setModal(''), onFeito: t.recarregar, onAvisar: avisarChat }),
     React.createElement(TranspJuntarModal, { open: modal === 'juntar', onClose: () => setModal(''), onGravar: juntar }),
+    React.createElement(TranspAcertoModal, { open: modal === 'acerto', viatura: vid, ultimoKm, onClose: () => setModal(''), onFeito: t.recarregar, onAvisar: avisarChat }),
     React.createElement(TranspNaoFoiModal, { open: naoFoi != null, nome: naoFoi != null && paragens[naoFoi] ? nomeDe(paragens[naoFoi].quem) : '', onClose: () => setNaoFoi(null), onGravar: gravarNaoFoi }),
     viaturaModal && React.createElement(TranspViaturaModal, { viatura: viaturaModal, onClose: () => setViaturaModal(null), onFeito: id => { t.recarregar(); if (!viaturaModal.id) setViaturaEsc(id); } }),
     abas, escolhaViatura, corpo);
