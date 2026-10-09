@@ -23524,9 +23524,12 @@ function bspEscalaVistoTxt(e) {
   if (e.exige_visto === false) return 'Em vigor sem visto da Direcção Clínica';
   return 'Aguarda o visto da Direcção Clínica: ainda não está em vigor';
 }
+/* Toda a equipa vê as escalas publicadas de todas as áreas (09-10-2026,
+   escalas-ver-todas.sql, Elmar: «Todos vêem todas»); os rascunhos só a
+   própria área e quem edita (o servidor não os entrega aos outros). */
 function bspVeEscala(u, area) {
   if (!u || bspESocio(u)) return false;
-  return bspEditaEscala(u, area) || bspAreaChave(u.dept) === area;
+  return !!area;
 }
 function bspEscalaAreas() {
   const vistas = {};

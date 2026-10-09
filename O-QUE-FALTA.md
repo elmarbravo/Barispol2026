@@ -4215,3 +4215,12 @@ de 5 em 5 dias para a área administrativa e a Direcção Clínica, com o emisso
     = **6 946 km** (fotografia do painel do Elmar; o 9,5 km é o parcial), em nome
     do Elmar. A ambulância não tinha viagens. Testado no servidor: o Elmar lê e
     grava; o Emmanuel (motorista) lê e não grava; a Recepção não lê.
+- 09-10-2026 (Elmar: «A escala não aparece para todos no perfil da Solange… resolva
+  para todos»; escolheu «Todos vêem todas»): a escala da Farmácia de Outubro
+  estava publicada e em vigor e a Solange recebia-a; cada pessoa só via a da sua
+  área. `escalas-ver-todas.sql` (aplicado): quem tem conta, menos os sócios, lê as
+  escalas publicadas de todas as áreas; rascunhos só a própria área e quem edita;
+  editar não muda. Ecrã: `bspVeEscala` lista todas as áreas; «De serviço hoje»
+  mostra toda a clínica. Testado no servidor: Solange, Déricka, Rosa e um médico
+  vêem as 6 publicadas de Outubro; rascunhos só os da sua área; sócio nada.
+

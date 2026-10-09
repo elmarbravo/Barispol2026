@@ -363,7 +363,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
 - Escalas de serviço (28-09-2026, `escalas.sql`): tabela `escalas` (área +
   mês; `turnos` com `semana` 0 = Domingo; `dias[iso][turno]` = ids, `_n` =
   nota). Acesso igual nos dois lados: `bspEditaEscala`/`bsp_edita_escala`
-  e `bspVeEscala`/`bsp_ve_escala`. Ecrã `EscalasScreen`; papel
+  e `bspVeEscala`/`bsp_ve_escala`. Desde 09-10-2026 (`escalas-ver-todas.sql`,
+  Elmar: «Todos vêem todas») toda a equipa lê as publicadas de todas as áreas;
+  os rascunhos só a própria área e quem edita. Ecrã `EscalasScreen`; papel
   `bspEscalaHtml`; e-mail `bspEscalaEmailCorpo` com `bspEmailWrap(..., true)`;
   Início `EscalaHojeCartao`. Imprimir só por `bspImprimirHtml`.
   Alerta aos chefes (30-09-2026, `escalas-alerta.sql`): dias 20 a 29,
