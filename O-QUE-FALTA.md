@@ -832,9 +832,9 @@ sabendo que há biométrico.
 - Workspace: menu «A minha actividade» (`ActividadeScreen`) só para quem
   tem `metagest`; períodos Hoje, Esta semana, Este mês, Mês anterior,
   Este ano; gráfico dos últimos 12 meses (`PainelColunas`).
-- Conferido com os dados reais da Luidmila (Setembro): 29 doentes, 29
-  consultas, 2 só exames, 49 facturas, 962 602 Kz; a soma dos grupos dá o
-  mesmo total.
+- Conferido com os dados reais de uma médica (Setembro): doentes, consultas,
+  exames e facturas batem certo; a soma dos grupos dá o mesmo total. (Valores
+  retirados do repositório a 12-10-2026, regra 4.)
 
 ## 3-ba. Chat: conversar ao carregar na pessoa e responder em privado; atalho dos médicos; escala da Farmácia (30-09-2026)
 
@@ -3308,10 +3308,10 @@ leve». Em Setembro o mapa fez-se à mão a partir das fichas em papel.
     individuais);
   - `bsp_pagamento_permanencias_mes` devolve também as fichas.
 - Setembro carregado no servidor: 53 dias de 14 mapas e 16 dias da lista de
-  presenças (Henriqueta, Creusa, Danisandra, Luidmila). Ecografia prostática
-  de 09/09 (FT CBL-26/1857, facturada sem médico pela Recepção) paga ao
-  Dr. Simão a 30% em «Outros».
-- Setembro (aberto): bruto 1.987.535,17 Kz, líquido 1.858.345,38 Kz.
+  presenças. Uma ecografia de 09/09 facturada sem médico pela Recepção foi
+  atribuída ao médico certo em «Outros» (taxa só no servidor).
+- Setembro (aberto): totais só no servidor (valores retirados do repositório
+  a 12-10-2026, regra 4).
 - Ecrã (Equipa → Pagamento dos médicos), feito a 05-10-2026:
   - por médico, **«Fichas do mês»**: um dia por linha (dia, entrada, saída,
     consultas, reconsultas, enfermagem, observação, nota); as horas saem da
@@ -3319,7 +3319,8 @@ leve». Em Setembro o mapa fez-se à mão a partir das fichas em papel.
     vermelho quando diferem; aviso e botão para os dias que o MetaGest tem
     sem ficha; «Guardar fichas» (`bsp_pagamento_fichas`);
   - **taxa de permanência** só 15.000, 20.000 ou 25.000 Kz (Elmar,
-    05-10-2026; a Maria Ester fica nos 15.000), por `bsp_pagamento_prestador`;
+    05-10-2026), por `bsp_pagamento_prestador`; a taxa de cada médico só no
+    servidor;
   - em «A conferir antes de fechar», os médicos com consultas da ficha
     diferentes das do MetaGest;
   - **«Excel do mês»**: o .xlsx no modelo de Agosto (NOTAS com o que
@@ -4224,3 +4225,75 @@ de 5 em 5 dias para a área administrativa e a Direcção Clínica, com o emisso
   mostra toda a clínica. Testado no servidor: Solange, Déricka, Rosa e um médico
   vêem as 6 publicadas de Outubro; rascunhos só os da sua área; sócio nada.
 
+
+## 3-gx. Auditoria de segurança — Fase 1 (12-10-2026)
+
+Elmar: «Avalie a segurança da plataforma e dos dados»; depois «Aprovo o plano
+mas diminui o prazo, faz mais rápido. Estamos vulneráveis». A avaliação completa
+(segurança, conformidade e layout, com as 4 fases) está no plano aprovado e
+resumida no `CLAUDE.md`. Feito hoje:
+
+1. **`shared-state-fechar.sql` (aplicado).** A regra antiga deixava toda a
+   equipa escrever `team` e `camadas` no `shared_state` (qualquer conta podia
+   pôr-se na Direcção, trocar o e-mail pela entrada de outra pessoa e, pela
+   `criar-utilizador`, mudar a palavra-passe de qualquer conta). Agora o
+   gatilho `bsp_estado_guarda` só deixa a gestão (`bsp_e_gestor`) mudar esses
+   dois campos; aos outros mantém-lhes os valores antigos em silêncio, para as
+   tarefas e eventos continuarem a gravar. Cada alteração, aceite ou recusada,
+   fica em `equipa_auditoria` (só a gestão lê). A API perdeu o privilégio de
+   apagar a linha; só se insere a linha 1. A guarda lê `auth.jwt()->>'role'`
+   (dentro de uma função security definer o `current_user` é o dono, por isso
+   não serve). Testado com sessões simuladas: a Rosa não entra na equipa nem
+   cria camadas (2 registos recusados) mas grava eventos; o Elmar altera e fica
+   registado; a linha 2 é recusada. Só três contas são gestoras: Elmar, Arlete
+   e a conta de teste «Beb» (Direcção) — **o Elmar deve desactivá-la**.
+2. **`imprimir.html`:** o documento vindo do `#z=` deixou de entrar na página
+   por `document.write` (um `<img onerror=…>` corria dentro de barispol.com,
+   lia as conversas guardadas e podia apontar o Workspace para um servidor
+   falso). Vai para um `<iframe sandbox="allow-same-origin">` sem scripts; a
+   altura ajusta-se ao conteúdo e a impressão é da página. Testado no
+   Playwright com um documento malicioso: título intacto, sem diálogos, sem
+   `bsp_supabase_cfg` gravado, documento visível.
+3. **Ligação ao servidor:** `bspGetCfg` só aceita o valor guardado no aparelho
+   se for o mesmo endereço do `servidor.js`; outro é apagado. O ecrã manual
+   «Ligar o servidor a este dispositivo» (entrada) e o «Guardar» do Admin →
+   Sistema deixaram de gravar outro servidor.
+4. **CSP** por `<meta>` no `workspace.html`: só o próprio site e o Supabase do
+   projecto (`connect-src`, `img-src`, `media-src`), `object-src 'none'`,
+   `base-uri 'none'`, `form-action 'self'`; scripts e estilos inline da própria
+   página (`'unsafe-inline'`, porque o React UMD não compila). `referrer`
+   `strict-origin-when-cross-origin`. A página sai de dentro de qualquer iframe
+   (o GitHub Pages não permite `frame-ancestors`). Os `preconnect` às fontes da
+   Google saíram (as fontes são locais). Imagens coladas no Chat de outros
+   sítios deixam de carregar (também evita rastreio).
+5. **`inserts-sem-equipa.sql` (aplicado):** as regras de inserir mensagens e
+   publicações já não aceitam `bsp_meu_id() is null` (uma conta fora da equipa
+   escrevia em nome de qualquer pessoa). Em produção, `utentes` e
+   `seguimentos` já estavam fechados a `crm.pode_ver_crm()` (os ficheiros
+   `crm-seguimento.sql` e `INSTALAR-TUDO.sql` estavam desactualizados).
+   **Por confirmar pelo Elmar no painel:** Authentication → Sign In →
+   «Allow new users to sign up» desligado.
+6. **Repositório:** retirados do `O-QUE-FALTA.md` os valores em Kz ligados a
+   médicos pelo nome (3-ax, 3-gc). **Decisão do Elmar:** tornar o repositório
+   privado (o GitHub Pages em repositório privado exige plano pago) ou mantê-lo
+   público com esta limpeza.
+7. **Ecrã de Segurança (Admin):** passou a dizer só o que existe (sem «2FA
+   activo» nem «sessão expira após 8 h»).
+
+Fase 2 (até sexta): painel Auth (regras de palavra-passe, sessões, Turnstile,
+TOTP para a gestão), estado e endereços assinados fora do `localStorage`,
+Workspace em subdomínio ou píxel só no site, entradas públicas atrás de uma
+Edge Function com limite por IP, `bright-worker` com limite por pessoa, CORS
+fechado, push sem texto clínico, fecho de `crm_pedidos`/`crm_ficha`, RLS em
+`erp.stock_*`, retenção e cópias fora do Supabase, auditoria genérica, Android
+`allowBackup=false`. Fase 3 (duas semanas): política de privacidade para
+utentes, consentimento das campanhas, APD e DPA com jurista, documentos ISO
+27001. Fase 4 (layout, um ponto por dia): toasts de erro, uma janela de cada
+vez, zoom (decisão do Elmar), menu por função, foco e contraste, cores à mão.
+- 12-10-2026, Dr. Mário Luís Da Silva Camuanda (MetaGest HLC-PRAC-2026-00011,
+  cédula 11082, Clínica Geral; dados enviados pela Arlete no Chat a 09-10):
+  médicos copiados do MetaGest, pessoa `u1791664176042` em `shared_state.team`
+  (Clínica, Médico, `metagest`) e na lista embutida `USERS`, prestador 30
+  (Medicina Geral, regime A, 15.000, `user_id` ligado), cédula em
+  `credenciais`. **Pelo Elmar:** criar o acesso em Admin → Equipa com uma
+  palavra-passe provisória (regra 1) e preencher NIF e IBAN na ficha.

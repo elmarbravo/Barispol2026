@@ -41,6 +41,29 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
    lá: chaves, palavras-passe, nomes de utentes, valores pagos, taxas dos
    médicos nem o texto do regulamento interno.
 
+## Segurança (auditoria de 12-10-2026, Elmar: «estamos vulneráveis»)
+
+- `shared_state` (`shared-state-fechar.sql`): só a gestão muda `team` e
+  `camadas`; o gatilho `bsp_estado_guarda` mantém os valores antigos a quem não
+  é gestor (sem erro, para as tarefas gravarem) e regista tudo em
+  `equipa_auditoria`. Nunca voltar a `using (true) with check (true)` nessa
+  tabela nem correr de novo `supabase-configuracao.sql` (reabre tudo). Dentro
+  de funções security definer usar `auth.jwt()->>'role'`, nunca `current_user`.
+- Regras de inserir nunca com `or bsp_meu_id() is null` (`inserts-sem-equipa.sql`).
+- `imprimir.html`: o documento do `#z=` vai sempre para um `<iframe sandbox>`
+  sem scripts; nunca `document.write` nem `innerHTML` com o que vem do endereço.
+- Ligação ao servidor: só a do `servidor.js` (`bspGetCfg` ignora outro URL
+  guardado); o ecrã manual de ligação foi retirado e não volta.
+- `workspace.html` tem Content-Security-Policy por `<meta>`: um host novo
+  (imagens, ligações, iframes) entra na CSP ou não carrega. Scripts só locais
+  (`vendor/`), nunca CDN. A página sai de dentro de iframes.
+- O ecrã Admin → Segurança só diz o que existe de facto.
+- Contas gestoras: Elmar, Arlete e a conta de teste «Beb» (a desactivar).
+- Por fazer (fases 2 a 4 do plano, em `O-QUE-FALTA.md` 3-gx): painel Auth
+  (2FA, sessões, Turnstile), estado fora do `localStorage`, píxel da Meta fora
+  do domínio do Workspace, entradas públicas atrás de Edge Function, CORS,
+  retenção e cópias, política de privacidade para utentes, APD.
+
 ## Quem vê o quê (03-10-2026, Elmar: «cada funcionário só vê as suas coisas; os superiores vêem da sua equipa»)
 
 - Dados de pessoas (ausências, formações, avaliação, produtividade, tarefas
