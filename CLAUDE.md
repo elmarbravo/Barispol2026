@@ -59,8 +59,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   (`vendor/`), nunca CDN. A página sai de dentro de iframes.
 - O ecrã Admin → Segurança só diz o que existe de facto.
 - Contas gestoras: Elmar, Arlete e a conta de teste «Beb» (a desactivar).
-- Por fazer (fases 2 a 4 do plano, em `O-QUE-FALTA.md` 3-gx): painel Auth
-  (2FA, sessões, Turnstile), estado fora do `localStorage`, píxel da Meta fora
+- Estado, notificações e endereços assinados só no `sessionStorage`
+  (12-10-2026, Fase 2 em `O-QUE-FALTA.md` 3-gy); endereços de 4 h.
+- Por fazer (fases 2 a 4 do plano, em `O-QUE-FALTA.md` 3-gy): painel Auth
+  (2FA, sessões, Turnstile), píxel da Meta fora
   do domínio do Workspace, entradas públicas atrás de Edge Function, CORS,
   retenção e cópias, política de privacidade para utentes, APD.
 
@@ -217,7 +219,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   as desta visita à vista); gravam-se também em `bsp-notifs-v1` (sair da
   sessão apaga-a). Sem espaço no aparelho, o estado grava-se com só as
   últimas 60 mensagens por conversa. Nunca pôr no estado coisas grandes
-  sem pensar no limite de ~5 MB do `localStorage`.
+  sem pensar no limite de ~5 MB. Desde 12-10-2026 o estado
+  (`bsp-workspace-v1`), as notificações e os `bsp-urls-<id>` estão no
+  `sessionStorage` (auditoria): nunca voltar ao `localStorage` para dados;
+  lá ficam só preferências do aparelho.
 - Avisos das mensagens (04-10-2026, Elmar: «as mensagens normais entre pessoas
   no chat não está a notificar»): `bspBrowserNotify` só pelo service worker
   (`showNotification`; o `new Notification` não existe no telemóvel), com a
@@ -824,8 +829,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   ao `MediaRecorder`.
   Fotografias do Chat reduzidas antes de subir (`bspReduzirImagem`,
   30-09-2026); endereços assinados em lote (`bspSignedUrlEmLote`). Endereços de
-  24 h guardados no aparelho por pessoa (`bsp-urls-<id>`, 01-10-2026, para
-  não gastar tráfego); nunca voltar a endereços de 1 h só em memória.
+  4 h guardados no separador por pessoa (`bsp-urls-<id>`, 01-10-2026, para
+  não gastar tráfego; 24 h → 4 h e `sessionStorage` a 12-10-2026); nunca
+  voltar a endereços de 1 h só em memória.
   Imagens acima de 600 KB aparecem como cartão «toque para ver»
   (`AnexoMensagem`, `bspTamanhoFicheiro` → `bsp_tamanho_ficheiros`,
   `trafego.sql`). Uma

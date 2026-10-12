@@ -3194,14 +3194,14 @@ function MenuConta({
       if (c) await c.auth.signOut();
     } catch (e) {}
     bspUrlCacheLimpar();
-    /* Limpar o estado guardado neste posto. Sem isto, o bsp-workspace-v1 mantém
-       as mensagens directas, o feed e o directório, e o loadInitial() devolve
-       tudo à pessoa seguinte que entrar — num posto partilhado, é uma fuga.
-       A ligação ao servidor (bsp_supabase_cfg) e as preferências do aparelho
-       ficam, porque são do dispositivo e não de quem o usa. */
+    /* Limpar o estado guardado neste separador. Sem isto, o bsp-workspace-v1
+       mantém as mensagens directas, o feed e o directório, e o loadInitial()
+       devolve tudo à pessoa seguinte que entrar — num posto partilhado, é uma
+       fuga. As preferências do aparelho ficam, porque são do dispositivo e
+       não de quem o usa. */
     try {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem('bsp-notifs-v1');
+      sessionStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem('bsp-notifs-v1');
     } catch (e) {}
     try {
       window.location.reload();
@@ -3509,6 +3509,22 @@ function BotaoTema({ tamanho }) {
   }, React.createElement(escuro ? I.Sun : I.Moon, { size: t }));
 }
 const STORAGE_KEY = 'bsp-workspace-v1';
+/* Estado só no separador (12-10-2026, auditoria de segurança): o estado
+   (conversas, feed, equipa), as notificações e os endereços assinados dos
+   anexos ficam no sessionStorage, como a sessão. Fechar o separador ou a
+   app apaga-os; outro separador começa vazio e lê do servidor. Antes ficavam
+   no localStorage, em claro, até alguém carregar em «Sair»: num posto
+   partilhado, ou com um script que entrasse no domínio, liam-se as
+   conversas de quem já tinha saído. As preferências do aparelho (tema,
+   ordem das listas, viatura) continuam no localStorage: não são dados.
+   As cópias antigas apagam-se ao arrancar. */
+(function () {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem('bsp-notifs-v1');
+    Object.keys(localStorage).filter(k => k.indexOf('bsp-urls-') === 0).forEach(k => localStorage.removeItem(k));
+  } catch (e) {}
+})();
 /* Datas exactas em todo o lado, por pedido do Elmar (24-09-2026):
    "24 set 2026, 13:41". Antes mostrava-se "agora", "há 12 min" ou so a
    hora, e uma coisa de ontem parecia de hoje.
@@ -3614,7 +3630,7 @@ function fmtTs(iso) {
 }
 function loadInitial() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = sessionStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && parsed._v === 1) {
@@ -3626,7 +3642,7 @@ function loadInitial() {
            linhas internas (recibos de leitura, edicoes): apareciam como
            "l745" ou "e747A Neusa...". Saem ao arrancar. */
         try {
-          const nt = JSON.parse(localStorage.getItem('bsp-notifs-v1') || 'null');
+          const nt = JSON.parse(sessionStorage.getItem('bsp-notifs-v1') || 'null');
           if (Array.isArray(nt)) parsed.notifications = nt;
         } catch (e) {}
         if (Array.isArray(parsed.notifications)) parsed.notifications = parsed.notifications.filter(n => !(n && bspLinhaDeControlo(n.preview)));
@@ -4178,10 +4194,12 @@ const __bspUrlCache = {};
 /* Tráfego (01-10-2026: o Supabase passou os 5 GB de saída do plano). Os
    endereços assinados valiam uma hora e só ficavam na memória: cada vez que
    o Workspace abria, cada fotografia tinha um endereço novo e o aparelho
-   voltava a descarregá-la. Agora valem 24 horas e ficam guardados neste
-   aparelho, por pessoa (bsp-urls-<id>), para o navegador reaproveitar a
-   cópia que já tem. Saem com a sessão (bspUrlCacheLimpar). */
-const BSP_URL_VALIDADE = 86400;
+   voltava a descarregá-la. Agora ficam guardados por pessoa (bsp-urls-<id>),
+   para o navegador reaproveitar a cópia que já tem. Saem com a sessão
+   (bspUrlCacheLimpar). Desde 12-10-2026 (auditoria de segurança) valem 4
+   horas, e não 24, e ficam no sessionStorage: um endereço assinado abre o
+   ficheiro a quem o tiver, sem sessão. */
+const BSP_URL_VALIDADE = 14400;
 let __bspUrlCacheDe = null;
 let __bspUrlGravar = null;
 function bspUrlCachePreparar() {
@@ -4191,7 +4209,7 @@ function bspUrlCachePreparar() {
   __bspUrlCacheDe = id;
   if (!id || bspEmVerComo()) return;
   try {
-    const g = JSON.parse(localStorage.getItem('bsp-urls-' + id) || '{}');
+    const g = JSON.parse(sessionStorage.getItem('bsp-urls-' + id) || '{}');
     const agora = Date.now();
     Object.keys(g).forEach(k => { if (g[k] && g[k].url && g[k].expira > agora + 60000) __bspUrlCache[k] = g[k]; });
   } catch (e) {}
@@ -4206,14 +4224,14 @@ function bspUrlCacheGravar() {
         .sort((a, b) => __bspUrlCache[b].expira - __bspUrlCache[a].expira).slice(0, 600);
       const o = {};
       vivos.forEach(k => { o[k] = __bspUrlCache[k]; });
-      localStorage.setItem('bsp-urls-' + __bspUrlCacheDe, JSON.stringify(o));
+      sessionStorage.setItem('bsp-urls-' + __bspUrlCacheDe, JSON.stringify(o));
     } catch (e) {}
   }, 500);
 }
 function bspUrlCacheLimpar() {
   Object.keys(__bspUrlCache).forEach(k => { delete __bspUrlCache[k]; });
   __bspUrlCacheDe = null;
-  try { Object.keys(localStorage).filter(k => k.indexOf('bsp-urls-') === 0).forEach(k => localStorage.removeItem(k)); } catch (e) {}
+  try { Object.keys(sessionStorage).filter(k => k.indexOf('bsp-urls-') === 0).forEach(k => sessionStorage.removeItem(k)); } catch (e) {}
 }
 function bspSlugFicheiro(nome) {
   const p = String(nome || 'ficheiro').lastIndexOf('.');
@@ -5308,7 +5326,7 @@ function StoreProvider({
   window.__bspDrive = state.driveFiles || [];
   React.useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (e) {
       /* Sem espaço (03-10-2026): com os históricos do Chat o estado passa
          dos ~5 MB do navegador. Grava-se então só o fim de cada conversa (as
@@ -5316,13 +5334,13 @@ function StoreProvider({
          espaço; senão também falhavam as listas pequenas (novidades já
          mostradas, notificações) e os avisos repetiam-se. */
       try {
-        localStorage.removeItem(STORAGE_KEY);
+        sessionStorage.removeItem(STORAGE_KEY);
         const leve = Object.assign({}, state, { channelMessages: {} });
         Object.keys(state.channelMessages || {}).forEach(k => {
           const l = state.channelMessages[k] || [];
           leve.channelMessages[k] = l.length > 60 ? l.slice(-60) : l;
         });
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(leve));
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(leve));
       } catch (e2) {}
     }
     /* As notificações gravam-se também à parte (03-10-2026): o estado
@@ -5330,7 +5348,7 @@ function StoreProvider({
        navegador e a gravação falhava em silêncio; ao reabrir voltava a cópia
        antiga, com as notificações já vistas outra vez por ler. */
     try {
-      localStorage.setItem('bsp-notifs-v1', JSON.stringify(state.notifications || []));
+      sessionStorage.setItem('bsp-notifs-v1', JSON.stringify(state.notifications || []));
     } catch (e) {}
   }, [state]);
   React.useEffect(() => {
@@ -6836,8 +6854,8 @@ function StoreProvider({
     },
     resetAll: () => {
       try {
-        localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem('bsp-notifs-v1');
+        sessionStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem('bsp-notifs-v1');
       } catch (e) {}
       window.location.reload();
     }
@@ -31195,8 +31213,8 @@ function App() {
        sobrevive à saída e volta para quem entrar a seguir. */
     bspUrlCacheLimpar();
     try {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem('bsp-notifs-v1');
+      sessionStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem('bsp-notifs-v1');
     } catch (e) {}
     setAuthedEmail(null);
     setAuthed(false);

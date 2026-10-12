@@ -4280,8 +4280,19 @@ resumida no `CLAUDE.md`. Feito hoje:
 7. **Ecrã de Segurança (Admin):** passou a dizer só o que existe (sem «2FA
    activo» nem «sessão expira após 8 h»).
 
-Fase 2 (até sexta): painel Auth (regras de palavra-passe, sessões, Turnstile,
-TOTP para a gestão), estado e endereços assinados fora do `localStorage`,
+## 3-gy. Auditoria de segurança — Fase 2 (12-10-2026)
+
+1. **Estado fora do `localStorage`** (`workspace.html`): `bsp-workspace-v1`
+   (conversas, feed, equipa), `bsp-notifs-v1` e a cache de endereços assinados
+   `bsp-urls-<id>` passaram ao `sessionStorage`, como a sessão. Fechar o
+   separador ou a app apaga tudo; um separador novo lê do servidor. Ao arrancar,
+   as cópias antigas do `localStorage` apagam-se. Os endereços assinados dos
+   anexos valem 4 h (`BSP_URL_VALIDADE` 14400), e não 24 h. As preferências do
+   aparelho (tema, ordem, viatura, TURN) ficam no `localStorage`. Testado no
+   Playwright: chaves antigas apagadas, estado só no separador, sem erros.
+
+Resto da Fase 2 (até sexta): painel Auth (regras de palavra-passe, sessões, Turnstile,
+TOTP para a gestão),
 Workspace em subdomínio ou píxel só no site, entradas públicas atrás de uma
 Edge Function com limite por IP, `bright-worker` com limite por pessoa, CORS
 fechado, push sem texto clínico, fecho de `crm_pedidos`/`crm_ficha`, RLS em
