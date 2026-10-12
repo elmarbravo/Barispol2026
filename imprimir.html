@@ -132,20 +132,27 @@ iframe{display:block;width:100%;border:0}
     try { history.replaceState(null, '', location.pathname); } catch (e) {}
     var titulo = /<title>([^<]*)<\/title>/i.exec(html);
     if (titulo) { document.title = titulo[1]; document.querySelector('#barra span').textContent = titulo[1]; }
-    // O documento substitui a página toda; a barra entra por cima e some na impressão.
-    var barra = document.getElementById('barra').outerHTML + document.getElementById('ajuda').outerHTML;
-    var estilo = '<style>#barra{position:sticky;top:0;z-index:5;display:flex;gap:8px;align-items:center;padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top));background:#fff;border-bottom:1px solid #DDDBD6;font-family:"Titillium Web",Arial,sans-serif}' +
-      '#barra span{flex:1;font-size:14px;color:#4E5366}#barra button{height:40px;padding:0 16px;border-radius:8px;font-weight:600;font-size:16px;border:0;background:#273069;color:#fff}' +
-      '#ajuda{display:none;margin:12px;padding:12px 14px;border:1px solid #DDDBD6;border-left:4px solid #2291CE;font:15px/1.45 "Titillium Web",Arial,sans-serif;color:#1C2033;background:#fff}' +
-      '#ajuda a{display:inline-block;margin-top:8px;padding:9px 14px;border-radius:8px;background:#273069;color:#fff;text-decoration:none;font-weight:600}' +
-      '@media print{#barra,#ajuda{display:none!important}}</style>';
     var fontes = document.querySelector('style').outerHTML;
+    // O documento vem do endereço, que qualquer pessoa pode forjar. Nunca
+    // entra na própria página (12-10-2026, auditoria de segurança: antes um
+    // document.write corria «onerror=…» dentro de barispol.com e lia as
+    // conversas guardadas no aparelho). Vai para um iframe sem scripts: o
+    // sandbox sem allow-scripts desliga os <script> e os on*=; o
+    // allow-same-origin serve só para medir a altura e para as fontes.
     html = html.replace(/<script[\s\S]*?<\/script>/gi, '');
-    if (/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, fontes + estilo + '</head>');
-    else html = fontes + estilo + html;
-    if (/<body[^>]*>/i.test(html)) html = html.replace(/<body[^>]*>/i, function (b) { return b + barra; });
-    else html = barra + html;
-    document.open(); document.write(html); document.close();
+    if (/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, fontes + '</head>');
+    else html = fontes + html;
+    aviso.remove();
+    var quadro = document.createElement('iframe');
+    quadro.setAttribute('sandbox', 'allow-same-origin');
+    quadro.setAttribute('title', document.title);
+    quadro.srcdoc = html;
+    document.body.appendChild(quadro);
+    function ajustar() {
+      try { var d = quadro.contentDocument; if (d && d.documentElement) quadro.style.height = Math.max(d.documentElement.scrollHeight, d.body ? d.body.scrollHeight : 0) + 'px'; } catch (e) {}
+    }
+    quadro.addEventListener('load', function () { ajustar(); setTimeout(ajustar, 400); });
+    window.addEventListener('beforeprint', ajustar);
     // Algumas janelas do iPhone ignoram o window.print() sem aviso. Se a
     // impressão não abrir em 1,5 s, aparece a ajuda: abrir no Safari (iOS 17
     // ou mais recente) ou usar Partilhar → Imprimir.
