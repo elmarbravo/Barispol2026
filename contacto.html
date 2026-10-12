@@ -337,10 +337,12 @@ var NL = String.fromCharCode(10);
     if (fam && tel2.value.trim() && !marca(tel2, telValido(tel2.value))) { tel2.focus(); return; }
     var cfg = window.BSP_SERVIDOR || {};
     botao.disabled = true; botao.textContent = 'A enviar…'; falhou.hidden = true;
-    fetch(cfg.url + '/rest/v1/rpc/bsp_pedido_site', {
+    /* Desde 12-10-2026 pela Edge Function entrada-publica (origem, limite por
+       ligação e campo-armadilha), e já não pela chave pública. */
+    fetch(cfg.url + '/functions/v1/entrada-publica', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': cfg.key },
-      body: JSON.stringify({ p_dados: {
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ qual: 'pedido', dados: {
         pagina: 'contacto', origem: origem, nome: nome.value.trim(), telefone: tel.value.trim(),
         familiar_quem: fam ? (valor('quem').trim() || 'familiar') : '', telefone_proprio: fam ? tel2.value.trim() : '',
         servico: valor('servico'), seguro: valor('seguro'), quando_ligar: valor('quando'), empresa: valor('empresa')

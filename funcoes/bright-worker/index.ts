@@ -128,7 +128,21 @@ const limparHtml = (html: string): string => {
 const listaDeEnderecos = (v: unknown): string[] =>
   (Array.isArray(v) ? v : [v]).map((x) => String(x || "").trim()).filter((x) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)).slice(0, 10);
 
-Deno.serve(async (req) => {
+/* CORS por lista (12-10-2026, auditoria de seguranca, Fase 2): a resposta so
+   autoriza as origens do site e da app; antes era "*". Pedidos sem Origin
+   (servidor, agendamentos) nao mudam. O que decide o acesso continua a ser
+   o testemunho, nao a origem. */
+const ORIGENS_PERMITIDAS = ["https://barispol.com", "https://www.barispol.com", "https://localhost", "capacitor://localhost", "http://localhost"];
+const comCors = (tratar: (req: Request) => Promise<Response>) => async (req: Request): Promise<Response> => {
+  const r = await tratar(req);
+  const origem = req.headers.get("Origin") || "";
+  const h = new Headers(r.headers);
+  h.set("Access-Control-Allow-Origin", ORIGENS_PERMITIDAS.includes(origem) ? origem : ORIGENS_PERMITIDAS[0]);
+  h.append("Vary", "Origin");
+  return new Response(r.body, { status: r.status, statusText: r.statusText, headers: h });
+};
+
+Deno.serve(comCors(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return recusar("Método não permitido.", 405);
 
@@ -285,4 +299,4 @@ Deno.serve(async (req) => {
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), { status: 400, headers: cors });
   }
-});
+}));

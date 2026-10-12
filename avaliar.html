@@ -138,10 +138,12 @@ footer a{color:#fff}
     if (tipo !== 'avaliacao' && !comentario) { erro.textContent = 'Escreva o que nos quer dizer.'; return; }
     var cfg = window.BSP_SERVIDOR || {};
     var b = $('#enviar'); b.disabled = true; b.textContent = 'A enviar…';
-    fetch(cfg.url + '/rest/v1/rpc/bsp_feedback_publico', {
+    /* Desde 12-10-2026 pela Edge Function entrada-publica (origem, limite por
+       ligação), e já não pela chave pública. */
+    fetch(cfg.url + '/functions/v1/entrada-publica', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': cfg.key },
-      body: JSON.stringify({ p_nota: nota, p_tipo: tipo, p_area: $('#area').value, p_comentario: comentario, p_contacto: contacto, p_quer_resposta: !!contacto })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ qual: 'feedback', dados: { p_nota: nota, p_tipo: tipo, p_area: $('#area').value, p_comentario: comentario, p_contacto: contacto, p_quer_resposta: !!contacto } })
     }).then(function (r) {
       if (!r.ok) return r.json().catch(function () { return {}; }).then(function (j) { throw new Error(j.message || 'Falhou o envio.'); });
       if (tipo === 'reclamacao') $('#feito-txt').textContent = 'A sua reclamação chegou à Direcção.' + (contacto ? ' Respondemos no prazo de 15 dias.' : '');

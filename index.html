@@ -787,9 +787,11 @@ html[data-tema="escuro"] .botao-claro{background:#fff;color:#292F58}
     botao.disabled = true; botao.textContent = 'A enviar';
     pronto.className = 'pronto'; pronto.textContent = '';
     var cfg = window.BSP_SERVIDOR;
-    if (cfg && !campo('empresa').value) fetch(cfg.url + '/rest/v1/rpc/bsp_pedido_site', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': cfg.key },
-      body: JSON.stringify({ p_dados: { pagina: 'inicio', origem: origem, nome: campo('nome').value.trim(), telefone: tel,
+    /* Desde 12-10-2026 pela Edge Function entrada-publica (origem, limite por
+       ligação e campo-armadilha), e já não pela chave pública. */
+    if (cfg && !campo('empresa').value) fetch(cfg.url + '/functions/v1/entrada-publica', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ qual: 'pedido', dados: { pagina: 'inicio', origem: origem, nome: campo('nome').value.trim(), telefone: tel,
         servico: campo('servico').value, seguro: campo('seguro').value, mensagem: campo('mensagem').value } })
     }).catch(function () {});
     fetch(FUNCAO, {

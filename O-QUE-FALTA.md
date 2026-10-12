@@ -4321,6 +4321,41 @@ resumida no `CLAUDE.md`. Feito hoje:
    `crm_ficha`/`bsp_e_gestor`/`bsp_painel` continuam acessíveis com sessão.
    **Regra nova:** uma função nova só fica aberta a visitantes com `grant
    execute … to anon` escrito de propósito.
+5. **`retencao-copias.sql` (aplicado):** `bsp_copia_diaria` passa a copiar
+   todas as tabelas de `public` (91; antes 12 escolhidas à mão, sem as
+   clínicas e financeiras) mais `storage.objects`, 7 dias (cerca de 100 MB em
+   `copias`). `bsp_retencao` (domingos 03h30 UTC, cron `bsp-retencao`):
+   `capturas_ecra` e `emails_registo` 12 meses, `feedback_email_entrada` e
+   `recuperacoes_pedidos` 90 dias, `pedidos_marcacao` tratados 12 meses,
+   `presenca_dias` e `equipa_auditoria` 24 meses. Primeira passagem: 0 linhas
+   (tudo recente). **Cópia fora do Supabase:** continua por fazer; precisa de
+   um destino do Elmar (armazenamento próprio ou plano pago com PITR).
+6. **CORS por lista, Android e Actions:** as sete Edge Functions chamadas
+   pelo Workspace (`agenda-avisos` v3, `assistente` v3, `bright-worker` v9,
+   `criar-utilizador` v3, `relatorios-diarios` v13, `resumo-matinal` v15,
+   `resumo-pessoal` v2) passaram a responder `Access-Control-Allow-Origin`
+   só para barispol.com, www.barispol.com e a origem da app
+   (`comCors`, `ORIGENS_PERMITIDAS`), em vez de `*`; o acesso continua a ser
+   decidido pelo testemunho. A `resumo-matinal` e a `relatorios-diarios`
+   publicadas ainda levavam a fonte Dax: agora Titillium Web (regra 7).
+   `AndroidManifest.xml` com `allowBackup="false"` (o Android deixa de copiar
+   os dados da app para a conta Google); APK de teste nos Artifacts por 7 dias
+   (era 30). As actions ficam por etiqueta de versão (`@v4`): fixar por SHA
+   obriga a actualizar à mão a cada versão; fica para quando houver Dependabot.
+7. **Entradas do site atrás de uma Edge Function** (`entradas-publicas.sql`,
+   aplicado; `funcoes/entrada-publica/index.ts` v1 publicada): `index.html`,
+   `contacto.html` e `avaliar.html` deixaram de chamar `bsp_pedido_site` e
+   `bsp_feedback_publico` com a chave pública; chamam `entrada-publica`
+   (`{qual: 'pedido'|'feedback', dados}`), que confere a origem (só
+   barispol.com), o campo-armadilha «empresa» e o limite de 5 por hora por
+   ligação (IP só como resumo SHA-256 com sal em `entradas_publicas`, 30 dias
+   na `bsp_retencao`), e só então chama a função com a chave do servidor. As
+   mensagens das funções («Escreva o seu nome.») continuam a chegar às páginas
+   em `message`. As duas funções perderam o EXECUTE de `anon`: a chave pública
+   já não chega a nenhuma função do projecto. Testado pelo servidor: origem
+   barispol.com passa (e devolve o erro de validação da função), origem
+   estranha recebe 403, campo-armadilha recebe «ok» sem gravar. Turnstile:
+   entra nesta função quando o Elmar tiver as chaves da Cloudflare.
 
 Resto da Fase 2 (até sexta): painel Auth (regras de palavra-passe, sessões, Turnstile,
 TOTP para a gestão),

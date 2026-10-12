@@ -68,8 +68,18 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
 - Chave pública fechada (`funcoes-fechadas-2.sql`): `anon` não tem tabelas nem
   funções de `public`, nem por omissão; só `bsp_pedido_site`,
   `bsp_feedback_publico`, `bsp_feedback_email` e `bsp_avaria_do_email`. Uma
-  entrada nova para visitantes leva `grant execute … to anon` de propósito;
   `crm`, `erp` e `whatsapp` nunca chamáveis pela API; toda a tabela com RLS.
+  Desde o ponto 7 da Fase 2 só `bsp_feedback_email` e `bsp_avaria_do_email`
+  (Zapier, com código do cofre) ficam a `anon`; o site entra pela Edge
+  Function `entrada-publica` (`entradas-publicas.sql`: origem, campo-armadilha,
+  5 por hora por ligação). Uma entrada nova para visitantes passa por ela,
+  nunca por `grant execute … to anon`.
+- Cópia diária de todas as tabelas de `public` (7 dias) e retenção semanal
+  `bsp_retencao` (`retencao-copias.sql`); uma tabela nova com prazo de vida
+  entra na lista `regras` dessa função.
+- CORS nas Edge Functions: `comCors` + `ORIGENS_PERMITIDAS` (barispol.com,
+  www, app); uma função nova chamada pelo navegador usa o mesmo embrulho,
+  nunca `"*"`. Android `allowBackup="false"`.
 - Por fazer (fases 2 a 4 do plano, em `O-QUE-FALTA.md` 3-gy): painel Auth
   (2FA, sessões, Turnstile), píxel da Meta fora
   do domínio do Workspace, entradas públicas atrás de Edge Function, CORS,
