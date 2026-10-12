@@ -25,7 +25,7 @@
 // mandar "to" como lista e usar "cc"/"bcc" (relatorios de area e avisos
 // do atendimento do WhatsApp).
 //
-// Este ficheiro e a copia da versao publicada (versao 7, 02-10-2026). O
+// Este ficheiro e a copia da versao publicada (versao 8, 12-10-2026). O
 // lembrete da marcacao ao paciente usa o "cc" para rececao@barispol.com.
 // RESPONDER PARA (versao 4, 30-09-2026): so o servidor pode mandar
 // "reply_to" (relatorio semanal da viatura -> Administracao).
@@ -39,6 +39,13 @@
 // enviar, consulta emails_pausa; com pausa, responde {"pausado": true} e nao
 // envia. Cada envio (ou pausa) fica em emails_registo, sem enderecos nem
 // texto, para contar o dia.
+// AUTOR E LIMITE POR PESSOA (versao 8, 12-10-2026, auditoria de seguranca,
+// emails-autor.sql): cada registo leva o autor (id da equipa, «servidor» ou
+// «gestor:<id>»). Um colaborador que nao e gestor envia no maximo 20 por dia
+// (bsp_emails_de_hoje) e o HTML dele e limpo antes de sair: sem <script>,
+// <iframe>, <object>, <embed>, <form>, <input>, <meta>, <link>, sem on*=, e
+// as ligacoes e imagens so para barispol.com (ou mailto:). Assim ninguem
+// forja, de geral@, um e-mail com uma ligacao para fora da clinica.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -97,6 +104,26 @@ const SITIO_ANEXOS = "https://barispol.com/";
 const recusar = (erro: string, estado: number) =>
   new Response(JSON.stringify({ erro }),
     { status: estado, headers: { ...cors, "Content-Type": "application/json" } });
+
+const LIMITE_POR_PESSOA = 20;
+const SITIOS_PERMITIDOS = /^(https:\/\/(www\.)?barispol\.com(\/|$)|mailto:)/i;
+
+/* HTML de um colaborador (versao 8): tira o que corre codigo ou pede dados e
+   deixa so ligacoes e imagens do proprio site. O cartao (bspEmailWrap) passa
+   inteiro: tabelas, estilos em linha, o logotipo e o botao para o Workspace. */
+const limparHtml = (html: string): string => {
+  let h = String(html || "").slice(0, 200000);
+  h = h.replace(/<\s*(script|iframe|object|embed|form|input|textarea|select|button|meta|link|base|svg|math)\b[\s\S]*?(<\s*\/\s*\1\s*>|$)/gi, "");
+  h = h.replace(/<\s*\/?\s*(script|iframe|object|embed|form|input|textarea|select|button|meta|link|base|svg|math)\b[^>]*>/gi, "");
+  h = h.replace(/\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
+  h = h.replace(/\s+(href|src|action|background|formaction|xlink:href)\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/gi, (_m, atributo, _v, a, b, c) => {
+    const destino = String(a ?? b ?? c ?? "").trim();
+    return SITIOS_PERMITIDOS.test(destino) ? " " + atributo + "=\"" + destino.replace(/"/g, "") + "\"" : "";
+  });
+  h = h.replace(/(url\s*\(\s*['"]?)(?!https:\/\/(www\.)?barispol\.com\/)[^)'"]*/gi, "$1");
+  h = h.replace(/expression\s*\(/gi, "");
+  return h;
+};
 
 const listaDeEnderecos = (v: unknown): string[] =>
   (Array.isArray(v) ? v : [v]).map((x) => String(x || "").trim()).filter((x) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)).slice(0, 10);
@@ -170,6 +197,8 @@ Deno.serve(async (req) => {
     }
   }
 
+  let autor = "servidor";
+  let htmlFinal = html;
   if (!doServidor) {
     const URL_SB = Deno.env.get("SUPABASE_URL") || "";
     const SERVICO = chaveServidor();
@@ -186,7 +215,14 @@ Deno.serve(async (req) => {
       auth: { persistSession: false },
     });
     const { data: eGestor } = await comSessao.rpc("bsp_e_gestor");
+    const { data: meuId } = await comSessao.rpc("bsp_meu_id");
+    const idEquipa = typeof meuId === "string" && meuId ? meuId : String(quem.user.id || "");
+    autor = (eGestor === true ? "gestor:" : "") + idEquipa;
     if (eGestor !== true) {
+      /* Limite por pessoa e HTML limpo (versao 8). */
+      const { data: enviadosHoje } = await admin.rpc("bsp_emails_de_hoje", { p_autor: autor });
+      if (typeof enviadosHoje === "number" && enviadosHoje >= LIMITE_POR_PESSOA) return recusar("Limite diário de e-mails desta conta atingido.", 429);
+      htmlFinal = limparHtml(String(html || ""));
       /* Um colaborador so avisa colegas: os enderecos da equipa e o da
          empresa. */
       const destino = String(to || "").trim().toLowerCase();
@@ -203,7 +239,7 @@ Deno.serve(async (req) => {
   const admReg = URL_REG && chaveServidor() ? createClient(URL_REG, chaveServidor(), { auth: { persistSession: false } }) : null;
   const nDest = paraLista.length + cc.length + bcc.length;
   const registar = async (estado: number | null, pausado: boolean) => {
-    try { if (admReg) await admReg.from("emails_registo").insert({ assunto: String(subject || "").slice(0, 200), destinatarios: nDest, estado, pausado }); } catch { /* o registo nunca impede o envio */ }
+    try { if (admReg) await admReg.from("emails_registo").insert({ assunto: String(subject || "").slice(0, 200), destinatarios: nDest, estado, pausado, autor }); } catch { /* o registo nunca impede o envio */ }
   };
   if (admReg) {
     const { data: pausaAte } = await admReg.rpc("bsp_emails_pausa_ate");
@@ -233,8 +269,8 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         from: "Barispol Workspace <geral@barispol.com>",
         to: paraLista,
-        subject: subject,
-        html: html,
+        subject: String(subject || "").slice(0, 300),
+        html: htmlFinal,
         ...(cc.length ? { cc } : {}),
         ...(bcc.length ? { bcc } : {}),
         ...(responderPara.length ? { reply_to: responderPara } : {}),

@@ -61,6 +61,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
 - Contas gestoras: Elmar, Arlete e a conta de teste «Beb» (a desactivar).
 - Estado, notificações e endereços assinados só no `sessionStorage`
   (12-10-2026, Fase 2 em `O-QUE-FALTA.md` 3-gy); endereços de 4 h.
+- Push das mensagens sem texto (`push-sem-texto.sql`): «Nova mensagem» e o
+  autor; nunca voltar a pôr o texto no `corpo` do `bsp_push_mensagem`.
+- `bright-worker` v8 (`emails-autor.sql`): `emails_registo.autor`, 20 por
+  dia a quem não é gestor, HTML limpo (`limparHtml`: ligações só barispol.com).
 - Por fazer (fases 2 a 4 do plano, em `O-QUE-FALTA.md` 3-gy): painel Auth
   (2FA, sessões, Turnstile), píxel da Meta fora
   do domínio do Workspace, entradas públicas atrás de Edge Function, CORS,

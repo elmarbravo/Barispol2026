@@ -4290,6 +4290,22 @@ resumida no `CLAUDE.md`. Feito hoje:
    anexos valem 4 h (`BSP_URL_VALIDADE` 14400), e não 24 h. As preferências do
    aparelho (tema, ordem, viatura, TURN) ficam no `localStorage`. Testado no
    Playwright: chaves antigas apagadas, estado só no separador, sem erros.
+2. **Push sem texto** (`push-sem-texto.sql`, aplicado): o aviso do telemóvel
+   das mensagens do Chat (`bsp_push_mensagem`) deixou de levar os 160
+   caracteres do texto (ficavam nos serviços da Google e da Apple e no ecrã
+   bloqueado, com nomes de utentes nas conversas clínicas). Diz só quem e onde
+   («Rosa · #laboratório») e «Nova mensagem», «📎 Anexo», «Novo comentário».
+   Feed, tarefas, documentos e agenda mantêm o título. O Workspace aberto
+   mostra o texto como antes.
+3. **`bright-worker` versão 8** (`emails-autor.sql`, aplicado; função
+   publicada): `emails_registo.autor` (id da equipa, «servidor» ou
+   «gestor:<id>»); colaborador que não é gestor: no máximo 20 e-mails por dia
+   (`bsp_emails_de_hoje`, resposta 429) e o HTML passa por `limparHtml` (sem
+   scripts, iframes, formulários, `on*=`; ligações e imagens só para
+   barispol.com ou `mailto:`), para ninguém forjar, de geral@, um e-mail com
+   uma ligação para fora. O cartão `bspEmailWrap` passa inteiro, com as
+   tabelas das escalas. Testado: a chave pública continua recusada (403); a
+   limpeza foi testada com scripts, `onerror`, formulários e ligações falsas.
 
 Resto da Fase 2 (até sexta): painel Auth (regras de palavra-passe, sessões, Turnstile,
 TOTP para a gestão),
