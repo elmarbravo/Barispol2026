@@ -23,6 +23,7 @@
 --   presenca_dias           24 meses
 --   equipa_auditoria        24 meses
 --   entradas_publicas       30 dias (resumos de IP do site, entradas-publicas.sql)
+--   auditoria_dados         24 meses (auditoria-dados.sql)
 -- avisos_mensagens (30 dias) e acessos_registo (12 meses) já tinham a sua
 -- limpeza (bsp-limpeza-registos, bsp-acessos-limpeza).
 -- (As apagações estão em texto dinâmico porque a ferramenta do servidor pára
@@ -78,7 +79,8 @@ declare
     ['recuperacoes_pedidos', 'criado_em < now() - interval ''90 days'''],
     ['presenca_dias', 'dia < (now() - interval ''24 months'')::date'],
     ['equipa_auditoria', 'quando < now() - interval ''24 months'''],
-    ['entradas_publicas', 'criado_em < now() - interval ''30 days''']
+    ['entradas_publicas', 'criado_em < now() - interval ''30 days'''],
+    ['auditoria_dados', 'quando < now() - interval ''24 months''']
   ];
   i int; n bigint; saida jsonb := '{}'::jsonb;
 begin

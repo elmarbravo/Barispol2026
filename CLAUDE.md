@@ -77,6 +77,11 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
 - Cópia diária de todas as tabelas de `public` (7 dias) e retenção semanal
   `bsp_retencao` (`retencao-copias.sql`); uma tabela nova com prazo de vida
   entra na lista `regras` dessa função.
+- Auditoria (`auditoria-dados.sql`): `auditoria_dados` + gatilho `bsp_auditar`
+  (só API com sessão) nas tabelas de utentes, clínicas e de pagamentos; uma
+  tabela nova desse tipo leva o mesmo gatilho. Uma função nova que devolva
+  dados sensíveis chama `bsp_acesso_srv(ecra, detalhe)` no início (detalhe
+  sem nomes) e é VOLATILE.
 - CORS nas Edge Functions: `comCors` + `ORIGENS_PERMITIDAS` (barispol.com,
   www, app); uma função nova chamada pelo navegador usa o mesmo embrulho,
   nunca `"*"`. Android `allowBackup="false"`.

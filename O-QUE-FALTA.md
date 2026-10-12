@@ -4351,11 +4351,26 @@ resumida no `CLAUDE.md`. Feito hoje:
    ligação (IP só como resumo SHA-256 com sal em `entradas_publicas`, 30 dias
    na `bsp_retencao`), e só então chama a função com a chave do servidor. As
    mensagens das funções («Escreva o seu nome.») continuam a chegar às páginas
-   em `message`. As duas funções perderam o EXECUTE de `anon`: a chave pública
-   já não chega a nenhuma função do projecto. Testado pelo servidor: origem
+   em `message`. As duas funções perderam o EXECUTE de `anon` (aplicado logo
+   depois de o site publicar as páginas novas): a chave pública só chega às
+   duas funções do Zapier (`bsp_feedback_email`, `bsp_avaria_do_email`). Testado pelo servidor: origem
    barispol.com passa (e devolve o erro de validação da função), origem
    estranha recebe 403, campo-armadilha recebe «ok» sem gravar. Turnstile:
    entra nesta função quando o Elmar tiver as chaves da Cloudflare.
+8. **Auditoria dos dados sensíveis** (`auditoria-dados.sql`, aplicado):
+   tabela `auditoria_dados` (quem, quando, tabela, operação, chave, só as
+   colunas que mudaram, antes e depois; só a gestão lê; 24 meses na
+   `bsp_retencao`) e gatilho `bsp_auditar` em 14 tabelas (`marcacoes`,
+   `utentes`, `seguimentos`, `registo_clinico`, `prestadores`, `credenciais`,
+   `ausencias`, `produtividade_*`, `pagamento_*`), só para o que vem pela API
+   com sessão (o servidor e os crons não entram, senão a cópia diária dos
+   utentes enchia a tabela). Leituras pela API: `crm_ficha`,
+   `bsp_registo_clinico_dia`/`_lista`, `bsp_pagamento_calcular`/`_detalhe` e
+   `bsp_produtividade_valores` registam quem as chamou em `acessos_registo`
+   (`bsp_acesso_srv`; detalhe sem nomes), como o ecrã já fazia; as funções
+   passaram a VOLATILE. Testado com sessão simulada e desfeito: a alteração
+   de uma marcação ficou registada com antes/depois, um `update` sem mudança
+   não; a leitura de uma ficha ficou em `acessos_registo`.
 
 Resto da Fase 2 (até sexta): painel Auth (regras de palavra-passe, sessões, Turnstile,
 TOTP para a gestão),
