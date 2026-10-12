@@ -4389,3 +4389,58 @@ vez, zoom (decisão do Elmar), menu por função, foco e contraste, cores à mã
   (Medicina Geral, regime A, 15.000, `user_id` ligado), cédula em
   `credenciais`. **Pelo Elmar:** criar o acesso em Admin → Equipa com uma
   palavra-passe provisória (regra 1) e preencher NIF e IBAN na ficha.
+
+## 3-gz. Pedidos do Emmanuel: toners, registo inicial de km e plano de manutenção (12-10-2026)
+
+Três pedidos do Emmanuel Domingos no Chat (capturas enviadas pelo Elmar):
+«não temos a opção para solicitar toners», «não tem a opção de registo
+inicial» (viatura) e a folha «BRSP-LOG Plano de Manutenção de Equipamentos
+2026».
+
+1. **Pedir toners** (`toners-pedidos.sql`, aplicado). Os pedidos de compra só
+   aceitavam armazéns do MetaGest (`bsp_ve_stock`). O armazém «Toners» em
+   `pedidos_compra` passa a ser de quem vê os toners (`bsp_ve_toners`:
+   gestão, Serviços Gerais e Emmanuel, Recepção, Laboratório), nas três
+   regras (ler, criar, mudar). No ecrã, Logística e stock → Toners → botão
+   «Pedir toners (N em falta)» abre o `PedidosCompraPainel` com o armazém
+   `Toners` e os consumíveis abaixo do mínimo já na lista (quantidade
+   sugerida: mínimo + 1 − o que há). A gestão aprova no mesmo sítio; a
+   novidade para a gestão diz «Aprove em Logística e stock → Toners». Depois
+   da compra, a entrada faz-se como antes («Entrada no armário»).
+2. **Registo inicial de km** (`transporte-km-inicial.sql`, aplicado). A
+   regra `transporte_acertos_criar` aceita o primeiro acerto de uma viatura
+   sem acertos a quem vê o Transporte (`bsp_ve_transporte`: motorista e
+   gestão); a partir do segundo, só a gestão. No ecrã: botão «Registo
+   inicial de km» no cabeçalho (no lugar de «Acertar km», para quem não é
+   gestão, e só enquanto a viatura não tem acerto) e no cartão da viatura;
+   o `TranspAcertoModal` com `inicial` explica que é o ponto de partida e
+   que se faz uma só vez; na viatura nova (e numa existente sem acerto) o
+   `TranspViaturaModal` tem o campo «Km no conta-quilómetros (registo
+   inicial)», que grava o acerto logo a seguir à viatura. O Suzuki Eeco
+   ainda não tem acerto (a Ambulância já tem): o Emmanuel pode fazê-lo.
+3. **Plano de manutenção preventiva 2026** importado só no servidor
+   (`equipamentos`, `manutencoes_plano`, `manutencoes_registo`; nunca no
+   repositório, por ter custos e facturas): equipamentos novos «Gerador de
+   energia» (a cada 120 dias; próxima 02-11-2026), «Viatura Suzuki Eeco» e
+   «Viatura Suzuki S-presso» (categoria Viatura, matrícula em
+   `numero_serie`; revisão a cada 90 dias ou 5.000 km) e «Cerca eléctrica»
+   (a cada 180 dias); os 21 ar condicionados já registados ficaram com plano
+   de 60 dias. Registos da ficha: revisões das duas viaturas (Março/Abril e
+   Agosto, Angolauto), limpeza geral dos 21 aparelhos a 05-08-2026 (Rasos
+   Tec; o custo da factura dividido por aparelho; correctivas nos
+   Bastidores e no Laboratório (1) anotadas) e a cerca a 01-08-2026. Os
+   gatilhos calcularam a próxima: ar condicionados 04-10-2026 (já vencida,
+   como na folha, «agendada Out»), viaturas 05 e 10-11-2026, cerca
+   28-01-2027. Tudo em Serviços gerais → Equipamentos e manutenção.
+   O gerador não tem registo com dia (a folha só diz «Março»); fica na nota
+   do equipamento.
+
+Testado com sessões simuladas e desfeito: o Emmanuel cria um pedido no
+armazém Toners e não num armazém do MetaGest; faz o 1.º acerto da viatura 1
+e o 2.º é recusado; na viatura 2 (já com acerto) é recusado; a Recepção
+(u12) pede toners mas não acerta km. `workspace.html` passou no `node
+--check`.
+
+**Nota para o Emmanuel** (já respondida pelo Elmar no Chat, a confirmar):
+as três opções estão no Workspace; o registo inicial dos km do Eeco deve
+ser feito com o painel à vista.

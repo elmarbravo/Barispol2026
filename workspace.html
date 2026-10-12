@@ -24980,12 +24980,15 @@ function bspManutProxima(manut, ultimoKm) {
 }
 /* Acertar os km de uma viatura sem viagem (09-10-2026, transporte-acertos.sql).
    Só a gestão; fica no histórico e no grupo do Transporte. */
-function TranspAcertoModal({ open, ultimoKm, viatura, onClose, onFeito, onAvisar }) {
+/* Acerto de km da gestão ou, com «inicial» (12-10-2026, pedido do Emmanuel,
+   transporte-km-inicial.sql), o primeiro registo de uma viatura que ainda
+   não tem nenhum acerto: o motorista faz esse uma só vez. */
+function TranspAcertoModal({ open, ultimoKm, viatura, inicial, onClose, onFeito, onAvisar }) {
   const toast = useToast();
   const [km, setKm] = React.useState('');
   const [motivo, setMotivo] = React.useState('');
   const [aGravar, setAGravar] = React.useState(false);
-  React.useEffect(() => { if (open) { setKm(''); setMotivo(''); setAGravar(false); } }, [open]);
+  React.useEffect(() => { if (open) { setKm(''); setMotivo(inicial ? 'Registo inicial' : ''); setAGravar(false); } }, [open, inicial]);
   if (!open) return null;
   const n = parseInt(String(km).replace(/\D/g, ''), 10);
   const erro = !(n >= 0) || String(km).trim() === '' ? 'Escreva os km que o conta-quilómetros marca.' : n === ultimoKm ? 'Os km já estão assim.' : !motivo.trim() ? 'Diga o motivo (ex.: leitura do painel, erro de digitação).' : '';
@@ -24995,17 +24998,19 @@ function TranspAcertoModal({ open, ultimoKm, viatura, onClose, onFeito, onAvisar
     const r = await bspGetClient().from('transporte_acertos').insert({ viatura_id: viatura, km: n, motivo: motivo.trim(), criado_por: window.CURRENT_USER_ID }).select('id');
     setAGravar(false);
     if (r.error || !r.data || !r.data.length) { toast('Não foi possível gravar: ' + (r.error ? r.error.message : 'sem permissão')); return; }
-    onAvisar('📝 Km acertados · ' + bspHoraCurta(new Date().toISOString()) + '\nKm: ' + bspKm(ultimoKm) + ' → ' + bspKm(n) + '\nMotivo: ' + motivo.trim());
-    toast('Km acertados: ' + bspKm(n) + ' km. As viagens seguintes somam a partir daqui.');
+    onAvisar((inicial ? '📝 Registo inicial de km · ' : '📝 Km acertados · ') + bspHoraCurta(new Date().toISOString()) + '\nKm: ' + bspKm(ultimoKm) + ' → ' + bspKm(n) + '\nMotivo: ' + motivo.trim());
+    toast((inicial ? 'Registo inicial: ' : 'Km acertados: ') + bspKm(n) + ' km. As viagens seguintes somam a partir daqui.');
     onFeito(); onClose();
   };
   return React.createElement(Modal, {
-    open, onClose, title: 'Acertar km', width: 460,
+    open, onClose, title: inicial ? 'Registo inicial de km' : 'Acertar km', width: 460,
     footer: React.createElement(React.Fragment, null,
       React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: onClose }, 'Cancelar'),
       React.createElement(Button, { variant: 'primary', size: 'sm', onClick: gravar, disabled: !!erro || aGravar }, aGravar ? 'A gravar…' : 'Gravar'))
   }, React.createElement("div", { style: { padding: 20, display: 'flex', flexDirection: 'column', gap: 16 } },
-    React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)' } }, 'Último registo: ' + bspKm(ultimoKm) + ' km. Escreva o que o conta-quilómetros marca agora. Não conta como km andados; as viagens seguintes somam a partir daqui.'),
+    React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)' } }, inicial
+      ? 'Esta viatura ainda não tem ponto de partida. Escreva o que o conta-quilómetros marca agora: as viagens seguintes somam a partir daqui. Faz-se uma só vez; depois só a gestão acerta os km.'
+      : 'Último registo: ' + bspKm(ultimoKm) + ' km. Escreva o que o conta-quilómetros marca agora. Não conta como km andados; as viagens seguintes somam a partir daqui.'),
     React.createElement("label", null, bspTranspRot('Km no conta-quilómetros'),
       React.createElement("input", { value: km, onChange: e => setKm(e.target.value), inputMode: 'numeric', placeholder: 'Ex.: 6946', style: bspTranspCampo })),
     React.createElement("label", null, bspTranspRot('Motivo'),
@@ -25100,13 +25105,18 @@ function bspTranspContas(viagens, abast, de, ate, acertos) {
 }
 /* Viatura nova ou alterada (06-10-2026, transporte-viaturas.sql). Nunca se
    apaga: a que sai de serviço fica «fora de serviço» e o histórico mantém-se. */
-function TranspViaturaModal({ viatura, onClose, onFeito }) {
+function TranspViaturaModal({ viatura, semAcerto, onClose, onFeito }) {
   const toast = useToast();
   const nova = !viatura || !viatura.id;
-  const [f, setF] = React.useState(() => Object.assign({ nome: '', matricula: '', marca: '', modelo: '', ano: '', combustivel: 'Gasóleo', activa: true, nota: '' }, viatura || {}, { ano: viatura && viatura.ano ? String(viatura.ano) : '' }));
+  /* Registo inicial de km (12-10-2026, Emmanuel): na viatura nova, ou numa
+     que ainda não tem acerto, o campo «Km no conta-quilómetros» grava o
+     primeiro acerto (transporte-km-inicial.sql). */
+  const pedeKm = nova || !!semAcerto;
+  const [f, setF] = React.useState(() => Object.assign({ nome: '', matricula: '', marca: '', modelo: '', ano: '', combustivel: 'Gasóleo', activa: true, nota: '', km: '' }, viatura || {}, { ano: viatura && viatura.ano ? String(viatura.ano) : '', km: '' }));
   const [aGravar, setAGravar] = React.useState(false);
   const campo = (k, rot, ph, modo) => React.createElement("label", null, bspTranspRot(rot), React.createElement("input", { value: f[k], onChange: e => setF(x => Object.assign({}, x, { [k]: e.target.value })), inputMode: modo || 'text', placeholder: ph, style: bspTranspCampo }));
-  const erro = !f.nome.trim() ? 'Dê um nome à viatura.' : f.ano && !/^\d{4}$/.test(String(f.ano).trim()) ? 'O ano tem 4 algarismos.' : '';
+  const kmN = parseInt(String(f.km).replace(/\D/g, ''), 10);
+  const erro = !f.nome.trim() ? 'Dê um nome à viatura.' : f.ano && !/^\d{4}$/.test(String(f.ano).trim()) ? 'O ano tem 4 algarismos.' : pedeKm && String(f.km).trim() !== '' && !(kmN >= 0) ? 'Os km são um número inteiro.' : '';
   const gravar = async () => {
     if (erro || aGravar) return;
     setAGravar(true);
@@ -25114,6 +25124,10 @@ function TranspViaturaModal({ viatura, onClose, onFeito }) {
     const cl = bspGetClient();
     const r = nova ? await cl.from('transporte_viaturas').insert(linha).select('id') : await cl.from('transporte_viaturas').update(linha).eq('id', viatura.id).select('id');
     if (r.error || !r.data || !r.data.length) { toast('Não foi possível gravar: ' + (r.error ? r.error.message : 'sem permissão')); setAGravar(false); return; }
+    if (pedeKm && String(f.km).trim() !== '' && kmN >= 0) {
+      const a = await cl.from('transporte_acertos').insert({ viatura_id: r.data[0].id, km: kmN, motivo: 'Registo inicial', criado_por: window.CURRENT_USER_ID }).select('id');
+      if (a.error || !a.data || !a.data.length) toast('A viatura ficou gravada, mas não o registo inicial de km: ' + (a.error ? a.error.message : 'sem permissão'));
+    }
     toast(nova ? 'Viatura acrescentada.' : 'Viatura alterada.');
     onFeito(r.data[0].id); onClose();
   };
@@ -25135,6 +25149,8 @@ function TranspViaturaModal({ viatura, onClose, onFeito }) {
       React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
         [[true, 'Em serviço'], [false, 'Fora de serviço']].map(o => React.createElement("button", { key: String(o[0]), type: 'button', onClick: () => setF(x => Object.assign({}, x, { activa: o[0] })), style: bspEscChip(!!f.activa === o[0]) }, o[1])))),
     campo('nota', 'Nota (opcional)', 'Ex.: seguro até 03-2027'),
+    pedeKm && React.createElement("div", null, campo('km', 'Km no conta-quilómetros (registo inicial)', 'Ex.: 6946', 'numeric'),
+      React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 4 } }, 'O que o painel marca hoje. É o ponto de partida: as viagens seguintes somam a partir daqui. Faz-se uma só vez.')),
     erro && f.nome && React.createElement("div", { role: 'alert', style: { fontSize: 13, color: 'var(--perigo)' } }, erro)));
 }
 function TransporteScreen({ currentUser }) {
@@ -25277,7 +25293,7 @@ function TransporteScreen({ currentUser }) {
     [['hoje', 'Hoje'], ['historico', 'Histórico e contas'], ['viaturas', 'Viaturas'], ['zonas', 'Bairros']].map(a => React.createElement("button", { key: a[0], onClick: () => setAba(a[0]), style: bspEscChip(aba === a[0]) }, a[1])),
     React.createElement("span", { style: { flex: 1 } }),
     React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-3)', alignSelf: 'center' } }, 'Último registo: ' + bspKm(ultimoKm) + ' km'),
-    gestao && vid && aba !== 'zonas' && React.createElement("button", { onClick: () => { if (aberta) { toast('Há uma viagem em curso nesta viatura. Termine-a antes de acertar os km.'); return; } setModal('acerto'); }, style: Object.assign(bspEscBotao(false), { height: 32, fontSize: 12.5 }) }, 'Acertar km'));
+    (gestao || !tv.acertos.length) && vid && aba !== 'zonas' && React.createElement("button", { onClick: () => { if (aberta) { toast('Há uma viagem em curso nesta viatura. Termine-a antes de acertar os km.'); return; } setModal('acerto'); }, style: Object.assign(bspEscBotao(false), { height: 32, fontSize: 12.5 }) }, gestao ? 'Acertar km' : 'Registo inicial de km'));
   const escolhaViatura = viaturas.length > 0 && aba !== 'zonas' && React.createElement("label", { style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: 'none' } },
     React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: 'var(--text-2)' } }, aba === 'hoje' ? 'Viatura que vou usar' : 'Viatura'),
     React.createElement("select", { value: vid || '', onChange: e => setViaturaEsc(Number(e.target.value)), style: Object.assign({}, bspTranspCampo, { width: 'auto', minWidth: 0, maxWidth: '100%', flex: '1 1 220px', height: 40, fontSize: 16 }) },
@@ -25425,7 +25441,8 @@ function TransporteScreen({ currentUser }) {
           React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 } },
             v.activa && v.id !== vid && React.createElement("button", { onClick: () => { setViaturaEsc(v.id); setAba('hoje'); }, style: Object.assign(bspEscBotao(true), { height: 38 }) }, 'Usar esta'),
             React.createElement("button", { onClick: () => { setViaturaEsc(v.id); setAba('historico'); }, style: Object.assign(bspEscBotao(false), { height: 38 }) }, 'Histórico'),
-            React.createElement("button", { onClick: () => setViaturaModal(v), style: Object.assign(bspEscBotao(false), { height: 38 }) }, 'Alterar')));
+            React.createElement("button", { onClick: () => setViaturaModal(v), style: Object.assign(bspEscBotao(false), { height: 38 }) }, 'Alterar'),
+            !acV.length && React.createElement("button", { onClick: () => { setViaturaEsc(v.id); setModal('acerto'); }, style: Object.assign(bspEscBotao(false), { height: 38 }) }, 'Registo inicial de km')));
       }));
   } else {
     const conhecidos = Array.from(new Set(Object.keys(t.zonas).concat(tv.viagens.reduce((l, v) => l.concat((v.paragens || []).map(p => p.quem)), []))));
@@ -25447,9 +25464,9 @@ function TransporteScreen({ currentUser }) {
     React.createElement(TranspAbastModal, { open: modal === 'abast', viatura: vid, ultimoKm, anteriores: tv.abast, onClose: () => setModal(''), onFeito: t.recarregar, onAvisar: avisarChat }),
     React.createElement(TranspManutModal, { open: modal === 'manut', viatura: vid, ultimoKm, onClose: () => setModal(''), onFeito: t.recarregar, onAvisar: avisarChat }),
     React.createElement(TranspJuntarModal, { open: modal === 'juntar', onClose: () => setModal(''), onGravar: juntar }),
-    React.createElement(TranspAcertoModal, { open: modal === 'acerto', viatura: vid, ultimoKm, onClose: () => setModal(''), onFeito: t.recarregar, onAvisar: avisarChat }),
+    React.createElement(TranspAcertoModal, { open: modal === 'acerto', viatura: vid, ultimoKm, inicial: !tv.acertos.length, onClose: () => setModal(''), onFeito: t.recarregar, onAvisar: avisarChat }),
     React.createElement(TranspNaoFoiModal, { open: naoFoi != null, nome: naoFoi != null && paragens[naoFoi] ? nomeDe(paragens[naoFoi].quem) : '', onClose: () => setNaoFoi(null), onGravar: gravarNaoFoi }),
-    viaturaModal && React.createElement(TranspViaturaModal, { viatura: viaturaModal, onClose: () => setViaturaModal(null), onFeito: id => { t.recarregar(); if (!viaturaModal.id) setViaturaEsc(id); } }),
+    viaturaModal && React.createElement(TranspViaturaModal, { viatura: viaturaModal, semAcerto: !!viaturaModal.id && !(t.acertos || []).some(a => a.viatura_id === viaturaModal.id), onClose: () => setViaturaModal(null), onFeito: id => { t.recarregar(); if (!viaturaModal.id) setViaturaEsc(id); } }),
     abas, escolhaViatura, corpo);
 }
 /* Documentos da clinica (30-09-2026, documentos.sql): regulamento interno,
@@ -28641,6 +28658,9 @@ function TonersPainel() {
   const [estado, setEstado] = React.useState(null);
   const [tick, setTick] = React.useState(0);
   const [form, setForm] = React.useState(null);
+  /* Pedir toners (12-10-2026, Emmanuel, toners-pedidos.sql): pedido de
+     compra no armazém «Toners», com os consumíveis abaixo do mínimo. */
+  const [pedir, setPedir] = React.useState(false);
   const rot = bspTranspRot;
   React.useEffect(() => {
     const cl = bspGetClient(); if (!cl) return;
@@ -28701,8 +28721,12 @@ function TonersPainel() {
     React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
       React.createElement("button", { onClick: () => abrir('Leitura'), style: bspEscBotao(true) }, 'Registar nível'),
       trata && React.createElement("button", { onClick: () => abrir('Troca'), style: bspEscBotao(false) }, 'Toner trocado'),
-      trata && React.createElement("button", { onClick: () => abrir('Entrada'), style: bspEscBotao(false) }, 'Entrada no armário')),
+      trata && React.createElement("button", { onClick: () => abrir('Entrada'), style: bspEscBotao(false) }, 'Entrada no armário'),
+      React.createElement("button", { onClick: () => setPedir(p => !p), style: bspEscBotao(pedir) }, pedir ? 'Fechar os pedidos' : 'Pedir toners' + (baixos.length ? ' (' + baixos.length + ' em falta)' : ''))),
     caixaForm,
+    pedir && React.createElement("div", { style: bspRegCaixa },
+      React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 } }, 'Pedidos de toners'),
+      React.createElement(PedidosCompraPainel, { armazem: 'Toners', alertas: baixos.map(c => ({ estado: 'a-acabar', artigo: c, nome: c, unidade: 'un', qtd: qtd(c), saidas_30d: minimo(c) + 1 })), dica: 'Quantidade sugerida: o mínimo mais um, menos o que há no armário. Acerte antes de enviar; 0 tira o artigo. A Direcção aprova; a compra entra depois por «Entrada no armário».', onFeito: () => setTick(t => t + 1) })),
     estado && estado.erro ? React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, estado.erro) : null,
     React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'O nível regista-se à mão (no visor ou no relatório da impressora). A leitura automática precisa de um pequeno programa num computador da clínica, ligado às impressoras.'),
     !impressoras.length ? React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, imp.linhas ? 'Sem impressoras registadas.' : 'A carregar…') :
@@ -29153,7 +29177,7 @@ function AvariasLista() {
 }
 
 /* ───────────── Pedidos de compra (Stock) ───────────── */
-function PedidosCompraPainel({ armazem, alertas, onFeito }) {
+function PedidosCompraPainel({ armazem, alertas, dica, onFeito }) {
   const toast = useToast();
   const eu = window.CURRENT_USER_ID;
   const gestor = bspGereMarcacoes(window.userById(eu));
@@ -29181,7 +29205,7 @@ function PedidosCompraPainel({ armazem, alertas, onFeito }) {
     !novo && React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end' } }, React.createElement("button", { onClick: comecar, style: bspEscBotao(true) }, 'Novo pedido com os artigos em falta')),
     novo && React.createElement("div", { style: bspRegCaixa },
       React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)' } }, 'Novo pedido · ' + bspStockArmazemNome(armazem)),
-      React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', margin: '2px 0 8px' } }, 'Quantidade sugerida: as saídas dos últimos 30 dias menos o que há. Acerte antes de enviar; 0 tira o artigo.'),
+      React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', margin: '2px 0 8px' } }, dica || 'Quantidade sugerida: as saídas dos últimos 30 dias menos o que há. Acerte antes de enviar; 0 tira o artigo.'),
       !novo.itens.length ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Sem artigos esgotados nem a acabar neste armazém.')
         : novo.itens.map((i, k) => React.createElement("div", { key: i.artigo, style: { display: 'flex', gap: 8, alignItems: 'center', padding: '6px 0', borderTop: '1px solid var(--border)' } },
           React.createElement("div", { style: { flex: 1, minWidth: 0, fontSize: 13, color: 'var(--text-1)' } }, i.nome, React.createElement("span", { style: { color: 'var(--text-3)', fontSize: 11.5 } }, ' · ' + i.artigo)),

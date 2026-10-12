@@ -460,6 +460,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   Acertos de km (09-10-2026, `transporte-acertos.sql`): «Acertar km» só da
   gestão; o último acerto é o ponto de partida e só contam as viagens
   registadas depois dele (`bspTranspUltimoKm`); nunca se apagam.
+  Registo inicial (12-10-2026, `transporte-km-inicial.sql`, pedido do
+  Emmanuel): o primeiro acerto de uma viatura sem acertos pode ser do
+  motorista (`bsp_ve_transporte`); botão «Registo inicial de km» e campo na
+  viatura nova (`TranspViaturaModal`, `TranspAcertoModal` com `inicial`).
   Fotografias (02-10-2026): só 4 por dia, na primeira saída de cada turno
   (`bspTranspPrimeiraDoTurno`) e no «Cheguei a casa». Os km são sempre
   obrigatórios.
@@ -598,6 +602,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   pela coluna `area`, mais o superior (`bsp_chefe_de`), a Direcção Clínica nas
   áreas de saúde e quem trata; equipamentos, planos e registos só da área (sem
   área: só quem trata). Nunca voltar a abrir a toda a equipa.
+  Plano 2026 do Emmanuel (12-10-2026) importado só no servidor: gerador,
+  viaturas (categoria `Viatura`, matrícula em `numero_serie`), cerca eléctrica
+  e os 21 ar condicionados com plano e registos; custos e facturas nunca no
+  repositório.
 - Toners e gerador (04-10-2026, `toners-gerador.sql`): Logística e stock → `TonersPainel`
   (só Recepção, Laboratório, Serviços Gerais e gestão: `bspVeToners` /
   `bsp_ve_toners`, `toners-acesso.sql`, 05-10-2026) e `GeradorPainel` (só
@@ -605,6 +613,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   depósito por leituras e abastecimentos (`bsp_gerador_estado`). Avisos por
   `bsp_aviso_servicos_gerais` (novidade + telemóvel). Leitura automática das
   impressoras ainda não existe (precisa de programa local).
+  Pedir toners (12-10-2026, `toners-pedidos.sql`): pedido de compra no armazém
+  `Toners` de `pedidos_compra`, aberto a `bsp_ve_toners` (não a
+  `bsp_ve_stock`); no ecrã, «Pedir toners» em `TonersPainel` usa o
+  `PedidosCompraPainel` com `armazem: 'Toners'`.
 - Logística (06-10-2026, `logistica-compras.sql`): Logística e stock → «Compras
   correntes» (`LogisticaPainel`), compras de alimentação, consumíveis de escritório,
   limpeza, água e gás (`logistica_compras`, `BSP_LOGISTICA_CATS`), só o Elmar e
