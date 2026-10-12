@@ -4306,6 +4306,21 @@ resumida no `CLAUDE.md`. Feito hoje:
    uma ligação para fora. O cartão `bspEmailWrap` passa inteiro, com as
    tabelas das escalas. Testado: a chave pública continua recusada (403); a
    limpeza foi testada com scripts, `onerror`, formulários e ligações falsas.
+4. **`funcoes-fechadas-2.sql` (aplicado):** a chave pública (`anon`) perdeu os
+   privilégios em todas as tabelas e sequências de `public` (tinha SELECT e
+   INSERT em 70, sem regras RLS, por herança dos privilégios por omissão) e o
+   EXECUTE em todas as funções de `public`, `crm`, `erp` e `whatsapp` (60),
+   menos as quatro entradas de visitantes (`bsp_pedido_site`,
+   `bsp_feedback_publico`, `bsp_feedback_email`, `bsp_avaria_do_email`); os
+   privilégios por omissão do `postgres` deixaram de os dar a `anon` e a
+   `public`. `authenticated` ficou com o que tinha, concedido de forma
+   explícita; as funções de gatilho ficaram sem EXECUTE pela API. RLS ligado
+   nas 10 tabelas de `erp`/`crm` que não o tinham (stock, cobranças, espera,
+   fila, `pedidos_facturas`). Confirmado: 0 tabelas de `public` legíveis por
+   `anon`, 0 funções fora de `public` chamáveis pela API, 4 abertas a `anon`,
+   `crm_ficha`/`bsp_e_gestor`/`bsp_painel` continuam acessíveis com sessão.
+   **Regra nova:** uma função nova só fica aberta a visitantes com `grant
+   execute … to anon` escrito de propósito.
 
 Resto da Fase 2 (até sexta): painel Auth (regras de palavra-passe, sessões, Turnstile,
 TOTP para a gestão),

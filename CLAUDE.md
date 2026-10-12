@@ -65,6 +65,11 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   autor; nunca voltar a pôr o texto no `corpo` do `bsp_push_mensagem`.
 - `bright-worker` v8 (`emails-autor.sql`): `emails_registo.autor`, 20 por
   dia a quem não é gestor, HTML limpo (`limparHtml`: ligações só barispol.com).
+- Chave pública fechada (`funcoes-fechadas-2.sql`): `anon` não tem tabelas nem
+  funções de `public`, nem por omissão; só `bsp_pedido_site`,
+  `bsp_feedback_publico`, `bsp_feedback_email` e `bsp_avaria_do_email`. Uma
+  entrada nova para visitantes leva `grant execute … to anon` de propósito;
+  `crm`, `erp` e `whatsapp` nunca chamáveis pela API; toda a tabela com RLS.
 - Por fazer (fases 2 a 4 do plano, em `O-QUE-FALTA.md` 3-gy): painel Auth
   (2FA, sessões, Turnstile), píxel da Meta fora
   do domínio do Workspace, entradas públicas atrás de Edge Function, CORS,
