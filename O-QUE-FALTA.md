@@ -4537,3 +4537,20 @@ Feito (só `workspace.html`, sem mudanças no servidor):
   caminho normal; M4A quando a Web Audio não dá som.
 
 Falta: o Elmar confirmar no iPhone (ecrã principal) que a nota de voz sai.
+
+## 3-hd. Destinatários dos relatórios de turno e teste com os técnicos (14-10-2026)
+
+Elmar: «envie um e-mail para cada técnico da área com a tarefa de preencher
+com os dados do seu último relatório… prazo de 72 h» e «os relatórios seguem
+para direcção clínica, adm e superiores de cada área».
+
+- Teste: 14 técnicos (Enfermagem 4, Farmácia 3, Laboratório 2, Radiologia 2,
+  Recepção 3) receberam um e-mail com o porquê (acabar com os e-mails
+  repetidos à mão) e uma tarefa privada delegada pelo Elmar (ids 64 a 77),
+  prazo 17-10-2026, 16h30. Na «Observação» escrevem «Teste — dados de DD-MM».
+- `relatorios-destinos-superiores.sql` (aplicado): `bsp_relatorio_destinatarios`
+  calcula para (chefe da área + DireccaoClinica@) e cc (adm@ + superior de quem
+  entrega), sem quem entrega e sem repetidos; `bsp_relatorio_area_email` passa a
+  usá-la. Antes a Recepção não ia à Direcção Clínica e o Laboratório e a
+  Imagiologia não iam a nenhum chefe. O Laboratório continua sem chefe (falta
+  nomear quem substitui a Rosa Queirós).

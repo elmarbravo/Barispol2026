@@ -336,7 +336,11 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   stock, equipamento ou incidentes entra também em `bsp_relatorio_atencao`. Lêem: Direcção e
   Coordenação tudo; Direcção Clínica (Osvaldo Pacheco, u14,
   `BSP_RELATORIOS_DIRECCAO_CLINICA` / `bsp_le_areas_medicas()`) as áreas
-  médicas; a Arlete (u2) recebe cada um por e-mail.
+  médicas. E-mail de cada relatório (14-10-2026,
+  `relatorios-destinos-superiores.sql`, Elmar: «seguem para direcção clínica,
+  adm e superiores de cada área»): para o chefe da área (`relatorios_destinos`)
+  e DireccaoClinica@, cc adm@ e o superior de quem entrega (campo `superior`),
+  por `bsp_relatorio_destinatarios(area, user)`; nunca para quem entrega.
 - Apresentação do Workspace (25-09-2026): cores oficiais nas variáveis
   (`--navy` #292F58, `--accent` #2291CE), letra Titillium Web, sem gradientes nem
   animação de ecrã, e botão principal marinho (#273069). Cores novas vão
