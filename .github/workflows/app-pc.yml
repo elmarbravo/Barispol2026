@@ -1,0 +1,83 @@
+# Compila a app do Workspace para computador (Windows e Mac) na nuvem, sem
+# instalar nada. Corre sozinho quando app-pc/ muda, ou a pedido (Actions ->
+# App PC -> Run workflow). A app abre https://barispol.com/workspace.html:
+# o conteúdo actualiza-se com o site, por isso so e preciso recompilar
+# quando o proprio involucro (app-pc/) muda.
+#
+# Os ficheiros ficam em "Artifacts", no fim da pagina de cada execucao:
+#   Windows: Barispol-Setup-1.N.exe (instalador) e Barispol-1.N-portatil.exe
+#   Mac:     Barispol-1.N.dmg
+# Sem assinatura de codigo (precisa de certificado pago): ver app-pc/LEIA-ME.md.
+
+name: App PC
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'app-pc/**'
+      - 'app/www/sem-ligacao.html'
+      - '.github/workflows/app-pc.yml'
+
+concurrency:
+  group: app-pc
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  compilar:
+    name: Compilar (${{ matrix.nome }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - nome: Windows
+            so: windows-latest
+            comando: npx electron-builder --win nsis portable --publish never
+            ficheiros: |
+              app-pc/dist/*.exe
+          - nome: Mac
+            so: macos-latest
+            comando: npx electron-builder --mac dmg --publish never
+            ficheiros: |
+              app-pc/dist/*.dmg
+    runs-on: ${{ matrix.so }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app-pc/package-lock.json
+
+      - name: Dependências
+        working-directory: app-pc
+        run: npm ci
+
+      # A pagina "Sem ligacao" e a mesma da app Android (uma so fonte).
+      - name: Página sem ligação
+        shell: bash
+        run: cp app/www/sem-ligacao.html app-pc/sem-ligacao.html
+
+      - name: Versão
+        shell: bash
+        working-directory: app-pc
+        run: npm version "1.${{ github.run_number }}.0" --no-git-tag-version
+
+      - name: Compilar
+        working-directory: app-pc
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: ${{ matrix.comando }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: barispol-pc-${{ matrix.nome }}-1.${{ github.run_number }}
+          path: ${{ matrix.ficheiros }}
+          if-no-files-found: error
+          retention-days: 30

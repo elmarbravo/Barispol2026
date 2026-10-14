@@ -4444,3 +4444,29 @@ e o 2.º é recusado; na viatura 2 (já com acerto) é recusado; a Recepção
 **Nota para o Emmanuel** (já respondida pelo Elmar no Chat, a confirmar):
 as três opções estão no Workspace; o registo inicial dos km do Eeco deve
 ser feito com o painel à vista.
+
+## 3-ha. App do Workspace para computador (14-10-2026)
+
+Pedido do Elmar: «cria app do workspace para pcs». Pasta `app-pc/` com
+Electron 44.4.5 e electron-builder 26.15.3: uma janela própria que abre
+`https://barispol.com/workspace.html` (o conteúdo actualiza-se com o site,
+como a app Android). Fluxo `.github/workflows/app-pc.yml` («App PC»):
+Windows (instalador `Barispol-Setup-1.N.exe` e `Barispol-1.N-portatil.exe`)
+e Mac (`Barispol-1.N.dmg`), em Artifacts 30 dias.
+
+- Segurança: `contextIsolation`, `sandbox`, sem `nodeIntegration` nem
+  `preload`; só navega em barispol.com e `*.supabase.co`, o resto abre no
+  navegador; câmara, microfone e notificações só para barispol.com; uma só
+  instância; sessão termina ao fechar (regra do `sessionStorage`).
+- Sem internet mostra a mesma `sem-ligacao.html` da app Android (copiada
+  pelo fluxo).
+- Testado aqui com ecrã virtual: sem acesso a barispol.com (rede deste
+  ambiente) mostrou «Sem ligação»; a página não vê `require`/`process`;
+  ir para outro site e `window.open` recusados; o pacote compila.
+- Sem assinatura de código: o Windows avisa na primeira vez («Mais
+  informações» → «Executar mesmo assim»). Assinar exige certificado pago
+  (decisão do Elmar, se quiser).
+- Com a app fechada não há notificações no computador (o Electron não tem
+  Web Push); com ela aberta, sim.
+- Guia em `app-pc/LEIA-ME.md`. Alternativa sem instalar: Edge/Chrome →
+  «Instalar Barispol Workspace».

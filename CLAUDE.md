@@ -308,6 +308,11 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
 - A app (Capacitor 8, `app/`) abre `https://barispol.com/workspace.html`
   (`server.url`): actualiza-se com o site. Sem internet mostra
   `sem-ligacao.html`. O APK sai em Actions → «App Android» → Artifacts.
+- App para computador (14-10-2026, `app-pc/`, Electron): janela própria que
+  abre o mesmo `workspace.html`; instalador Windows, portátil e .dmg do Mac
+  em Actions → «App PC» → Artifacts. Nunca `nodeIntegration`, `preload` nem
+  `sandbox: false` (a página não toca no computador); endereços permitidos em
+  `PERMITIDOS` (`app-pc/main.js`). Sem Web Push com a app fechada.
 - Relatórios por área: ecrã `relatorios` (`RelatoriosScreen`), perguntas em
   `BSP_RELATORIOS`, respostas na tabela `relatorios_area`
   (`relatorios-area.sql`). Sem nomes de utentes. Lêem: Direcção e
