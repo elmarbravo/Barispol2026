@@ -1372,6 +1372,22 @@ function bspOrdenar(lista, modo, campos) {
   });
 }
 /* A ordem escolhida fica guardada neste aparelho, lista a lista. */
+/* Preferência do aparelho (sim/não), no localStorage: menu recolhido, lista
+   de canais e painel «Sobre» do Chat (14-10-2026). Não é dado de ninguém. */
+function useBspPrefSimNao(chave, padrao) {
+  const [v, setV] = React.useState(() => {
+    try {
+      const x = localStorage.getItem(chave);
+      if (x === '1' || x === '0') return x === '1';
+    } catch (e) {}
+    return padrao;
+  });
+  const mudar = x => {
+    setV(x);
+    try { localStorage.setItem(chave, x ? '1' : '0'); } catch (e) {}
+  };
+  return [v, mudar];
+}
 function useOrdem(chave, padrao, validas) {
   const [v, setV] = React.useState(() => {
     try {
@@ -2251,7 +2267,23 @@ const I = {
   }), React.createElement("path", {
     d: "M14 7h7v7"
   })),
-  ZoomIn: p => React.createElement(Icon, p, React.createElement("circle", {
+  Painel: p => React.createElement(Icon, p, React.createElement("rect", {
+    x: "3",
+    y: "4",
+    width: "18",
+    height: "16",
+    rx: "2"
+  }), React.createElement("path", {
+    d: "M9 4v16"
+  })),
+  Info: p => React.createElement(Icon, p, React.createElement("circle", {
+    cx: "12",
+    cy: "12",
+    r: "9"
+  }), React.createElement("path", {
+    d: "M12 11v6M12 7.5v.5"
+  })),
+  ZoomIn:p => React.createElement(Icon, p, React.createElement("circle", {
     cx: "11",
     cy: "11",
     r: "7"
@@ -2945,7 +2977,8 @@ function Sidebar({
   setCurrent,
   collapsed,
   variant,
-  currentUser
+  currentUser,
+  onRecolher
 }) {
   const isNavyBg = variant === 'clinico';
   const W = collapsed ? 72 : 244;
@@ -2972,72 +3005,35 @@ function Sidebar({
     }
   }, React.createElement("div", {
     style: {
-      padding: collapsed ? '20px 16px' : '20px 18px',
+      padding: collapsed ? '14px 10px 10px' : '14px 12px 12px 18px',
       display: 'flex',
+      flexDirection: collapsed ? 'column' : 'row',
       alignItems: 'center',
-      justifyContent: collapsed ? 'center' : 'flex-start'
+      justifyContent: collapsed ? 'center' : 'space-between',
+      gap: 8
     }
   }, React.createElement(BarispolLogo, {
     size: collapsed ? "sm" : "md",
     mono: isNavyBg
-  })), !collapsed && React.createElement("div", {
+  }), onRecolher && React.createElement("button", {
+    onClick: onRecolher,
+    title: collapsed ? 'Mostrar o menu' : 'Recolher o menu (fica só com os ícones)',
+    "aria-label": collapsed ? 'Mostrar o menu' : 'Recolher o menu',
     style: {
-      padding: '0 12px 14px'
-    }
-  }, React.createElement("div", {
-    style: {
-      padding: '10px 12px',
-      borderRadius: 10,
-      background: isNavyBg ? 'rgba(255,255,255,.06)' : 'var(--surface-2)',
-      border: `1px solid ${isNavyBg ? 'rgba(255,255,255,.06)' : 'var(--border)'}`,
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      cursor: 'pointer'
-    }
-  }, React.createElement("span", {
-    style: {
-      width: 36,
-      height: 36,
-      borderRadius: 8,
-      background: '#fff',
+      width: 32,
+      height: 32,
       flex: 'none',
-      padding: 2,
       display: 'inline-flex',
       alignItems: 'center',
       justifyContent: 'center',
-      boxShadow: isNavyBg ? 'none' : '0 1px 3px rgba(0,0,0,.12)'
-    }
-  }, React.createElement("img", {
-    src: BSP_LOGO_URI,
-    alt: "Barispol",
-    style: {
-      width: '100%',
-      height: '100%',
-      objectFit: 'contain'
-    }
-  })), React.createElement("div", {
-    style: {
-      flex: 1,
-      minWidth: 0
-    }
-  }, React.createElement("div", {
-    style: {
-      fontSize: 12.5,
-      fontWeight: 700,
-      color: isNavyBg ? '#fff' : 'var(--text-1)',
-      whiteSpace: 'nowrap',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis'
-    }
-  }, "Centro Médico Barispol"), React.createElement("div", {
-    style: {
-      fontSize: 10.5,
+      borderRadius: 8,
+      border: 'none',
+      background: 'transparent',
       color: sFg,
-      marginTop: 1
+      cursor: 'pointer'
     }
-  }, "Luanda · Angola")), React.createElement(I.ChevD, {
-    size: 14,
+  }, React.createElement(I.Painel, {
+    size: 18,
     stroke: sFg
   }))), React.createElement("nav", {
     style: {
@@ -3140,8 +3136,9 @@ function Sidebar({
       borderTop: `1px solid ${sBorder}`,
       padding: collapsed ? 10 : 12,
       display: 'flex',
+      flexDirection: collapsed ? 'column' : 'row',
       alignItems: 'center',
-      gap: 10
+      gap: collapsed ? 6 : 10
     }
   }, React.createElement(Avatar, {
     user: currentUser,
@@ -3178,12 +3175,14 @@ function Sidebar({
       textOverflow: 'ellipsis',
       whiteSpace: 'nowrap'
     }
-  }, currentUser.role))), !collapsed && React.createElement(MenuConta, {
-    sFg: sFg
+  }, currentUser.role))), React.createElement(MenuConta, {
+    sFg: sFg,
+    recolhido: collapsed
   })));
 }
 function MenuConta({
-  sFg
+  sFg,
+  recolhido
 }) {
   const [aberto, setAberto] = React.useState(false);
   async function sair() {
@@ -3227,10 +3226,8 @@ function MenuConta({
     size: 16,
     stroke: sFg
   })), aberto && React.createElement("div", {
-    style: {
-      position: 'absolute',
-      bottom: 30,
-      right: 0,
+    /* Com o menu recolhido (72 px e overflow escondido), abre ao lado. */
+    style: Object.assign(recolhido ? { position: 'fixed', left: 80, bottom: 14 } : { position: 'absolute', bottom: 30, right: 0 }, {
       zIndex: 80,
       width: 232,
       background: 'var(--surface)',
@@ -3238,7 +3235,7 @@ function MenuConta({
       borderRadius: 12,
       boxShadow: '0 10px 30px rgba(0,0,0,.25)',
       padding: 10
-    }
+    })
   }, React.createElement(AlterarSenha, null), React.createElement("button", {
     onClick: sair,
     style: {
@@ -8672,6 +8669,7 @@ function ChatScreen({
      desta conversa. Antes o "@" nao fazia nada. */
   const [mencao, setMencao] = React.useState(null); // { q, ini, fim }
   const [mencaoSel, setMencaoSel] = React.useState(0);
+  const [verFormato, setVerFormato] = React.useState(false);
   const [typing, setTyping] = React.useState(false);
   /* No telemovel o Chat abre na lista de conversas, como no WhatsApp
      (24-09-2026). Antes abria logo no #geral e a lista ficava escondida
@@ -8697,10 +8695,20 @@ function ChatScreen({
     window.addEventListener('resize', fn);
     return () => window.removeEventListener('resize', fn);
   }, []);
-  const showInfoPanel = winW >= 1180;
-  const showChannelList = winW >= 820;
+  /* Chat aberto (14-10-2026, Elmar: «o chat tem pouco espaço»): a lista de
+     canais e o painel «Sobre» abrem e fecham no cabeçalho, e o aparelho
+     lembra-se. O «Sobre» começa fechado; sem a lista, as conversas abrem por
+     cima (como no telemóvel). */
+  const [listaAberta, setListaAberta] = useBspPrefSimNao('bsp-chat-lista', true);
+  const [infoAberto, setInfoAberto] = useBspPrefSimNao('bsp-chat-info', false);
+  const cabeInfo = winW >= 1100;
+  const showInfoPanel = cabeInfo && infoAberto;
+  const showChannelList = winW >= 820 && listaAberta;
+  const [filtroConv, setFiltroConv] = React.useState('');
+  const semAcento = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const bateFiltro = nome => !filtroConv.trim() || semAcento(nome).indexOf(semAcento(filtroConv.trim())) !== -1;
   /* No telemóvel, a conversa aberta é uma sub-página: voltar mostra a lista. */
-  useBspVoltar(!showChannelList && !drawer, () => setDrawer(true));
+  useBspVoltar(winW < 820 && !drawer, () => setDrawer(true));
   const listRef = React.useRef(null);
   const typingTimer = React.useRef(null);
   /* Vir de uma notificacao abre a conversa de onde ela veio. O "alvo"
@@ -8988,9 +8996,18 @@ function ChatScreen({
       window.alert('Sem acesso ao microfone. Autorize o microfone para o Workspace nas definições do navegador ou do telemóvel.');
       return;
     }
+    /* iPhone (14-10-2026, Elmar: «erro ao enviar audio», 20 s gravados e
+       «nota vazia»): ao ligar o microfone o iOS põe o AudioContext em
+       «interrupted» (não «suspended») e o gravador não recebe nada. Retomar
+       em qualquer estado parado; se não arrancar, criar outro já com o
+       microfone ligado. */
+    try { if (ctx.state !== 'running') await ctx.resume(); } catch (e) {}
+    if (ctx.state !== 'running') {
+      try { ctx.close(); } catch (e) {}
+      try { ctx = new Ctx(); await ctx.resume(); } catch (e) {}
+    }
     let fonte, proc;
     try {
-      if (ctx.state === 'suspended') await ctx.resume();
       fonte = ctx.createMediaStreamSource(stream);
       proc = ctx.createScriptProcessor(4096, 1, 1);
     } catch (e) {
@@ -9004,19 +9021,50 @@ function ChatScreen({
     fonte.connect(proc);
     proc.connect(ctx.destination);
     const g = { conv: convKey, inicio: Date.now(), enviar: false, seg: 0 };
-    g.parar = () => {
-      gravRef.current = null;
-      try { fonte.disconnect(); proc.disconnect(); } catch (e) {}
-      try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
-      const taxa = ctx.sampleRate;
-      try { ctx.close(); } catch (e) {}
-      if (!g.enviar) return;
-      const blob = bspWavDeAmostras(partes, taxa, 16000);
-      if (g.seg < 1 || !blob || blob.size < 8000) { window.alert('A nota de voz ficou vazia. Mantenha a gravação pelo menos um segundo.'); return; }
+    /* Uma notificação ou chamada a meio volta a interromper: retomar. */
+    ctx.onstatechange = () => { if (gravRef.current === g && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {}); };
+    /* Recurso: se ao fim de 1,5 s a Web Audio não deu som nenhum, grava o
+       próprio aparelho, só em MP4/AAC (.m4a toca em todos; nunca WebM). */
+    const mp4 = window.MediaRecorder && MediaRecorder.isTypeSupported && ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/aac'].find(t => { try { return MediaRecorder.isTypeSupported(t); } catch (e) { return false; } });
+    g.vigia = setTimeout(() => {
+      if (gravRef.current !== g || partes.length || !mp4) return;
+      try {
+        const mr = new MediaRecorder(stream, { mimeType: mp4 });
+        g.mr = mr; g.mrPartes = [];
+        mr.ondataavailable = ev => { if (ev.data && ev.data.size) g.mrPartes.push(ev.data); };
+        mr.start(1000);
+      } catch (e) {}
+    }, 1500);
+    const enviarNota = (blob, ext, tipo) => {
       const d = new Date();
       const carimbo = bspDataLocalISO(d).replace(/-/g, '') + '-' + String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0') + String(d.getSeconds()).padStart(2, '0');
-      const ficheiro = new File([blob], 'nota-de-voz-' + carimbo + '.wav', { type: 'audio/wav' });
+      const ficheiro = new File([blob], 'nota-de-voz-' + carimbo + ext, { type: tipo });
       enviarFicheiros([ficheiro], { conv: g.conv, texto: (f, caminho) => bspMensagemNotaVoz(g.seg, f.name, caminho, f.size) });
+    };
+    const vazia = () => window.alert(g.seg < 1 ? 'A nota de voz ficou vazia. Mantenha a gravação pelo menos um segundo.' : 'O microfone não enviou som. Feche e volte a abrir o Workspace e tente outra vez; se repetir, confirme a autorização do microfone nas definições.');
+    g.parar = () => {
+      gravRef.current = null;
+      clearTimeout(g.vigia);
+      try { fonte.disconnect(); proc.disconnect(); } catch (e) {}
+      const taxa = ctx.sampleRate;
+      try { ctx.close(); } catch (e) {}
+      const fecharMic = () => { try { stream.getTracks().forEach(t => t.stop()); } catch (e) {} };
+      if (g.mr && g.mr.state !== 'inactive') {
+        g.mr.onstop = () => {
+          fecharMic();
+          if (!g.enviar) return;
+          const blob = new Blob(g.mrPartes, { type: 'audio/mp4' });
+          if (g.seg < 1 || blob.size < 2000) { vazia(); return; }
+          enviarNota(blob, '.m4a', 'audio/mp4');
+        };
+        try { g.mr.stop(); } catch (e) { fecharMic(); }
+        return;
+      }
+      fecharMic();
+      if (!g.enviar) return;
+      const blob = partes.length ? bspWavDeAmostras(partes, taxa, 16000) : null;
+      if (g.seg < 1 || !blob || blob.size < 8000) { vazia(); return; }
+      enviarNota(blob, '.wav', 'audio/wav');
     };
     gravRef.current = g;
     setGravacao({ seg: 0 });
@@ -9081,7 +9129,7 @@ function ChatScreen({
       position: 'relative',
       display: 'grid',
       gridTemplateRows: 'minmax(0, 1fr)',
-      gridTemplateColumns: `${showChannelList ? '260px ' : ''}1fr${showInfoPanel ? ' 280px' : ''}`,
+      gridTemplateColumns: `${showChannelList ? '240px ' : ''}minmax(0, 1fr)${showInfoPanel ? ' 270px' : ''}`,
       height: '100%',
       overflow: 'hidden',
       background: 'var(--surface)',
@@ -9221,12 +9269,17 @@ function ChatScreen({
     }
   }, React.createElement("div", {
     style: {
-      padding: '16px 16px 10px',
-      borderBottom: '1px solid var(--border)'
+      padding: '10px 10px 10px 12px',
+      borderBottom: '1px solid var(--border)',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6
     }
   }, React.createElement("div", {
     style: {
-      position: 'relative'
+      position: 'relative',
+      flex: 1,
+      minWidth: 0
     }
   }, React.createElement(I.Search, {
     size: 13,
@@ -9238,7 +9291,10 @@ function ChatScreen({
       transform: 'translateY(-50%)'
     }
   }), React.createElement("input", {
-    placeholder: "Filtrar canais...",
+    placeholder: "Procurar conversa...",
+    "aria-label": "Procurar canal ou pessoa",
+    value: filtroConv,
+    onChange: e => setFiltroConv(e.target.value),
     style: {
       width: '100%',
       height: 32,
@@ -9251,6 +9307,25 @@ function ChatScreen({
       outline: 'none',
       fontFamily: 'inherit'
     }
+  })), showChannelList && React.createElement("button", {
+    onClick: () => setListaAberta(false),
+    title: "Esconder a lista (mais espaço para a conversa)",
+    "aria-label": "Esconder a lista de conversas",
+    style: {
+      width: 32,
+      height: 32,
+      flex: 'none',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 8,
+      border: 'none',
+      background: 'transparent',
+      color: 'var(--text-3)',
+      cursor: 'pointer'
+    }
+  }, React.createElement(I.Painel, {
+    size: 17
   }))), React.createElement("div", {
     style: {
       flex: 1,
@@ -9262,7 +9337,7 @@ function ChatScreen({
     actionIcon: "Plus",
     actionTitle: "Criar canal ou grupo privado",
     onAction: () => setGrupoModal(true),
-    items: CHANNELS.filter(c => bspVeCanal(currentUser, c)).map(c => Object.assign({}, c, {
+    items: CHANNELS.filter(c => bspVeCanal(currentUser, c) && bateFiltro(c.name)).map(c => Object.assign({}, c, {
       unread: porLer(c.id)
     })),
     renderItem: c => {
@@ -9324,7 +9399,7 @@ function ChatScreen({
   }), React.createElement(ChannelList, {
     title: "Mensagens directas",
     actionIcon: "Edit",
-    items: dmList,
+    items: filtroConv.trim() ? dmList.filter(d => { const u = window.userById(d.userId); return bateFiltro(u && u.name); }) : dmList,
     renderItem: d => {
       const u = window.userById(d.userId);
       const active = dmId === d.id;
@@ -9387,9 +9462,9 @@ function ChatScreen({
     }
   }, React.createElement("div", {
     style: {
-      height: 60,
+      height: 52,
       flex: 'none',
-      padding: '0 14px',
+      padding: '0 10px 0 12px',
       borderBottom: '1px solid var(--border)',
       display: 'flex',
       alignItems: 'center',
@@ -9408,29 +9483,32 @@ function ChatScreen({
       flex: 1
     }
   }, !showChannelList && React.createElement("button", {
-    onClick: () => setDrawer(true),
-    title: "Voltar às conversas",
-    "aria-label": "Voltar às conversas",
+    onClick: () => winW >= 820 ? setListaAberta(true) : setDrawer(true),
+    title: winW >= 820 ? "Mostrar a lista de conversas" : "Voltar às conversas",
+    "aria-label": winW >= 820 ? "Mostrar a lista de conversas" : "Voltar às conversas",
     style: {
-      width: 34,
-      height: 34,
+      width: 32,
+      height: 32,
       flex: 'none',
       display: 'inline-flex',
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 9,
+      borderRadius: 8,
       border: 'none',
       background: 'transparent',
-      color: 'var(--text-1)',
+      color: 'var(--text-2)',
       cursor: 'pointer'
     }
-  }, React.createElement(I.ChevL, {
+  }, winW >= 820 ? React.createElement(I.Painel, {
+    size: 18
+  }) : React.createElement(I.ChevL, {
     size: 22
   })), !isDM ? React.createElement(React.Fragment, null, React.createElement("span", {
     style: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
+      width: 32,
+      height: 32,
+      flex: 'none',
+      borderRadius: 8,
       background: 'var(--accent-soft)',
       display: 'inline-flex',
       alignItems: 'center',
@@ -9467,7 +9545,7 @@ function ChatScreen({
     }
   }, activeChannel.desc, " · ", nMembros, nMembros === 1 ? " membro" : " membros"))) : React.createElement(React.Fragment, null, React.createElement(Avatar, {
     user: dmUser,
-    size: 36,
+    size: 32,
     showStatus: true
   }), React.createElement("div", {
     /* minWidth: 0 é obrigatório para as reticências funcionarem dentro de
@@ -9496,27 +9574,21 @@ function ChatScreen({
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 4,
+      gap: 2,
       flex: 'none'
     }
-  }, React.createElement("span", {
-    className: "bsp-hide-mobile",
-    style: {
-      fontSize: 11.5,
-      color: 'var(--text-3)'
-    }
-  }, messages.length, " ", messages.length === 1 ? 'mensagem' : 'mensagens'), React.createElement("button", {
+  }, React.createElement("button", {
     onClick: () => setBusca(''),
     title: "Pesquisar mensagens",
     style: {
-      width: 34,
-      height: 34,
+      width: 32,
+      height: 32,
       display: 'inline-flex',
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 9,
-      border: '1px solid var(--border)',
-      background: 'var(--surface-2)',
+      borderRadius: 8,
+      border: 'none',
+      background: 'transparent',
       color: 'var(--text-2)',
       cursor: 'pointer'
     }
@@ -9526,14 +9598,14 @@ function ChatScreen({
     onClick: () => iniciarChamada(false),
     title: "Chamada de voz",
     style: {
-      width: 34,
-      height: 34,
+      width: 32,
+      height: 32,
       display: 'inline-flex',
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 9,
-      border: '1px solid var(--border)',
-      background: 'var(--surface-2)',
+      borderRadius: 8,
+      border: 'none',
+      background: 'transparent',
       color: 'var(--accent-d)',
       cursor: 'pointer'
     }
@@ -9543,14 +9615,14 @@ function ChatScreen({
     onClick: () => iniciarChamada(true),
     title: "Videochamada",
     style: {
-      width: 34,
-      height: 34,
+      width: 32,
+      height: 32,
       display: 'inline-flex',
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 9,
-      border: '1px solid var(--border)',
-      background: 'var(--surface-2)',
+      borderRadius: 8,
+      border: 'none',
+      background: 'transparent',
       color: 'var(--accent-d)',
       cursor: 'pointer'
     }
@@ -9561,14 +9633,14 @@ function ChatScreen({
     title: "Editar este grupo (nome, descrição e membros)",
     "aria-label": "Editar este grupo",
     style: {
-      width: 34,
-      height: 34,
+      width: 32,
+      height: 32,
       display: 'inline-flex',
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 9,
-      border: '1px solid var(--border)',
-      background: 'var(--surface-2)',
+      borderRadius: 8,
+      border: 'none',
+      background: 'transparent',
       color: 'var(--accent-d)',
       cursor: 'pointer'
     }
@@ -9578,25 +9650,44 @@ function ChatScreen({
     onClick: apagarCanalActual,
     title: "Apagar este grupo",
     style: {
-      width: 34,
-      height: 34,
+      width: 32,
+      height: 32,
       display: 'inline-flex',
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 9,
-      border: '1px solid var(--border)',
-      background: 'var(--surface-2)',
+      borderRadius: 8,
+      border: 'none',
+      background: 'transparent',
       color: 'var(--danger, #d33)',
       cursor: 'pointer'
     }
   }, React.createElement(I.Trash, {
     size: 15
+  })), cabeInfo && React.createElement("button", {
+    onClick: () => setInfoAberto(!infoAberto),
+    title: infoAberto ? "Fechar o painel de informação" : "Ver membros e ficheiros desta conversa",
+    "aria-label": "Informação da conversa",
+    "aria-pressed": infoAberto,
+    style: {
+      width: 32,
+      height: 32,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 8,
+      border: 'none',
+      background: infoAberto ? 'var(--accent-soft)' : 'transparent',
+      color: infoAberto ? 'var(--accent-d)' : 'var(--text-2)',
+      cursor: 'pointer'
+    }
+  }, React.createElement(I.Info, {
+    size: 17
   })))), React.createElement("div", {
     ref: listRef,
     style: {
       flex: 1,
       overflow: 'auto',
-      padding: '20px 24px'
+      padding: '14px 18px'
     }
   }, !isDM && activeChannel && React.createElement("div", {
     style: {
@@ -10041,7 +10132,7 @@ function ChatScreen({
   })))), React.createElement("div", {
     style: {
       flex: 'none',
-      padding: '12px 20px 20px',
+      padding: '8px 14px 12px',
       borderTop: '1px solid var(--border)'
     }
   }, React.createElement("div", {
@@ -10081,7 +10172,7 @@ function ChatScreen({
     style: { display: 'block', fontSize: 13.5, fontWeight: 600, color: 'var(--text-1)' }
   }, u.name), React.createElement("span", {
     style: { display: 'block', fontSize: 11.5, color: 'var(--text-3)' }
-  }, [u.role, u.dept].filter(Boolean).join(' · ')))))), React.createElement("div", {
+  }, [u.role, u.dept].filter(Boolean).join(' · ')))))), verFormato && React.createElement("div", {
     className: "bsp-composer-tools",
     style: {
       display: 'flex',
@@ -10158,8 +10249,8 @@ function ChatScreen({
       width: '100%',
       border: 'none',
       outline: 'none',
-      padding: '12px 14px',
-      minHeight: 44,
+      padding: '10px 12px 4px',
+      minHeight: 38,
       maxHeight: 160,
       resize: 'none',
       fontSize: 14,
@@ -10172,7 +10263,7 @@ function ChatScreen({
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: '6px 10px 8px'
+      padding: '2px 6px 6px'
     }
   }, React.createElement("div", {
     style: {
@@ -10180,7 +10271,22 @@ function ChatScreen({
       alignItems: 'center',
       gap: 2
     }
-  }, React.createElement("input", {
+  }, React.createElement("button", {
+    className: "bsp-iconbtn bsp-hide-mobile",
+    style: {
+      width: 30,
+      height: 30,
+      fontSize: 12.5,
+      fontWeight: 700,
+      fontFamily: 'inherit',
+      color: verFormato ? 'var(--accent-d)' : undefined,
+      background: verFormato ? 'var(--accent-soft)' : undefined
+    },
+    title: verFormato ? "Esconder a formatação" : "Formatar (negrito, itálico, listas)",
+    "aria-label": "Formatação",
+    "aria-pressed": verFormato,
+    onClick: () => setVerFormato(v => !v)
+  }, "Aa"), React.createElement("input", {
     ref: attachRef,
     type: "file",
     multiple: true,
@@ -10283,15 +10389,10 @@ function ChatScreen({
       alignItems: 'center',
       gap: 10
     }
-  }, React.createElement("span", {
-    className: "bsp-composer-hint",
-    style: {
-      fontSize: 11,
-      color: 'var(--text-3)'
-    }
-  }, bspEcraTactil() ? "Enter muda de linha · envie com o botão" : "Enter para enviar · Shift+Enter quebra linha"), React.createElement("button", {
+  }, React.createElement("button", {
     onClick: send,
     disabled: !draft.trim(),
+    title: bspEcraTactil() ? "Enviar (o Enter muda de linha)" : "Enviar (Enter) · Shift+Enter muda de linha",
     style: {
       background: draft.trim() ? 'var(--accent)' : 'var(--surface-2)',
       color: draft.trim() ? '#fff' : 'var(--text-3)',
@@ -31426,6 +31527,7 @@ function App() {
   const [moreOpen, setMoreOpen] = React.useState(false);
   useBspVoltar(moreOpen, () => setMoreOpen(false));
   const [t, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
+  const [menuRecolhido, setMenuRecolhido] = useBspPrefSimNao('bsp-menu-recolhido', false);
   const utilizadorReal = bspResolveUser(authedEmail, window.USERS);
   /* Quem esta mesmo com a sessao aberta (a marca de agua usa-o, tambem no «Ver como»). */
   window.__bspQuemEsta = utilizadorReal;
@@ -31486,7 +31588,8 @@ function App() {
   }, !isMobile && React.createElement(Sidebar, {
     current: pg,
     setCurrent: setPage,
-    collapsed: t.sidebarCollapsed,
+    collapsed: menuRecolhido || t.sidebarCollapsed,
+    onRecolher: () => { const r = !(menuRecolhido || t.sidebarCollapsed); setMenuRecolhido(r); if (!r && t.sidebarCollapsed) setTweak('sidebarCollapsed', false); },
     variant: t.variant,
     currentUser: currentUser
   }), React.createElement("div", {
@@ -31514,7 +31617,7 @@ function App() {
     style: {
       flex: 1,
       overflow: 'hidden',
-      padding: '18px 22px 22px',
+      padding: pg === 'chat' ? '10px 12px 12px' : '18px 22px 22px',
       background: 'var(--bg)'
     }
   }, React.createElement(EcraSeguro, {

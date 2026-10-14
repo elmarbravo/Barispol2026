@@ -256,6 +256,13 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   canais quem os vê (`push-canais.sql`, mesma regra do `bspVeCanal`). Número no ícone da app: `navigator.setAppBadge` em
   `useChatPorLer`; o `sw.js` põe um ponto quando chega uma mensagem.
 - Abrir uma conversa directa de qualquer ecrã: `bspConversaCom(id)`.
+- Chat aberto (14-10-2026, Elmar: «o chat tem pouco espaço… não tem opção de
+  minimizar menus»): menu lateral recolhe para ícones (`bsp-menu-recolhido`),
+  lista de conversas esconde-se (`bsp-chat-lista`) e o painel «Sobre» abre só
+  pelo botão «i» (`bsp-chat-info`, fechado por omissão), todos por
+  `useBspPrefSimNao` (preferência do aparelho); formatação atrás de «Aa»;
+  «Procurar conversa…» filtra canais e pessoas. Botões do cabeçalho sem
+  moldura (32 px).
 - Anexos do Feed (06-10-2026): `ComposePostModal` aceita vários (`atts`); cada
   um vai para o Drive e entra no texto como `[anexo:nome]`.
 - Aspecto do Chat (06-10-2026, Elmar: «eu escrevo e fico do lado direito»):
@@ -878,7 +885,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   (27-09-2026: `comecarGravacao`, `bspMensagemNotaVoz`, `bspEAudio`,
   `AudioAnexo`). Desde 28-09-2026 as notas gravam-se em WAV
   (`bspWavDeAmostras`), porque o WebM não tocava no iPhone. Nunca voltar
-  ao `MediaRecorder`.
+  ao `MediaRecorder` como via principal. Excepção (14-10-2026, Elmar: «erro
+  ao enviar audio» no iPhone): o iOS põe o `AudioContext` em «interrupted» ao
+  ligar o microfone; retoma-se em qualquer estado parado e, se em 1,5 s não
+  houver som, grava-se pelo `MediaRecorder` só em MP4/AAC (`.m4a`), nunca WebM.
   Fotografias do Chat reduzidas antes de subir (`bspReduzirImagem`,
   30-09-2026); endereços assinados em lote (`bspSignedUrlEmLote`). Endereços de
   4 h guardados no separador por pessoa (`bsp-urls-<id>`, 01-10-2026, para

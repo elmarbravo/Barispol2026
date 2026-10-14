@@ -4506,3 +4506,34 @@ Transição: até 21-10-2026 os e-mails à mão continuam em paralelo (novidade
 o e-mail para «direcçãoclinica@» (com ç), que não existe; anexos com dados de
 doentes (requisições, Excel acumulado da Enfermagem) devem passar para o
 Drive.
+
+## 3-hc. Chat aberto e notas de voz no iPhone (14-10-2026)
+
+Pedidos do Elmar: «está confuso e o chat tem pouco espaço, revê os botões,
+medidas e torne um chat aberto e limpo; não tem opção de minimizar menus» e
+«erro ao enviar áudio» (iPhone: 20 s gravados e «a nota de voz ficou vazia»).
+
+Feito (só `workspace.html`, sem mudanças no servidor):
+
+- **Menu lateral**: botão ao lado do logotipo recolhe o menu para os ícones
+  (72 px). O aparelho lembra-se (`bsp-menu-recolhido`). Com o menu recolhido,
+  o botão da conta fica por baixo da fotografia e abre ao lado. Saiu o cartão
+  «Centro Médico Barispol · Luanda», que não fazia nada.
+- **Chat**: a lista de conversas esconde-se e volta pelo mesmo ícone
+  (`bsp-chat-lista`); o painel «Sobre» (membros e ficheiros) só abre pelo
+  botão «i» no cabeçalho (`bsp-chat-info`, fechado por omissão); «Procurar
+  conversa…» passou a filtrar canais e pessoas (antes não fazia nada);
+  cabeçalho com 52 px e botões sem moldura; sem o contador de mensagens;
+  a barra de formatação abre com «Aa»; o texto de ajuda do Enter passou para
+  a dica do botão «Enviar»; margens menores.
+  Num ecrã de 1366 px a conversa passou de cerca de 540 px para 856 px e,
+  com tudo recolhido, 1268 px (teste Playwright, também a 390 px, sem nada a
+  passar da largura).
+- **Notas de voz no iPhone**: o `AudioContext` fica «interrupted» ao ligar o
+  microfone. Agora retoma-se em qualquer estado parado (e cria-se outro se
+  não arrancar), volta a retomar-se se o iPhone o interromper a meio e, se em
+  1,5 s não houver som, a nota grava-se pelo gravador do aparelho em M4A
+  (AAC), nunca WebM. Testado no Chromium com microfone simulado: WAV pelo
+  caminho normal; M4A quando a Web Audio não dá som.
+
+Falta: o Elmar confirmar no iPhone (ecrã principal) que a nota de voz sai.
