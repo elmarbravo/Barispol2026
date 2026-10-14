@@ -56,6 +56,5 @@ de endereços permitidos está em `PERMITIDOS`.
 ```
 cd app-pc
 npm ci
-cp ../app/www/sem-ligacao.html .
 npm run iniciar
 ```

@@ -4458,8 +4458,8 @@ e Mac (`Barispol-1.N.dmg`), em Artifacts 30 dias.
   `preload`; só navega em barispol.com e `*.supabase.co`, o resto abre no
   navegador; câmara, microfone e notificações só para barispol.com; uma só
   instância; sessão termina ao fechar (regra do `sessionStorage`).
-- Sem internet mostra a mesma `sem-ligacao.html` da app Android (copiada
-  pelo fluxo).
+- Sem internet mostra `app-pc/sem-ligacao.html` («Tentar de novo»); a da
+  app Android é gerada pelo `app/sincronizar.js` e não está no repositório.
 - Testado aqui com ecrã virtual: sem acesso a barispol.com (rede deste
   ambiente) mostrou «Sem ligação»; a página não vê `require`/`process`;
   ir para outro site e `window.open` recusados; o pacote compila.
