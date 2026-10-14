@@ -4134,7 +4134,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_alertas_por_ler', 'bsp_pagamento_banco', 'bsp_pagamento_etapas', 'bsp_segmento', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
+const BSP_RPC_LEITURA = ['bsp_alertas_por_ler', 'bsp_relatorio_metagest', 'bsp_pagamento_banco', 'bsp_pagamento_etapas', 'bsp_segmento', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -16335,6 +16335,23 @@ function bspHojeLuanda() {
   const d = new Date(Date.now() + 60 * 60000);
   return d.toISOString().slice(0, 10);
 }
+/* O dia do relatório de turno (14-10-2026, relatorios-turno.sql): antes das
+   06h00 de Luanda conta como o dia anterior (os turnos que acabam às 22h30
+   entregam depois da meia-noite). Igual ao servidor. */
+function bspDiaRelatorio() {
+  const d = new Date(Date.now() + 60 * 60000 - 6 * 3600000);
+  return d.toISOString().slice(0, 10);
+}
+/* Os números que o MetaGest já tem e que preenchem o formulário (a pessoa só
+   confirma). Chave do formulário → chave de bsp_relatorio_metagest. */
+const BSP_REL_MG_CAMPOS = {
+  rececao: { utentes: 'utentes', novos: 'novos' },
+  laboratorio: { pacientes: 'pacientes', exames: 'exames' },
+  imagiologia: { raiox: 'raiox', ecografias: 'ecografias' },
+  enfermagem: { consultas: 'consultas' },
+  farmacia: {}
+};
+const BSP_REL_MG_ROTULOS = { utentes: 'utentes', novos: 'novos utentes', consultas: 'consultas', pacientes: 'doentes', exames: 'exames', externos: 'enviados para fora', raiox: 'Raio-X', ecografias: 'ecografias', actos: 'actos de enfermagem', unidades: 'unidades vendidas', produtos: 'produtos' };
 function bspRespostaTexto(campo, v) {
   if (v == null || v === '' || (Array.isArray(v) && !v.length)) return null;
   return Array.isArray(v) ? v.join(', ') : String(v);
@@ -16367,6 +16384,22 @@ function RelatorioResumo({ rel, onApagar }) {
     }
   }, React.createElement(I.Trash, { size: 13 }), "Eliminar")));
 }
+function RelatorioMetaGest({ mg }) {
+  if (!mg) return null;
+  const nums = Object.keys(BSP_REL_MG_ROTULOS).filter(k => typeof mg[k] === 'number').map(k => mg[k] + ' ' + BSP_REL_MG_ROTULOS[k]);
+  const lista = (rot, l, cor) => Array.isArray(l) && l.length ? React.createElement("div", { style: { marginTop: 6 } },
+    React.createElement("b", { style: { color: cor } }, rot + ' (' + l.length + '): '), l.slice(0, 12).join(', ') + (l.length > 12 ? '…' : '')) : null;
+  const temStock = ['esgotados', 'a_acabar', 'a_caducar'].some(k => Array.isArray(mg[k]) && mg[k].length);
+  return React.createElement("div", {
+    style: { margin: '0 0 16px', padding: '12px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface-2)', fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.5 }
+  }, React.createElement("div", { style: { fontWeight: 700, color: 'var(--text-1)', marginBottom: 2 } }, 'O MetaGest já registou hoje'),
+    nums.length ? nums.join(' · ') + '.' : 'Ainda sem actos facturados hoje nesta área.',
+    lista('Esgotado', mg.esgotados, 'var(--perigo)'),
+    lista('A acabar', mg.a_acabar, 'var(--serie-4)'),
+    lista('Caduca em 7 dias', mg.a_caducar, 'var(--serie-4)'),
+    !temStock && Array.isArray(mg.avisos) && mg.avisos.length ? React.createElement("div", { style: { marginTop: 6 } }, mg.avisos.join(' ')) : null,
+    React.createElement("div", { style: { marginTop: 6, color: 'var(--text-3)' } }, 'Se algum número não bater com o que fez, corrija-o: o servidor compara com o facturado e avisa a gestão se faltar facturar.'));
+}
 function RelatoriosScreen() {
   const toast = useToast();
   const eu = window.userById && window.userById(window.CURRENT_USER_ID);
@@ -16383,10 +16416,30 @@ function RelatoriosScreen() {
   const [aEnviar, setAEnviar] = React.useState(false);
   const [lista, setLista] = React.useState([]);
   const [estado, setEstado] = React.useState('a-carregar');
-  const [dia, setDia] = React.useState(bspHojeLuanda());
+  const [dia, setDia] = React.useState(bspDiaRelatorio());
   const [tick, setTick] = React.useState(0);
   const def = areasMinhas.find(a => a.id === area) || areasMinhas[0] || null;
-  React.useEffect(() => { setResp({}); }, [area]);
+  /* Números do MetaGest (14-10-2026, relatorios-turno.sql): o formulário vem
+     preenchido com o que já está facturado e com o stock em falta; a pessoa
+     confirma e acrescenta o que só a área sabe. */
+  const [mg, setMg] = React.useState(null);
+  React.useEffect(() => { setResp({}); setMg(null); }, [area]);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl || !def) return;
+    let vivo = true;
+    cl.rpc('bsp_relatorio_metagest', { p_area: def.id }).then(r => {
+      if (!vivo || r.error || !r.data) return;
+      setMg(r.data);
+      const mapa = BSP_REL_MG_CAMPOS[def.id] || {};
+      setResp(act => {
+        const n = Object.assign({}, act);
+        Object.keys(mapa).forEach(k => { if ((n[k] == null || n[k] === '') && r.data[mapa[k]] != null) n[k] = String(r.data[mapa[k]]); });
+        return n;
+      });
+    });
+    return () => { vivo = false; };
+  }, [def && def.id]);
   React.useEffect(() => {
     const cl = bspGetClient();
     if (!cl) { setEstado('sem-servidor'); return; }
@@ -16425,6 +16478,8 @@ function RelatoriosScreen() {
     return Object.assign({}, r, { [campo.id]: nov });
   });
   const obrigatorios = def ? def.campos.filter(c => c.tipo !== 'texto' && !c.opcional) : [];
+  const precisaAvaria = ['Algum com avaria'].indexOf(resp.equipamentos || resp.aparelhos) !== -1 ||
+    (Array.isArray(resp.avarias) && resp.avarias.some(x => x !== 'Nenhuma'));
   const faltam = obrigatorios.filter(c => {
     const v = resp[c.id];
     return v == null || v === '' || (Array.isArray(v) && !v.length);
@@ -16455,10 +16510,12 @@ function RelatoriosScreen() {
     });
     const r = await cl.from('relatorios_area').insert({
       area: def.id,
-      dia: bspHojeLuanda(),
+      dia: bspDiaRelatorio(),
       turno: typeof limpo.turno === 'string' ? limpo.turno : null,
       user_id: window.CURRENT_USER_ID,
-      respostas: limpo
+      respostas: limpo,
+      /* As perguntas por extenso, para o e-mail do servidor. */
+      resumo: def.campos.map(c => [c.rotulo, bspRespostaTexto(c, limpo[c.id])]).filter(x => x[1] != null)
     });
     setAEnviar(false);
     if (r.error) { toast('Não foi possível enviar: ' + (r.error.message || 'erro')); return; }
@@ -16476,7 +16533,7 @@ function RelatoriosScreen() {
     } catch (e) {}
     toast('Relatório enviado.');
     setResp({});
-    setDia(bspHojeLuanda());
+    setDia(bspDiaRelatorio());
     setTick(t => t + 1);
   };
   const chip = (activo, rotulo, onClick) => React.createElement("button", {
@@ -16513,9 +16570,11 @@ function RelatoriosScreen() {
     style: { fontSize: 15, fontWeight: 700, margin: '0 0 4px', color: 'var(--text-1)' }
   }, "Relatório do dia"), React.createElement("p", {
     style: { fontSize: 12.5, color: 'var(--text-3)', margin: '0 0 14px' }
-  }, bspDiaExtenso(new Date().toISOString()), ". " + (def ? (areasMinhas.length > 1 ? 'Escolha a área e responda.' : 'Relatório de ' + def.nome + '.') : 'O seu perfil não tem relatório de área.') + " Não escreva nomes de utentes."), areasMinhas.length > 1 && React.createElement("div", {
+  }, bspDiaExtenso(bspDiaRelatorio() + 'T12:00:00'), ". " + (def ? (areasMinhas.length > 1 ? 'Escolha a área e responda.' : 'Relatório de ' + def.nome + '.') : 'O seu perfil não tem relatório de área.') + " Os números do MetaGest já vêm preenchidos: confirme-os e diga o que só a sua área sabe. Este relatório substitui o e-mail de fim de turno. Não escreva nomes de utentes."), areasMinhas.length > 1 && React.createElement("div", {
     style: { display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 18 }
-  }, areasMinhas.map(a => chip(area === a.id, a.nome, () => setArea(a.id)))), def && def.campos.map(campo), def && React.createElement(Button, {
+  }, areasMinhas.map(a => chip(area === a.id, a.nome, () => setArea(a.id)))), def && React.createElement(RelatorioMetaGest, { mg }), def && def.campos.map(campo), def && precisaAvaria && React.createElement("div", {
+    style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', margin: '-4px 0 16px', padding: '10px 12px', borderRadius: 10, background: 'var(--surface-2)', fontSize: 12.5, color: 'var(--text-2)' }
+  }, 'Equipamento avariado? Reporte-o também em Serviços gerais, para ter seguimento e quem o trate.', React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: () => window.bspIrParaEcra && window.bspIrParaEcra('avarias') }, 'Reportar avaria')), def && React.createElement(Button, {
     variant: "primary",
     onClick: enviar,
     disabled: aEnviar

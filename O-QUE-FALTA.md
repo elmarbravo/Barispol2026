@@ -4470,3 +4470,39 @@ e Mac (`Barispol-1.N.dmg`), em Artifacts 30 dias.
   Web Push); com ela aberta, sim.
 - Guia em `app-pc/LEIA-ME.md`. Alternativa sem instalar: Edge/Chrome →
   «Instalar Barispol Workspace».
+
+## 3-hb. Relatórios de turno no Workspace, sem repetir o MetaGest (14-10-2026)
+
+Análise dos e-mails de fim de turno de 12 e 13-10 (Elmar: «ver o que está
+débil e o que pode ser repetitivo … o importante não enviam»): os e-mails
+repetiam contagens que o MetaGest já dá às 06h50/07h15 e deixavam de fora o
+que só a área sabe (stock, equipamentos, pendentes, incidentes, frio). O
+formulário do Workspace só tinha 2 entregas desde sempre. Feito
+(`relatorios-turno.sql`, aplicado; `workspace.html`):
+
+1. O formulário vem preenchido com o MetaGest do dia
+   (`bsp_relatorio_metagest`: contagens, esgotados, a acabar, a caducar em 7
+   dias, avisos da Recepção; só a área, u14 e a gestão). A pessoa confirma.
+2. Ao entregar, os números do MetaGest ficam no relatório (`metagest`).
+3. «Precisa de atenção»: rupturas, stock baixo, equipamento avariado,
+   intercorrências graves, incidentes, resultados atrasados, documentos e
+   fechos por enviar → aviso no telemóvel e novidade à gestão, à Direcção
+   Clínica (áreas de saúde) e ao chefe da área. Equipamento avariado mostra
+   o botão «Reportar avaria».
+4. Conferência: actos declarados acima do facturado → «Possível acto por
+   facturar» ao Elmar e à Arlete (testado com 13-10: 3 injecções declaradas,
+   2 actos no MetaGest).
+5. E-mail com as perguntas por extenso (antes mostrava os nomes internos dos
+   campos), «Precisa de atenção» e conferência no topo.
+6. Lembrete 1 hora depois do fim de cada turno da escala publicada, a quem
+   esteve no turno e não entregou (cron `bsp-relatorios-lembrar`, 30 em 30
+   min; uma vez por turno, `relatorios_lembretes`).
+7. Dia do relatório: antes das 06h00 conta como o dia anterior.
+8. `relatorios_destinos` do Laboratório: deixou de ir para a Rosa Queirós
+   (saiu a 12-10) e vai para a Direcção Clínica, até haver nova chefia.
+
+Transição: até 21-10-2026 os e-mails à mão continuam em paralelo (novidade
+às áreas). Depois, decidir com o Elmar desligá-los. Por fazer: o Raio-X envia
+o e-mail para «direcçãoclinica@» (com ç), que não existe; anexos com dados de
+doentes (requisições, Excel acumulado da Enfermagem) devem passar para o
+Drive.

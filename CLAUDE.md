@@ -315,7 +315,18 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `PERMITIDOS` (`app-pc/main.js`). Sem Web Push com a app fechada.
 - Relatórios por área: ecrã `relatorios` (`RelatoriosScreen`), perguntas em
   `BSP_RELATORIOS`, respostas na tabela `relatorios_area`
-  (`relatorios-area.sql`). Sem nomes de utentes. Lêem: Direcção e
+  (`relatorios-area.sql`). Sem nomes de utentes.
+  Relatórios de turno (14-10-2026, `relatorios-turno.sql`, Elmar: «o importante
+  não enviam»): o formulário vem preenchido com o MetaGest
+  (`bsp_relatorio_metagest`, `BSP_REL_MG_CAMPOS`, `RelatorioMetaGest`) e
+  substitui o e-mail escrito à mão; dia do relatório por `bspDiaRelatorio`
+  (antes das 06h00 = dia anterior, igual ao servidor). Ao entregar:
+  `metagest` guardado, «precisa de atenção» (`bsp_relatorio_atencao`, aviso e
+  novidade), conferência com o facturado (`bsp_relatorio_conferir` →
+  «Possível acto por facturar» a u1 e u2), e-mail com as perguntas por extenso
+  (`resumo`). Lembrete 1 h após o fim de cada turno da escala publicada
+  (`bsp_relatorios_lembrar`, cron `bsp-relatorios-lembrar`). Um campo novo com
+  stock, equipamento ou incidentes entra também em `bsp_relatorio_atencao`. Lêem: Direcção e
   Coordenação tudo; Direcção Clínica (Osvaldo Pacheco, u14,
   `BSP_RELATORIOS_DIRECCAO_CLINICA` / `bsp_le_areas_medicas()`) as áreas
   médicas; a Arlete (u2) recebe cada um por e-mail.
