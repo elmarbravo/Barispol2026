@@ -4554,3 +4554,26 @@ para direcção clínica, adm e superiores de cada área».
   usá-la. Antes a Recepção não ia à Direcção Clínica e o Laboratório e a
   Imagiologia não iam a nenhum chefe. O Laboratório continua sem chefe (falta
   nomear quem substitui a Rosa Queirós).
+
+## 3-he. Teste dos relatórios de turno: primeiras respostas (16-10-2026)
+
+Elmar: «teste da tarefa de relatórios, vê o sistema se está como deve ser».
+
+- A chegar pelo Workspace (e-mail automático para o chefe da área e
+  DireccaoClinica@, cc adm@, confirmado no de 15-10 da Enfermagem): Enfermagem
+  (Afonso 14-10, Domingos 15-10), Laboratório (Nicolau 14-10, Cássia 15-10),
+  Imagiologia (Joana 15-10), Farmácia (Solange 1.º fecho e Gizela 2.º fecho,
+  15-10). Falta a Recepção.
+- Problema da Juliana («mesmo após alterar a data, o sistema não apresenta os
+  dados do dia pretendido»): o formulário usava sempre o dia de hoje, e a data
+  só mudava a lista. Corrigido em `workspace.html`: campo «Dia do relatório»
+  no formulário (até 7 dias para trás, igual ao servidor); os números do
+  MetaGest (`bsp_relatorio_metagest(p_area, p_dia)`), o `dia` gravado e por isso
+  a conferência com o facturado passam a ser desse dia.
+- Enfermagem (Domingos): novos campos opcionais «Sinais vitais» e «Medicação
+  oral» (`sinais_vitais`, `medicacao_oral`); as injecções dizem «todas, também
+  as da Observação».
+- Por ver: há entregas repetidas no mesmo dia (teste + dia real); a Enfermagem
+  e o Raio-X continuam a mandar também o e-mail à mão (previsto até à aprovação).
+- O conector do Supabase nesta sessão passou a outra conta (só mostra o projecto
+  antigo e a Quinta do Pinhão): o estado das tarefas 64 a 77 não foi lido.

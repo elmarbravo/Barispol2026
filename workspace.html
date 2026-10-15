@@ -16352,11 +16352,15 @@ const BSP_RELATORIOS = [{
     { id: 'movimento', tipo: 'escolha', rotulo: 'Como decorreu o turno', opcoes: ['Calmo', 'Normal', 'Muito movimentado'] },
     { id: 'intercorrencias', tipo: 'escolha', rotulo: 'Intercorrências', opcoes: ['Nenhuma', 'Ligeiras', 'Graves (ver observação)'] },
     { id: 'consultas', tipo: 'numero', rotulo: 'Consultas apoiadas' },
-    { id: 'im', tipo: 'numero', rotulo: 'Injecções intramusculares' },
-    { id: 'ev', tipo: 'numero', rotulo: 'Injecções endovenosas' },
+    { id: 'im', tipo: 'numero', rotulo: 'Injecções intramusculares (todas, também as da Observação)' },
+    { id: 'ev', tipo: 'numero', rotulo: 'Injecções endovenosas (todas, também as da Observação)' },
     { id: 'observacoes', tipo: 'numero', rotulo: 'Observações' },
     { id: 'nebulizacoes', tipo: 'numero', rotulo: 'Nebulizações' },
     { id: 'curativos', tipo: 'numero', rotulo: 'Curativos' },
+    /* 16-10-2026, Domingos: «Tivemos 1-Sinais vitais e 1-Medicação Oral mas
+       esses procedimentos não constam». Opcionais: não obrigam quem não os fez. */
+    { id: 'sinais_vitais', tipo: 'numero', rotulo: 'Sinais vitais', opcional: true },
+    { id: 'medicacao_oral', tipo: 'numero', rotulo: 'Medicação oral', opcional: true },
     { id: 'material', tipo: 'varias', rotulo: 'Material em falta', opcoes: ['Nenhum', 'Máscaras de nebulização', 'Seringas e agulhas', 'Luvas', 'Soros', 'Material de penso', 'Outro (ver observação)'] },
     { id: 'relatorio_anexo', tipo: 'escolha', rotulo: 'Folha de registo enviada', opcoes: ['Sim', 'Por enviar'] },
     { id: 'obs', tipo: 'texto', rotulo: 'Observação (opcional, sem nomes de utentes)' }
@@ -16485,7 +16489,8 @@ function RelatorioResumo({ rel, onApagar }) {
     }
   }, React.createElement(I.Trash, { size: 13 }), "Eliminar")));
 }
-function RelatorioMetaGest({ mg }) {
+function RelatorioMetaGest({ mg, dia }) {
+  const hoje = !dia || dia === bspDiaRelatorio();
   if (!mg) return null;
   const nums = Object.keys(BSP_REL_MG_ROTULOS).filter(k => typeof mg[k] === 'number').map(k => mg[k] + ' ' + BSP_REL_MG_ROTULOS[k]);
   const lista = (rot, l, cor) => Array.isArray(l) && l.length ? React.createElement("div", { style: { marginTop: 6 } },
@@ -16493,8 +16498,8 @@ function RelatorioMetaGest({ mg }) {
   const temStock = ['esgotados', 'a_acabar', 'a_caducar'].some(k => Array.isArray(mg[k]) && mg[k].length);
   return React.createElement("div", {
     style: { margin: '0 0 16px', padding: '12px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface-2)', fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.5 }
-  }, React.createElement("div", { style: { fontWeight: 700, color: 'var(--text-1)', marginBottom: 2 } }, 'O MetaGest já registou hoje'),
-    nums.length ? nums.join(' · ') + '.' : 'Ainda sem actos facturados hoje nesta área.',
+  }, React.createElement("div", { style: { fontWeight: 700, color: 'var(--text-1)', marginBottom: 2 } }, hoje ? 'O MetaGest já registou hoje' : 'O MetaGest registou em ' + dia.slice(8, 10) + '-' + dia.slice(5, 7)),
+    nums.length ? nums.join(' · ') + '.' : (hoje ? 'Ainda sem actos facturados hoje nesta área.' : 'Sem actos facturados nesse dia nesta área.'),
     lista('Esgotado', mg.esgotados, 'var(--perigo)'),
     lista('A acabar', mg.a_acabar, 'var(--serie-4)'),
     lista('Caduca em 7 dias', mg.a_caducar, 'var(--serie-4)'),
@@ -16518,6 +16523,11 @@ function RelatoriosScreen() {
   const [lista, setLista] = React.useState([]);
   const [estado, setEstado] = React.useState('a-carregar');
   const [dia, setDia] = React.useState(bspDiaRelatorio());
+  /* Dia do relatório (16-10-2026, Juliana: «mesmo após alterar a data, o
+     sistema não apresenta os dados do dia pretendido»). O formulário tem a
+     sua data, até 7 dias para trás como o servidor: os números do MetaGest e
+     a conferência com o facturado passam a ser desse dia. */
+  const [diaForm, setDiaForm] = React.useState(bspDiaRelatorio());
   const [tick, setTick] = React.useState(0);
   const def = areasMinhas.find(a => a.id === area) || areasMinhas[0] || null;
   /* Números do MetaGest (14-10-2026, relatorios-turno.sql): o formulário vem
@@ -16529,18 +16539,21 @@ function RelatoriosScreen() {
     const cl = bspGetClient();
     if (!cl || !def) return;
     let vivo = true;
-    cl.rpc('bsp_relatorio_metagest', { p_area: def.id }).then(r => {
+    setMg(null);
+    cl.rpc('bsp_relatorio_metagest', { p_area: def.id, p_dia: diaForm }).then(r => {
       if (!vivo || r.error || !r.data) return;
       setMg(r.data);
+      /* Só corre quando muda a área ou o dia: os números passam a ser os
+         desse dia. */
       const mapa = BSP_REL_MG_CAMPOS[def.id] || {};
       setResp(act => {
         const n = Object.assign({}, act);
-        Object.keys(mapa).forEach(k => { if ((n[k] == null || n[k] === '') && r.data[mapa[k]] != null) n[k] = String(r.data[mapa[k]]); });
+        Object.keys(mapa).forEach(k => { if (r.data[mapa[k]] != null) n[k] = String(r.data[mapa[k]]); else delete n[k]; });
         return n;
       });
     });
     return () => { vivo = false; };
-  }, [def && def.id]);
+  }, [def && def.id, diaForm]);
   React.useEffect(() => {
     const cl = bspGetClient();
     if (!cl) { setEstado('sem-servidor'); return; }
@@ -16611,7 +16624,7 @@ function RelatoriosScreen() {
     });
     const r = await cl.from('relatorios_area').insert({
       area: def.id,
-      dia: bspDiaRelatorio(),
+      dia: diaForm,
       turno: typeof limpo.turno === 'string' ? limpo.turno : null,
       user_id: window.CURRENT_USER_ID,
       respostas: limpo,
@@ -16634,7 +16647,8 @@ function RelatoriosScreen() {
     } catch (e) {}
     toast('Relatório enviado.');
     setResp({});
-    setDia(bspDiaRelatorio());
+    setDia(diaForm);
+    setDiaForm(bspDiaRelatorio());
     setTick(t => t + 1);
   };
   const chip = (activo, rotulo, onClick) => React.createElement("button", {
@@ -16671,9 +16685,15 @@ function RelatoriosScreen() {
     style: { fontSize: 15, fontWeight: 700, margin: '0 0 4px', color: 'var(--text-1)' }
   }, "Relatório do dia"), React.createElement("p", {
     style: { fontSize: 12.5, color: 'var(--text-3)', margin: '0 0 14px' }
-  }, bspDiaExtenso(bspDiaRelatorio() + 'T12:00:00'), ". " + (def ? (areasMinhas.length > 1 ? 'Escolha a área e responda.' : 'Relatório de ' + def.nome + '.') : 'O seu perfil não tem relatório de área.') + " Os números do MetaGest já vêm preenchidos: confirme-os e diga o que só a sua área sabe. Este relatório substitui o e-mail de fim de turno. Não escreva nomes de utentes."), areasMinhas.length > 1 && React.createElement("div", {
+  }, bspDiaExtenso(diaForm + 'T12:00:00'), ". " + (def ? (areasMinhas.length > 1 ? 'Escolha a área e responda.' : 'Relatório de ' + def.nome + '.') : 'O seu perfil não tem relatório de área.') + " Os números do MetaGest já vêm preenchidos: confirme-os e diga o que só a sua área sabe. Este relatório substitui o e-mail de fim de turno. Não escreva nomes de utentes."), def && React.createElement("label", {
+    style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', margin: '0 0 14px', fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)' }
+  }, 'Dia do relatório', React.createElement("input", {
+    type: "date", value: diaForm, min: bspSomarDias(bspDiaRelatorio(), -7), max: bspDiaRelatorio(),
+    onChange: e => e.target.value && setDiaForm(e.target.value),
+    style: { height: 34, padding: '0 10px', border: '1px solid ' + (diaForm !== bspDiaRelatorio() ? 'var(--accent-d)' : 'var(--border)'), borderRadius: 8, background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 16 }
+  }), diaForm !== bspDiaRelatorio() && React.createElement("span", { style: { fontWeight: 400, color: 'var(--text-3)' } }, 'Relatório de um dia anterior: os números do MetaGest são desse dia.')), areasMinhas.length > 1 && React.createElement("div", {
     style: { display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 18 }
-  }, areasMinhas.map(a => chip(area === a.id, a.nome, () => setArea(a.id)))), def && React.createElement(RelatorioMetaGest, { mg }), def && def.campos.map(campo), def && precisaAvaria && React.createElement("div", {
+  }, areasMinhas.map(a => chip(area === a.id, a.nome, () => setArea(a.id)))), def && React.createElement(RelatorioMetaGest, { mg, dia: diaForm }), def && def.campos.map(campo), def && precisaAvaria && React.createElement("div", {
     style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', margin: '-4px 0 16px', padding: '10px 12px', borderRadius: 10, background: 'var(--surface-2)', fontSize: 12.5, color: 'var(--text-2)' }
   }, 'Equipamento avariado? Reporte-o também em Serviços gerais, para ter seguimento e quem o trate.', React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: () => window.bspIrParaEcra && window.bspIrParaEcra('avarias') }, 'Reportar avaria')), def && React.createElement(Button, {
     variant: "primary",

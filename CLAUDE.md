@@ -327,7 +327,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   não enviam»): o formulário vem preenchido com o MetaGest
   (`bsp_relatorio_metagest`, `BSP_REL_MG_CAMPOS`, `RelatorioMetaGest`) e
   substitui o e-mail escrito à mão; dia do relatório por `bspDiaRelatorio`
-  (antes das 06h00 = dia anterior, igual ao servidor). Ao entregar:
+  (antes das 06h00 = dia anterior, igual ao servidor); o formulário tem «Dia do
+  relatório» (`diaForm`, até 7 dias para trás, 16-10-2026): MetaGest, `dia`
+  gravado e conferência são desse dia. Ao entregar:
   `metagest` guardado, «precisa de atenção» (`bsp_relatorio_atencao`, aviso e
   novidade), conferência com o facturado (`bsp_relatorio_conferir` →
   «Possível acto por facturar» a u1 e u2), e-mail com as perguntas por extenso
