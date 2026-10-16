@@ -70,6 +70,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   factores para todos acessos»): sem factor TOTP só abre o `MfaInscreverEcra`;
   com factor, o `MfaCodigoEcra` (`useBspMfaNivel`, aal2); depois do código a
   página recarrega. Nunca voltar a pôr «Desligar» (só «Mudar de telemóvel»).
+  Duas vias valem (Elmar: «por e-mail ou app»): app (aal2) ou código por e-mail
+  (`MfaEmailPasso`, `mfa-email.sql`, `bsp_mfa_ok`; aparelho lembrado 12 h em
+  `bsp-mfa-aparelho`, apagado ao sair).
   No servidor, `mfa-obrigatoria.sql` (regra aal2). Terminar a sessão de todos:
   mudar `BSP_SESSAO_GERACAO` e correr `sessoes-terminar.sql`. Workspace a mudar para `ws.barispol.com` (aprovado pelo Elmar; o site
   já não liga à equipa): um host novo entra na CSP, nas `ORIGENS_PERMITIDAS` e

@@ -3212,18 +3212,109 @@ function useBspMfaNivel(authed) {
     if (!cl || !cl.auth || !cl.auth.mfa) { setNivel('ok'); return; }
     let vivo = true;
     setNivel('a-verificar');
-    cl.auth.mfa.getAuthenticatorAssuranceLevel().then(r => {
+    (async () => {
+      const r = await cl.auth.mfa.getAuthenticatorAssuranceLevel();
       if (!vivo) return;
       const d = r && r.data;
+      if (!d || d.currentLevel === 'aal2') { setNivel('ok'); return; }
+      /* Segundo passo por e-mail (16-10-2026, Elmar: «Dois factores por e-mail
+         ou app; as duas opções valem»): a sessão já confirmada por e-mail, ou um
+         aparelho lembrado há menos de 12 h, também conta (mfa-email.sql). */
+      if (await bspMfaEmailSessaoOk(cl)) { if (vivo) setNivel('ok'); return; }
+      if (!vivo) return;
       /* Obrigatória para todos (16-10-2026, Elmar: «Cria autenticação de dois
          factores para todos acessos»): sem factor, só o ecrã de activação. */
-      setNivel(!d ? 'ok' : d.nextLevel === 'aal2' && d.currentLevel !== 'aal2' ? 'precisa' : d.nextLevel !== 'aal2' ? 'inscrever' : 'ok');
-    }).catch(() => { if (vivo) setNivel('ok'); });
+      setNivel(d.nextLevel === 'aal2' ? 'precisa' : 'inscrever');
+    })().catch(() => { if (vivo) setNivel('ok'); });
     return () => { vivo = false; };
   }, [authed]);
   return [nivel, setNivel];
 }
+const BSP_MFA_APARELHO = 'bsp-mfa-aparelho';
+async function bspMfaEmailSessaoOk(cl) {
+  try {
+    const r = await cl.rpc('bsp_mfa_ok');
+    if (!r.error && r.data === true) return true;
+    let tok = null;
+    try { tok = localStorage.getItem(BSP_MFA_APARELHO); } catch (e) {}
+    if (!tok) return false;
+    const x = await cl.rpc('bsp_mfa_email_retomar', { p_token: tok });
+    if (!x.error && x.data === true) return true;
+    try { localStorage.removeItem(BSP_MFA_APARELHO); } catch (e) {}
+  } catch (e) {}
+  return false;
+}
+/* Código de 6 algarismos para o e-mail da conta, enviado pelo servidor
+   (bsp_mfa_email_enviar, geral@barispol.com), válido 10 minutos. */
+function MfaEmailPasso({ onOk }) {
+  const [enviado, setEnviado] = React.useState(null);
+  const [codigo, setCodigo] = React.useState('');
+  const [lembrar, setLembrar] = React.useState(true);
+  const [busy, setBusy] = React.useState(false);
+  const [erro, setErro] = React.useState('');
+  const enviar = async () => {
+    const cl = bspGetClient();
+    if (!cl || busy) return;
+    setBusy(true); setErro('');
+    try {
+      const r = await cl.rpc('bsp_mfa_email_enviar');
+      setBusy(false);
+      if (r.error) { setErro(/does not exist|schema cache|404/i.test(r.error.message || '') ? 'O código por e-mail ainda não está ligado no servidor. Use a app de autenticação.' : (r.error.message || 'Não foi possível enviar o código.')); return; }
+      setEnviado((r.data && r.data.para) || 'o seu e-mail'); setCodigo('');
+    } catch (e) { setBusy(false); setErro('Não foi possível enviar o código. Verifique a internet.'); }
+  };
+  const confirmar = async e => {
+    e && e.preventDefault();
+    const cl = bspGetClient();
+    if (!cl || busy || codigo.length !== 6) return;
+    setBusy(true); setErro('');
+    try {
+      const r = await cl.rpc('bsp_mfa_email_verificar', { p_codigo: codigo, p_lembrar: lembrar });
+      setBusy(false);
+      if (r.error || !r.data || !r.data.ok) { setErro((r.data && r.data.erro) || 'Código errado ou fora de prazo.'); setCodigo(''); return; }
+      if (r.data.token) { try { localStorage.setItem(BSP_MFA_APARELHO, r.data.token); } catch (e2) {} }
+      onOk();
+    } catch (err) { setBusy(false); setErro('Não foi possível confirmar o código. Verifique a internet.'); }
+  };
+  const p = bspMfaPar;
+  if (!enviado) return React.createElement(React.Fragment, null,
+    p('Enviamos um código de 6 algarismos para o e-mail da sua conta. É preciso um código novo em cada entrada (ou a cada 12 horas, se lembrar o aparelho).'),
+    React.createElement(BotaoMfa, { primario: true, onClick: enviar, disabled: busy }, busy ? 'A enviar…' : 'Enviar código por e-mail'),
+    erro && React.createElement("div", { style: { marginTop: 10, fontSize: 12.5, color: 'var(--perigo)' } }, erro));
+  return React.createElement("form", { onSubmit: confirmar },
+    p('Enviámos o código para ' + enviado + '. Vale 10 minutos. Veja também o lixo electrónico.'),
+    React.createElement("div", { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
+      React.createElement("input", {
+        value: codigo, autoFocus: true, inputMode: 'numeric', autoComplete: 'one-time-code', placeholder: '000000', 'aria-label': 'Código do e-mail',
+        onChange: e => setCodigo(bspMfaCodigoLimpo(e.target.value)),
+        style: { width: 150, height: 42, padding: '0 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 18, letterSpacing: 6, textAlign: 'center', fontFamily: 'inherit' }
+      }),
+      React.createElement(BotaoMfa, { primario: true, type: 'submit', disabled: busy || codigo.length !== 6 }, busy ? 'A confirmar…' : 'Entrar')),
+    React.createElement("label", { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, fontSize: 13, color: 'var(--text-2)' } },
+      React.createElement("input", { type: 'checkbox', checked: lembrar, onChange: e => setLembrar(e.target.checked) }),
+      'Lembrar este aparelho durante 12 horas (não marque num computador partilhado)'),
+    erro && React.createElement("div", { style: { marginTop: 10, fontSize: 12.5, color: 'var(--perigo)' } }, erro),
+    React.createElement("button", { type: 'button', onClick: enviar, disabled: busy, style: { marginTop: 10, background: 'transparent', border: 'none', color: 'var(--accent-d)', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0 } }, 'Enviar outro código'));
+}
+/* Cartão dos ecrãs de entrada do 2FA. */
+function MfaCartao({ titulo, children, onSair }) {
+  return React.createElement("div", {
+    style: { width: '100%', minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: 16, boxSizing: 'border-box', overflow: 'auto' }
+  }, React.createElement("div", {
+    style: { width: '100%', maxWidth: 440, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '26px 22px', boxSizing: 'border-box' }
+  }, React.createElement(BarispolLogo, { size: 'md' }),
+    React.createElement("h2", { style: { margin: '12px 0 10px', fontSize: 19, fontWeight: 700, color: 'var(--text-1)' } }, titulo),
+    children,
+    React.createElement("button", {
+      type: 'button', onClick: onSair,
+      style: { display: 'block', marginTop: 16, background: 'transparent', border: 'none', color: 'var(--text-3)', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }
+    }, 'Terminar sessão')));
+}
+const bspMfaTroca = (texto, onClick) => React.createElement("button", { type: 'button', onClick,
+  style: { display: 'block', marginTop: 14, background: 'transparent', border: 'none', color: 'var(--accent-d)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: 0, textAlign: 'left' } }, texto);
+/* Entrada de quem já tem a app: o código da app ou, em alternativa, por e-mail. */
 function MfaCodigoEcra({ onOk, onSair }) {
+  const [modo, setModo] = React.useState('app');
   const [codigo, setCodigo] = React.useState('');
   const [erro, setErro] = React.useState('');
   const [busy, setBusy] = React.useState(false);
@@ -3245,25 +3336,20 @@ function MfaCodigoEcra({ onOk, onSair }) {
       setErro('Não foi possível confirmar o código. Verifique a internet.');
     }
   };
-  return React.createElement("div", {
-    style: { width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: 16 }
-  }, React.createElement("form", {
-    onSubmit: confirmar,
-    style: { width: '100%', maxWidth: 380, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '28px 24px', display: 'flex', flexDirection: 'column', gap: 14 }
-  }, React.createElement(BarispolLogo, { size: 'md' }),
-    React.createElement("h2", { style: { margin: 0, fontSize: 19, fontWeight: 700, color: 'var(--text-1)' } }, 'Verificação em dois passos'),
-    React.createElement("p", { style: { margin: 0, fontSize: 13.5, color: 'var(--text-2)', lineHeight: 1.5 } }, 'Abra a app de autenticação no telemóvel e escreva o código de 6 algarismos do Workspace Barispol.'),
-    React.createElement("input", {
-      value: codigo, autoFocus: true, inputMode: 'numeric', autoComplete: 'one-time-code', placeholder: '000000', 'aria-label': 'Código',
-      onChange: e => setCodigo(bspMfaCodigoLimpo(e.target.value)),
-      style: { height: 48, padding: '0 14px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 22, letterSpacing: 8, textAlign: 'center', fontFamily: 'inherit' }
-    }),
-    erro && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--perigo)' } }, erro),
-    React.createElement(BotaoMfa, { primario: true, type: 'submit', disabled: busy || codigo.length !== 6 }, busy ? 'A confirmar…' : 'Entrar'),
-    React.createElement("button", {
-      type: 'button', onClick: onSair,
-      style: { background: 'transparent', border: 'none', color: 'var(--text-3)', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit' }
-    }, 'Terminar sessão')));
+  if (modo === 'email') return React.createElement(MfaCartao, { titulo: 'Código por e-mail', onSair },
+    React.createElement(MfaEmailPasso, { onOk }),
+    bspMfaTroca('Usar o código da app', () => setModo('app')));
+  return React.createElement(MfaCartao, { titulo: 'Verificação em dois passos', onSair },
+    React.createElement("form", { onSubmit: confirmar, style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+      bspMfaPar('Abra a app de autenticação no telemóvel e escreva o código de 6 algarismos do Workspace Barispol.', { margin: 0 }),
+      React.createElement("input", {
+        value: codigo, autoFocus: true, inputMode: 'numeric', autoComplete: 'one-time-code', placeholder: '000000', 'aria-label': 'Código',
+        onChange: e => setCodigo(bspMfaCodigoLimpo(e.target.value)),
+        style: { height: 48, padding: '0 14px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 22, letterSpacing: 8, textAlign: 'center', fontFamily: 'inherit' }
+      }),
+      erro && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--perigo)' } }, erro),
+      React.createElement(BotaoMfa, { primario: true, type: 'submit', disabled: busy || codigo.length !== 6 }, busy ? 'A confirmar…' : 'Entrar')),
+    bspMfaTroca('Não tem o telemóvel? Receber o código por e-mail', () => setModo('email')));
 }
 /* Activação do TOTP, partilhada pela janela da Conta e pelo ecrã obrigatório. */
 function useBspMfaInscricao(onActivado) {
@@ -3324,21 +3410,23 @@ function MfaInscricaoCorpo({ insc, textoBotao }) {
       React.createElement(BotaoMfa, { primario: true, onClick: insc.comecar, disabled: insc.busy }, insc.busy ? 'A preparar…' : (textoBotao || 'Activar a verificação em dois passos'))),
     insc.erro && React.createElement("div", { style: { marginTop: 10, fontSize: 12.5, color: 'var(--perigo)' } }, insc.erro));
 }
-/* Ecrã obrigatório: quem ainda não tem a verificação em dois passos só vê isto. */
+/* Ecrã obrigatório: quem ainda não tem segundo passo escolhe a app ou o
+   e-mail; sem um deles, o Workspace não abre. */
 function MfaInscreverEcra({ onOk, onSair }) {
   const insc = useBspMfaInscricao(onOk);
-  return React.createElement("div", {
-    style: { width: '100%', minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: 16, boxSizing: 'border-box', overflow: 'auto' }
-  }, React.createElement("div", {
-    style: { width: '100%', maxWidth: 440, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '26px 22px', boxSizing: 'border-box' }
-  }, React.createElement(BarispolLogo, { size: 'md' }),
-    React.createElement("h2", { style: { margin: '12px 0 8px', fontSize: 19, fontWeight: 700, color: 'var(--text-1)' } }, 'Active a verificação em dois passos'),
-    bspMfaPar('A partir de agora é obrigatória em todas as contas do Workspace. Faz-se uma vez, em 2 minutos.', { fontWeight: 600, color: 'var(--text-1)' }),
-    React.createElement(MfaInscricaoCorpo, { insc, textoBotao: 'Começar' }),
-    React.createElement("button", {
-      type: 'button', onClick: onSair,
-      style: { marginTop: 14, background: 'transparent', border: 'none', color: 'var(--text-3)', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }
-    }, 'Terminar sessão')));
+  const [modo, setModo] = React.useState(null);
+  const opcao = (titulo, texto, m) => React.createElement("button", { type: 'button', onClick: () => setModo(m),
+    style: { display: 'block', width: '100%', textAlign: 'left', padding: '12px 14px', marginBottom: 10, border: '1px solid var(--border)', borderRadius: 12, background: 'var(--surface)', cursor: 'pointer', fontFamily: 'inherit' } },
+    React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)' } }, titulo),
+    React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', marginTop: 3, lineHeight: 1.45 } }, texto));
+  return React.createElement(MfaCartao, { titulo: 'Verificação em dois passos', onSair },
+    bspMfaPar('É obrigatória em todas as contas do Workspace. Escolha como quer receber o segundo código:', { fontWeight: 600, color: 'var(--text-1)' }),
+    !modo ? React.createElement(React.Fragment, null,
+      opcao('Com uma app no telemóvel (recomendado)', 'Google Authenticator ou Microsoft Authenticator. Activa-se uma vez e funciona sem internet nem e-mail.', 'app'),
+      opcao('Com um código por e-mail', 'Recebe um código no e-mail da conta a cada entrada (ou a cada 12 horas neste aparelho).', 'email')) :
+    modo === 'app' ? React.createElement(MfaInscricaoCorpo, { insc, textoBotao: 'Começar' }) :
+    React.createElement(MfaEmailPasso, { onOk }),
+    modo && bspMfaTroca('Escolher outra forma', () => { insc.reiniciar(); setModo(null); }));
 }
 function DoisPassosModal({ open, onClose }) {
   const toast = useToast();
@@ -3392,6 +3480,7 @@ function MenuConta({
       const c = bspGetClient();
       if (c) await c.auth.signOut();
     } catch (e) {}
+    try { localStorage.removeItem(BSP_MFA_APARELHO); } catch (e) {}
     bspUrlCacheLimpar();
     /* Limpar o estado guardado neste separador. Sem isto, o bsp-workspace-v1
        mantém as mensagens directas, o feed e o directório, e o loadInitial()
@@ -20793,7 +20882,7 @@ function AdminSystem() {
     value: "Só enquanto o separador ou a app estão abertos; termina ao sair"
   }), React.createElement(Field, {
     label: "Autenticação de dois factores",
-    value: "Obrigatória em todas as contas desde 16-10-2026 (app de autenticação): sem ela o Workspace não abre. No servidor, a regra aal2 entra com mfa-obrigatoria.sql",
+    value: "Obrigatória em todas as contas desde 16-10-2026, pela app de autenticação ou por código no e-mail: sem ela o Workspace não abre. No servidor: mfa-email.sql e mfa-obrigatoria.sql",
     badge: "warn",
     badgeLabel: "OBRIGATÓRIA"
   }), React.createElement(Field, {
@@ -31918,6 +32007,7 @@ function App() {
   const sairMfa = async () => {
     try { const c = bspGetClient(); if (c) await c.auth.signOut(); } catch (e) {}
     try { sessionStorage.removeItem(STORAGE_KEY); sessionStorage.removeItem('bsp-notifs-v1'); } catch (e) {}
+    try { localStorage.removeItem(BSP_MFA_APARELHO); } catch (e) {}
     try { window.location.reload(); } catch (e) {}
   };
   /* Depois do código, recarregar: o cliente da sincronização tem o seu próprio

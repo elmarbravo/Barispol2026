@@ -4692,3 +4692,23 @@ Por aplicar no servidor (conector do Supabase noutra conta):
 - Recuperação: quem perder o telemóvel não entra. Falta a opção «Repor 2FA»
   na `criar-utilizador` (gestão apaga o factor pela API de administração);
   até lá, apaga-se no painel (Authentication → utilizador → MFA factors).
+
+### 3-hh (cont.). Segundo passo por app ou por e-mail (16-10-2026)
+
+Elmar: «Dois factores por e-mail ou app. As duas opções valem».
+- Ecrã obrigatório: a pessoa escolhe «Com uma app no telemóvel
+  (recomendado)» ou «Com um código por e-mail». Quem tem a app pode, ao
+  entrar, pedir o código por e-mail («Não tem o telemóvel?»).
+- Código por e-mail (`MfaEmailPasso`): 6 algarismos para o e-mail da conta,
+  10 minutos, 5 tentativas, até 5 códigos por hora; «Lembrar este aparelho
+  durante 12 horas» (testemunho em `localStorage` `bsp-mfa-aparelho`, só o
+  hash no servidor; «Terminar sessão» apaga-o). Testado no navegador com o
+  servidor simulado.
+- `mfa-email.sql` (por aplicar): `mfa_email_codigos`, `mfa_email_sessoes`,
+  `mfa_aparelhos`, `bsp_mfa_email_enviar`, `bsp_mfa_email_verificar`,
+  `bsp_mfa_email_retomar`, `bsp_mfa_ok`. Corre antes de `mfa-obrigatoria.sql`,
+  cuja regra passou a aceitar as duas vias (`bsp_sessao_aal2` → `bsp_mfa_ok`,
+  calculada uma vez por consulta). Enquanto não for aplicado, a opção por
+  e-mail diz «ainda não está ligado no servidor» e só a app funciona.
+- Cada código conta nos 95 e-mails por dia da Resend; se o tecto for
+  atingido, o código não chega: usar a app.
