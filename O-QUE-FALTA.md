@@ -4741,3 +4741,7 @@ Supabase… tem uma equipa sem conseguir baixar o aplicativo. Avance»)
 - Por fazer: Site URL do Supabase Auth em `https://barispol.com` (só o
   Elmar); «Repor 2FA» para quem perder o telemóvel; limpeza das tabelas
   `mfa_*` na `bsp_retencao`.
+- Guia para a equipa (16-10-2026, Elmar: «imagem a explicar os passos… para a
+  Arlete partilhar no WhatsApp… e enviar por e-mail»): `assets/guia-codigo-email.png`
+  (fonte em `ferramentas/guia-2fa/guia.html`; a letra Titillium vai em ficheiro
+  ao lado ao refazer). Enviada à Arlete por geral@ (`bsp_enviar_email`).
