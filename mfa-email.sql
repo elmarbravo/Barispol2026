@@ -7,7 +7,7 @@
 --   bsp_mfa_email_verificar(c, lembrar) confirma (até 5 tentativas por código)
 --                                     e marca a sessão (session_id do JWT); com
 --                                     «lembrar», devolve um testemunho do
---                                     aparelho válido 12 h (só o hash fica aqui).
+--                                     aparelho válido 30 dias (só o hash fica aqui).
 --   bsp_mfa_email_retomar(token)      sessão nova num aparelho lembrado.
 --   bsp_mfa_ok()                      aal2 (app) ou sessão confirmada por e-mail.
 -- Tabelas sem regras de acesso: só as funções lá chegam.
@@ -57,7 +57,7 @@ as $f$
   select coalesce(auth.jwt() ->> 'aal', '') = 'aal2'
       or exists (select 1 from public.mfa_email_sessoes s
                   where s.sessao = public.bsp_mfa_sessao() and s.user_id = auth.uid()
-                    and s.verificado_em > now() - interval '24 hours')
+                    and s.verificado_em > now() - interval '30 days')
 $f$;
 revoke all on function public.bsp_mfa_ok() from public, anon;
 grant execute on function public.bsp_mfa_ok() to authenticated;
@@ -115,7 +115,7 @@ begin
   on conflict (sessao) do update set verificado_em = now(), user_id = excluded.user_id;
   if coalesce(p_lembrar, false) then
     tok := encode(extensions.gen_random_bytes(24), 'hex');
-    insert into public.mfa_aparelhos (token_hash, user_id, ate) values (public.bsp_mfa_hash(tok), uid, now() + interval '12 hours');
+    insert into public.mfa_aparelhos (token_hash, user_id, ate) values (public.bsp_mfa_hash(tok), uid, now() + interval '30 days');
   end if;
   return jsonb_build_object('ok', true, 'token', tok);
 end $f$;

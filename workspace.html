@@ -3219,7 +3219,7 @@ function useBspMfaNivel(authed) {
       if (!d || d.currentLevel === 'aal2') { setNivel('ok'); return; }
       /* Segundo passo por e-mail (16-10-2026, Elmar: «Dois factores por e-mail
          ou app; as duas opções valem»): a sessão já confirmada por e-mail, ou um
-         aparelho lembrado há menos de 12 h, também conta (mfa-email.sql). */
+         aparelho lembrado há menos de 30 dias (Elmar, 16-10-2026), também conta (mfa-email.sql). */
       if (await bspMfaEmailSessaoOk(cl)) { if (vivo) setNivel('ok'); return; }
       if (!vivo) return;
       /* Obrigatória para todos (16-10-2026, Elmar: «Cria autenticação de dois
@@ -3278,7 +3278,7 @@ function MfaEmailPasso({ onOk }) {
   };
   const p = bspMfaPar;
   if (!enviado) return React.createElement(React.Fragment, null,
-    p('Enviamos um código de 6 algarismos para o e-mail da sua conta. É preciso um código novo em cada entrada (ou a cada 12 horas, se lembrar o aparelho).'),
+    p('Enviamos um código de 6 algarismos para o e-mail da sua conta. É preciso um código novo em cada entrada (ou só a cada 30 dias, se lembrar o aparelho).'),
     React.createElement(BotaoMfa, { primario: true, onClick: enviar, disabled: busy }, busy ? 'A enviar…' : 'Enviar código por e-mail'),
     erro && React.createElement("div", { style: { marginTop: 10, fontSize: 12.5, color: 'var(--perigo)' } }, erro));
   return React.createElement("form", { onSubmit: confirmar },
@@ -3292,7 +3292,7 @@ function MfaEmailPasso({ onOk }) {
       React.createElement(BotaoMfa, { primario: true, type: 'submit', disabled: busy || codigo.length !== 6 }, busy ? 'A confirmar…' : 'Entrar')),
     React.createElement("label", { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, fontSize: 13, color: 'var(--text-2)' } },
       React.createElement("input", { type: 'checkbox', checked: lembrar, onChange: e => setLembrar(e.target.checked) }),
-      'Lembrar este aparelho durante 12 horas (não marque num computador partilhado)'),
+      'Lembrar este aparelho durante 30 dias (não marque num computador partilhado)'),
     erro && React.createElement("div", { style: { marginTop: 10, fontSize: 12.5, color: 'var(--perigo)' } }, erro),
     React.createElement("button", { type: 'button', onClick: enviar, disabled: busy, style: { marginTop: 10, background: 'transparent', border: 'none', color: 'var(--accent-d)', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0 } }, 'Enviar outro código'));
 }
@@ -3425,7 +3425,7 @@ function MfaInscreverEcra({ onOk, onSair }) {
     bspMfaPar('É obrigatória em todas as contas do Workspace. Escolha como quer receber o segundo código:', { fontWeight: 600, color: 'var(--text-1)' }),
     !modo ? React.createElement(React.Fragment, null,
       opcao('Com uma app no telemóvel (recomendado)', 'Google Authenticator ou Microsoft Authenticator. Activa-se uma vez e funciona sem internet nem e-mail.', 'app'),
-      opcao('Com um código por e-mail', 'Recebe um código no e-mail da conta a cada entrada (ou a cada 12 horas neste aparelho).', 'email')) :
+      opcao('Com um código por e-mail', 'Recebe um código no e-mail da conta a cada entrada (ou só a cada 30 dias neste aparelho).', 'email')) :
     modo === 'app' ? React.createElement(MfaInscricaoCorpo, { insc, textoBotao: 'Começar' }) :
     React.createElement(MfaEmailPasso, { onOk }),
     modo && bspMfaTroca('Escolher outra forma', () => { insc.reiniciar(); setModo(null); }));

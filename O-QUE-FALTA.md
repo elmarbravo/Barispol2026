@@ -4745,3 +4745,10 @@ Supabase… tem uma equipa sem conseguir baixar o aplicativo. Avance»)
   Arlete partilhar no WhatsApp… e enviar por e-mail»): `assets/guia-codigo-email.png`
   (fonte em `ferramentas/guia-2fa/guia.html`; a letra Titillium vai em ficheiro
   ao lado ao refazer). Enviada à Arlete por geral@ (`bsp_enviar_email`).
+- 16-10-2026, Elmar: «só 12 horas para lembrar, acho pouco… 30 dias»: aparelho
+  lembrado e sessão confirmada por e-mail passam a 30 dias (servidor, ecrã e
+  imagem do guia). Remetente: o barispol.ao não tem caixas (MX do Cloudflare
+  Email Routing, só reencaminha); enviar de info@barispol.ao continuaria a
+  gastar a Resend. O barispol.com está no Microsoft 365 (MX outlook): a via para
+  deixar a Resend é a Microsoft Graph (registo de aplicação no Entra, Mail.Send,
+  segredos colados pelo Elmar).
