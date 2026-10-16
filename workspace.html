@@ -3215,7 +3215,9 @@ function useBspMfaNivel(authed) {
     cl.auth.mfa.getAuthenticatorAssuranceLevel().then(r => {
       if (!vivo) return;
       const d = r && r.data;
-      setNivel(d && d.nextLevel === 'aal2' && d.currentLevel !== 'aal2' ? 'precisa' : 'ok');
+      /* Obrigatória para todos (16-10-2026, Elmar: «Cria autenticação de dois
+         factores para todos acessos»): sem factor, só o ecrã de activação. */
+      setNivel(!d ? 'ok' : d.nextLevel === 'aal2' && d.currentLevel !== 'aal2' ? 'precisa' : d.nextLevel !== 'aal2' ? 'inscrever' : 'ok');
     }).catch(() => { if (vivo) setNivel('ok'); });
     return () => { vivo = false; };
   }, [authed]);
@@ -3263,24 +3265,13 @@ function MfaCodigoEcra({ onOk, onSair }) {
       style: { background: 'transparent', border: 'none', color: 'var(--text-3)', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit' }
     }, 'Terminar sessão')));
 }
-function DoisPassosModal({ open, onClose }) {
+/* Activação do TOTP, partilhada pela janela da Conta e pelo ecrã obrigatório. */
+function useBspMfaInscricao(onActivado) {
   const toast = useToast();
-  const [estado, setEstado] = React.useState('a-carregar');
-  const [factor, setFactor] = React.useState(null);
   const [novo, setNovo] = React.useState(null);
   const [codigo, setCodigo] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [erro, setErro] = React.useState('');
-  React.useEffect(() => {
-    if (!open) return;
-    setEstado('a-carregar'); setNovo(null); setCodigo(''); setErro('');
-    const cl = bspGetClient();
-    if (!cl || !cl.auth.mfa) { setEstado('sem-servidor'); return; }
-    let vivo = true;
-    bspMfaFactorVerificado(cl).then(f => { if (vivo) { setFactor(f); setEstado(f ? 'activa' : 'desligada'); } })
-      .catch(() => { if (vivo) setEstado('erro'); });
-    return () => { vivo = false; };
-  }, [open]);
   const comecar = async () => {
     const cl = bspGetClient();
     if (!cl || busy) return;
@@ -3291,7 +3282,7 @@ function DoisPassosModal({ open, onClose }) {
       const l = await cl.auth.mfa.listFactors();
       const pendentes = ((l.data && l.data.all) || []).filter(f => f.factor_type === 'totp' && f.status !== 'verified');
       for (const f of pendentes) { try { await cl.auth.mfa.unenroll({ factorId: f.id }); } catch (e) {} }
-      const r = await cl.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Workspace Barispol ' + bspHojeLuanda() });
+      const r = await cl.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Workspace Barispol ' + bspHojeLuanda() + ' ' + Date.now().toString(36) });
       setBusy(false);
       if (r.error) { setErro('Não foi possível começar. ' + (r.error.message || '')); return; }
       setNovo(r.data);
@@ -3304,46 +3295,89 @@ function DoisPassosModal({ open, onClose }) {
     const r = await cl.auth.mfa.challengeAndVerify({ factorId: novo.id, code: codigo });
     setBusy(false);
     if (r.error) { setErro('Código errado. Confirme a hora do telemóvel e escreva o código actual.'); setCodigo(''); return; }
-    setNovo(null); setCodigo(''); setEstado('activa');
-    toast('Verificação em dois passos activa. A próxima entrada pede o código.');
+    setNovo(null); setCodigo('');
+    onActivado && onActivado();
   };
-  const desligar = async () => {
+  const reiniciar = () => { setNovo(null); setCodigo(''); setErro(''); };
+  return { novo, codigo, setCodigo, busy, erro, comecar, confirmar, reiniciar };
+}
+const bspMfaPar = (t, s) => React.createElement("p", { style: Object.assign({ margin: '0 0 12px', fontSize: 13.5, color: 'var(--text-2)', lineHeight: 1.55 }, s || {}) }, t);
+function MfaInscricaoCorpo({ insc, textoBotao }) {
+  const p = bspMfaPar;
+  return React.createElement(React.Fragment, null, insc.novo ? React.createElement(React.Fragment, null,
+      p('1. No telemóvel, abra a app de autenticação (Google Authenticator ou Microsoft Authenticator), toque em «+» e leia este código:'),
+      React.createElement("div", { style: { display: 'flex', justifyContent: 'center', margin: '0 0 12px' } },
+        React.createElement("img", { src: insc.novo.totp && insc.novo.totp.qr_code, alt: 'Código QR', style: { width: 196, height: 196, background: '#fff', padding: 8, borderRadius: 8 } })),
+      p('Sem câmara? Escreva esta chave na app: ' + ((insc.novo.totp && insc.novo.totp.secret) || ''), { fontSize: 12, wordBreak: 'break-all', color: 'var(--text-3)' }),
+      p('2. Escreva o código de 6 algarismos que a app mostra:'),
+      React.createElement("div", { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
+        React.createElement("input", {
+          value: insc.codigo, inputMode: 'numeric', autoComplete: 'one-time-code', placeholder: '000000', 'aria-label': 'Código',
+          onChange: e => insc.setCodigo(bspMfaCodigoLimpo(e.target.value)),
+          onKeyDown: e => { if (e.key === 'Enter') insc.confirmar(); },
+          style: { width: 150, height: 42, padding: '0 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 18, letterSpacing: 6, textAlign: 'center', fontFamily: 'inherit' }
+        }),
+        React.createElement(BotaoMfa, { primario: true, onClick: insc.confirmar, disabled: insc.busy || insc.codigo.length !== 6 }, insc.busy ? 'A confirmar…' : 'Activar'))) :
+    React.createElement(React.Fragment, null,
+      p('Protege a conta mesmo que alguém descubra a palavra-passe: cada entrada passa a pedir também um código que muda a cada 30 segundos, gerado por uma app no seu telemóvel.'),
+      p('Precisa de uma app de autenticação gratuita (Google Authenticator ou Microsoft Authenticator). Instale-a antes de continuar.', { color: 'var(--text-3)', fontSize: 12.5 }),
+      React.createElement(BotaoMfa, { primario: true, onClick: insc.comecar, disabled: insc.busy }, insc.busy ? 'A preparar…' : (textoBotao || 'Activar a verificação em dois passos'))),
+    insc.erro && React.createElement("div", { style: { marginTop: 10, fontSize: 12.5, color: 'var(--perigo)' } }, insc.erro));
+}
+/* Ecrã obrigatório: quem ainda não tem a verificação em dois passos só vê isto. */
+function MfaInscreverEcra({ onOk, onSair }) {
+  const insc = useBspMfaInscricao(onOk);
+  return React.createElement("div", {
+    style: { width: '100%', minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: 16, boxSizing: 'border-box', overflow: 'auto' }
+  }, React.createElement("div", {
+    style: { width: '100%', maxWidth: 440, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '26px 22px', boxSizing: 'border-box' }
+  }, React.createElement(BarispolLogo, { size: 'md' }),
+    React.createElement("h2", { style: { margin: '12px 0 8px', fontSize: 19, fontWeight: 700, color: 'var(--text-1)' } }, 'Active a verificação em dois passos'),
+    bspMfaPar('A partir de agora é obrigatória em todas as contas do Workspace. Faz-se uma vez, em 2 minutos.', { fontWeight: 600, color: 'var(--text-1)' }),
+    React.createElement(MfaInscricaoCorpo, { insc, textoBotao: 'Começar' }),
+    React.createElement("button", {
+      type: 'button', onClick: onSair,
+      style: { marginTop: 14, background: 'transparent', border: 'none', color: 'var(--text-3)', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }
+    }, 'Terminar sessão')));
+}
+function DoisPassosModal({ open, onClose }) {
+  const toast = useToast();
+  const [estado, setEstado] = React.useState('a-carregar');
+  const [factor, setFactor] = React.useState(null);
+  const insc = useBspMfaInscricao(() => { setEstado('activa'); toast('Verificação em dois passos activa.'); });
+  const [busy, setBusy] = React.useState(false);
+  React.useEffect(() => {
+    if (!open) return;
+    setEstado('a-carregar'); insc.reiniciar();
+    const cl = bspGetClient();
+    if (!cl || !cl.auth.mfa) { setEstado('sem-servidor'); return; }
+    let vivo = true;
+    bspMfaFactorVerificado(cl).then(f => { if (vivo) { setFactor(f); setEstado(f ? 'activa' : 'desligada'); } })
+      .catch(() => { if (vivo) setEstado('erro'); });
+    return () => { vivo = false; };
+  }, [open]);
+  /* Obrigatória: «Mudar de telemóvel» retira a app antiga e a activação
+     recomeça logo, no ecrã obrigatório. */
+  const mudar = async () => {
     const cl = bspGetClient();
     if (!cl || !factor || busy) return;
-    if (!window.confirm('Desligar a verificação em dois passos? A conta fica protegida só pela palavra-passe.')) return;
+    if (bspEmVerComo()) { toast('Em «Ver como» não se muda a segurança da conta.'); return; }
+    if (!window.confirm('Mudar de telemóvel? A app antiga deixa de servir e activa já a verificação no telemóvel novo.')) return;
     setBusy(true);
     const r = await cl.auth.mfa.unenroll({ factorId: factor.id });
     setBusy(false);
-    if (r.error) { toast('Não foi possível desligar: para isso, entre primeiro com o código.'); return; }
-    setFactor(null); setEstado('desligada');
-    toast('Verificação em dois passos desligada.');
+    if (r.error) { toast('Não foi possível: entre de novo com o código e repita.'); return; }
+    try { window.location.reload(); } catch (e) {}
   };
-  const p = (t, s) => React.createElement("p", { style: Object.assign({ margin: '0 0 12px', fontSize: 13.5, color: 'var(--text-2)', lineHeight: 1.55 }, s || {}) }, t);
+  const p = bspMfaPar;
   return React.createElement(Modal, { open, onClose, title: 'Verificação em dois passos', width: 460 },
     estado === 'a-carregar' ? p('A verificar…') :
     estado === 'sem-servidor' ? p('O servidor não está ligado neste aparelho.') :
     estado === 'erro' ? p('Não foi possível ler o estado da conta. Tente de novo.') :
     estado === 'activa' ? React.createElement(React.Fragment, null,
-      p('Está activa. Cada entrada no Workspace pede o código da app de autenticação, além da palavra-passe.'),
-      React.createElement(BotaoMfa, { onClick: desligar, disabled: busy }, 'Desligar')) :
-    novo ? React.createElement(React.Fragment, null,
-      p('1. No telemóvel, abra a app de autenticação (Google Authenticator ou Microsoft Authenticator) e leia este código:'),
-      React.createElement("div", { style: { display: 'flex', justifyContent: 'center', margin: '0 0 12px' } },
-        React.createElement("img", { src: novo.totp && novo.totp.qr_code, alt: 'Código QR', style: { width: 196, height: 196, background: '#fff', padding: 8, borderRadius: 8 } })),
-      p('Sem câmara? Escreva esta chave na app: ' + ((novo.totp && novo.totp.secret) || ''), { fontSize: 12, wordBreak: 'break-all', color: 'var(--text-3)' }),
-      p('2. Escreva o código de 6 algarismos que a app mostra:'),
-      React.createElement("div", { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
-        React.createElement("input", {
-          value: codigo, inputMode: 'numeric', autoComplete: 'one-time-code', placeholder: '000000', 'aria-label': 'Código',
-          onChange: e => setCodigo(bspMfaCodigoLimpo(e.target.value)),
-          style: { width: 150, height: 42, padding: '0 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 18, letterSpacing: 6, textAlign: 'center', fontFamily: 'inherit' }
-        }),
-        React.createElement(BotaoMfa, { primario: true, onClick: confirmar, disabled: busy || codigo.length !== 6 }, busy ? 'A confirmar…' : 'Activar'))) :
-    React.createElement(React.Fragment, null,
-      p('Protege a conta mesmo que alguém descubra a palavra-passe: cada entrada passa a pedir também um código que muda a cada 30 segundos, gerado por uma app no seu telemóvel.'),
-      p('Precisa de uma app de autenticação gratuita (Google Authenticator ou Microsoft Authenticator).', { color: 'var(--text-3)', fontSize: 12.5 }),
-      React.createElement(BotaoMfa, { primario: true, onClick: comecar, disabled: busy }, busy ? 'A preparar…' : 'Activar a verificação em dois passos')),
-    erro && React.createElement("div", { style: { marginTop: 10, fontSize: 12.5, color: 'var(--perigo)' } }, erro));
+      p('Está activa. Cada entrada no Workspace pede o código da app de autenticação, além da palavra-passe. É obrigatória para todas as contas.'),
+      React.createElement(BotaoMfa, { onClick: mudar, disabled: busy }, 'Mudar de telemóvel')) :
+    React.createElement(MfaInscricaoCorpo, { insc }));
 }
 function MenuConta({
   sFg,
@@ -4329,6 +4363,7 @@ function bspClienteSoLeitura(real) {
   });
 }
 let __bspClienteLeitura = null;
+const BSP_SESSAO_GERACAO = '2026-10-16';
 function bspGetClient() {
   if (__bspClient && bspEmVerComo()) return __bspClienteLeitura || (__bspClienteLeitura = bspClienteSoLeitura(__bspClient));
   if (__bspClient) return __bspClient;
@@ -4343,6 +4378,19 @@ function bspGetClient() {
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
       if (k && k.indexOf('sb-') === 0 && k.indexOf('-auth-token') !== -1) localStorage.removeItem(k);
+    }
+  } catch (e) {}
+  /* Terminar a sessão de todos (16-10-2026, Elmar: «Termine a sessão de
+     todos»): mudar BSP_SESSAO_GERACAO fecha, uma vez em cada aparelho, a
+     sessão que lá estiver na próxima abertura. As sessões no servidor cortam-se
+     com sessoes-terminar.sql. */
+  try {
+    if (localStorage.getItem('bsp-sessao-geracao') !== BSP_SESSAO_GERACAO) {
+      for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const k = sessionStorage.key(i);
+        if (k && ((k.indexOf('sb-') === 0 && k.indexOf('-auth-token') !== -1) || k === STORAGE_KEY || k === 'bsp-notifs-v1' || k.indexOf('bsp-urls-') === 0)) sessionStorage.removeItem(k);
+      }
+      localStorage.setItem('bsp-sessao-geracao', BSP_SESSAO_GERACAO);
     }
   } catch (e) {}
   let armazem;
@@ -20745,9 +20793,9 @@ function AdminSystem() {
     value: "Só enquanto o separador ou a app estão abertos; termina ao sair"
   }), React.createElement(Field, {
     label: "Autenticação de dois factores",
-    value: "Disponível: cada pessoa activa-a em Conta → Verificação em dois passos (app de autenticação). Ainda não é obrigatória",
+    value: "Obrigatória em todas as contas desde 16-10-2026 (app de autenticação): sem ela o Workspace não abre. No servidor, a regra aal2 entra com mfa-obrigatoria.sql",
     badge: "warn",
-    badgeLabel: "OPCIONAL"
+    badgeLabel: "OBRIGATÓRIA"
   }), React.createElement(Field, {
     label: "Registo de auditoria",
     value: "Acessos a ecrãs sensíveis (12 meses), capturas de ecrã e alterações à equipa",
@@ -31867,14 +31915,16 @@ function App() {
   /* Verificação em dois passos (16-10-2026): com a app de autenticação
      ligada, nada abre antes do código. */
   if (mfaNivel === 'a-verificar') return React.createElement("div", { style: { width: '100%', height: '100%', background: 'var(--bg)' } });
-  if (mfaNivel === 'precisa') return React.createElement(MfaCodigoEcra, {
-    onOk: () => setMfaNivel('ok'),
-    onSair: async () => {
-      try { const c = bspGetClient(); if (c) await c.auth.signOut(); } catch (e) {}
-      try { sessionStorage.removeItem(STORAGE_KEY); sessionStorage.removeItem('bsp-notifs-v1'); } catch (e) {}
-      try { window.location.reload(); } catch (e) {}
-    }
-  });
+  const sairMfa = async () => {
+    try { const c = bspGetClient(); if (c) await c.auth.signOut(); } catch (e) {}
+    try { sessionStorage.removeItem(STORAGE_KEY); sessionStorage.removeItem('bsp-notifs-v1'); } catch (e) {}
+    try { window.location.reload(); } catch (e) {}
+  };
+  /* Depois do código, recarregar: o cliente da sincronização tem o seu próprio
+     testemunho em memória e só o de nível aal2 passa as regras do servidor. */
+  const mfaFeito = () => { try { window.location.reload(); } catch (e) { setMfaNivel('ok'); } };
+  if (mfaNivel === 'precisa') return React.createElement(MfaCodigoEcra, { onOk: mfaFeito, onSair: sairMfa });
+  if (mfaNivel === 'inscrever') return React.createElement(MfaInscreverEcra, { onOk: mfaFeito, onSair: sairMfa });
   const isAdmin = currentUser && bspCamada(currentUser).podeGerirUtilizadores;
   /* O socio ve sempre o Painel, venha de onde vier (link, notificacao). */
   const socio = bspESocio(currentUser);

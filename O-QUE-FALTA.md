@@ -4665,3 +4665,30 @@ Imunologia (Widal, PCR) fica no campo «Reagentes e consumíveis» e na
 observação (não passa pelo BS-200).
 Nota de segurança: nas fotografias vê-se, colado por cima do monitor, um papel
 com a palavra-passe do aparelho. Retirar.
+
+## 3-hh. 2FA obrigatória e sessões terminadas (16-10-2026)
+
+Elmar: «Cria autenticação de dois factores para todos acessos. Termine a
+sessão de todos».
+
+Feito no ecrã (`workspace.html`), testado no navegador (computador e
+telemóvel):
+- `useBspMfaNivel` devolve `inscrever` a quem não tem factor TOTP: só aparece
+  o `MfaInscreverEcra` (QR, chave, código), sem menu nem dados; «Terminar
+  sessão» é a única saída. Depois do código a página recarrega (o cliente da
+  sincronização fica com o testemunho aal2).
+- Conta → Verificação em dois passos: sem «Desligar»; «Mudar de telemóvel»
+  retira a app antiga e obriga a activar logo a nova.
+- Sessões: `BSP_SESSAO_GERACAO = '2026-10-16'` fecha a sessão guardada em
+  cada aparelho na próxima abertura (uma vez por aparelho). Para terminar de
+  novo a sessão de todos, mudar esse valor.
+- Admin → Segurança: 2FA «OBRIGATÓRIA».
+
+Por aplicar no servidor (conector do Supabase noutra conta):
+- `sessoes-terminar.sql`: apaga `auth.sessions`; os separadores abertos saem
+  em menos de 1 hora. Pode correr-se no SQL Editor do painel.
+- `mfa-obrigatoria.sql`: regra restritiva aal2 em todas as tabelas de
+  `public` com RLS e em `storage.objects`. Depois, ver `bsp_meu_id()` com aal1.
+- Recuperação: quem perder o telemóvel não entra. Falta a opção «Repor 2FA»
+  na `criar-utilizador` (gestão apaga o factor pela API de administração);
+  até lá, apaga-se no painel (Authentication → utilizador → MFA factors).

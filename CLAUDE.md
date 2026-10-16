@@ -66,9 +66,12 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   (`vendor/`), nunca CDN. A página sai de dentro de iframes.
 - O ecrã Admin → Segurança só diz o que existe de facto.
 - Contas gestoras: Elmar, Arlete e a conta de teste «Beb» (a desactivar).
-- 2FA (16-10-2026, 3-hf): TOTP opcional em Conta → «Verificação em dois passos»
-  (`DoisPassosModal`); quem a tem passa pelo `MfaCodigoEcra` (`useBspMfaNivel`,
-  aal2). Workspace a mudar para `ws.barispol.com` (aprovado pelo Elmar; o site
+- 2FA obrigatória para todos (16-10-2026, 3-hh, Elmar: «autenticação de dois
+  factores para todos acessos»): sem factor TOTP só abre o `MfaInscreverEcra`;
+  com factor, o `MfaCodigoEcra` (`useBspMfaNivel`, aal2); depois do código a
+  página recarrega. Nunca voltar a pôr «Desligar» (só «Mudar de telemóvel»).
+  No servidor, `mfa-obrigatoria.sql` (regra aal2). Terminar a sessão de todos:
+  mudar `BSP_SESSAO_GERACAO` e correr `sessoes-terminar.sql`. Workspace a mudar para `ws.barispol.com` (aprovado pelo Elmar; o site
   já não liga à equipa): um host novo entra na CSP, nas `ORIGENS_PERMITIDAS` e
   no `PERMITIDOS` da app PC. O fluxo «Verificar» confirma a sintaxe a cada push.
 - Estado, notificações e endereços assinados só no `sessionStorage`
