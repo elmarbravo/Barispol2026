@@ -3368,7 +3368,9 @@ function useBspMfaInscricao(onActivado) {
       const l = await cl.auth.mfa.listFactors();
       const pendentes = ((l.data && l.data.all) || []).filter(f => f.factor_type === 'totp' && f.status !== 'verified');
       for (const f of pendentes) { try { await cl.auth.mfa.unenroll({ factorId: f.id }); } catch (e) {} }
-      const r = await cl.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Workspace Barispol ' + bspHojeLuanda() + ' ' + Date.now().toString(36) });
+      /* Sem «issuer», o Supabase usa o Site URL do painel (estava
+         localhost:3000) e a app mostrava «localhost» (Elmar, 16-10-2026). */
+      const r = await cl.auth.mfa.enroll({ factorType: 'totp', issuer: 'Barispol Workspace', friendlyName: 'Workspace Barispol ' + bspHojeLuanda() + ' ' + Date.now().toString(36) });
       setBusy(false);
       if (r.error) { setErro('Não foi possível começar. ' + (r.error.message || '')); return; }
       setNovo(r.data);

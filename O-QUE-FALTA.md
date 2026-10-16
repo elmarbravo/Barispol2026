@@ -4712,3 +4712,8 @@ Elmar: «Dois factores por e-mail ou app. As duas opções valem».
   e-mail diz «ainda não está ligado no servidor» e só a app funciona.
 - Cada código conta nos 95 e-mails por dia da Resend; se o tecto for
   atingido, o código não chega: usar a app.
+- 16-10-2026, primeira activação real (Elmar, iPhone): a app de autenticação
+  mostrava «localhost:3000». O emissor do TOTP vem do Site URL do Supabase Auth,
+  que está em `http://localhost:3000`. Corrigido no ecrã (`issuer: 'Barispol
+  Workspace'` no `enroll`). Falta mudar no painel: Authentication → URL
+  Configuration → Site URL = `https://barispol.com` (só o Elmar).
