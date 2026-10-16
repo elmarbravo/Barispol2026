@@ -25,7 +25,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const ORIGENS = ["https://barispol.com", "https://www.barispol.com"];
+const ORIGENS = ["https://barispol.com", "https://www.barispol.com", "https://ws.barispol.com"];
 const POR_LIGACAO_HORA = 5;
 
 const PREFIXO_DE_CHAVE = /^(sb_secret_|eyJ)/;

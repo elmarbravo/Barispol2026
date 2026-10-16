@@ -1,0 +1,60 @@
+# Modelo do fluxo para o repositório elmarbravo/barispol-ws (ainda por criar
+# pelo Elmar). Copia-se para .github/workflows/publicar-ws.yml desse
+# repositório. Serve o Workspace em https://ws.barispol.com, separado do site
+# público (onde corre o píxel da Meta). Ver O-QUE-FALTA.md, 3-hf.
+#
+# Não há código duplicado: cada execução vai buscar ao barispol2026 (público)
+# o workspace e o que ele usa, e publica no GitHub Pages deste repositório.
+# Corre a cada 10 minutos e a pedido (Actions -> Publicar ws -> Run workflow).
+
+name: Publicar ws
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/10 * * * *'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: elmarbravo/barispol2026
+          ref: main
+          path: origem
+
+      - name: Montar o site ws
+        run: |
+          mkdir -p site
+          cd origem
+          cp workspace.html servidor.js sw.js workspace.webmanifest imprimir.html ../site/
+          cp -r vendor assets guia ../site/
+          cp app/www/sem-ligacao.html ../site/ 2>/dev/null || true
+          cd ../site
+          echo "ws.barispol.com" > CNAME
+          # A raiz abre o Workspace.
+          printf '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=workspace.html"><title>Barispol Workspace</title>' > index.html
+          # Sem índices de pesquisa: é a intranet.
+          printf 'User-agent: *\nDisallow: /\n' > robots.txt
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

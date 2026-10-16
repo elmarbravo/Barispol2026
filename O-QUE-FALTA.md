@@ -4577,3 +4577,43 @@ Elmar: «teste da tarefa de relatórios, vê o sistema se está como deve ser».
   e o Raio-X continuam a mandar também o e-mail à mão (previsto até à aprovação).
 - O conector do Supabase nesta sessão passou a outra conta (só mostra o projecto
   antigo e a Quinta do Pinhão): o estado das tarefas 64 a 77 não foi lido.
+
+## 3-hf. Subdomínio ws.barispol.com, 2FA e verificação automática (16-10-2026)
+
+Elmar: «Aprovo o subdominio e tira do site principal o botão para equipa. Tudo
+que depende de ti faz já».
+
+Feito:
+- Site: retirada a ligação «Colaboradores» do rodapé (`index.html` e
+  `ferramentas/modelo-site.html`). O Workspace continua em
+  barispol.com/workspace.html até à passagem.
+- Verificação em dois passos (TOTP) no Workspace: Conta → «Verificação em dois
+  passos» (`DoisPassosModal`: QR e chave, confirmação por código, desligar).
+  Quem a tem activa vê o `MfaCodigoEcra` depois da palavra-passe
+  (`useBspMfaNivel`, aal2). Por agora opcional; o ecrã de Segurança diz isso.
+  Testado no Playwright (activação, QR, código só com algarismos).
+- ws.barispol.com já aceite: CSP do `workspace.html`, `ORIGENS_PERMITIDAS` das
+  10 Edge Functions (só no código: **falta o deploy**), `PERMITIDOS` da app PC.
+- Verificação automática: fluxo «Verificar» (`.github/workflows/verificar.yml`
+  + `ferramentas/verificar-sintaxe.py`) confirma a sintaxe das páginas e dos
+  .js a cada publicação.
+- Modelo do fluxo do site ws: `ferramentas/ws-site/publicar-ws.yml`.
+- Rascunho da política de privacidade para utentes:
+  `ferramentas/rascunhos/privacidade-utentes.md` (sem ligação; jurista e APD).
+
+Passos do Elmar (por esta ordem):
+1. Voltar a ligar o conector do Supabase com elmar.bravo@barispol.com (nesta
+   sessão estava noutra conta). Sem isso não há deploy das funções.
+2. GitHub: criar o repositório público `elmarbravo/barispol-ws` (a integração
+   não tem permissão para o criar); Settings → Pages → Source «GitHub
+   Actions»; copiar para lá `ferramentas/ws-site/publicar-ws.yml` em
+   `.github/workflows/`; Custom domain `ws.barispol.com`, «Enforce HTTPS».
+3. DNS (Cloudflare): CNAME `ws` → `elmarbravo.github.io`, sem proxy (nuvem
+   cinzenta) até o certificado sair.
+4. Supabase → Authentication → URL Configuration: acrescentar
+   `https://ws.barispol.com/**` aos Redirect URLs.
+
+Depois disso, eu: deploy das 10 funções; `SITIO`/ligações dos e-mails para
+ws.barispol.com; `server.url` da app Android e da app PC; redireccionar
+barispol.com/workspace.html para ws (só depois de confirmar que a sessão
+entra); obrigar o 2FA aos gestores no servidor (painel Auth + regra aal2).

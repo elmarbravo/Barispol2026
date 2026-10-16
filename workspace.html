@@ -8,7 +8,7 @@
      carregar scripts de outro sítio. Os scripts e estilos inline são os da
      própria página (React UMD sem compilação), por isso 'unsafe-inline';
      a protecção vem do connect-src, object-src, base-uri e form-action. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://gnqleaxrtuerlcrriqqs.supabase.co; media-src 'self' data: blob: https://gnqleaxrtuerlcrriqqs.supabase.co; font-src 'self' data:; connect-src 'self' https://barispol.com https://www.barispol.com https://gnqleaxrtuerlcrriqqs.supabase.co wss://gnqleaxrtuerlcrriqqs.supabase.co; worker-src 'self' blob:; child-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://gnqleaxrtuerlcrriqqs.supabase.co; media-src 'self' data: blob: https://gnqleaxrtuerlcrriqqs.supabase.co; font-src 'self' data:; connect-src 'self' https://barispol.com https://www.barispol.com https://ws.barispol.com https://gnqleaxrtuerlcrriqqs.supabase.co wss://gnqleaxrtuerlcrriqqs.supabase.co; worker-src 'self' blob:; child-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <script>
 /* Nunca dentro de outro site (12-10-2026): o GitHub Pages não deixa pôr o
@@ -3180,11 +3180,176 @@ function Sidebar({
     recolhido: collapsed
   })));
 }
+/* Verificação em dois passos (16-10-2026, riscos do Workspace, Elmar: «tudo que
+   depende de ti faz já»). TOTP do Supabase Auth: a pessoa activa-a na Conta
+   com uma app de autenticação (Google Authenticator, Microsoft Authenticator)
+   e, a partir daí, cada entrada pede o código de 6 algarismos
+   (useBspMfaNivel + MfaCodigoEcra). A obrigação para a Direcção e a
+   Coordenação no servidor fica em O-QUE-FALTA.md 3-hf. */
+const bspMfaCodigoLimpo = v => String(v || '').replace(/\D/g, '').slice(0, 6);
+async function bspMfaFactorVerificado(cl) {
+  const r = await cl.auth.mfa.listFactors();
+  const l = (r && r.data && r.data.totp) || [];
+  return l.find(f => f.status === 'verified') || null;
+}
+function BotaoMfa({ primario, type, onClick, disabled, children }) {
+  return React.createElement("button", {
+    type: type || 'button', onClick, disabled,
+    style: {
+      height: 42, padding: '0 18px', borderRadius: 10, fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
+      cursor: disabled ? 'default' : 'pointer', opacity: disabled ? .55 : 1,
+      border: primario ? 'none' : '1px solid var(--border)',
+      background: primario ? '#273069' : 'transparent', color: primario ? '#fff' : 'var(--text-1)'
+    }
+  }, children);
+}
+function useBspMfaNivel(authed) {
+  const [nivel, setNivel] = React.useState(authed ? 'a-verificar' : 'ok');
+  React.useEffect(() => {
+    if (!authed) { setNivel('ok'); return; }
+    const cl = bspGetClient();
+    if (!cl || !cl.auth || !cl.auth.mfa) { setNivel('ok'); return; }
+    let vivo = true;
+    setNivel('a-verificar');
+    cl.auth.mfa.getAuthenticatorAssuranceLevel().then(r => {
+      if (!vivo) return;
+      const d = r && r.data;
+      setNivel(d && d.nextLevel === 'aal2' && d.currentLevel !== 'aal2' ? 'precisa' : 'ok');
+    }).catch(() => { if (vivo) setNivel('ok'); });
+    return () => { vivo = false; };
+  }, [authed]);
+  return [nivel, setNivel];
+}
+function MfaCodigoEcra({ onOk, onSair }) {
+  const [codigo, setCodigo] = React.useState('');
+  const [erro, setErro] = React.useState('');
+  const [busy, setBusy] = React.useState(false);
+  const confirmar = async e => {
+    e && e.preventDefault();
+    if (codigo.length !== 6 || busy) return;
+    setErro('');
+    setBusy(true);
+    try {
+      const cl = bspGetClient();
+      const f = cl && await bspMfaFactorVerificado(cl);
+      if (!f) { setBusy(false); onOk(); return; }
+      const r = await cl.auth.mfa.challengeAndVerify({ factorId: f.id, code: codigo });
+      setBusy(false);
+      if (r.error) { setErro('Código errado ou fora de prazo. Veja o código actual na app de autenticação.'); setCodigo(''); return; }
+      onOk();
+    } catch (err) {
+      setBusy(false);
+      setErro('Não foi possível confirmar o código. Verifique a internet.');
+    }
+  };
+  return React.createElement("div", {
+    style: { width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: 16 }
+  }, React.createElement("form", {
+    onSubmit: confirmar,
+    style: { width: '100%', maxWidth: 380, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '28px 24px', display: 'flex', flexDirection: 'column', gap: 14 }
+  }, React.createElement(BarispolLogo, { size: 'md' }),
+    React.createElement("h2", { style: { margin: 0, fontSize: 19, fontWeight: 700, color: 'var(--text-1)' } }, 'Verificação em dois passos'),
+    React.createElement("p", { style: { margin: 0, fontSize: 13.5, color: 'var(--text-2)', lineHeight: 1.5 } }, 'Abra a app de autenticação no telemóvel e escreva o código de 6 algarismos do Workspace Barispol.'),
+    React.createElement("input", {
+      value: codigo, autoFocus: true, inputMode: 'numeric', autoComplete: 'one-time-code', placeholder: '000000', 'aria-label': 'Código',
+      onChange: e => setCodigo(bspMfaCodigoLimpo(e.target.value)),
+      style: { height: 48, padding: '0 14px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 22, letterSpacing: 8, textAlign: 'center', fontFamily: 'inherit' }
+    }),
+    erro && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--perigo)' } }, erro),
+    React.createElement(BotaoMfa, { primario: true, type: 'submit', disabled: busy || codigo.length !== 6 }, busy ? 'A confirmar…' : 'Entrar'),
+    React.createElement("button", {
+      type: 'button', onClick: onSair,
+      style: { background: 'transparent', border: 'none', color: 'var(--text-3)', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit' }
+    }, 'Terminar sessão')));
+}
+function DoisPassosModal({ open, onClose }) {
+  const toast = useToast();
+  const [estado, setEstado] = React.useState('a-carregar');
+  const [factor, setFactor] = React.useState(null);
+  const [novo, setNovo] = React.useState(null);
+  const [codigo, setCodigo] = React.useState('');
+  const [busy, setBusy] = React.useState(false);
+  const [erro, setErro] = React.useState('');
+  React.useEffect(() => {
+    if (!open) return;
+    setEstado('a-carregar'); setNovo(null); setCodigo(''); setErro('');
+    const cl = bspGetClient();
+    if (!cl || !cl.auth.mfa) { setEstado('sem-servidor'); return; }
+    let vivo = true;
+    bspMfaFactorVerificado(cl).then(f => { if (vivo) { setFactor(f); setEstado(f ? 'activa' : 'desligada'); } })
+      .catch(() => { if (vivo) setEstado('erro'); });
+    return () => { vivo = false; };
+  }, [open]);
+  const comecar = async () => {
+    const cl = bspGetClient();
+    if (!cl || busy) return;
+    if (bspEmVerComo()) { toast('Em «Ver como» não se muda a segurança da conta.'); return; }
+    setBusy(true); setErro('');
+    try {
+      /* Restos de uma activação que ficou a meio impedem uma nova. */
+      const l = await cl.auth.mfa.listFactors();
+      const pendentes = ((l.data && l.data.all) || []).filter(f => f.factor_type === 'totp' && f.status !== 'verified');
+      for (const f of pendentes) { try { await cl.auth.mfa.unenroll({ factorId: f.id }); } catch (e) {} }
+      const r = await cl.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Workspace Barispol ' + bspHojeLuanda() });
+      setBusy(false);
+      if (r.error) { setErro('Não foi possível começar. ' + (r.error.message || '')); return; }
+      setNovo(r.data);
+    } catch (e) { setBusy(false); setErro('Não foi possível começar. Verifique a internet.'); }
+  };
+  const confirmar = async () => {
+    const cl = bspGetClient();
+    if (!cl || !novo || codigo.length !== 6 || busy) return;
+    setBusy(true); setErro('');
+    const r = await cl.auth.mfa.challengeAndVerify({ factorId: novo.id, code: codigo });
+    setBusy(false);
+    if (r.error) { setErro('Código errado. Confirme a hora do telemóvel e escreva o código actual.'); setCodigo(''); return; }
+    setNovo(null); setCodigo(''); setEstado('activa');
+    toast('Verificação em dois passos activa. A próxima entrada pede o código.');
+  };
+  const desligar = async () => {
+    const cl = bspGetClient();
+    if (!cl || !factor || busy) return;
+    if (!window.confirm('Desligar a verificação em dois passos? A conta fica protegida só pela palavra-passe.')) return;
+    setBusy(true);
+    const r = await cl.auth.mfa.unenroll({ factorId: factor.id });
+    setBusy(false);
+    if (r.error) { toast('Não foi possível desligar: para isso, entre primeiro com o código.'); return; }
+    setFactor(null); setEstado('desligada');
+    toast('Verificação em dois passos desligada.');
+  };
+  const p = (t, s) => React.createElement("p", { style: Object.assign({ margin: '0 0 12px', fontSize: 13.5, color: 'var(--text-2)', lineHeight: 1.55 }, s || {}) }, t);
+  return React.createElement(Modal, { open, onClose, title: 'Verificação em dois passos', width: 460 },
+    estado === 'a-carregar' ? p('A verificar…') :
+    estado === 'sem-servidor' ? p('O servidor não está ligado neste aparelho.') :
+    estado === 'erro' ? p('Não foi possível ler o estado da conta. Tente de novo.') :
+    estado === 'activa' ? React.createElement(React.Fragment, null,
+      p('Está activa. Cada entrada no Workspace pede o código da app de autenticação, além da palavra-passe.'),
+      React.createElement(BotaoMfa, { onClick: desligar, disabled: busy }, 'Desligar')) :
+    novo ? React.createElement(React.Fragment, null,
+      p('1. No telemóvel, abra a app de autenticação (Google Authenticator ou Microsoft Authenticator) e leia este código:'),
+      React.createElement("div", { style: { display: 'flex', justifyContent: 'center', margin: '0 0 12px' } },
+        React.createElement("img", { src: novo.totp && novo.totp.qr_code, alt: 'Código QR', style: { width: 196, height: 196, background: '#fff', padding: 8, borderRadius: 8 } })),
+      p('Sem câmara? Escreva esta chave na app: ' + ((novo.totp && novo.totp.secret) || ''), { fontSize: 12, wordBreak: 'break-all', color: 'var(--text-3)' }),
+      p('2. Escreva o código de 6 algarismos que a app mostra:'),
+      React.createElement("div", { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
+        React.createElement("input", {
+          value: codigo, inputMode: 'numeric', autoComplete: 'one-time-code', placeholder: '000000', 'aria-label': 'Código',
+          onChange: e => setCodigo(bspMfaCodigoLimpo(e.target.value)),
+          style: { width: 150, height: 42, padding: '0 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 18, letterSpacing: 6, textAlign: 'center', fontFamily: 'inherit' }
+        }),
+        React.createElement(BotaoMfa, { primario: true, onClick: confirmar, disabled: busy || codigo.length !== 6 }, busy ? 'A confirmar…' : 'Activar'))) :
+    React.createElement(React.Fragment, null,
+      p('Protege a conta mesmo que alguém descubra a palavra-passe: cada entrada passa a pedir também um código que muda a cada 30 segundos, gerado por uma app no seu telemóvel.'),
+      p('Precisa de uma app de autenticação gratuita (Google Authenticator ou Microsoft Authenticator).', { color: 'var(--text-3)', fontSize: 12.5 }),
+      React.createElement(BotaoMfa, { primario: true, onClick: comecar, disabled: busy }, busy ? 'A preparar…' : 'Activar a verificação em dois passos')),
+    erro && React.createElement("div", { style: { marginTop: 10, fontSize: 12.5, color: 'var(--perigo)' } }, erro));
+}
 function MenuConta({
   sFg,
   recolhido
 }) {
   const [aberto, setAberto] = React.useState(false);
+  const [doisPassos, setDoisPassos] = React.useState(false);
   async function sair() {
     /* Esperar pela revogação do testemunho antes de recarregar: sem await, o
        reload podia matar o pedido e deixar a sessão viva do lado do servidor. */
@@ -3237,6 +3402,12 @@ function MenuConta({
       padding: 10
     })
   }, React.createElement(AlterarSenha, null), React.createElement("button", {
+    onClick: () => { setAberto(false); setDoisPassos(true); },
+    style: {
+      marginTop: 8, width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--border)',
+      background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)'
+    }
+  }, "Verificação em dois passos"), React.createElement("button", {
     onClick: sair,
     style: {
       marginTop: 8,
@@ -3257,7 +3428,7 @@ function MenuConta({
     }
   }, React.createElement(I.Logout, {
     size: 13
-  }), " Terminar sess\u00e3o")));
+  }), " Terminar sess\u00e3o")), React.createElement(DoisPassosModal, { open: doisPassos, onClose: () => setDoisPassos(false) }));
 }
 function Topbar({
   current,
@@ -20499,9 +20670,9 @@ function AdminSystem() {
     value: "Só enquanto o separador ou a app estão abertos; termina ao sair"
   }), React.createElement(Field, {
     label: "Autenticação de dois factores",
-    value: "Ainda não disponível",
+    value: "Disponível: cada pessoa activa-a em Conta → Verificação em dois passos (app de autenticação). Ainda não é obrigatória",
     badge: "warn",
-    badgeLabel: "POR LIGAR"
+    badgeLabel: "OPCIONAL"
   }), React.createElement(Field, {
     label: "Registo de auditoria",
     value: "Acessos a ecrãs sensíveis (12 meses), capturas de ecrã e alterações à equipa",
@@ -31548,6 +31719,7 @@ function App() {
   useBspVoltar(moreOpen, () => setMoreOpen(false));
   const [t, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
   const [menuRecolhido, setMenuRecolhido] = useBspPrefSimNao('bsp-menu-recolhido', false);
+  const [mfaNivel, setMfaNivel] = useBspMfaNivel(authed);
   const utilizadorReal = bspResolveUser(authedEmail, window.USERS);
   /* Quem esta mesmo com a sessao aberta (a marca de agua usa-o, tambem no «Ver como»). */
   window.__bspQuemEsta = utilizadorReal;
@@ -31592,6 +31764,17 @@ function App() {
       setTweak: setTweak
     }));
   }
+  /* Verificação em dois passos (16-10-2026): com a app de autenticação
+     ligada, nada abre antes do código. */
+  if (mfaNivel === 'a-verificar') return React.createElement("div", { style: { width: '100%', height: '100%', background: 'var(--bg)' } });
+  if (mfaNivel === 'precisa') return React.createElement(MfaCodigoEcra, {
+    onOk: () => setMfaNivel('ok'),
+    onSair: async () => {
+      try { const c = bspGetClient(); if (c) await c.auth.signOut(); } catch (e) {}
+      try { sessionStorage.removeItem(STORAGE_KEY); sessionStorage.removeItem('bsp-notifs-v1'); } catch (e) {}
+      try { window.location.reload(); } catch (e) {}
+    }
+  });
   const isAdmin = currentUser && bspCamada(currentUser).podeGerirUtilizadores;
   /* O socio ve sempre o Painel, venha de onde vier (link, notificacao). */
   const socio = bspESocio(currentUser);

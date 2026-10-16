@@ -16,7 +16,7 @@ const path = require('path');
 const fs = require('fs');
 
 const INICIO = 'https://barispol.com/workspace.html';
-const PERMITIDOS = /^(barispol\.com|www\.barispol\.com|[a-z0-9-]+\.supabase\.co)$/i;
+const PERMITIDOS = /^(barispol\.com|www\.barispol\.com|ws\.barispol\.com|[a-z0-9-]+\.supabase\.co)$/i;
 const ORIGEM_APP = 'https://barispol.com';
 const PERMISSOES = new Set(['media', 'notifications', 'fullscreen', 'clipboard-read', 'clipboard-sanitized-write', 'display-capture']);
 

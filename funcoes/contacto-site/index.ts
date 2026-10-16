@@ -32,7 +32,7 @@ import nodemailer from "npm:nodemailer@6.9.14";
 
 const DESTINO = "rececao@barispol.com";
 const COPIA = "geral@barispol.com";
-const ORIGENS = ["https://barispol.com", "https://www.barispol.com"];
+const ORIGENS = ["https://barispol.com", "https://www.barispol.com", "https://ws.barispol.com"];
 const POR_LIGACAO_HORA = 3;
 const TOTAL_HORA = 30;
 

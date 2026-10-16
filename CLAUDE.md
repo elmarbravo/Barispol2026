@@ -66,6 +66,11 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   (`vendor/`), nunca CDN. A página sai de dentro de iframes.
 - O ecrã Admin → Segurança só diz o que existe de facto.
 - Contas gestoras: Elmar, Arlete e a conta de teste «Beb» (a desactivar).
+- 2FA (16-10-2026, 3-hf): TOTP opcional em Conta → «Verificação em dois passos»
+  (`DoisPassosModal`); quem a tem passa pelo `MfaCodigoEcra` (`useBspMfaNivel`,
+  aal2). Workspace a mudar para `ws.barispol.com` (aprovado pelo Elmar; o site
+  já não liga à equipa): um host novo entra na CSP, nas `ORIGENS_PERMITIDAS` e
+  no `PERMITIDOS` da app PC. O fluxo «Verificar» confirma a sintaxe a cada push.
 - Estado, notificações e endereços assinados só no `sessionStorage`
   (12-10-2026, Fase 2 em `O-QUE-FALTA.md` 3-gy); endereços de 4 h.
 - Push das mensagens sem texto (`push-sem-texto.sql`): «Nova mensagem» e o

@@ -27,7 +27,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const ORIGENS = ["https://barispol.com", "https://www.barispol.com"];
+const ORIGENS = ["https://barispol.com", "https://www.barispol.com", "https://ws.barispol.com"];
 const DESTINO = "https://barispol.com/workspace.html";
 const FONTE = "'Titillium Web', 'Segoe UI', Arial, sans-serif";
 const LOGOTIPO = "https://barispol.com/assets/logo-barispol.png";

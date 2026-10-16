@@ -132,7 +132,7 @@ const listaDeEnderecos = (v: unknown): string[] =>
    autoriza as origens do site e da app; antes era "*". Pedidos sem Origin
    (servidor, agendamentos) nao mudam. O que decide o acesso continua a ser
    o testemunho, nao a origem. */
-const ORIGENS_PERMITIDAS = ["https://barispol.com", "https://www.barispol.com", "https://localhost", "capacitor://localhost", "http://localhost"];
+const ORIGENS_PERMITIDAS = ["https://barispol.com", "https://www.barispol.com", "https://ws.barispol.com", "https://localhost", "capacitor://localhost", "http://localhost"];
 const comCors = (tratar: (req: Request) => Promise<Response>) => async (req: Request): Promise<Response> => {
   const r = await tratar(req);
   const origem = req.headers.get("Origin") || "";

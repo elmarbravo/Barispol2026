@@ -1,0 +1,39 @@
+# Confirma, a cada publicação, que o código das páginas e das apps não tem
+# erros de sintaxe. Um erro aqui deixaria o Workspace em branco para toda a
+# equipa. Não publica nada: só lê.
+
+name: Verificar
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  sintaxe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Páginas (scripts dentro do HTML)
+        run: |
+          for p in workspace.html index.html contacto.html avaliar.html imprimir.html gestor.html; do
+            [ -f "$p" ] || continue
+            python3 ferramentas/verificar-sintaxe.py "$p" "/tmp/$p.js"
+            node --check "/tmp/$p.js"
+          done
+
+      - name: Ficheiros JavaScript
+        run: |
+          node --check servidor.js
+          node --check sw.js
+          node --check app-pc/main.js
