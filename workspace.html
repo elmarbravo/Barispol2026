@@ -16502,7 +16502,7 @@ const BSP_RELATORIOS = [{
     /* 16-10-2026, Elmar: «inserir a quantidade de exames que os reagentes
        permitem processar e as quantidades de exames processados no dia».
        Uma linha por reagente: { r, cap, proc }; ficam = cap − proc. */
-    { id: 'reagentes_exames', tipo: 'reagentes', rotulo: 'Reagentes: exames que permitem processar e exames processados no dia' },
+    { id: 'reagentes_exames', tipo: 'reagentes', rotulo: 'Reagentes do analisador de bioquímica (BS-200): testes restantes e processados no dia' },
     { id: 'ocorrencias', tipo: 'varias', rotulo: 'Ocorrências', opcoes: BSP_OCORRENCIAS },
     { id: 'obs', tipo: 'texto', rotulo: 'Observação (opcional, sem nomes de utentes)' }
   ]
@@ -16635,21 +16635,33 @@ const BSP_REL_MG_CAMPOS = {
 const BSP_REL_MG_ROTULOS = { utentes: 'utentes', novos: 'novos utentes', consultas: 'consultas', pacientes: 'doentes', exames: 'exames', externos: 'enviados para fora', raiox: 'Raio-X', ecografias: 'ecografias', actos: 'actos de enfermagem', unidades: 'unidades vendidas', produtos: 'produtos' };
 function bspRespostaTexto(campo, v) {
   if (v == null || v === '' || (Array.isArray(v) && !v.length)) return null;
-  if (campo && campo.tipo === 'reagentes') return Array.isArray(v) ? v.map(x => x.r + ': permite ' + x.cap + ', processados ' + x.proc + ', ficam ' + Math.max(0, x.cap - x.proc)).join('; ') : null;
+  if (campo && campo.tipo === 'reagentes') {
+    const l = bspReagentesLimpos(v);
+    return l.length ? l.map(x => x.r + ': R1 ' + x.r1 + (x.r2 != null ? ', R2 ' + x.r2 : '') + ' testes, dá para ' + x.ficam + (x.proc ? ', processados ' + x.proc + bspReagenteDias(x) : '')).join('; ') : null;
+  }
   return Array.isArray(v) ? v.join(', ') : String(v);
 }
-/* Linhas de reagentes (Laboratório): limpas, só com nome e capacidade. */
+/* Reagentes do Laboratório (16-10-2026, fotografias do BS-200 enviadas pelo
+   Elmar). O analisador mostra, em Estado → Disco de reagentes, para cada
+   teste o «Restante» do frasco R1 e do R2 («40000.0 / 163» = 163 testes). O
+   teste só corre enquanto houver os dois: dá para o menor. Linha:
+   { r, r1, r2, proc }. As linhas antigas { r, cap, proc } lêem-se como R1. */
+const BSP_REAGENTES_BS200 = ['ALT-TGP', 'AST-TGO', 'Ácido úrico', 'Bilirrubina D', 'Bilirrubina T', 'Creatinina', 'HDL-Col', 'LDL-Col', 'Ureia'];
+const BSP_REAGENTE_MIN_TESTES = 50, BSP_REAGENTE_MIN_DIAS = 7;
 function bspReagentesLimpos(v) {
-  return (Array.isArray(v) ? v : []).map(x => ({
-    r: String((x && x.r) || '').trim().slice(0, 80),
-    cap: Math.max(0, parseInt(x && x.cap, 10) || 0),
-    proc: Math.max(0, parseInt(x && x.proc, 10) || 0)
-  })).filter(x => x.r && x.cap > 0);
+  const n = x => { const t = String(x == null ? '' : x).trim(); return t === '' ? null : Math.max(0, parseInt(t, 10) || 0); };
+  return (Array.isArray(v) ? v : []).map(x => {
+    const r1 = n(x && (x.r1 != null ? x.r1 : x.cap)), r2 = n(x && x.r2);
+    return { r: String((x && x.r) || '').trim().slice(0, 80), r1, r2, proc: n(x && x.proc) || 0, ficam: r1 == null ? null : (r2 == null ? r1 : Math.min(r1, r2)) };
+  }).filter(x => x.r && x.r1 != null);
 }
-/* O relatório seguinte começa com o que ficou no último: o reagente e os
-   exames que ainda permite. */
+function bspReagenteDias(x) { return x.proc > 0 ? ' (cerca de ' + Math.floor(x.ficam / x.proc) + ' dias)' : ''; }
+function bspReagenteAlerta(x) { return x.ficam != null && (x.ficam <= BSP_REAGENTE_MIN_TESTES || (x.proc > 0 && x.ficam < x.proc * BSP_REAGENTE_MIN_DIAS)); }
+/* O relatório seguinte começa com os mesmos testes (sem números: lêem-se no
+   aparelho a cada turno); o primeiro, com a lista do BS-200. */
 function bspReagentesSeguintes(v) {
-  return bspReagentesLimpos(v).map(x => ({ r: x.r, cap: String(Math.max(0, x.cap - x.proc)), proc: '' })).filter(x => Number(x.cap) > 0);
+  const nomes = bspReagentesLimpos(v).map(x => x.r);
+  return (nomes.length ? nomes : BSP_REAGENTES_BS200).map(r => ({ r, r1: '', r2: '', proc: '' }));
 }
 function RelatorioResumo({ rel, onApagar }) {
   const def = BSP_RELATORIOS.find(a => a.id === rel.area);
@@ -16730,11 +16742,11 @@ function RelatoriosScreen() {
     if (!cl || !def || !def.campos.some(c => c.tipo === 'reagentes')) return;
     let vivo = true;
     cl.from('relatorios_area').select('respostas').eq('area', def.id).lte('dia', diaForm).order('dia', { ascending: false }).order('created_at', { ascending: false }).limit(1).then(r => {
-      if (!vivo || r.error || !r.data || !r.data[0]) return;
-      const ant = (r.data[0].respostas || {});
+      if (!vivo) return;
+      const ant = (!r.error && r.data && r.data[0] && r.data[0].respostas) || {};
       setResp(act => {
         const n = Object.assign({}, act);
-        def.campos.filter(c => c.tipo === 'reagentes').forEach(c => { if (!Array.isArray(n[c.id]) || !n[c.id].length) { const l = bspReagentesSeguintes(ant[c.id]); if (l.length) n[c.id] = l; } });
+        def.campos.filter(c => c.tipo === 'reagentes').forEach(c => { if (!Array.isArray(n[c.id]) || !n[c.id].length) { n[c.id] = bspReagentesSeguintes(ant[c.id]); } });
         return n;
       });
     });
@@ -16817,8 +16829,6 @@ function RelatoriosScreen() {
       toast('«' + rot(erroParte[0]) + '» não pode passar de «' + rot(erroParte[1]) + '».');
       return;
     }
-    const reagMais = def.campos.filter(c => c.tipo === 'reagentes').map(c => bspReagentesLimpos(resp[c.id]).find(x => x.proc > x.cap)).find(Boolean);
-    if (reagMais) { toast('«' + reagMais.r + '»: os processados (' + reagMais.proc + ') passam do que o reagente permite (' + reagMais.cap + '). Se abriu um kit novo, some-o ao que permite.'); return; }
     const cl = bspGetClient();
     if (!cl) { toast('O servidor não está ligado.'); return; }
     setAEnviar(true);
@@ -16876,26 +16886,28 @@ function RelatoriosScreen() {
   const campoReagentes = c => {
     const linhas = Array.isArray(resp[c.id]) ? resp[c.id] : [];
     const mudar = (i, k, v) => definir(c.id, linhas.map((x, j) => j === i ? Object.assign({}, x, { [k]: v }) : x));
-    const novaLinha = () => definir(c.id, linhas.concat({ r: '', cap: '', proc: '' }));
+    const novaLinha = () => definir(c.id, linhas.concat({ r: '', r1: '', r2: '', proc: '' }));
     const tirar = i => definir(c.id, linhas.filter((x, j) => j !== i));
+    const num = (i, k, rot, x) => React.createElement("label", { style: { fontSize: 11.5, color: 'var(--text-3)' } }, rot,
+      React.createElement("input", { type: 'number', min: 0, step: 1, inputMode: 'numeric', value: x[k] == null ? '' : x[k], onChange: e => mudar(i, k, e.target.value), style: Object.assign({}, caixaNum, { width: 68, padding: '0 8px', display: 'block', marginTop: 3 }) }));
     return React.createElement("div", { key: c.id, style: { marginBottom: 16 } },
       React.createElement("div", { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 } }, c.rotulo),
-      React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginBottom: 8 } }, 'Uma linha por reagente. «Permite»: exames que o reagente em uso ainda dá para processar no início do turno. «Processados»: os que fez hoje com ele. O relatório seguinte já vem com o que ficou.'),
+      React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginBottom: 8, lineHeight: 1.5 } }, 'No BS-200: Estado → Disco de reagentes → toque no teste. Em «Restante», copie o número depois da barra (ex.: «40000.0 / 163» → 163) do R1 e do R2. «Processados»: testes feitos hoje (Estatíst.). Deixe em branco os testes que não leu.'),
+      React.createElement("datalist", { id: 'bsp-reagentes-bs200' }, BSP_REAGENTES_BS200.map(r => React.createElement("option", { key: r, value: r }))),
       linhas.map((x, i) => {
-        const cap = parseInt(x.cap, 10) || 0, proc = parseInt(x.proc, 10) || 0;
-        const ficam = cap - proc;
-        const alerta = x.cap !== '' && x.proc !== '' && (ficam < 0 || (proc > 0 && ficam <= proc));
+        const l = bspReagentesLimpos([x])[0];
+        const alerta = l && bspReagenteAlerta(l);
+        const limita = l && l.r2 != null && l.r1 !== l.r2 ? (l.r1 < l.r2 ? ' · falta R1' : ' · falta R2') : '';
         return React.createElement("div", { key: i, style: { display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 8, padding: '8px 0', borderBottom: '1px solid var(--border)' } },
-          React.createElement("label", { style: { flex: '1 1 160px', fontSize: 11.5, color: 'var(--text-3)' } }, 'Reagente / análise',
-            React.createElement("input", { value: x.r, maxLength: 80, placeholder: 'Ex.: Hemograma', onChange: e => mudar(i, 'r', e.target.value), style: Object.assign({}, caixaNum, { width: '100%', display: 'block', marginTop: 3 }) })),
-          React.createElement("label", { style: { fontSize: 11.5, color: 'var(--text-3)' } }, 'Permite',
-            React.createElement("input", { type: 'number', min: 0, step: 1, inputMode: 'numeric', value: x.cap, onChange: e => mudar(i, 'cap', e.target.value), style: Object.assign({}, caixaNum, { display: 'block', marginTop: 3 }) })),
-          React.createElement("label", { style: { fontSize: 11.5, color: 'var(--text-3)' } }, 'Processados',
-            React.createElement("input", { type: 'number', min: 0, step: 1, inputMode: 'numeric', value: x.proc, onChange: e => mudar(i, 'proc', e.target.value), style: Object.assign({}, caixaNum, { display: 'block', marginTop: 3 }) })),
-          React.createElement("span", { style: { minWidth: 92, height: 38, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, fontWeight: 600, color: alerta ? 'var(--perigo)' : 'var(--text-2)' } }, x.cap === '' ? '' : ficam < 0 ? 'Passa ' + (-ficam) : 'Ficam ' + ficam + (alerta ? ' · acaba' : '')),
-          React.createElement("button", { type: 'button', onClick: () => tirar(i), 'aria-label': 'Tirar esta linha', style: { height: 38, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 10, background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', fontFamily: 'inherit' } }, '×'));
+          React.createElement("label", { style: { flex: '1 1 110px', minWidth: 0, fontSize: 11.5, color: 'var(--text-3)' } }, 'Teste',
+            React.createElement("input", { value: x.r, maxLength: 80, list: 'bsp-reagentes-bs200', placeholder: 'Ex.: Ureia', onChange: e => mudar(i, 'r', e.target.value), style: Object.assign({}, caixaNum, { width: '100%', display: 'block', marginTop: 3 }) })),
+          num(i, 'r1', 'R1 restantes', { r1: x.r1 != null ? x.r1 : x.cap }),
+          num(i, 'r2', 'R2 restantes', x),
+          num(i, 'proc', 'Processados', x),
+          React.createElement("button", { type: 'button', onClick: () => tirar(i), 'aria-label': 'Tirar esta linha', style: { height: 38, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 10, background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', fontFamily: 'inherit' } }, '×'),
+          l && React.createElement("div", { style: { flexBasis: '100%', fontSize: 12.5, fontWeight: 600, color: alerta ? 'var(--perigo)' : 'var(--text-2)' } }, 'Dá para ' + l.ficam + ' testes' + (l.proc ? bspReagenteDias(l) : '') + (alerta ? limita || ' · repor' : '')));
       }),
-      React.createElement("div", { style: { marginTop: 8 } }, React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: novaLinha }, '+ Acrescentar reagente')));
+      React.createElement("div", { style: { marginTop: 8 } }, React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: novaLinha }, '+ Acrescentar teste')));
   };
   const campo = c => c.tipo === 'reagentes' ? campoReagentes(c) : React.createElement("div", { key: c.id, style: { marginBottom: 16 } }, React.createElement("div", {
     style: { fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)', marginBottom: 7 }

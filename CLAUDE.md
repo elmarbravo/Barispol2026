@@ -355,9 +355,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   adm e superiores de cada área»): para o chefe da área (`relatorios_destinos`)
   e DireccaoClinica@, cc adm@ e o superior de quem entrega (campo `superior`),
   por `bsp_relatorio_destinatarios(area, user)`; nunca para quem entrega.
-  Reagentes do Laboratório (16-10-2026): campo tipo `reagentes`
-  (`reagentes_exames`: `[{r, cap, proc}]`, ficam = cap − proc), limpo por
-  `bspReagentesLimpos`; o relatório seguinte começa com o que ficou.
+  Reagentes do Laboratório (16-10-2026, fotografias do BS-200): campo tipo
+  `reagentes` (`reagentes_exames`: `[{r, r1, r2, proc}]`, testes restantes no
+  R1 e no R2 lidos no aparelho; dá para = o menor), `bspReagentesLimpos`,
+  `bspReagenteAlerta`, lista `BSP_REAGENTES_BS200`.
   Sem informação clínica (16-10-2026, `sem-clinico.sql`): `bspSemClinico` /
   `bsp_sem_clinico` (u22, Emmanuel) tira Relatórios, Painel clínico, Qualidade,
   Utentes e Actividade; um ecrã clínico novo verifica-o.

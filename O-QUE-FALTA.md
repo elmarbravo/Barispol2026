@@ -4647,3 +4647,21 @@ Por aplicar no servidor (o conector do Supabase está noutra conta):
   passam a contar igual).
 - Opcional: «reagente a acabar» no `bsp_relatorio_atencao` e novidade para a
   área `laboratorio` a explicar o campo novo.
+
+### 3-hg (cont.). Reagentes ao formato do BS-200 (16-10-2026)
+
+Elmar enviou 5 fotografias do analisador Mindray BS-200 (Estado → Disco de
+reagentes): para cada teste, o aparelho mostra o «Restante» do frasco R1 e do
+R2 («40000.0 / 163» = 163 testes). O campo `reagentes_exames` passou a
+`{ r, r1, r2, proc }`: teste, testes restantes no R1 e no R2 (lidos no
+aparelho a cada turno), processados no dia. «Dá para» = o menor dos dois;
+vermelho com «falta R1/R2» ou «repor» quando dá para 50 testes ou menos, ou
+para menos de 7 dias ao ritmo do dia (`BSP_REAGENTE_MIN_TESTES`,
+`BSP_REAGENTE_MIN_DIAS`). Lista inicial dos testes vistos nas fotografias e no
+e-mail «Reagentes em Falta» (`BSP_REAGENTES_BS200`); o relatório seguinte
+repete os testes do último, sem números. Linhas antigas `{cap}` lêem-se como
+R1. Por fazer no servidor: o mesmo alerta em `bsp_relatorio_atencao`.
+Imunologia (Widal, PCR) fica no campo «Reagentes e consumíveis» e na
+observação (não passa pelo BS-200).
+Nota de segurança: nas fotografias vê-se, colado por cima do monitor, um papel
+com a palavra-passe do aparelho. Retirar.
