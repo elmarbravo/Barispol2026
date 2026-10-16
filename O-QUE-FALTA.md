@@ -4752,3 +4752,13 @@ Supabase… tem uma equipa sem conseguir baixar o aplicativo. Avance»)
   gastar a Resend. O barispol.com está no Microsoft 365 (MX outlook): a via para
   deixar a Resend é a Microsoft Graph (registo de aplicação no Entra, Mail.Send,
   segredos colados pelo Elmar).
+- 16-10-2026, Emmanuel: «Permite mas depois diz que todos os códigos estão
+  errados». Registos do Auth: o «Começar» apagava todas as activações por
+  acabar; com dois ecrãs (ou dois toques) o QR já lido na app deixava de valer
+  e o servidor respondia «Factor not found» (a Arlete teve 9), que o ecrã
+  mostrava como «Código errado». Corrigido: só se apagam activações por acabar
+  com mais de 15 minutos; o erro diz a causa (`bspMfaErroTexto`: QR substituído,
+  código errado com a hora do telemóvel, demasiadas tentativas); o ecrã diz que a
+  conta na app se chama «Barispol Workspace». Estado às 17h: Elmar e Emmanuel com
+  app activa; Arlete com uma activação por acabar; o Dr. Osvaldo perdeu a dele
+  (apagada por outro «Começar»).

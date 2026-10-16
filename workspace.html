@@ -3329,7 +3329,7 @@ function MfaCodigoEcra({ onOk, onSair }) {
       if (!f) { setBusy(false); onOk(); return; }
       const r = await cl.auth.mfa.challengeAndVerify({ factorId: f.id, code: codigo });
       setBusy(false);
-      if (r.error) { setErro('Código errado ou fora de prazo. Veja o código actual na app de autenticação.'); setCodigo(''); return; }
+      if (r.error) { setErro(bspMfaErroTexto(r.error)); setCodigo(''); return; }
       onOk();
     } catch (err) {
       setBusy(false);
@@ -3352,6 +3352,15 @@ function MfaCodigoEcra({ onOk, onSair }) {
     bspMfaTroca('Não tem o telemóvel? Receber o código por e-mail', () => setModo('email')));
 }
 /* Activação do TOTP, partilhada pela janela da Conta e pelo ecrã obrigatório. */
+/* A causa real de um código recusado (16-10-2026): o QR substituído aparecia
+   como «código errado». */
+function bspMfaErroTexto(err) {
+  const c = String((err && (err.code || err.error_code)) || ''), m = String((err && err.message) || ''), st = err && err.status;
+  if (c === 'mfa_factor_not_found' || st === 404 || /not found/i.test(m)) return 'Este código QR foi substituído por outro e já não vale. Na app, apague a conta antiga «Barispol Workspace» ou «localhost», toque em «Escolher outra forma» e leia o QR novo.';
+  if (st === 429 || /rate|too many/i.test(m)) return 'Demasiadas tentativas seguidas. Espere 1 minuto e tente de novo.';
+  if (c === 'mfa_challenge_expired' || /expired/i.test(m)) return 'O pedido caducou. Escreva o código actual da app outra vez.';
+  return 'Código errado. Use o código da conta «Barispol Workspace» na app (o mais recente), confirme que a hora do telemóvel está automática e escreva o código actual.';
+}
 function useBspMfaInscricao(onActivado) {
   const toast = useToast();
   const [novo, setNovo] = React.useState(null);
@@ -3364,9 +3373,13 @@ function useBspMfaInscricao(onActivado) {
     if (bspEmVerComo()) { toast('Em «Ver como» não se muda a segurança da conta.'); return; }
     setBusy(true); setErro('');
     try {
-      /* Restos de uma activação que ficou a meio impedem uma nova. */
+      /* Restos de uma activação que ficou a meio: só os com mais de 15 minutos.
+         Apagar todos anulava o QR que a pessoa já tinha lido noutro ecrã (dois
+         separadores, telemóvel e computador) e todos os códigos davam «errado»
+         (Arlete e Emmanuel, 16-10-2026). */
       const l = await cl.auth.mfa.listFactors();
-      const pendentes = ((l.data && l.data.all) || []).filter(f => f.factor_type === 'totp' && f.status !== 'verified');
+      const limite = Date.now() - 15 * 60000;
+      const pendentes = ((l.data && l.data.all) || []).filter(f => f.factor_type === 'totp' && f.status !== 'verified' && new Date(f.created_at || 0).getTime() < limite);
       for (const f of pendentes) { try { await cl.auth.mfa.unenroll({ factorId: f.id }); } catch (e) {} }
       /* Sem «issuer», o Supabase usa o Site URL do painel (estava
          localhost:3000) e a app mostrava «localhost» (Elmar, 16-10-2026). */
@@ -3382,7 +3395,7 @@ function useBspMfaInscricao(onActivado) {
     setBusy(true); setErro('');
     const r = await cl.auth.mfa.challengeAndVerify({ factorId: novo.id, code: codigo });
     setBusy(false);
-    if (r.error) { setErro('Código errado. Confirme a hora do telemóvel e escreva o código actual.'); setCodigo(''); return; }
+    if (r.error) { setErro(bspMfaErroTexto(r.error)); setCodigo(''); return; }
     setNovo(null); setCodigo('');
     onActivado && onActivado();
   };
@@ -3393,11 +3406,11 @@ const bspMfaPar = (t, s) => React.createElement("p", { style: Object.assign({ ma
 function MfaInscricaoCorpo({ insc, textoBotao }) {
   const p = bspMfaPar;
   return React.createElement(React.Fragment, null, insc.novo ? React.createElement(React.Fragment, null,
-      p('1. No telemóvel, abra a app de autenticação (Google Authenticator ou Microsoft Authenticator), toque em «+» e leia este código:'),
+      p('1. No telemóvel, abra a app de autenticação (Google Authenticator ou Microsoft Authenticator), toque em «+» e leia este código. Faça isto só neste ecrã: abrir a activação noutro aparelho cria um QR novo.'),
       React.createElement("div", { style: { display: 'flex', justifyContent: 'center', margin: '0 0 12px' } },
         React.createElement("img", { src: insc.novo.totp && insc.novo.totp.qr_code, alt: 'Código QR', style: { width: 196, height: 196, background: '#fff', padding: 8, borderRadius: 8 } })),
       p('Sem câmara? Escreva esta chave na app: ' + ((insc.novo.totp && insc.novo.totp.secret) || ''), { fontSize: 12, wordBreak: 'break-all', color: 'var(--text-3)' }),
-      p('2. Escreva o código de 6 algarismos que a app mostra:'),
+      p('2. Na app aparece «Barispol Workspace» com o seu e-mail. Escreva o código de 6 algarismos dessa conta (se tiver outras com o mesmo nome ou «localhost», apague-as):'),
       React.createElement("div", { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
         React.createElement("input", {
           value: insc.codigo, inputMode: 'numeric', autoComplete: 'one-time-code', placeholder: '000000', 'aria-label': 'Código',
