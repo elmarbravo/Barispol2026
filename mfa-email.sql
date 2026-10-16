@@ -12,7 +12,8 @@
 --   bsp_mfa_ok()                      aal2 (app) ou sessão confirmada por e-mail.
 -- Tabelas sem regras de acesso: só as funções lá chegam.
 -- Corre-se antes de mfa-obrigatoria.sql. Sem «drop» nem «truncate».
--- POR APLICAR (o conector do Supabase estava noutra conta a 16-10-2026).
+-- Aplicado a 16-10-2026 (testado com sessão simulada: envio, código errado,
+-- código certo, aparelho lembrado).
 
 create table if not exists public.mfa_email_codigos (
   id bigserial primary key,

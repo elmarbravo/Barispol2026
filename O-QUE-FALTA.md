@@ -4717,3 +4717,27 @@ Elmar: «Dois factores por e-mail ou app. As duas opções valem».
   que está em `http://localhost:3000`. Corrigido no ecrã (`issuer: 'Barispol
   Workspace'` no `enroll`). Falta mudar no painel: Authentication → URL
   Configuration → Site URL = `https://barispol.com` (só o Elmar).
+
+### 3-hh (cont.). Aplicado no servidor (16-10-2026, Elmar: «Já liguei o
+Supabase… tem uma equipa sem conseguir baixar o aplicativo. Avance»)
+
+- `mfa-email.sql`: aplicado e testado com sessão simulada (dentro de uma
+  transacção desfeita, sem e-mail real): envio devolve «e***@barispol.com»,
+  código errado recusado, certo aceite, aparelho lembrado entra noutra sessão.
+  O código por e-mail já funciona para quem não consegue instalar a app.
+- `mfa-obrigatoria.sql`: aplicado, 98 regras (97 tabelas de `public` e
+  `storage.objects`). Teste: sem segundo passo `shared_state` = 0 linhas; com
+  e-mail ou app = 1.
+- `sessoes-terminar.sql`: aplicado; 265 sessões apagadas, 0 testemunhos
+  válidos. Toda a gente entra de novo com palavra-passe e segundo passo.
+- `stock-mais-saidas.sql`: aplicado. O «STOCK GERALL - CBL» do MetaGest só
+  tem 3 movimentos (último em Maio de 2025); as saídas de fármacos estão na
+  Farmácia (440 em 30 dias) e no Armazém central. A regra dos 10 com mais
+  saídas (alerta a 14 dias) vale para os três, cada um com os seus 10, no
+  servidor e no ecrã (`BSP_STOCK_TOPO_ARMAZENS`).
+- `sem-clinico.sql`: aplicado; com a sessão do Emmanuel, relatórios e
+  marcações = 0, avarias e equipa continuam. Falta a recusa dentro das funções
+  security definer listadas no ficheiro (painel clínico, CRM, actividade).
+- Por fazer: Site URL do Supabase Auth em `https://barispol.com` (só o
+  Elmar); «Repor 2FA» para quem perder o telemóvel; limpeza das tabelas
+  `mfa_*` na `bsp_retencao`.

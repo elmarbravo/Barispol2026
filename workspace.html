@@ -27521,12 +27521,15 @@ function bspVeComprasGerais(u) { return !!u && (u.id === 'u1' || u.id === 'u2');
    saídas): os BSP_STOCK_TOPO artigos com mais saídas em 30 dias passam a «A
    acabar» com menos de BSP_STOCK_TOPO_DIAS dias (os outros, 7). O mesmo no
    servidor (stock-mais-saidas.sql); aqui serve até o servidor o ter. */
-const BSP_STOCK_TOPO = 10, BSP_STOCK_TOPO_DIAS = 14;
+const BSP_STOCK_TOPO = 10, BSP_STOCK_TOPO_DIAS = 14, BSP_STOCK_TOPO_ARMAZENS = /^(STOCK GERAL|FARM|Stores)/i;
 function bspStockMaisSaidas(linhas) {
-  const topo = {};
-  (linhas || []).filter(l => /^STOCK GERAL/i.test(String(l.armazem || '')) && Number(l.saidas_30d) > 0)
-    .sort((a, b) => Number(b.saidas_30d) - Number(a.saidas_30d)).slice(0, BSP_STOCK_TOPO)
-    .forEach(l => { topo[l.armazem + '|' + l.artigo] = true; });
+  /* Por armazém: o «Stock geral» do MetaGest quase não tem movimentos; as
+     saídas de fármacos estão na Farmácia e no Armazém central (Stores). */
+  const topo = {}, porArm = {};
+  (linhas || []).filter(l => BSP_STOCK_TOPO_ARMAZENS.test(String(l.armazem || '')) && Number(l.saidas_30d) > 0)
+    .forEach(l => { (porArm[l.armazem] = porArm[l.armazem] || []).push(l); });
+  Object.keys(porArm).forEach(a => porArm[a].sort((x, y) => Number(y.saidas_30d) - Number(x.saidas_30d)).slice(0, BSP_STOCK_TOPO)
+    .forEach(l => { topo[l.armazem + '|' + l.artigo] = true; }));
   return (linhas || []).map(l => {
     if (!topo[l.armazem + '|' + l.artigo]) return l;
     const n = Object.assign({}, l, { mais_saidas: true });

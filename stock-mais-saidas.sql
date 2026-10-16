@@ -4,7 +4,9 @@
 -- Igual no ecrã: bspStockMaisSaidas (BSP_STOCK_TOPO, BSP_STOCK_TOPO_DIAS).
 -- Corre-se depois de stock-validades.sql (é a mesma função, com o «topo»).
 -- O bsp_stock_resumo (Início e sino) lê esta função: passa a contar igual.
--- POR APLICAR (o conector do Supabase estava noutra conta a 16-10-2026).
+-- Aplicado a 16-10-2026. O «STOCK GERALL - CBL» do MetaGest quase não tem
+-- movimentos (último em 2025): a regra vale também para a Farmácia e o
+-- Armazém central (Stores), cada um com os seus 10.
 
 create or replace function public.bsp_stock()
 returns table(armazem text, artigo text, nome text, grupo text, unidade text, qtd numeric, valor_unit numeric, saidas_30d numeric, dias numeric, ultimo date, lote_validade date, lote_qtd numeric, estado text)
@@ -36,7 +38,7 @@ as $function$
     -- Stock geral: os 10 artigos com mais saídas em 30 dias (alerta a 14 dias).
     select item_code, warehouse from (
       select item_code, warehouse, row_number() over (partition by warehouse order by s desc) n
-        from saidas where warehouse ilike 'STOCK GERAL%' and s > 0) q
+        from saidas where (warehouse ilike 'STOCK GERAL%' or warehouse ilike 'FARM%' or warehouse ilike 'Stores%') and s > 0) q
      where n <= 10
   ), lote as (
     select distinct on (x.item_code, x.warehouse) x.item_code, x.warehouse, b.expiry_date, x.q

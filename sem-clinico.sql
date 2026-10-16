@@ -2,7 +2,8 @@
 -- relatórios e outras informações clínicas ao utilizador do Emmanuel»).
 -- O ecrã já esconde (bspSemClinico); isto fecha o servidor.
 -- Regras RESTRICTIVE: juntam-se às que existem, sem as mudar.
--- POR APLICAR (o conector do Supabase estava noutra conta a 16-10-2026).
+-- Aplicado a 16-10-2026 (teste com a sessão do Emmanuel: relatórios 0,
+-- marcações 0; avarias e equipa continuam).
 
 create or replace function public.bsp_sem_clinico()
 returns boolean
@@ -24,7 +25,7 @@ begin
   loop
     if to_regclass('public.' || t) is not null
        and not exists (select 1 from pg_policies where schemaname = 'public' and tablename = t and policyname = 'bsp_sem_clinico') then
-      execute format('create policy bsp_sem_clinico on public.%I as restrictive for all to authenticated using (not public.bsp_sem_clinico()) with check (not public.bsp_sem_clinico())', t);
+      execute format('create policy bsp_sem_clinico on public.%I as restrictive for all to authenticated using (not (select public.bsp_sem_clinico())) with check (not (select public.bsp_sem_clinico()))', t);
     end if;
   end loop;
 end $$;
