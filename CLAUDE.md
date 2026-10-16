@@ -40,6 +40,13 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
    serve); e, quando mudar, a página «Por fazer» e o módulo da área. Nunca
    lá: chaves, palavras-passe, nomes de utentes, valores pagos, taxas dos
    médicos nem o texto do regulamento interno.
+11. Assuntos da Barispol só saem pela Barispol: o Workspace (Chat,
+   `bsp_enviar_email`, geral@barispol.com) ou o correio @barispol.com. Nunca
+   enviar e-mails do Gmail pessoal do Elmar (nem de outra conta pessoal) sem
+   autorização expressa dele na própria conversa (Elmar, 16-10-2026: «Não
+   envies e-mails do meu Gmail sem a minha autorização»). Se o Workspace e o
+   correio da Barispol não estiverem disponíveis, a mensagem fica pendente e
+   diz-se ao Elmar.
 
 ## Segurança (auditoria de 12-10-2026, Elmar: «estamos vulneráveis»)
 
