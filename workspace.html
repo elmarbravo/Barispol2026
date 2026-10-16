@@ -3055,6 +3055,7 @@ function Sidebar({
     if (item.stockOnly && !bspVeLogistica(currentUser)) return null;
     if (item.actividadeOnly && !bspVeActividade(currentUser)) return null;
     if (item.clinicoOnly && !bspVePainelClinico(currentUser)) return null;
+    if ((item.id === 'relatorios' || item.id === 'qualidade') && bspSemClinico(currentUser)) return null;
     if (bspESocio(currentUser) && item.id !== 'painel') return null;
     const active = current === item.id || (item.id === 'seguimento' && current === 'marcacoes');
     const IconComp = I[item.icon];
@@ -16498,6 +16499,10 @@ const BSP_RELATORIOS = [{
     { id: 'requisicoes_anexo', tipo: 'escolha', rotulo: 'Requisições digitalizadas enviadas', opcoes: ['Sim', 'Por enviar'] },
     { id: 'equipamentos', tipo: 'escolha', rotulo: 'Equipamentos', opcoes: ['Todos operacionais', 'Algum com avaria', 'Algum em manutenção'] },
     { id: 'reagentes', tipo: 'escolha', rotulo: 'Reagentes e consumíveis', opcoes: ['Suficientes', 'Stock baixo', 'Em ruptura'] },
+    /* 16-10-2026, Elmar: «inserir a quantidade de exames que os reagentes
+       permitem processar e as quantidades de exames processados no dia».
+       Uma linha por reagente: { r, cap, proc }; ficam = cap − proc. */
+    { id: 'reagentes_exames', tipo: 'reagentes', rotulo: 'Reagentes: exames que permitem processar e exames processados no dia' },
     { id: 'ocorrencias', tipo: 'varias', rotulo: 'Ocorrências', opcoes: BSP_OCORRENCIAS },
     { id: 'obs', tipo: 'texto', rotulo: 'Observação (opcional, sem nomes de utentes)' }
   ]
@@ -16630,7 +16635,21 @@ const BSP_REL_MG_CAMPOS = {
 const BSP_REL_MG_ROTULOS = { utentes: 'utentes', novos: 'novos utentes', consultas: 'consultas', pacientes: 'doentes', exames: 'exames', externos: 'enviados para fora', raiox: 'Raio-X', ecografias: 'ecografias', actos: 'actos de enfermagem', unidades: 'unidades vendidas', produtos: 'produtos' };
 function bspRespostaTexto(campo, v) {
   if (v == null || v === '' || (Array.isArray(v) && !v.length)) return null;
+  if (campo && campo.tipo === 'reagentes') return Array.isArray(v) ? v.map(x => x.r + ': permite ' + x.cap + ', processados ' + x.proc + ', ficam ' + Math.max(0, x.cap - x.proc)).join('; ') : null;
   return Array.isArray(v) ? v.join(', ') : String(v);
+}
+/* Linhas de reagentes (Laboratório): limpas, só com nome e capacidade. */
+function bspReagentesLimpos(v) {
+  return (Array.isArray(v) ? v : []).map(x => ({
+    r: String((x && x.r) || '').trim().slice(0, 80),
+    cap: Math.max(0, parseInt(x && x.cap, 10) || 0),
+    proc: Math.max(0, parseInt(x && x.proc, 10) || 0)
+  })).filter(x => x.r && x.cap > 0);
+}
+/* O relatório seguinte começa com o que ficou no último: o reagente e os
+   exames que ainda permite. */
+function bspReagentesSeguintes(v) {
+  return bspReagentesLimpos(v).map(x => ({ r: x.r, cap: String(Math.max(0, x.cap - x.proc)), proc: '' })).filter(x => Number(x.cap) > 0);
 }
 function RelatorioResumo({ rel, onApagar }) {
   const def = BSP_RELATORIOS.find(a => a.id === rel.area);
@@ -16708,6 +16727,21 @@ function RelatoriosScreen() {
   React.useEffect(() => { setResp({}); setMg(null); }, [area]);
   React.useEffect(() => {
     const cl = bspGetClient();
+    if (!cl || !def || !def.campos.some(c => c.tipo === 'reagentes')) return;
+    let vivo = true;
+    cl.from('relatorios_area').select('respostas').eq('area', def.id).lte('dia', diaForm).order('dia', { ascending: false }).order('created_at', { ascending: false }).limit(1).then(r => {
+      if (!vivo || r.error || !r.data || !r.data[0]) return;
+      const ant = (r.data[0].respostas || {});
+      setResp(act => {
+        const n = Object.assign({}, act);
+        def.campos.filter(c => c.tipo === 'reagentes').forEach(c => { if (!Array.isArray(n[c.id]) || !n[c.id].length) { const l = bspReagentesSeguintes(ant[c.id]); if (l.length) n[c.id] = l; } });
+        return n;
+      });
+    });
+    return () => { vivo = false; };
+  }, [def && def.id, diaForm]);
+  React.useEffect(() => {
+    const cl = bspGetClient();
     if (!cl || !def) return;
     let vivo = true;
     setMg(null);
@@ -16767,6 +16801,7 @@ function RelatoriosScreen() {
     (Array.isArray(resp.avarias) && resp.avarias.some(x => x !== 'Nenhuma'));
   const faltam = obrigatorios.filter(c => {
     const v = resp[c.id];
+    if (c.tipo === 'reagentes') return !bspReagentesLimpos(v).length;
     return v == null || v === '' || (Array.isArray(v) && !v.length);
   });
   const enviar = async () => {
@@ -16782,6 +16817,8 @@ function RelatoriosScreen() {
       toast('«' + rot(erroParte[0]) + '» não pode passar de «' + rot(erroParte[1]) + '».');
       return;
     }
+    const reagMais = def.campos.filter(c => c.tipo === 'reagentes').map(c => bspReagentesLimpos(resp[c.id]).find(x => x.proc > x.cap)).find(Boolean);
+    if (reagMais) { toast('«' + reagMais.r + '»: os processados (' + reagMais.proc + ') passam do que o reagente permite (' + reagMais.cap + '). Se abriu um kit novo, some-o ao que permite.'); return; }
     const cl = bspGetClient();
     if (!cl) { toast('O servidor não está ligado.'); return; }
     setAEnviar(true);
@@ -16791,6 +16828,7 @@ function RelatoriosScreen() {
       if (c.tipo === 'numero' && c.opcional && (v == null || String(v).trim() === '')) return;
       if (c.tipo === 'numero') limpo[c.id] = Math.max(0, c.opcional ? Math.round((parseFloat(String(v).replace(',', '.')) || 0) * 10) / 10 : (parseInt(v, 10) || 0));
       else if (c.tipo === 'texto') { if (String(v || '').trim()) limpo[c.id] = String(v).trim().slice(0, 1000); }
+      else if (c.tipo === 'reagentes') limpo[c.id] = bspReagentesLimpos(v);
       else limpo[c.id] = v;
     });
     const r = await cl.from('relatorios_area').insert({
@@ -16834,7 +16872,32 @@ function RelatoriosScreen() {
       color: activo ? 'var(--accent-d)' : 'var(--text-2)', fontWeight: activo ? 700 : 500
     }
   }, rotulo);
-  const campo = c => React.createElement("div", { key: c.id, style: { marginBottom: 16 } }, React.createElement("div", {
+  const caixaNum = { width: 86, height: 38, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 16, fontFamily: 'inherit', boxSizing: 'border-box' };
+  const campoReagentes = c => {
+    const linhas = Array.isArray(resp[c.id]) ? resp[c.id] : [];
+    const mudar = (i, k, v) => definir(c.id, linhas.map((x, j) => j === i ? Object.assign({}, x, { [k]: v }) : x));
+    const novaLinha = () => definir(c.id, linhas.concat({ r: '', cap: '', proc: '' }));
+    const tirar = i => definir(c.id, linhas.filter((x, j) => j !== i));
+    return React.createElement("div", { key: c.id, style: { marginBottom: 16 } },
+      React.createElement("div", { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 } }, c.rotulo),
+      React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginBottom: 8 } }, 'Uma linha por reagente. «Permite»: exames que o reagente em uso ainda dá para processar no início do turno. «Processados»: os que fez hoje com ele. O relatório seguinte já vem com o que ficou.'),
+      linhas.map((x, i) => {
+        const cap = parseInt(x.cap, 10) || 0, proc = parseInt(x.proc, 10) || 0;
+        const ficam = cap - proc;
+        const alerta = x.cap !== '' && x.proc !== '' && (ficam < 0 || (proc > 0 && ficam <= proc));
+        return React.createElement("div", { key: i, style: { display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 8, padding: '8px 0', borderBottom: '1px solid var(--border)' } },
+          React.createElement("label", { style: { flex: '1 1 160px', fontSize: 11.5, color: 'var(--text-3)' } }, 'Reagente / análise',
+            React.createElement("input", { value: x.r, maxLength: 80, placeholder: 'Ex.: Hemograma', onChange: e => mudar(i, 'r', e.target.value), style: Object.assign({}, caixaNum, { width: '100%', display: 'block', marginTop: 3 }) })),
+          React.createElement("label", { style: { fontSize: 11.5, color: 'var(--text-3)' } }, 'Permite',
+            React.createElement("input", { type: 'number', min: 0, step: 1, inputMode: 'numeric', value: x.cap, onChange: e => mudar(i, 'cap', e.target.value), style: Object.assign({}, caixaNum, { display: 'block', marginTop: 3 }) })),
+          React.createElement("label", { style: { fontSize: 11.5, color: 'var(--text-3)' } }, 'Processados',
+            React.createElement("input", { type: 'number', min: 0, step: 1, inputMode: 'numeric', value: x.proc, onChange: e => mudar(i, 'proc', e.target.value), style: Object.assign({}, caixaNum, { display: 'block', marginTop: 3 }) })),
+          React.createElement("span", { style: { minWidth: 92, height: 38, display: 'inline-flex', alignItems: 'center', fontSize: 12.5, fontWeight: 600, color: alerta ? 'var(--perigo)' : 'var(--text-2)' } }, x.cap === '' ? '' : ficam < 0 ? 'Passa ' + (-ficam) : 'Ficam ' + ficam + (alerta ? ' · acaba' : '')),
+          React.createElement("button", { type: 'button', onClick: () => tirar(i), 'aria-label': 'Tirar esta linha', style: { height: 38, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 10, background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', fontFamily: 'inherit' } }, '×'));
+      }),
+      React.createElement("div", { style: { marginTop: 8 } }, React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: novaLinha }, '+ Acrescentar reagente')));
+  };
+  const campo = c => c.tipo === 'reagentes' ? campoReagentes(c) : React.createElement("div", { key: c.id, style: { marginBottom: 16 } }, React.createElement("div", {
     style: { fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)', marginBottom: 7 }
   }, c.rotulo, c.tipo === 'varias' ? React.createElement("span", { style: { fontWeight: 400, color: 'var(--text-3)' } }, ' · pode escolher várias') : null), c.tipo === 'escolha' ? React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } }, c.opcoes.map(op => chip(resp[c.id] === op, op, () => definir(c.id, op)))) : c.tipo === 'varias' ? React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } }, c.opcoes.map(op => chip(Array.isArray(resp[c.id]) && resp[c.id].indexOf(op) !== -1, op, () => alternar(c, op)))) : c.tipo === 'numero' ? React.createElement("input", {
     type: "number", min: 0, step: c.opcional ? 'any' : 1, inputMode: c.opcional ? "decimal" : "numeric", value: resp[c.id] == null ? '' : resp[c.id],
@@ -21177,6 +21240,9 @@ function MobileMore({
     const k = items.findIndex(x => x.id === 'transporte');
     if (k !== -1) items.splice(k, 1);
   }
+  if (bspSemClinico(window.userById(window.CURRENT_USER_ID))) {
+    ['relatorios', 'qualidade'].forEach(id => { const k = items.findIndex(x => x.id === id); if (k !== -1) items.splice(k, 1); });
+  }
   if (soPainel) items.splice(0, items.length, { id: 'painel', label: 'Painel', icon: 'TrendUp' });
   return React.createElement("div", {
     className: "bsp-mdrawer-back",
@@ -23083,8 +23149,13 @@ function SeguimentoScreen() {
    base de dados aplica a mesma regra (crm.pode_ver_crm), por isso
    esconder o botão é só arrumação: quem não pode, não recebe dados. */
 
+/* Sem informação clínica (16-10-2026, Elmar: «Desativar o acesso de
+   relatórios e outras informações clínicas ao utilizador do Emmanuel»): sem
+   Relatórios, Painel clínico, Qualidade, Utentes nem Actividade, mesmo que a
+   camada os dê. No servidor, sem-clinico.sql (bsp_sem_clinico). */
+function bspSemClinico(u) { return !!u && ['u22'].indexOf(u.id) !== -1; }
 function bspVeCrm(u) {
-  if (!u) return false;
+  if (!u || bspSemClinico(u)) return false;
   const nivel = String(u.accessLevel || '');
   if (nivel === 'Direcção' || nivel === 'Coordenação') return true;
   const dept = String(u.dept || '');
@@ -23098,7 +23169,7 @@ function bspVeCrm(u) {
    Quem ve: a Recepcao, a Direccao Clinica (u14) e a gestao — o servidor
    aplica a mesma regra (bsp_ve_marcacoes). So a gestao apaga. */
 function bspVeMarcacoes(u) {
-  if (!u) return false;
+  if (!u || bspSemClinico(u)) return false;
   const nivel = String(u.accessLevel || '');
   if (nivel === 'Direcção' || nivel === 'Coordenação') return true;
   if (bspCamada(u).podeGerirUtilizadores) return true;
@@ -26206,7 +26277,7 @@ function bspEscolheMedicoActividade(u) {
   return BSP_DIRECCAO_CLINICA_IDS.indexOf(u.id) !== -1 || !!(c && c.podeGerirUtilizadores) || bspVePainel(u);
 }
 function bspVeActividade(u) {
-  return !!(u && !bspESocio(u) && ((Array.isArray(u.metagest) && u.metagest.length) || bspEscolheMedicoActividade(u)));
+  return !!(u && !bspESocio(u) && !bspSemClinico(u) && ((Array.isArray(u.metagest) && u.metagest.length) || bspEscolheMedicoActividade(u)));
 }
 /* O Painel clínico só para a gestão, a Direcção Clínica, quem vê o Painel e
    os chefes de área (Elmar, 02-10-2026). Os médicos vêem «A minha actividade».
@@ -27295,6 +27366,23 @@ function bspVeStock(u) {
    e a Arlete (07-10-2026, «só a Arlete vê comigo»). Servidor:
    bsp_ve_compras_gerais. */
 function bspVeComprasGerais(u) { return !!u && (u.id === 'u1' || u.id === 'u2'); }
+/* Stock geral (16-10-2026, Elmar: alerta mais cedo nos fármacos com mais
+   saídas): os BSP_STOCK_TOPO artigos com mais saídas em 30 dias passam a «A
+   acabar» com menos de BSP_STOCK_TOPO_DIAS dias (os outros, 7). O mesmo no
+   servidor (stock-mais-saidas.sql); aqui serve até o servidor o ter. */
+const BSP_STOCK_TOPO = 10, BSP_STOCK_TOPO_DIAS = 14;
+function bspStockMaisSaidas(linhas) {
+  const topo = {};
+  (linhas || []).filter(l => /^STOCK GERAL/i.test(String(l.armazem || '')) && Number(l.saidas_30d) > 0)
+    .sort((a, b) => Number(b.saidas_30d) - Number(a.saidas_30d)).slice(0, BSP_STOCK_TOPO)
+    .forEach(l => { topo[l.armazem + '|' + l.artigo] = true; });
+  return (linhas || []).map(l => {
+    if (!topo[l.armazem + '|' + l.artigo]) return l;
+    const n = Object.assign({}, l, { mais_saidas: true });
+    if ((l.estado === 'ok' || l.estado === 'a-caducar') && l.dias != null && Number(l.dias) < BSP_STOCK_TOPO_DIAS) n.estado = 'a-acabar';
+    return n;
+  });
+}
 function bspStockArmazemNome(a) {
   const n = String(a || '').replace(/\s*-\s*CBL$/i, '').trim();
   return ({ 'Stores': 'Armazém central', 'STOCK GERALL': 'Stock geral', 'SERVIÇOS GERAIS-LIMPEZA': 'Limpeza (Serviços gerais)' })[n] || n.charAt(0) + n.slice(1).toLowerCase();
@@ -27354,7 +27442,7 @@ function StockScreen() {
     setErro('');
     cl.rpc('bsp_stock').then(r => {
       if (r.error) { setErro(r.error.message || 'Não foi possível ler o stock.'); return; }
-      setLinhas(r.data || []);
+      setLinhas(bspStockMaisSaidas(r.data || []));
     });
     cl.rpc('bsp_stock_resumo').then(r => { if (!r.error) setResumo(r.data); });
     /* Validades por lote e por armazém (01-10-2026, stock-validades.sql). */
@@ -27493,12 +27581,12 @@ function StockScreen() {
           return React.createElement("tr", { key: l.artigo, style: { borderTop: '1px solid var(--border)' } },
             React.createElement("td", { style: { padding: '9px 12px', minWidth: 200 } },
               React.createElement("div", { style: { fontWeight: 600, color: 'var(--text-1)' } }, l.nome),
-              React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)' } }, [l.artigo, l.grupo].filter(Boolean).join(' · ')),
+              React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)' } }, [l.artigo, l.grupo, l.mais_saidas ? 'Mais saídas: alerta com ' + BSP_STOCK_TOPO_DIAS + ' dias' : ''].filter(Boolean).join(' · ')),
               l.lote_validade && React.createElement("div", { style: { fontSize: 11.5, marginTop: 2, fontWeight: caduca ? 600 : 400, color: l.lote_validade < hoje ? 'var(--perigo)' : caduca ? 'var(--accent-d)' : 'var(--text-2)' } },
                 (l.lote_validade < hoje ? 'Lote caducado a ' : 'Validade ') + bspDataCurta(l.lote_validade) + (l.lote_qtd != null ? ' · ' + bspStockQtd(l.lote_qtd) + ' no lote' : ''))),
             React.createElement("td", { style: { padding: '9px 12px', textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 600, color: Number(l.qtd) <= 0 ? 'var(--perigo)' : 'var(--text-1)' } }, bspStockQtd(l.qtd) + (l.unidade ? ' ' + String(l.unidade).toLowerCase() : '')),
             React.createElement("td", { style: { padding: '9px 12px', textAlign: 'right', color: 'var(--text-2)' } }, bspStockQtd(l.saidas_30d)),
-            React.createElement("td", { style: { padding: '9px 12px', textAlign: 'right', whiteSpace: 'nowrap', color: l.dias != null && l.dias < 7 ? 'var(--perigo)' : 'var(--text-2)' } }, l.dias == null ? '—' : bspStockQtd(l.dias) + ' dias'),
+            React.createElement("td", { style: { padding: '9px 12px', textAlign: 'right', whiteSpace: 'nowrap', color: l.dias != null && l.dias < (l.mais_saidas ? BSP_STOCK_TOPO_DIAS : 7) ? 'var(--perigo)' : 'var(--text-2)' } }, l.dias == null ? '—' : bspStockQtd(l.dias) + ' dias'),
             React.createElement("td", { style: { padding: '9px 12px', whiteSpace: 'nowrap', color: caduca ? 'var(--accent-d)' : 'var(--text-2)', fontWeight: caduca ? 600 : 400 } }, l.lote_validade ? bspDataCurta(l.lote_validade) + (l.lote_qtd != null ? ' (' + bspStockQtd(l.lote_qtd) + ')' : '') : '—'),
             React.createElement("td", { style: { padding: '9px 12px', whiteSpace: 'nowrap', fontWeight: 600, color: est.cor } }, est.nome));
         })))),
@@ -28391,7 +28479,7 @@ const BSP_GRAVIDADES = ['Sem dano', 'Leve', 'Moderado', 'Grave', 'Morte'];
 const BSP_OCORRENCIA_ESTADOS = ['Notificada', 'Em análise', 'Acção correctiva', 'Verificação', 'Fechada'];
 const BSP_AVALIAR_URL = 'https://barispol.com/avaliar.html';
 function bspVeQualidade(u) {
-  if (!u || bspESocio(u)) return false;
+  if (!u || bspESocio(u) || bspSemClinico(u)) return false;
   const c = bspCamada(u);
   return !!(c && c.podeGerirUtilizadores) || BSP_DIRECCAO_CLINICA_IDS.indexOf(u.id) !== -1;
 }
@@ -29757,7 +29845,7 @@ function PainelCobrancas() {
    recebe as suas areas (bsp_painel_clinico no servidor); Direccao,
    Coordenacao e Direccao Clinica vem todas. Nunca Kz nem nomes de utentes. */
 function bspVePainelClinico(u) {
-  if (!u || bspESocio(u)) return false;
+  if (!u || bspESocio(u) || bspSemClinico(u)) return false;
   const c = bspCamada(u);
   return !!(c && c.podeGerirUtilizadores) || bspVePainel(u) || BSP_DIRECCAO_CLINICA_IDS.indexOf(u.id) !== -1 || bspChefeDeArea(u);
 }
@@ -31834,7 +31922,7 @@ function App() {
   }), pg === 'meetings' && React.createElement(MeetingsScreen, null), pg === 'feed' && React.createElement(FeedScreen, {
     currentUser: currentUser,
     onSwitch: setPage
-  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), (pg === 'seguimento' || pg === 'marcacoes') && (bspVeCrm(currentUser) || bspVeMarcacoes(currentUser) ? React.createElement(CrmScreen, { key: pg, inicial: pg === 'marcacoes' ? 'marcacoes' : null }) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'stock' && (bspVeLogistica(currentUser) ? React.createElement(LogisticaStockScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'painel-clinico' && (bspVePainelClinico(currentUser) ? React.createElement(PainelClinicoScreen, null) : null), pg === 'relatorios' && React.createElement(RelatoriosScreen, null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(AvisoVersaoNova, null), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(AvisosImportantes, { currentUser: currentUser }), React.createElement(PedidoNotificacoes, { currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), (pg === 'actividade' || pg === 'registo') && (bspVeActividade(currentUser) ? React.createElement(MedicosScreen, { key: pg, currentUser: currentUser, inicial: pg === 'registo' ? 'registo' : 'actividade' }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(EquipaScreen, null), pg === 'avarias' && (!bspESocio(currentUser) ? React.createElement(AvariasScreen, null) : null), pg === 'qualidade' && (!bspESocio(currentUser) ? React.createElement(QualidadeScreen, null) : null), pg === 'admin' && React.createElement(AdminScreen, {
+  }), pg === 'drive' && React.createElement(DriveScreen, null), pg === 'calendar' && React.createElement(CalendarScreen, null), pg === 'tasks' && React.createElement(TasksScreen, null), (pg === 'seguimento' || pg === 'marcacoes') && (bspVeCrm(currentUser) || bspVeMarcacoes(currentUser) ? React.createElement(CrmScreen, { key: pg, inicial: pg === 'marcacoes' ? 'marcacoes' : null }) : null), pg === 'escalas' && React.createElement(EscalasScreen, { currentUser: currentUser }), pg === 'transporte' && (bspVeTransporte(currentUser) ? React.createElement(TransporteScreen, { currentUser: currentUser }) : null), pg === 'stock' && (bspVeLogistica(currentUser) ? React.createElement(LogisticaStockScreen, null) : null), pg === 'painel' && (bspVePainel(currentUser) ? React.createElement(PainelScreen, null) : null), pg === 'painel-clinico' && (bspVePainelClinico(currentUser) ? React.createElement(PainelClinicoScreen, null) : null), pg === 'relatorios' && (!bspSemClinico(currentUser) ? React.createElement(RelatoriosScreen, null) : null), React.createElement(ProteccaoEcra, { pg: pg }), React.createElement(AvisoVersaoNova, null), React.createElement(GuiaEcra, { pg: pg, currentUser: currentUser }), React.createElement(AvisosImportantes, { currentUser: currentUser }), React.createElement(PedidoNotificacoes, { currentUser: currentUser }), React.createElement(AssistentePainel, { currentUser: currentUser }), (pg === 'actividade' || pg === 'registo') && (bspVeActividade(currentUser) ? React.createElement(MedicosScreen, { key: pg, currentUser: currentUser, inicial: pg === 'registo' ? 'registo' : 'actividade' }) : null), pg === 'documentos' && (!bspESocio(currentUser) ? React.createElement(DocumentosScreen, { currentUser: currentUser }) : null), pg === 'directory' && React.createElement(EquipaScreen, null), pg === 'avarias' && (!bspESocio(currentUser) ? React.createElement(AvariasScreen, null) : null), pg === 'qualidade' && (!bspESocio(currentUser) && !bspSemClinico(currentUser) ? React.createElement(QualidadeScreen, null) : null), pg === 'admin' && React.createElement(AdminScreen, {
     currentUser: currentUser
   }), pg === 'notifications' && React.createElement(NotificationsScreen, {
     onAbrir: abrirNotificacao

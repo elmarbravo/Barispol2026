@@ -4617,3 +4617,33 @@ Depois disso, eu: deploy das 10 funções; `SITIO`/ligações dos e-mails para
 ws.barispol.com; `server.url` da app Android e da app PC; redireccionar
 barispol.com/workspace.html para ws (só depois de confirmar que a sessão
 entra); obrigar o 2FA aos gestores no servidor (painel Auth + regra aal2).
+
+## 3-hg. Laboratório (reagentes), Emmanuel sem dados clínicos, Stock geral (16-10-2026)
+
+Elmar: «1- Para o laboratório, há a necessidade de inserir a quantidade de
+exames que os reagentes permitem processar e as quantidades de exames
+processados no dia. 2- Desativar o acesso de relatórios e outras informações
+clínicas ao utilizador do Emmanuel. 3- Acréscimos de quantidades de alguns
+fármacos com mais saídas no Stock geral» (ponto 3: «Alerta mais cedo»).
+
+Feito no ecrã (`workspace.html`), testado no navegador:
+1. Relatório do Laboratório: campo «Reagentes» (`reagentes_exames`, tipo
+   `reagentes`), uma linha por reagente com «Permite» (exames que ainda dá) e
+   «Processados» (no dia); mostra «Ficam N» e avisa a vermelho quando acaba
+   no dia seguinte. Obrigatório (pelo menos um reagente). Os processados não
+   passam do que permite (kit novo: somar). O relatório seguinte vem com o
+   que ficou no último (`bspReagentesSeguintes`). No e-mail: «Hemograma:
+   permite 200, processados 40, ficam 160».
+2. Emmanuel (u22): `bspSemClinico` tira Relatórios, Painel clínico,
+   Qualidade, Utentes e Actividade (menu, «Mais» e rotas).
+3. Stock geral: os 10 artigos com mais saídas em 30 dias passam a «A acabar»
+   com menos de 14 dias (os outros, 7), com a nota «Mais saídas» na lista
+   (`bspStockMaisSaidas`, `BSP_STOCK_TOPO`, `BSP_STOCK_TOPO_DIAS`).
+
+Por aplicar no servidor (o conector do Supabase está noutra conta):
+- `sem-clinico.sql` (`bsp_sem_clinico` + regras restritivas nas tabelas
+  clínicas) e a recusa no início das funções listadas no ficheiro.
+- `stock-mais-saidas.sql` (o mesmo «topo» no `bsp_stock`: o Início e o sino
+  passam a contar igual).
+- Opcional: «reagente a acabar» no `bsp_relatorio_atencao` e novidade para a
+  área `laboratorio` a explicar o campo novo.

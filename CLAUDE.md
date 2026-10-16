@@ -355,6 +355,12 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   adm e superiores de cada área»): para o chefe da área (`relatorios_destinos`)
   e DireccaoClinica@, cc adm@ e o superior de quem entrega (campo `superior`),
   por `bsp_relatorio_destinatarios(area, user)`; nunca para quem entrega.
+  Reagentes do Laboratório (16-10-2026): campo tipo `reagentes`
+  (`reagentes_exames`: `[{r, cap, proc}]`, ficam = cap − proc), limpo por
+  `bspReagentesLimpos`; o relatório seguinte começa com o que ficou.
+  Sem informação clínica (16-10-2026, `sem-clinico.sql`): `bspSemClinico` /
+  `bsp_sem_clinico` (u22, Emmanuel) tira Relatórios, Painel clínico, Qualidade,
+  Utentes e Actividade; um ecrã clínico novo verifica-o.
 - Apresentação do Workspace (25-09-2026): cores oficiais nas variáveis
   (`--navy` #292F58, `--accent` #2291CE), letra Titillium Web, sem gradientes nem
   animação de ecrã, e botão principal marinho (#273069). Cores novas vão
@@ -534,7 +540,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   (`erp.stock_mov`, cron `bsp-stock`); `bsp_stock()` / `bsp_stock_resumo()`;
   quem vê: `stock_responsaveis` + gestão (`bsp_ve_stock`) e, no ecrã,
   `bspVeStock` / `BSP_STOCK_RESPONSAVEIS`. Ecrã `StockScreen`, Início
-  `StockAlertaCartao`.
+  `StockAlertaCartao`. Stock geral (16-10-2026, `stock-mais-saidas.sql`): os
+  10 artigos com mais saídas passam a «A acabar» com menos de 14 dias
+  (`bspStockMaisSaidas`); mudar os dois lados juntos.
   Validades (01-10-2026, `stock-validades.sql`): lote em `erp.stock_mov.batch_no`,
   quantidade do lote por armazém pela soma dos movimentos, `bsp_stock_lotes()`,
   estado `caducado` antes de todos. `stock.sql` corre-se antes de
