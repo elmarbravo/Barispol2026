@@ -4767,11 +4767,15 @@ Supabase… tem uma equipa sem conseguir baixar o aplicativo. Avance»)
 
 Elmar: «Na escala retire Rosa desde o dia que a Rosa saiu e coloque-os a rodar
 a Cássia e o Nicolau laboratório».
-- `escala-lab-sem-rosa.sql` (**por aplicar**: o conector do Supabase voltou a
-  abrir a conta pessoal e o projecto Barispol recusou o acesso). Em todas as
-  escalas do Laboratório desde Outubro, a partir de 12-10 (saída da Rosa,
-  u13), cada turno dela passa à vez para o Nicolau (u3) e a Cássia (u19). O
-  visto mantém-se (`bsp.visto = '1'`).
-- Falta: religar o conector à conta elmar.bravo@barispol.com, aplicar,
-  confirmar com a consulta no fim do ficheiro e avisar o Laboratório pela
-  novidade.
+- `escala-lab-sem-rosa.sql` (aplicado a 17-10-2026, escala de Outubro, id 10;
+  não há escala de Novembro). Desde 12-10 (saída da Rosa, u13) saíram 12
+  turnos dela. Regra: entra quem não trabalha nesse dia (nunca dois turnos no
+  mesmo dia); com os dois livres, quem não trabalhou na véspera; com um deles
+  já no turno, ninguém entra.
+- Resultado: Turno longo dia sim, dia não (Nicolau 16, 18, 20, 22, 24, 26 e
+  28; Cássia 17, 19, 21, 23, 25, 27, 29 e 31). Chefia: Cássia 12, 14 e 30,
+  Nicolau 13 e 15. Visto da Direcção Clínica mantido (06-10). Ensaio com
+  desfazer antes de aplicar; depois, 0 turnos com a Rosa.
+- Novidade 347 (Laboratório, Nicolau, Cássia, Direcção Clínica), destino
+  Escalas.
+- A escala de Novembro, quando se fizer, já não leva a Rosa.

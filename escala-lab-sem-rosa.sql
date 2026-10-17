@@ -2,13 +2,16 @@
 -- retire Rosa desde o dia que a Rosa saiu e coloque-os a rodar a Cássia e o
 -- Nicolau»).
 -- A Rosa Queirós (u13) saiu a 12-10-2026. Em todas as escalas do Laboratório
--- de Outubro em diante, a partir de 12-10, cada turno onde estava a Rosa passa
--- para o Nicolau Castigo (u3) e para a Cássia Peixoto (u19), à vez, por ordem
--- de dia e de turno. Se a pessoa da vez já está nesse turno, entra a outra; se
--- as duas já lá estão, a Rosa sai e ninguém entra.
+-- de Outubro em diante, a partir de 12-10, a Rosa sai de cada turno. Quem
+-- entra, entre o Nicolau Castigo (u3) e a Cássia Peixoto (u19):
+--   · se um deles já está no mesmo turno, ninguém entra;
+--   · senão, entra quem não trabalha nesse dia (nunca dois turnos no mesmo dia);
+--   · se os dois estão livres, entra quem não trabalhou na véspera (os dois
+--     rodam dia sim, dia não);
+--   · se os dois já trabalham nesse dia, ninguém entra.
 -- Mudança aprovada pela gestão: o visto da Direcção Clínica mantém-se
 -- (bsp.visto = '1', como em bsp_troca_decidir).
--- Por aplicar: o conector do Supabase estava na conta errada a 17-10-2026.
+-- Aplicado a 17-10-2026 na escala de Outubro (id 10): 12 turnos.
 
 do $$
 declare
@@ -16,9 +19,11 @@ declare
   d text;
   t text;
   lista jsonb;
-  vez int := 0;
+  dia_turnos jsonb;
+  vespera jsonb;
+  ocupados text[];
+  ontem text[];
   quem text;
-  outro text;
   novos jsonb;
   mudou int := 0;
 begin
@@ -31,19 +36,31 @@ begin
     novos := e.dias;
     for d in select k from jsonb_object_keys(e.dias) k where k >= '2026-10-12' order by k loop
       for t in select k from jsonb_object_keys(e.dias -> d) k where k <> '_n' order by k loop
-        lista := e.dias -> d -> t;
+        dia_turnos := novos -> d;
+        lista := dia_turnos -> t;
         if jsonb_typeof(lista) = 'array' and lista ? 'u13' then
-          quem := case when vez % 2 = 0 then 'u3' else 'u19' end;
-          outro := case when quem = 'u3' then 'u19' else 'u3' end;
           lista := lista - 'u13';
-          if not lista ? quem then
-            lista := lista || to_jsonb(quem);
-          elsif not lista ? outro then
-            lista := lista || to_jsonb(outro);
+          select coalesce(array_agg(distinct p), '{}') into ocupados
+            from jsonb_each(dia_turnos) x, jsonb_array_elements_text(case when jsonb_typeof(x.value) = 'array' then x.value else '[]' end) p
+           where x.key <> '_n';
+          vespera := novos -> to_char(d::date - 1, 'YYYY-MM-DD');
+          select coalesce(array_agg(distinct p), '{}') into ontem
+            from jsonb_each(coalesce(vespera, '{}')) x, jsonb_array_elements_text(case when jsonb_typeof(x.value) = 'array' then x.value else '[]' end) p
+           where x.key <> '_n';
+          quem := null;
+          if not (lista ? 'u3' or lista ? 'u19') then
+            if not ('u3' = any(ocupados)) and not ('u19' = any(ocupados)) then
+              quem := case when 'u3' = any(ontem) and not ('u19' = any(ontem)) then 'u19'
+                           when 'u19' = any(ontem) and not ('u3' = any(ontem)) then 'u3'
+                           else 'u3' end;
+            elsif not ('u3' = any(ocupados)) then quem := 'u3';
+            elsif not ('u19' = any(ocupados)) then quem := 'u19';
+            end if;
           end if;
-          vez := vez + 1;
-          mudou := mudou + 1;
+          if quem is not null then lista := lista || to_jsonb(quem); end if;
           novos := jsonb_set(novos, array[d, t], lista);
+          mudou := mudou + 1;
+          raise notice '% % → %', d, t, coalesce(quem, '(ninguém)');
         end if;
       end loop;
     end loop;
