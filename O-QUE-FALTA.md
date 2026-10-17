@@ -4762,3 +4762,16 @@ Supabase… tem uma equipa sem conseguir baixar o aplicativo. Avance»)
   conta na app se chama «Barispol Workspace». Estado às 17h: Elmar e Emmanuel com
   app activa; Arlete com uma activação por acabar; o Dr. Osvaldo perdeu a dele
   (apagada por outro «Começar»).
+
+## 3-hi. Escala do Laboratório sem a Rosa Queirós (17-10-2026)
+
+Elmar: «Na escala retire Rosa desde o dia que a Rosa saiu e coloque-os a rodar
+a Cássia e o Nicolau laboratório».
+- `escala-lab-sem-rosa.sql` (**por aplicar**: o conector do Supabase voltou a
+  abrir a conta pessoal e o projecto Barispol recusou o acesso). Em todas as
+  escalas do Laboratório desde Outubro, a partir de 12-10 (saída da Rosa,
+  u13), cada turno dela passa à vez para o Nicolau (u3) e a Cássia (u19). O
+  visto mantém-se (`bsp.visto = '1'`).
+- Falta: religar o conector à conta elmar.bravo@barispol.com, aplicar,
+  confirmar com a consulta no fim do ficheiro e avisar o Laboratório pela
+  novidade.
