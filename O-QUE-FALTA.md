@@ -4779,3 +4779,7 @@ a Cássia e o Nicolau laboratório».
 - Novidade 347 (Laboratório, Nicolau, Cássia, Direcção Clínica), destino
   Escalas.
 - A escala de Novembro, quando se fizer, já não leva a Rosa.
+- Elmar, 17-10-2026: «Sem chefia». Tirado o turno «Chefia» (t1) a 12, 13, 14,
+  15 e 30-10 (o chat mostra que a 15-10 ninguém fez Chefia). Ficam só o Turno
+  longo e a Tarde. Atenção: a 30-10 só há a Tarde do Nicolau (15h00–22h30),
+  sem ninguém de manhã. Visto mantido.

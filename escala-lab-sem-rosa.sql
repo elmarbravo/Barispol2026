@@ -12,6 +12,8 @@
 -- Mudança aprovada pela gestão: o visto da Direcção Clínica mantém-se
 -- (bsp.visto = '1', como em bsp_troca_decidir).
 -- Aplicado a 17-10-2026 na escala de Outubro (id 10): 12 turnos.
+-- Depois, Elmar: «Sem chefia»: tirado o t1 (Chefia) a 12, 13, 14, 15 e 30-10:
+--   novos := jsonb_set(novos, array[dia], (novos -> dia) - 't1')  (com bsp.visto = '1').
 
 do $$
 declare
