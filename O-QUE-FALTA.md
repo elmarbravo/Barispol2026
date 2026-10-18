@@ -4783,3 +4783,8 @@ a Cássia e o Nicolau laboratório».
   15 e 30-10 (o chat mostra que a 15-10 ninguém fez Chefia). Ficam só o Turno
   longo e a Tarde. Atenção: a 30-10 só há a Tarde do Nicolau (15h00–22h30),
   sem ninguém de manhã. Visto mantido.
+- Elmar, 18-10-2026: «Não há manhã vazia, todos aos turnos longos». Desde 12-10
+  só há Turno longo (07h00–22h30): as Tardes de 13-10 (Cássia) e 30-10
+  (Nicolau) passaram a Turno longo e saíram os t2 vazios. Resultado: Nicolau
+  nos dias pares (12 a 30), Cássia nos ímpares (13 a 31), dia sim, dia não.
+  Visto mantido.

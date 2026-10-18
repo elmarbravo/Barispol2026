@@ -14,6 +14,8 @@
 -- Aplicado a 17-10-2026 na escala de Outubro (id 10): 12 turnos.
 -- Depois, Elmar: «Sem chefia»: tirado o t1 (Chefia) a 12, 13, 14, 15 e 30-10:
 --   novos := jsonb_set(novos, array[dia], (novos -> dia) - 't1')  (com bsp.visto = '1').
+-- Depois, Elmar (18-10): «todos aos turnos longos»: desde 12-10, t1, t2 e t4
+-- juntos no t3 (Turno longo). Nicolau nos dias pares, Cássia nos ímpares.
 
 do $$
 declare
