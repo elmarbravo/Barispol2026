@@ -16666,7 +16666,11 @@ const BSP_RELATORIOS = [{
     { id: 'pacientes', tipo: 'numero', rotulo: 'Pacientes atendidos' },
     { id: 'raiox', tipo: 'numero', rotulo: 'Exames de Raio-X' },
     { id: 'ecografias', tipo: 'numero', rotulo: 'Ecografias' },
-    { id: 'tipos', tipo: 'varias', rotulo: 'Tipos de exame feitos', opcoes: ['Tórax', 'Membros', 'Coluna', 'Abdómen', 'Crânio', 'Ecografia obstétrica', 'Ecografia abdominal / pélvica', 'Outra ecografia'] },
+    /* 18-10-2026, Neusa Chimi: «hoje não realizei nenhum exame… não tem opção»;
+       «membros superiores e inferiores»; «dupla incidência… não constam».
+       «Nenhum exame no turno» é a primeira opção (exclui as outras). */
+    { id: 'tipos', tipo: 'varias', rotulo: 'Tipos de exame feitos', opcoes: ['Nenhum exame no turno', 'Tórax', 'Membros superiores', 'Membros inferiores', 'Coluna', 'Bacia / anca', 'Abdómen', 'Crânio', 'Seios perinasais', 'Outro Raio-X (ver observação)', 'Ecografia obstétrica', 'Ecografia abdominal / pélvica', 'Ecografia mamária', 'Ecografia da tiróide', 'Outra ecografia'] },
+    { id: 'dupla_incidencia', tipo: 'numero', opcional: true, rotulo: 'Exames de Raio-X com dupla incidência (duas projecções)' },
     { id: 'aparelhos', tipo: 'escolha', rotulo: 'Aparelhos', opcoes: ['Todos operacionais', 'Algum com avaria', 'Algum em manutenção'] },
     { id: 'consumiveis', tipo: 'escolha', rotulo: 'Películas e consumíveis', opcoes: ['Suficientes', 'Stock baixo', 'Em ruptura'] },
     { id: 'ocorrencias', tipo: 'varias', rotulo: 'Ocorrências', opcoes: BSP_OCORRENCIAS },

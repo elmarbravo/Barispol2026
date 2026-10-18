@@ -4788,3 +4788,16 @@ a Cássia e o Nicolau laboratório».
   (Nicolau) passaram a Turno longo e saíram os t2 vazios. Resultado: Nicolau
   nos dias pares (12 a 30), Cássia nos ímpares (13 a 31), dia sim, dia não.
   Visto mantido.
+
+## 3-hj. Relatório da Imagiologia: sem exames, membros e dupla incidência (18-10-2026)
+
+Neusa Chimi (#radiologia, 17-10): «não realizei nenhum exame… não tem opção»;
+«membros superiores e inferiores»; «dupla incidência… não constam».
+- `BSP_RELATORIOS` (imagiologia), campo `tipos`: primeira opção «Nenhum exame
+  no turno» (exclui as outras, regra das opções «Nenhu…»); «Membros» passa a
+  «Membros superiores» e «Membros inferiores»; novos «Bacia / anca», «Seios
+  perinasais», «Outro Raio-X (ver observação)», «Ecografia mamária», «Ecografia
+  da tiróide». Respostas antigas com «Membros» continuam a ler-se.
+- Campo novo opcional `dupla_incidencia` (número): exames de Raio-X com duas
+  projecções. Só no ecrã e no e-mail; o servidor não o soma.
+- Testado no Playwright: «Nenhum exame no turno» desmarca Tórax e Membros.
