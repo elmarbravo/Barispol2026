@@ -893,6 +893,8 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   (`bspEscolheMedicoActividade`, `bsp_metagest_medicos`, membro
   `mg:<código>`), 02-10-2026. A Direcção Clínica vê os outros médicos só
   com quantidades, sem Kz (`sem_valores`, decisão do Elmar).
+  Grupos pelo `bsp_mg_grupo` (19-10-2026, `minha-actividade-observacao.sql`): a
+  «Sala de observação» aparece à parte da Enfermagem.
   Datas livres e serviço (03-10-2026, `minha-actividade-servicos.sql`):
   `bsp_minha_actividade(de, ate, membro, servico)`. Nos ecrãs com período,
   a opção «Escolher datas» usa sempre `DatasLivres` (com o limite de dias da

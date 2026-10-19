@@ -4828,3 +4828,18 @@ Elmar: «Os canais Rp, DAF desapareceram». Os grupos ficam em
   sem nenhum comentário de tarefa de equipa nas mensagens: sem sinal de perda.
 - Gatilho `bsp_estado_canais_guarda`: uma gravação com `channels` ou `drive`
   vazios mantém os anteriores quando havia 2 ou mais. Testado e desfeito.
+
+## 3-hl. «A minha actividade»: sala de observação à parte (19-10-2026)
+
+Dra. Ludmila Da Silva (Chat, ao Elmar): «os dados das observações não entram
+no resumo do mês?». Entravam, mas dentro de «Enfermagem» (o MetaGest põe a
+«SALA DE OBSERVAÇÃO» no grupo ENFERMAGEM).
+- `minha-actividade-observacao.sql` (aplicado): `bsp_mg_grupo(grupo, item)`
+  separa «Sala de observação»; `bsp_minha_actividade` usa-a nos grupos, no
+  filtro de serviço e na lista de serviços. Mesma separação que o pagamento dos
+  médicos já fazia (rubrica `observacao`).
+- Testado com a sessão dela (Outubro): «Sala de observação» 7, «Enfermagem»
+  17 (antes 24 juntas). Ensaio desfeito.
+- Observações de Outubro facturadas em nome de cada médico: a factura leva o
+  médico do MetaGest (`ref_practitioner`); uma observação feita por um médico
+  e facturada noutro nome conta para o outro. Corrige-se na Recepção.
