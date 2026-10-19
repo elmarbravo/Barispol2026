@@ -4801,3 +4801,22 @@ Neusa Chimi (#radiologia, 17-10): «não realizei nenhum exame… não tem opç�
 - Campo novo opcional `dupla_incidencia` (número): exames de Raio-X com duas
   projecções. Só no ecrã e no e-mail; o servidor não o soma.
 - Testado no Playwright: «Nenhum exame no turno» desmarca Tórax e Membros.
+
+## 3-hk. Grupos do Chat desaparecidos (Rp, DAF) (19-10-2026)
+
+Elmar: «Os canais Rp, DAF desapareceram». Os grupos ficam em
+`shared_state.channels`; as mensagens continuam na tabela `messages`.
+- Causa provável (por confirmar no servidor): o ecrã gravava o estado inteiro
+  logo que a ligação ficava activa, mesmo quando a leitura do `shared_state`
+  falhava. Depois de terminar as sessões (16-10), os aparelhos começaram com o
+  estado vazio; um deles pode ter gravado `channels: []` por cima.
+- Ecrã (`workspace.html`): `syncRef.current.estadoLido` (só grava depois de
+  ler o estado do servidor; a verificação periódica volta a ler) e
+  `canaisServidor` (uma lista vazia nunca apaga 2 ou mais grupos).
+- `canais-recuperar.sql` (**por aplicar**: o conector do Supabase recusa o
+  projecto Barispol desde 18-10): repõe os grupos em falta a partir da cópia
+  diária mais recente (`copias.public_shared_state_AAAAMMDD`) e cria o gatilho
+  `bsp_estado_canais_guarda` (mesma regra no servidor). As cópias só guardam 7
+  dias: aplicar até 23-10 no máximo.
+- Confirmar também se as tarefas e a agenda (`tasks`, `events`) ficaram
+  vazias na mesma gravação; se sim, repor da mesma cópia.

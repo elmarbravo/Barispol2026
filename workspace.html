@@ -5911,6 +5911,10 @@ function StoreProvider({
       if (!row) return;
       try {
         if (row.updated_at) syncRef.current.stateTs = row.updated_at;
+        /* 19-10-2026 (Elmar: «os canais Rp, DAF desapareceram»): só se grava o
+           estado depois de o ler do servidor, e guarda-se quantos grupos lá há. */
+        syncRef.current.estadoLido = true;
+        if (Array.isArray(row.channels)) syncRef.current.canaisServidor = row.channels.length;
       } catch (e) {}
       setState(s => {
         const tasks = row.tasks || s.tasks;
@@ -6147,6 +6151,8 @@ function StoreProvider({
         if (e2) throw e2;
         if (!cancelled && posts) posts.slice().reverse().forEach(p => ingestPost(p, true));
         try {
+          /* Se falhar, a verificação periódica (verificar) volta a ler; até
+             lá este posto não grava o estado (estadoLido). */
           const {
             data: ss
           } = await client.from('shared_state').select('*').eq('id', 1).maybeSingle();
@@ -6376,6 +6382,10 @@ function StoreProvider({
       camadas: state.camadas || {}
     });
     if (bspEmVerComo()) return;
+    /* Sem o estado do servidor lido (leitura falhada, sessão a meio), este
+       posto tem a lista vazia ou antiga: gravar apagava os grupos do Chat,
+       as tarefas e a agenda de todos (19-10-2026). */
+    if (!syncRef.current.estadoLido) return;
     if (payload === lastPushedRef.current) return;
     lastPushedRef.current = payload;
     try {
@@ -6391,6 +6401,9 @@ function StoreProvider({
         camadas: state.camadas && Object.keys(state.camadas).length && !state.camadas['Sócio'] ? Object.assign({}, state.camadas, { 'Sócio': CAMADAS['Sócio'] }) : (state.camadas || {}),
         updated_at: new Date().toISOString()
       };
+      /* Uma lista de grupos vazia nunca apaga dois ou mais que o servidor tem:
+         apagar grupos faz-se um a um, e o último deixa no máximo um. */
+      if (!(state.extraChannels || []).length && (syncRef.current.canaisServidor || 0) >= 2) delete row.channels;
       cl.from('shared_state').upsert(row).then(res => {
         if (res && res.error) {
           /* Servidores sem as colunas novas: larga-as por ordem inversa de
