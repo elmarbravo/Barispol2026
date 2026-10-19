@@ -4813,10 +4813,12 @@ Elmar: «Os canais Rp, DAF desapareceram». Os grupos ficam em
 - Ecrã (`workspace.html`): `syncRef.current.estadoLido` (só grava depois de
   ler o estado do servidor; a verificação periódica volta a ler) e
   `canaisServidor` (uma lista vazia nunca apaga 2 ou mais grupos).
-- `canais-recuperar.sql` (**por aplicar**: o conector do Supabase recusa o
-  projecto Barispol desde 18-10): repõe os grupos em falta a partir da cópia
-  diária mais recente (`copias.public_shared_state_AAAAMMDD`) e cria o gatilho
-  `bsp_estado_canais_guarda` (mesma regra no servidor). As cópias só guardam 7
-  dias: aplicar até 23-10 no máximo.
-- Confirmar também se as tarefas e a agenda (`tasks`, `events`) ficaram
-  vazias na mesma gravação; se sim, repor da mesma cópia.
+- `canais-recuperar.sql` (aplicado a 19-10-2026). Confirmado: desde 18-10 às
+  07h21 (Luanda) o estado tinha 0 grupos e 0 entradas do Drive; às 07h15 a
+  `equipa_auditoria` regista uma tentativa (u16) de mudar `team` e `camadas`,
+  travada pelo `bsp_estado_guarda`: um posto com o estado vazio. Repostos da
+  cópia de 18-10 os 5 grupos (DAF, rp, transporte, logística-farmacêutica,
+  direcção; mensagens intactas) e as 4 entradas do Drive. `tasks` e `events`
+  já estavam vazios antes (vivem noutras tabelas).
+- Gatilho `bsp_estado_canais_guarda`: uma gravação com `channels` ou `drive`
+  vazios mantém os anteriores quando havia 2 ou mais. Testado e desfeito.

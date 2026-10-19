@@ -7,6 +7,11 @@
 -- abaixo).
 -- Fonte: as cópias diárias (copias.public_shared_state_AAAAMMDD, 7 dias).
 -- Nas funções pela ferramenta, nunca as palavras que pedem confirmação.
+-- APLICADO a 19-10-2026: o estado tinha 0 grupos e 0 entradas do Drive desde
+-- 18-10 às 07h21 (Luanda); repostos da cópia de 18-10 os 5 grupos (DAF, rp,
+-- transporte, logística-farmacêutica, direcção) e as 4 entradas do Drive.
+-- Gatilho com a mesma regra para channels e drive; testado (gravar vazio
+-- mantém 5 e 4) e desfeito.
 
 -- 1. Ver primeiro, por cópia, quantos grupos havia:
 --   select c.relname from pg_class c join pg_namespace s on s.oid = c.relnamespace
@@ -66,6 +71,10 @@ begin
   if jsonb_typeof(old.channels) = 'array' and jsonb_array_length(old.channels) >= 2
      and (new.channels is null or jsonb_typeof(new.channels) <> 'array' or jsonb_array_length(new.channels) = 0) then
     new.channels := old.channels;
+  end if;
+  if jsonb_typeof(old.drive) = 'array' and jsonb_array_length(old.drive) >= 2
+     and (new.drive is null or jsonb_typeof(new.drive) <> 'array' or jsonb_array_length(new.drive) = 0) then
+    new.drive := old.drive;
   end if;
   return new;
 end $$;
