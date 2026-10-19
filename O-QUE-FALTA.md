@@ -4820,5 +4820,11 @@ Elmar: «Os canais Rp, DAF desapareceram». Os grupos ficam em
   cópia de 18-10 os 5 grupos (DAF, rp, transporte, logística-farmacêutica,
   direcção; mensagens intactas) e as 4 entradas do Drive. `tasks` e `events`
   já estavam vazios antes (vivem noutras tabelas).
+- Verificação geral (19-10): nenhuma tabela de `public` perdeu linhas entre as
+  cópias de 13-10 e hoje; `team`, `camadas`, `channels` e `drive` iguais à
+  cópia de 18-10 depois da reposição; `storage.objects` só cresceu (393 → 580).
+  Entre 13-10 e 18-10 o `shared_state` não foi gravado; a única gravação má foi
+  a de 18-10 às 07h21. `tasks` e `events` vazios em todas as cópias (7 dias) e
+  sem nenhum comentário de tarefa de equipa nas mensagens: sem sinal de perda.
 - Gatilho `bsp_estado_canais_guarda`: uma gravação com `channels` ou `drive`
   vazios mantém os anteriores quando havia 2 ou mais. Testado e desfeito.
