@@ -4456,7 +4456,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_alertas_por_ler', 'bsp_relatorio_metagest', 'bsp_pagamento_banco', 'bsp_pagamento_etapas', 'bsp_segmento', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
+const BSP_RPC_LEITURA = ['bsp_alertas_por_ler', 'bsp_fm_estado', 'bsp_fm_votos', 'bsp_relatorio_metagest', 'bsp_pagamento_banco', 'bsp_pagamento_etapas', 'bsp_segmento', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -28158,6 +28158,220 @@ function FormacoesPainel() {
           (gestor || x.registado_por === eu) && React.createElement("button", { onClick: () => apagar(x), title: 'Apagar', style: { border: 0, background: 'transparent', cursor: 'pointer', color: 'var(--text-3)' } }, React.createElement(I.Trash, { size: 14 })))))));
 }
 
+/* Funcionário do Mês (20-10-2026, funcionario-mes.sql; pedido da Arlete,
+   calendário do Elmar: votação a 17 e 18, apuramento e divulgação a 23).
+   Eleição por pares: cinco critérios de 1 a 5 (20% cada), um voto por mês,
+   ninguém vota em si próprio. Tudo é decidido no servidor (bsp_fm_*): quem
+   vota, quem pode ser nomeado, o dia e a contagem. Os votos são
+   confidenciais: só o apurador (u1 e u2) os vê, e regista os votos em papel. */
+const BSP_FM_CRITERIOS = [
+  { k: 'assiduidade', t: 'Assiduidade e pontualidade', d: 'Cumprimento de horários e presença consistente' },
+  { k: 'atitude', t: 'Atitude e espírito de equipa', d: 'Colaboração, respeito e proactividade' },
+  { k: 'qualidade', t: 'Qualidade do trabalho', d: 'Rigor, organização e cuidado nas tarefas' },
+  { k: 'compromisso', t: 'Comprometimento', d: 'Dedicação, iniciativa e cumprimento de prazos' },
+  { k: 'relacionamento', t: 'Relacionamento com utentes', d: 'Cortesia, empatia e postura no atendimento' }
+];
+const BSP_FM_ESCALA = ['', 'Insuficiente', 'Suficiente', 'Bom', 'Muito bom', 'Excelente'];
+function bspFmCertificado(nome, funcao, mesNome) {
+  const esc = x => String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const base = location.href.replace(/[^/]*$/, '').replace(/#.*$/, '');
+  bspImprimirHtml('<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><title>Certificado · Funcionário do Mês</title><style>@page{size:A4 landscape;margin:12mm}body{margin:0}' +
+    '.c{font-family:"Titillium Web","Segoe UI",Arial,sans-serif;color:#292F58;text-align:center;border:1.2mm solid #292F58;padding:12mm 16mm;break-inside:avoid;page-break-inside:avoid}' +
+    '.c h1{font-size:11mm;margin:5mm 0 2mm;letter-spacing:.5mm}.c .n{font-size:10mm;font-weight:700;margin:6mm 0 1mm;color:#273069}.c p{margin:0;font-size:4.6mm;color:#1C2033}' +
+    '.a{display:inline-block;margin-top:16mm;border-top:.3mm solid #292F58;padding-top:2mm;min-width:80mm;font-size:4mm}</style></head><body><div class="c">' +
+    '<img src="' + base + 'assets/logo-barispol.png" style="width:26mm;height:26mm;object-fit:contain">' +
+    '<h1>Certificado de Reconhecimento</h1>' +
+    '<p style="text-transform:uppercase;letter-spacing:1mm;color:#2291CE;font-weight:700">Funcionário do Mês · ' + esc(mesNome) + '</p>' +
+    '<p style="margin-top:8mm">A Clínica Barispol, Lda. reconhece</p>' +
+    '<div class="n">' + esc(nome) + '</div>' +
+    '<p>' + esc(funcao || '') + '</p>' +
+    '<p style="margin-top:6mm">eleito(a) pelos colegas pelo desempenho, dedicação, postura profissional<br>e contributo para o ambiente de trabalho da clínica.</p>' +
+    '<div class="a">Elmar Francisco Pereira Bravo<br>Director Geral</div>' +
+    '<p style="margin-top:8mm;font-size:3.4mm;color:#4E5366">Luanda, ' + esc(bspDataCurta(bspDataLocalISO(new Date()))) + ' · Centro Médico Barispol</p>' +
+    '</div></body></html>');
+}
+function FmNotas({ notas, mudar }) {
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 10 } },
+    BSP_FM_CRITERIOS.map(c => React.createElement("div", { key: c.k, style: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', paddingTop: 8, borderTop: '1px solid var(--border)' } },
+      React.createElement("div", { style: { flex: '1 1 220px', minWidth: 0 } },
+        React.createElement("div", { style: { fontSize: 13.5, fontWeight: 700, color: 'var(--text-1)' } }, c.t),
+        React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)' } }, c.d)),
+      React.createElement("div", { style: { display: 'flex', gap: 6 } },
+        [1, 2, 3, 4, 5].map(n => React.createElement("button", {
+          key: n, type: 'button', title: BSP_FM_ESCALA[n], onClick: () => mudar(c.k, n),
+          style: { width: 40, height: 40, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 15, fontWeight: 700,
+            border: '1px solid ' + (notas[c.k] === n ? 'var(--navy)' : 'var(--border)'),
+            background: notas[c.k] === n ? 'var(--navy)' : 'var(--surface)', color: notas[c.k] === n ? '#fff' : 'var(--text-1)' }
+        }, n))))),
+    React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, '1 Insuficiente · 2 Suficiente · 3 Bom · 4 Muito bom · 5 Excelente'));
+}
+function FuncionarioMesPainel() {
+  const toast = useToast();
+  const [est, setEst] = React.useState(null);
+  const [vez, setVez] = React.useState(0);
+  const vazio = { nomeado: '', notas: {}, just: '', decl: false, votante: '' };
+  const [f, setF] = React.useState(vazio);
+  const [aEnviar, setAEnviar] = React.useState(false);
+  const [mesAp, setMesAp] = React.useState('');
+  const [ap, setAp] = React.useState(null);
+  const [papel, setPapel] = React.useState(false);
+  const [editar, setEditar] = React.useState(null);
+  const [decidir, setDecidir] = React.useState('');
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    cl.rpc('bsp_fm_estado').then(r => setEst(r.error ? { erro: r.error.message } : r.data));
+  }, [vez]);
+  React.useEffect(() => {
+    if (!est || !est.apurador) return;
+    const m = mesAp || est.mes;
+    setAp(null);
+    bspGetClient().rpc('bsp_fm_votos', { p_mes: m }).then(r => setAp(r.error ? { erro: r.error.message } : r.data));
+  }, [est && est.apurador, mesAp, vez]);
+  if (!est) return React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, 'A carregar…');
+  if (est.erro) return React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--perigo)' }) }, est.erro);
+  const rot = bspTranspRot;
+  const nomeDe = id => { const u = window.userById(id); return u ? u.name : id; };
+  const completo = f.nomeado && BSP_FM_CRITERIOS.every(c => f.notas[c.k]) && f.decl && (!papel || f.votante);
+  async function votar() {
+    if (!completo || aEnviar) return;
+    const quem = papel ? nomeDe(f.votante) + ' (papel)' : 'o seu voto';
+    if (!window.confirm('Confirmar ' + quem + ' em ' + nomeDe(f.nomeado) + '? Depois de registado, o voto não se muda.')) return;
+    setAEnviar(true);
+    const r = await bspGetClient().rpc('bsp_fm_votar', { p_nomeado: f.nomeado, p_notas: f.notas, p_justificacao: f.just, p_declaracao: f.decl, p_votante: papel ? f.votante : null });
+    setAEnviar(false);
+    if (r.error) { toast(r.error.message); return; }
+    toast(papel ? 'Voto em papel registado.' : 'Voto registado. Obrigado.');
+    setF(vazio); setPapel(false); setVez(v => v + 1);
+  }
+  async function gravarPessoa() {
+    const r = await bspGetClient().rpc('bsp_fm_pessoa', { p_user: editar.id, p_admissao: editar.inicio || null, p_impedido_ate: editar.impedido_ate || null });
+    if (r.error) { toast(r.error.message); return; }
+    toast('Dados de ' + editar.nome + ' guardados.');
+    setEditar(null); setVez(v => v + 1);
+  }
+  async function apurar() {
+    if (!window.confirm('Apurar e divulgar o Funcionário do Mês de ' + bspFmMesNome(ap.mes) + '? O resultado vai para o Feed e para o telemóvel de toda a equipa.')) return;
+    const r = await bspGetClient().rpc('bsp_fm_apurar', { p_mes: ap.mes });
+    if (r.error) { toast(r.error.message); return; }
+    toast(r.data && r.data.estado === 'eleito' ? 'Resultado divulgado.' : r.data && r.data.estado === 'empate' ? 'Empate: decide a Direcção.' : 'Sem votos neste mês.');
+    setVez(v => v + 1);
+  }
+  async function decidirEmpate() {
+    if (!decidir || !window.confirm('Eleger ' + nomeDe(decidir) + ' e divulgar o resultado?')) return;
+    const r = await bspGetClient().rpc('bsp_fm_decidir', { p_mes: ap.mes, p_vencedor: decidir });
+    if (r.error) { toast(r.error.message); return; }
+    toast('Resultado divulgado.'); setDecidir(''); setVez(v => v + 1);
+  }
+  const fases = {
+    antes: 'A votação de ' + est.mes_nome + ' abre a ' + bspDataCurta(est.abre) + '. Avalia-se o trabalho de 1 a 15 do mês.',
+    votacao: 'Votação aberta até às 23h59 de ' + bspDataCurta(est.fecha) + '. Resultado a ' + bspDataCurta(est.apura) + '.',
+    contagem: 'A votação de ' + est.mes_nome + ' fechou. Resultado a ' + bspDataCurta(est.apura) + '.',
+    resultado: 'O resultado de ' + est.mes_nome + ' saiu a ' + bspDataCurta(est.apura) + '. Próxima votação a 17 e 18 do mês seguinte.'
+  };
+  const ultimo = (est.historico || []).find(h => h.estado === 'eleito');
+  const formulario = (est.fase === 'votacao' && est.vota && !est.meu_voto) || papel;
+  const candidatos = (est.candidatos || []).filter(c => !papel || c.id !== f.votante);
+  const votantesPapel = ap && ap.equipa ? ap.equipa.filter(q => q.vota && !(ap.votos || []).some(v => v.votante === q.id)) : [];
+  const meses = [];
+  { const d = new Date(est.mes + 'T12:00:00'); for (let i = 0; i < 12; i++) { const x = new Date(d.getFullYear(), d.getMonth() - i, 1, 12); meses.push(bspDataLocalISO(x).slice(0, 8) + '01'); } }
+  const res = ap && ap.resultado;
+  const cl = (ap && ap.classificacao) || [];
+  const empatados = res && res.estado === 'empate' ? (res.classificacao || []).filter(c => c.media === res.classificacao[0].media && c.atitude === res.classificacao[0].atitude) : [];
+  const podeApurar = ap && !res && (ap.mes < est.mes || est.fase === 'resultado');
+  const td = { padding: '7px 6px', borderTop: '1px solid var(--border)', fontSize: 13, color: 'var(--text-1)', verticalAlign: 'top' };
+  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 14 } },
+    React.createElement("div", { style: Object.assign({}, bspRegCaixa, { borderLeft: '4px solid var(--accent)' }) },
+      React.createElement("div", { style: { fontSize: 16, fontWeight: 700, color: 'var(--navy-texto)' } }, 'Funcionário do Mês · ' + est.mes_nome),
+      React.createElement("div", { style: { fontSize: 13.5, color: 'var(--text-1)', marginTop: 4 } }, fases[est.fase]),
+      React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', marginTop: 6 } },
+        'Cada colega escolhe quem mais se destacou e avalia cinco critérios de 1 a 5. Um voto por mês; ninguém vota em si próprio. ' +
+        'O voto é confidencial: só a Direcção e a responsável operacional o vêem. Vota e é nomeado quem tem 120 dias de vínculo e não tem processo disciplinar em curso; quem venceu no mês anterior não pode ser eleito.')),
+    ultimo && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }) },
+      React.createElement(I.Star, { size: 22, style: { color: 'var(--aviso)', flex: 'none' } }),
+      React.createElement("div", { style: { flex: '1 1 200px', minWidth: 0 } },
+        React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)' } }, 'Funcionário do Mês de ' + ultimo.mes_nome),
+        React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)' } }, (ultimo.nome || '') + (ultimo.funcao ? ' · ' + ultimo.funcao : ''))),
+      (est.apurador || ultimo.vencedor === window.CURRENT_USER_ID) && React.createElement("button", { onClick: () => bspFmCertificado(ultimo.nome, ultimo.funcao, ultimo.mes_nome), style: bspEscBotao(false) }, 'Imprimir certificado')),
+    est.meu_voto && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13.5, color: 'var(--text-1)' }) },
+      'Já votou este mês em ', React.createElement("b", null, est.meu_nomeado_nome || ''), ' (' + bspQuandoChat(est.meu_voto.criado_em) + '). Obrigado.'),
+    !est.vota && est.fase === 'votacao' && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13.5, color: 'var(--text-2)' }) },
+      'Este mês não pode votar' + (est.motivo ? ': ' + est.motivo.toLowerCase() : '') + '. Se os dados estiverem errados, fale com a Arlete (RH).'),
+    formulario && React.createElement("div", { style: bspRegCaixa },
+      React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } }, papel ? 'Registar voto em papel' : 'O meu voto'),
+      papel && React.createElement("label", { style: { display: 'block', marginBottom: 10 } }, rot('Quem votou (formulário em papel)'),
+        React.createElement("select", { value: f.votante, onChange: e => setF(Object.assign({}, f, { votante: e.target.value, nomeado: f.nomeado === e.target.value ? '' : f.nomeado })), style: bspTranspCampo },
+          React.createElement("option", { value: '' }, 'Escolha…'), votantesPapel.map(q => React.createElement("option", { key: q.id, value: q.id }, q.nome)))),
+      React.createElement("label", { style: { display: 'block', marginBottom: 12 } }, rot('Colega que nomeio'),
+        React.createElement("select", { value: f.nomeado, onChange: e => setF(Object.assign({}, f, { nomeado: e.target.value })), style: bspTranspCampo },
+          React.createElement("option", { value: '' }, 'Escolha…'), candidatos.map(c => React.createElement("option", { key: c.id, value: c.id }, c.nome + (c.funcao ? ' · ' + c.funcao : ''))))),
+      React.createElement(FmNotas, { notas: f.notas, mudar: (k, n) => setF(Object.assign({}, f, { notas: Object.assign({}, f.notas, { [k]: n }) })) }),
+      React.createElement("label", { style: { display: 'block', marginTop: 12 } }, rot('Justificação (opcional, mas valorizada)'),
+        React.createElement("textarea", { value: f.just, maxLength: 2000, rows: 3, onChange: e => setF(Object.assign({}, f, { just: e.target.value })), style: Object.assign({}, bspTranspCampo, { height: 'auto', padding: 10, fontSize: 16 }) })),
+      React.createElement("label", { style: { display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 12, fontSize: 13, color: 'var(--text-1)', cursor: 'pointer' } },
+        React.createElement("input", { type: 'checkbox', checked: f.decl, onChange: e => setF(Object.assign({}, f, { decl: e.target.checked })), style: { marginTop: 3 } }),
+        React.createElement("span", null, papel ? 'O formulário em papel está assinado e foi preenchido de forma livre, conforme o regulamento do programa.' : 'Declaro que voto de forma livre e consciente, conforme o regulamento do programa Funcionário do Mês.')),
+      React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 } },
+        papel && React.createElement("button", { onClick: () => { setPapel(false); setF(vazio); }, style: bspEscBotao(false) }, 'Cancelar'),
+        React.createElement("button", { onClick: votar, disabled: !completo || aEnviar, style: Object.assign({}, bspEscBotao(true), { opacity: completo && !aEnviar ? 1 : .5 }) }, aEnviar ? 'A enviar…' : 'Votar'))),
+    est.apurador && React.createElement("div", { style: bspRegCaixa },
+      React.createElement("div", { style: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 } },
+        React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)', flex: '1 1 200px' } }, 'Apuramento (confidencial)'),
+        React.createElement("select", { value: mesAp || est.mes, onChange: e => setMesAp(e.target.value), style: Object.assign({}, bspTranspCampo, { width: 'auto', height: 36, fontSize: 14 }) },
+          meses.map(m => React.createElement("option", { key: m, value: m }, bspFmMesNome(m)))),
+        !papel && !res && (mesAp || est.mes) === est.mes && est.fase !== 'antes' && React.createElement("button", { onClick: () => { setPapel(true); setF(vazio); }, style: bspEscBotao(false) }, 'Registar voto em papel'),
+        podeApurar && React.createElement("button", { onClick: apurar, style: bspEscBotao(true) }, 'Apurar e divulgar')),
+      !ap ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'A carregar…')
+      : ap.erro ? React.createElement("div", { style: { fontSize: 13, color: 'var(--perigo)' } }, ap.erro)
+      : React.createElement(React.Fragment, null,
+        res && React.createElement("div", { style: { fontSize: 13.5, color: 'var(--text-1)', marginBottom: 8 } },
+          res.estado === 'eleito' ? 'Eleito(a): ' + nomeDe(res.vencedor) + (res.decidido_por ? ' (desempate da Direcção)' : '') + (res.publicado_em ? ' · divulgado ' + bspQuandoChat(res.publicado_em) : '')
+            : res.estado === 'empate' ? 'Empate na média e em «Atitude e espírito de equipa». Decide a Direcção.' : 'Sem votos neste mês.'),
+        empatados.length > 0 && est.direccao && React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 } },
+          React.createElement("select", { value: decidir, onChange: e => setDecidir(e.target.value), style: Object.assign({}, bspTranspCampo, { width: 'auto', height: 36, fontSize: 14 }) },
+            React.createElement("option", { value: '' }, 'Escolha entre os empatados…'), empatados.map(c => React.createElement("option", { key: c.id, value: c.id }, c.nome))),
+          React.createElement("button", { onClick: decidirEmpate, disabled: !decidir, style: bspEscBotao(true) }, 'Decidir')),
+        React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', marginBottom: 6 } }, (ap.votos || []).length + ((ap.votos || []).length === 1 ? ' voto · ' : ' votos · ') + (ap.equipa || []).filter(q => q.vota).length + ' pessoas podem votar'),
+        cl.length > 0 && React.createElement("div", { style: { overflowX: 'auto' } }, React.createElement("table", { style: { width: '100%', borderCollapse: 'collapse' } },
+          React.createElement("thead", null, React.createElement("tr", null, ['#', 'Nomeado', 'Média', 'Atitude', 'Votos'].map(h => React.createElement("th", { key: h, style: { textAlign: 'left', fontSize: 12, color: 'var(--text-2)', padding: '4px 6px' } }, h)))),
+          React.createElement("tbody", null, cl.map((c, i) => React.createElement("tr", { key: c.id },
+            React.createElement("td", { style: td }, i + 1), React.createElement("td", { style: td }, c.nome),
+            React.createElement("td", { style: td }, Number(c.media).toLocaleString('pt-PT', { minimumFractionDigits: 2 })),
+            React.createElement("td", { style: td }, Number(c.atitude).toLocaleString('pt-PT', { minimumFractionDigits: 2 })),
+            React.createElement("td", { style: td }, c.votos)))))),
+        (ap.votos || []).length > 0 && React.createElement("details", { style: { marginTop: 10 } },
+          React.createElement("summary", { style: { cursor: 'pointer', fontSize: 13, fontWeight: 700, color: 'var(--text-1)' } }, 'Votos individuais'),
+          ap.votos.map(v => React.createElement("div", { key: v.id, style: { padding: '8px 0', borderTop: '1px solid var(--border)', fontSize: 13, color: 'var(--text-1)' } },
+            React.createElement("div", null, React.createElement("b", null, nomeDe(v.votante)), ' → ', nomeDe(v.nomeado), v.origem === 'papel' ? ' · papel' : ''),
+            React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)' } }, BSP_FM_CRITERIOS.map(c => c.t + ' ' + v[c.k]).join(' · ') + ' · ' + bspQuandoChat(v.criado_em)),
+            v.justificacao && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-1)', marginTop: 2, whiteSpace: 'pre-wrap' } }, v.justificacao)))),
+        React.createElement("details", { style: { marginTop: 10 } },
+          React.createElement("summary", { style: { cursor: 'pointer', fontSize: 13, fontWeight: 700, color: 'var(--text-1)' } }, 'Quem pode votar e ser nomeado'),
+          React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', margin: '6px 0' } }, 'O vínculo conta da data de admissão; sem ela, da criação da conta no Workspace. Corrija a data de quem entrou antes. «Impedido até» serve para um processo disciplinar em curso (sem motivo escrito).'),
+          (ap.equipa || []).map(q => React.createElement("div", { key: q.id, style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', padding: '6px 0', borderTop: '1px solid var(--border)', fontSize: 13 } },
+            React.createElement("div", { style: { flex: '1 1 220px', minWidth: 0 } },
+              React.createElement("div", { style: { fontWeight: 600, color: 'var(--text-1)' } }, q.nome),
+              React.createElement("div", { style: { color: q.motivo && !q.vota ? 'var(--perigo)' : 'var(--text-2)', fontSize: 12.5 } },
+                (q.vota ? 'Vota' : 'Não vota') + ' · ' + (q.nomeavel ? 'pode ser nomeado' : 'não pode ser nomeado') + (q.motivo ? ' · ' + q.motivo : '') +
+                (q.inicio ? ' · ' + (q.fonte === 'admissao' ? 'admissão ' : 'conta criada a ') + bspDataCurta(q.inicio) : ''))),
+            editar && editar.id === q.id
+              ? React.createElement(React.Fragment, null,
+                React.createElement("label", { style: { fontSize: 12 } }, 'Admissão ', React.createElement("input", { type: 'date', value: editar.inicio || '', onChange: e => setEditar(Object.assign({}, editar, { inicio: e.target.value })), style: Object.assign({}, bspTranspCampo, { width: 'auto', height: 34, fontSize: 14 }) })),
+                React.createElement("label", { style: { fontSize: 12 } }, 'Impedido até ', React.createElement("input", { type: 'date', value: editar.impedido_ate || '', onChange: e => setEditar(Object.assign({}, editar, { impedido_ate: e.target.value })), style: Object.assign({}, bspTranspCampo, { width: 'auto', height: 34, fontSize: 14 }) })),
+                React.createElement("button", { onClick: gravarPessoa, style: bspEscBotao(true) }, 'Guardar'),
+                React.createElement("button", { onClick: () => setEditar(null), style: bspEscBotao(false) }, 'Cancelar'))
+              : React.createElement("button", { onClick: () => setEditar({ id: q.id, nome: q.nome, inicio: q.fonte === 'admissao' ? q.inicio : '', impedido_ate: q.impedido_ate || '' }), style: bspEscBotao(false) }, 'Alterar')))))),
+    (est.historico || []).length > 0 && React.createElement("div", { style: bspRegCaixa },
+      React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)', marginBottom: 6 } }, 'Vencedores'),
+      est.historico.filter(h => h.estado === 'eleito').map(h => React.createElement("div", { key: h.mes, style: { padding: '6px 0', borderTop: '1px solid var(--border)', fontSize: 13.5, color: 'var(--text-1)' } },
+        h.mes_nome + ': ', React.createElement("b", null, h.nome || ''), h.funcao ? ' · ' + h.funcao : ''))));
+}
+function bspFmMesNome(iso) {
+  const m = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const p = String(iso || '').split('-');
+  return p.length < 2 ? '' : m[Number(p[1]) - 1] + ' de ' + p[0];
+}
+
 /* Equipa: contactos, ferias e ausencias, formacoes. */
 function EquipaScreen() {
   const [aba, setAba] = React.useState(() => window.__bspEquipaAba || 'contactos');
@@ -28176,7 +28390,7 @@ function EquipaScreen() {
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' } },
     React.createElement("div", { style: { display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', flex: 'none', overflowX: 'auto' } },
       aba_('contactos', 'Contactos'), aba_('ausencias', 'Férias e ausências'), aba_('formacoes', 'Formações'),
-      bspVeCredenciais(window.userById(window.CURRENT_USER_ID)) && aba_('medicos', 'Médicos e credenciais'), aba_('integracao', 'Integração'), aba_('avaliacao', 'Avaliação'), aba_('produtividade', 'Produtividade'),
+      bspVeCredenciais(window.userById(window.CURRENT_USER_ID)) && aba_('medicos', 'Médicos e credenciais'), aba_('integracao', 'Integração'), aba_('avaliacao', 'Avaliação'), aba_('produtividade', 'Produtividade'), aba_('funcionario', 'Funcionário do mês'),
       bspVeSalarios(window.userById(window.CURRENT_USER_ID)) && aba_('pagamentos', 'Pagamento dos médicos')),
     React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: 'auto', paddingBottom: 12 } },
       aba === 'contactos' && React.createElement(DirectoryScreen, null),
@@ -28186,6 +28400,7 @@ function EquipaScreen() {
       aba === 'integracao' && React.createElement(IntegracaoPainel, null),
       aba === 'avaliacao' && React.createElement(AvaliacaoPainel, null),
       aba === 'produtividade' && React.createElement(ProdutividadePainel, null),
+      aba === 'funcionario' && React.createElement(FuncionarioMesPainel, null),
       aba === 'pagamentos' && bspVeSalarios(window.userById(window.CURRENT_USER_ID)) && React.createElement(PagamentoMedicosPainel, null)));
 }
 
@@ -32020,6 +32235,7 @@ function App() {
     if (n.type === 'sistema') {
       const d = String(n.destino || '');
       if (d === 'directory' && /f[ée]rias|aus[êe]ncia|licen|doen|falta/i.test(String(n.text || '') + ' ' + String(n.preview || ''))) window.__bspEquipaAba = 'ausencias';
+      if (d === 'directory' && /Funcion[áa]rio do M[êe]s/i.test(String(n.text || '') + ' ' + String(n.preview || ''))) window.__bspEquipaAba = 'funcionario';
       /* Os toners passaram para Logística e stock (07-10-2026). */
       if ((d === 'avarias' || d === 'stock') && /toner/i.test(String(n.text || '') + ' ' + String(n.preview || ''))) {
         window.__bspStockAba = 'toners';

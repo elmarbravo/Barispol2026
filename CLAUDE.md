@@ -754,6 +754,14 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   (`PresencasMedicos`, Utentes e Início) por `bsp_presenca_marcar`, com hora do
   servidor; correcções ficam com `corrigido_por`. Vão para `pagamento_permanencias`;
   o `bsp_pagamento_fichas` actualiza sem apagar quem marcou.
+- Funcionário do Mês (20-10-2026, `funcionario-mes.sql`, pedido da Arlete;
+  Elmar: «Votação: dias 17 e 18; apuramento e divulgação: dia 23»): Equipa →
+  `FuncionarioMesPainel`. Tudo no servidor (`bsp_fm_estado`, `bsp_fm_votar`,
+  `bsp_fm_equipa`: 120 dias de vínculo por `fm_pessoas.admissao` ou criação da
+  conta, `impedido_ate` sem motivo); votos só para o apurador u1/u2
+  (`bsp_fm_votos`), que também regista os de papel; apuramento a 23
+  (`bsp_fm_apurar`, empate → «Atitude», depois `bsp_fm_decidir` da Direcção).
+  Mudar os dias = mudar `bsp_fm_votar`, `bsp_fm_estado` e os crons `bsp-fm-*`.
 - Integração (03-10-2026, `integracao.sql`, RI-2.2): modelo de passos só no
   servidor (`integracao_modelo`); Equipa → `IntegracaoPainel`. Documentos com
   `revisao_ate` (`documentos-revisao.sql`).

@@ -4916,3 +4916,44 @@ abriram PDF às 10h46–10h48).
   do mesmo utilizador (criada até 10 s de diferença) foi verificada. Testado
   com a sessão actual do Elmar: verificada, 18 documentos. Ensaio desfeito.
 - Ecrã: `LoginScreen` ignora um segundo envio durante 4 s (`aEntrar`).
+
+## 3-hq. Funcionário do Mês (20-10-2026)
+
+Pedido da Arlete; calendário do Elmar: «Votação: dias 17 e 18 de cada mês;
+apuramento e divulgação dos resultados: dia 23 de cada mês» (substitui o do
+regulamento: 17 a 25, apuramento no 1.º dia útil). Aplicado no servidor
+(`funcionario-mes.sql`) e no ecrã (Equipa → «Funcionário do mês»,
+`FuncionarioMesPainel`).
+
+- Voto no Workspace a 17 e 18: colega nomeado, cinco critérios de 1 a 5
+  (assiduidade e pontualidade, atitude e espírito de equipa, qualidade do
+  trabalho, comprometimento, relacionamento com utentes), justificação
+  opcional, declaração. Um voto por mês, nunca em si próprio
+  (`bsp_fm_votar`).
+- Elegibilidade no servidor (`bsp_fm_equipa`): 120 dias de vínculo à data de 17,
+  sem processo disciplinar (`fm_pessoas.impedido_ate`, sem motivo), fora sócios,
+  ocultos, desactivados e a conta de teste. O vencedor do mês anterior não pode
+  ser nomeado. O Elmar e a Arlete apuram: votam, mas não são nomeados.
+- Vínculo: `fm_pessoas.admissao`; sem ela, a data de criação da conta (id
+  «u<milissegundos>»); sem nenhuma, conta como antigo. **Por fazer (Arlete):**
+  pôr a data de admissão de quem entrou antes de ter conta (Afonso Felisberto,
+  Joana Tati, Ludmila Da Silva, Neusa Chimi, Mário Camuanda), senão ficam de
+  fora até Janeiro/Fevereiro.
+- Votos confidenciais: só o apurador (u1, u2) vê quem votou em quem
+  (`bsp_fm_votos`, registado em `acessos_registo`). Registo de votos em papel
+  pelo apurador até ao apuramento.
+- Apuramento a 23 às 08h00 (`bsp_fm_apurar`, cron `bsp-fm-apurar`): média dos
+  cinco critérios por voto, média por candidato, maior média; empate → maior
+  média em «Atitude»; se persistir, a Direcção decide (`bsp_fm_decidir`).
+  Divulgação no Feed (autor u1, `cid` «fm-AAAA-MM»), sino e telemóvel.
+  Certificado para imprimir no ecrã (`bspFmCertificado`).
+- Avisos: abertura a 17 às 07h00 (novidade + telemóvel), lembrete a 18 às 12h00
+  a quem ainda não votou (`bsp_fm_avisar`).
+- Testado no servidor com sessões simuladas (u12, u2, u1; desfeito): voto fora
+  dos dias recusado, voto em papel, repetido, em si próprio, nomear um apurador,
+  votos só para o apurador, apuramento antes de 23 recusado, empate decidido
+  pela Direcção e publicação no Feed. No navegador (Playwright, 390 px) o
+  voto da Juliana e o painel da Arlete.
+- **Por decidir (Elmar):** o regulamento elege a maior média, sem número
+  mínimo de votos (um só voto de 5 vence dez votos de 4,9). Prémio a definir
+  pela Direcção.
