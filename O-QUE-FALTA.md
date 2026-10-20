@@ -4873,3 +4873,18 @@ estão dentro; o mais provável é o **tráfego de saída** (5 GB por mês).
   cada vez (cerca de 3,2 h por dia). Passou a `*/10 * * * *` (aplicado). O
   alerta de 15 min sem resposta do CRM continua dentro do intervalo. Outros:
   `crm-pedidos` 20 s de 15 em 15 min, `bsp-vigilancia` 7 s de 15 em 15 min.
+
+## 3-hn. Acesso da Dra. Elizabeth Holoca (20-10-2026)
+
+Elmar: «Cria este perfil Dra. Elizabeth Holoca, imagiologista das ecografias…
+Envia para ela um e-mail».
+- Conta criada no servidor sem palavra-passe conhecida (aleatória, ninguém a
+  viu), e-mail confirmado, identidade `email`. Equipa `u1792487962632`:
+  Imagiologista, Radiologia (#radiologia), camada Clínica, superior u14,
+  `metagest` HLC-PRAC-2025-00005 («A minha actividade»). Prestador 13 ligado
+  (`user_id`). Também na lista embutida `USERS`.
+- E-mails às 10h19, de geral@: boas-vindas com os passos (Elmar em cópia) e a
+  ligação «Nova palavra-passe do Workspace» (`recuperar-acesso`). Na primeira
+  entrada ela activa a 2FA (app ou e-mail).
+- Sem chave secreta no cofre: a conta não passou pela `criar-utilizador`; foi
+  criada por SQL com a mesma forma das contas existentes.
