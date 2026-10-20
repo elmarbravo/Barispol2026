@@ -4843,3 +4843,19 @@ no resumo do mês?». Entravam, mas dentro de «Enfermagem» (o MetaGest põe a
 - Observações de Outubro facturadas em nome de cada médico: a factura leva o
   médico do MetaGest (`ref_practitioner`); uma observação feita por um médico
   e facturada noutro nome conta para o outro. Corrige-se na Recepção.
+
+## 3-hm. Workspace parado: Supabase devolve 402 a tudo (20-10-2026)
+
+Equipa (WhatsApp ao Elmar, 20-10): «Password incorreta em todos os
+utilizadores, nem permite alterar». Não é a palavra-passe: desde 19-10 às
+23h39 (Luanda) todos os pedidos à API (entrada, recuperação, dados, ficheiros)
+recebem **402** (registos `edge_logs`). Organização «Barispol» no plano
+**free**: o Supabase restringe o serviço quando a quota do plano gratuito se
+esgota. Base de dados 292 MB (limite 500 MB) e ficheiros 617 MB (limite 1 GB)
+estão dentro; o mais provável é o **tráfego de saída** (5 GB por mês).
+- Causa no código: a verificação periódica (`verificar`, 3–10 s por aparelho)
+  lia a linha inteira do `shared_state` (~14 kB) só para comparar a data.
+  Agora lê só `updated_at` e a linha inteira só quando mudou.
+- **Do Elmar:** subir a organização para o plano Pro no painel do Supabase
+  (Organization → Billing). Sem isso, o serviço só volta no novo ciclo.
+- Depois: ver no painel «Usage» qual quota passou, para cortar o resto.

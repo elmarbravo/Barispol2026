@@ -6267,10 +6267,18 @@ function StoreProvider({
               ascending: true
             }).limit(100);
             if (novosPosts) novosPosts.forEach(p => ingestPost(p));
+            /* 20-10-2026 (Supabase a recusar tudo com 402: quota de tráfego do
+               plano gratuito esgotada): lê só a data; a linha inteira (~14 kB)
+               só quando mudou. Antes eram 14 kB por aparelho a cada 3-10 s. */
             const {
-              data: ss2
-            } = await client.from('shared_state').select('*').eq('id', 1).maybeSingle();
-            if (ss2 && ss2.updated_at && ss2.updated_at !== syncRef.current.stateTs) applyState(ss2);
+              data: ts2
+            } = await client.from('shared_state').select('updated_at').eq('id', 1).maybeSingle();
+            if (ts2 && ts2.updated_at && ts2.updated_at !== syncRef.current.stateTs) {
+              const {
+                data: ss2
+              } = await client.from('shared_state').select('*').eq('id', 1).maybeSingle();
+              if (ss2) applyState(ss2);
+            }
           } catch (e) {}
         };
         const cadencia = () => syncRef.current.tempoReal ? 10000 : 3000;
