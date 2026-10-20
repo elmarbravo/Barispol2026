@@ -4859,3 +4859,8 @@ estão dentro; o mais provável é o **tráfego de saída** (5 GB por mês).
 - **Do Elmar:** subir a organização para o plano Pro no painel do Supabase
   (Organization → Billing). Sem isso, o serviço só volta no novo ciclo.
 - Depois: ver no painel «Usage» qual quota passou, para cortar o resto.
+- Ecrã de entrada: com 402, 5xx ou sem resposta do servidor, a mensagem é
+  `BSP_SERVIDOR_EM_BAIXO` («o problema é do servidor e não da sua
+  palavra-passe: não a altere»), também no «Esqueceu-se?». Antes dizia
+  «palavra-passe incorrecta» e «verifique a internet».
+- 10h00 de Luanda: ainda 402 e organização ainda no plano free.

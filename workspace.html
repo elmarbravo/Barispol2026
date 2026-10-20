@@ -7614,6 +7614,10 @@ function NovaPalavraPasseEcra({ codigo, onLogin, onCancelar }) {
     style: { marginTop: 10 }
   }, "Voltar à entrada")));
 }
+/* Servidor bloqueado (402, quota do plano) ou em baixo (5xx), ou sem resposta
+   (20-10-2026). Nunca dizer «palavra-passe errada» nestes casos. */
+const BSP_SERVIDOR_EM_BAIXO = 'Não foi possível falar com o servidor do Workspace. Se tem internet, o problema é do servidor e não da sua palavra-passe: não a altere. Tente mais tarde.';
+function bspServidorEmBaixo(st) { return st === 402 || st === 0 || (st >= 500 && st < 600); }
 function LoginScreen({
   onLogin
 }) {
@@ -7629,7 +7633,7 @@ function LoginScreen({
      manual de «Ligar o servidor a este dispositivo» foi retirado. */
   const hasServer = !!bspGetCfg();
   const fail = () => {
-    setErr('E-mail ou palavra-passe incorretos.');
+    setErr('E-mail ou palavra-passe incorrectos.');
     setShake(true);
     setTimeout(() => setShake(false), 500);
   };
@@ -7664,8 +7668,16 @@ function LoginScreen({
         setErr('A conta existe mas ainda não foi confirmada. Fale com o administrador.');
         return;
       }
+      /* 20-10-2026: com o servidor bloqueado (402) ou em baixo (5xx), dizer
+         isso, e não «palavra-passe errada» (a equipa ia mudar a palavra-passe). */
+      if (bspServidorEmBaixo(error.status) || /RetryableFetch|fetch|network/i.test(String(error.name || '') + ' ' + String(error.message || ''))) {
+        setErr(BSP_SERVIDOR_EM_BAIXO);
+        return;
+      }
     } catch (err) {
       setBusy(false);
+      setErr(BSP_SERVIDOR_EM_BAIXO);
+      return;
     }
     fail();
   };
@@ -7694,6 +7706,10 @@ function LoginScreen({
       });
       const j = await r.json().catch(() => ({}));
       setBusy(false);
+      if (bspServidorEmBaixo(r.status)) {
+        setErr(BSP_SERVIDOR_EM_BAIXO);
+        return;
+      }
       if (!r.ok) {
         setErr(j.erro || 'Não foi possível enviar o e-mail de recuperação.');
         return;
@@ -7701,7 +7717,7 @@ function LoginScreen({
       setInfo('Se ' + norm + ' tiver conta no Workspace, recebe dentro de minutos um e-mail de geral@barispol.com com a ligação para escolher a nova palavra-passe. Veja também a pasta de lixo electrónico.');
     } catch (e) {
       setBusy(false);
-      setErr('Não foi possível enviar o e-mail de recuperação. Verifique a internet.');
+      setErr(BSP_SERVIDOR_EM_BAIXO);
     }
   };
   if (recCodigo) return React.createElement(NovaPalavraPasseEcra, {
