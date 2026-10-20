@@ -4864,6 +4864,10 @@ estão dentro; o mais provável é o **tráfego de saída** (5 GB por mês).
   palavra-passe: não a altere»), também no «Esqueceu-se?». Antes dizia
   «palavra-passe incorrecta» e «verifique a internet».
 - 10h00 de Luanda: ainda 402 e organização ainda no plano free.
+- 10h10 de Luanda: o Elmar subiu a organização para **Pro**. O bloqueio saiu
+  às 10h10 (pedido de teste à API com a chave pública: 200). Os envios
+  automáticos da manhã (resumo 06h30, relatórios diários 06h50/07h15,
+  lembretes 07h30) falharam durante o bloqueio.
 - E-mail do Supabase (20-10): «running out of Disk IO Budget» (lentidão,
   não é o 402). Maior consumidor: cron `whatsapp-sync` a cada 3 min, 24 s de
   cada vez (cerca de 3,2 h por dia). Passou a `*/10 * * * *` (aplicado). O
