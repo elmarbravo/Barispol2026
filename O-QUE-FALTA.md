@@ -4864,3 +4864,8 @@ estão dentro; o mais provável é o **tráfego de saída** (5 GB por mês).
   palavra-passe: não a altere»), também no «Esqueceu-se?». Antes dizia
   «palavra-passe incorrecta» e «verifique a internet».
 - 10h00 de Luanda: ainda 402 e organização ainda no plano free.
+- E-mail do Supabase (20-10): «running out of Disk IO Budget» (lentidão,
+  não é o 402). Maior consumidor: cron `whatsapp-sync` a cada 3 min, 24 s de
+  cada vez (cerca de 3,2 h por dia). Passou a `*/10 * * * *` (aplicado). O
+  alerta de 15 min sem resposta do CRM continua dentro do intervalo. Outros:
+  `crm-pedidos` 20 s de 15 em 15 min, `bsp-vigilancia` 7 s de 15 em 15 min.
