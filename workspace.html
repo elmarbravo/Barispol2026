@@ -28286,7 +28286,8 @@ function FuncionarioMesPainel() {
       React.createElement("div", { style: { fontSize: 13.5, color: 'var(--text-1)', marginTop: 4 } }, fases[est.fase]),
       React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', marginTop: 6 } },
         'Cada colega escolhe quem mais se destacou e avalia cinco critérios de 1 a 5. Um voto por mês; ninguém vota em si próprio. ' +
-        'O voto é confidencial: só a Direcção e a responsável operacional o vêem. Vota e é nomeado quem tem 120 dias de vínculo e não tem processo disciplinar em curso; quem venceu no mês anterior não pode ser eleito.')),
+        'O voto é confidencial: só a Direcção e a responsável operacional o vêem. Vota e é nomeado quem tem 120 dias de vínculo e não tem processo disciplinar em curso; os directores votam, mas não são nomeados; quem venceu no mês anterior não pode ser eleito.'),
+      est.premio && React.createElement("div", { style: { fontSize: 13.5, fontWeight: 700, color: 'var(--text-1)', marginTop: 6 } }, 'Prémio: ' + est.premio + '.')),
     ultimo && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }) },
       React.createElement(I.Star, { size: 22, style: { color: 'var(--aviso)', flex: 'none' } }),
       React.createElement("div", { style: { flex: '1 1 200px', minWidth: 0 } },

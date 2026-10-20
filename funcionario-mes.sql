@@ -20,6 +20,11 @@
 -- Processo disciplinar: fm_pessoas.impedido_ate, sem motivo escrito.
 -- Fora da votação: sócios, ocultos, desactivados, a conta de teste (semEmails) e
 -- os apuradores como nomeados (votam, mas não são nomeados).
+-- Directores fora dos nomeados (Elmar, 20-10-2026: «Estão fora da lista de
+-- nomeados os directores»): cargo «Director…» ou camada Direcção; votam.
+-- Prémio (Elmar, 20-10-2026): valor em dinheiro e certificado de reconhecimento.
+-- O texto do prémio fica só no servidor (fm_config, chave 'premio'), nunca no
+-- repositório; ao eleger, a gestão (u1, u2) recebe o aviso para o pagar.
 -- Votos em papel: o apurador regista-os em nome de quem votou até ao apuramento.
 -- Horas de Luanda. Crons: abertura dia 17 às 07h00, lembrete dia 18 às 12h00,
 -- apuramento e divulgação dia 23 às 08h00 (Feed, sino e telemóvel).
@@ -54,6 +59,13 @@ create table if not exists public.fm_resultados (
   decidido_por text,
   publicado_em timestamptz
 );
+
+create table if not exists public.fm_config (
+  chave text primary key,
+  valor text not null
+);
+alter table public.fm_config enable row level security;
+revoke all on public.fm_config from anon, authenticated;
 
 create table if not exists public.fm_pessoas (
   user_id text primary key,
@@ -91,6 +103,7 @@ as $f$
                 where r.mes = (date_trunc('month', p_mes) - interval '1 month')::date and r.estado = 'eleito'),
   equipa as (
     select e->>'id' id, e->>'name' nome, coalesce(e->>'role', '') funcao, coalesce(e->>'dept', '') area,
+           (coalesce(e->>'role', '') ~* '^\s*director' or e->>'accessLevel' = 'Direcção') director,
            p.admissao, p.impedido_ate,
            case when (e->>'id') ~ '^u\d{13}$' then (to_timestamp(substr(e->>'id', 2)::bigint / 1000.0) at time zone 'Africa/Luanda')::date end conta
       from shared_state s cross join jsonb_array_elements(coalesce(s.team, '[]'::jsonb)) e
@@ -110,10 +123,11 @@ as $f$
   select x.id, x.nome, x.funcao, x.area, x.ini, x.fonte_, x.impedido_ate,
          (x.ini is null or x.ini <= x.dia - 120) and not coalesce(x.impedido_ate >= x.dia, false),
          (x.ini is null or x.ini <= x.dia - 120) and not coalesce(x.impedido_ate >= x.dia, false)
-           and x.id not in ('u1', 'u2') and x.id is distinct from (select vencedor from anterior),
+           and x.id not in ('u1', 'u2') and not x.director and x.id is distinct from (select vencedor from anterior),
          case when coalesce(x.impedido_ate >= x.dia, false) then 'Impedido até ' || to_char(x.impedido_ate, 'DD-MM-YYYY')
               when x.ini is not null and x.ini > x.dia - 120 then 'Menos de 120 dias de vínculo (desde ' || to_char(x.ini, 'DD-MM-YYYY') || ')'
               when x.id in ('u1', 'u2') then 'Apurador (vota, não é nomeado)'
+              when x.director then 'Director (vota, não é nomeado)'
               when x.id = (select vencedor from anterior) then 'Eleito no mês anterior'
          end
     from x
@@ -170,6 +184,7 @@ begin
     'candidatos', coalesce((select jsonb_agg(jsonb_build_object('id', q.id, 'nome', q.nome, 'funcao', q.funcao, 'area', q.area) order by q.nome)
                               from public.bsp_fm_equipa(v_mes) q where q.nomeavel and q.id <> eu), '[]'::jsonb),
     'apurador', public.bsp_fm_apurador(),
+    'premio', (select valor from public.fm_config where chave = 'premio'),
     'direccao', public.bsp_e_direccao(),
     'historico', coalesce((select jsonb_agg(jsonb_build_object('mes', r.mes, 'mes_nome', public.bsp_fm_mes_nome(r.mes), 'estado', r.estado,
                               'vencedor', r.vencedor, 'publicado_em', r.publicado_em,
@@ -275,6 +290,7 @@ begin
   v_texto := 'Parabéns a ' || coalesce(nome, 'colega') || coalesce(' (' || nullif(funcao, '') || ')', '') || ', eleito(a) pelos colegas Funcionário do Mês de '
     || public.bsp_fm_mes_nome(p_mes) || '.' || E'\n\n'
     || 'A escolha avalia assiduidade e pontualidade, atitude e espírito de equipa, qualidade do trabalho, comprometimento e relacionamento com os utentes.'
+    || coalesce(E'\n\n' || 'Recebe ' || (select valor from public.fm_config where chave = 'premio') || '.', '')
     || E'\n\n' || 'Obrigado a todos os que votaram. A próxima votação decorre a 17 e 18 de '
     || public.bsp_fm_mes_nome((p_mes + interval '1 month')::date) || ', em Equipa → Funcionário do mês.';
   if not exists (select 1 from public.posts where cid = 'fm-' || to_char(p_mes, 'YYYY-MM')) then
@@ -282,6 +298,10 @@ begin
   end if;
   insert into public.novidades (titulo, texto, grupos, destino) values (v_titulo, v_texto, array['todos'], 'directory');
   perform public.bsp_push_post(jsonb_build_object('titulo', v_titulo, 'corpo', 'Parabéns a ' || coalesce(nome, 'colega') || '!', 'url', '#/feed', 'tag', 'fm-' || to_char(p_mes, 'YYYY-MM')));
+  insert into public.novidades (titulo, texto, grupos, destino) values (
+    'Prémio do Funcionário do Mês por entregar', coalesce(nome, 'colega') || ' venceu ' || public.bsp_fm_mes_nome(p_mes) || '. Entregar: '
+      || coalesce((select valor from public.fm_config where chave = 'premio'), 'prémio') || '. O certificado imprime-se em Equipa → Funcionário do mês.',
+    array['u1', 'u2'], 'directory');
   update public.fm_resultados set publicado_em = now() where mes = p_mes;
 end $f$;
 
@@ -366,6 +386,7 @@ begin
     insert into public.novidades (titulo, texto, grupos, destino) values (
       'Funcionário do Mês: votação aberta hoje e amanhã',
       'Escolha o colega que mais se destacou de 1 a 15 de ' || public.bsp_fm_mes_nome(v_mes) || '. Avalie cinco critérios de 1 a 5. '
+        || coalesce('Prémio: ' || (select valor from public.fm_config where chave = 'premio') || '. ', '')
         || 'O voto é confidencial: só a Direcção e a responsável operacional o vêem. Ninguém vota em si próprio e cada um vota uma vez.'
         || E'\n\n' || 'Equipa → Funcionário do mês, até às 23h59 de amanhã. Resultado a 23 de ' || public.bsp_fm_mes_nome(v_mes) || '.',
       array['todos'], 'directory');

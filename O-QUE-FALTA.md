@@ -4954,6 +4954,11 @@ regulamento: 17 a 25, apuramento no 1.º dia útil). Aplicado no servidor
   votos só para o apurador, apuramento antes de 23 recusado, empate decidido
   pela Direcção e publicação no Feed. No navegador (Playwright, 390 px) o
   voto da Juliana e o painel da Arlete.
+- Decisões do Elmar (20-10-2026): «Estão fora da lista de nomeados os
+  directores» (cargo «Director…» ou camada Direcção: o Dr. Osvaldo, além do
+  Elmar e da Arlete; votam). Prémio em dinheiro e certificado de
+  reconhecimento: o texto está só no servidor (`fm_config`, chave `premio`),
+  aparece no ecrã, no aviso de abertura e no anúncio; ao eleger, u1 e u2
+  recebem «Prémio do Funcionário do Mês por entregar».
 - **Por decidir (Elmar):** o regulamento elege a maior média, sem número
-  mínimo de votos (um só voto de 5 vence dez votos de 4,9). Prémio a definir
-  pela Direcção.
+  mínimo de votos (um só voto de 5 vence dez votos de 4,9).
