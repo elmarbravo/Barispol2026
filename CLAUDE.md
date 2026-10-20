@@ -828,8 +828,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   Equipa → Férias e ausências) e só depois marca lido; com mais de 3, resumo
   por pasta. Um tipo de aviso novo leva a sua pasta em `bspAlertaPasta`.
   «Abrir» fecha a janela inteira (07-10-2026, Elmar: «não fecha o pop-up,
-  incomoda»); os restantes ficam no botão «N avisos por abrir» no canto e só
-  um aviso novo reabre a janela (`bsp-avisos-adiados`, por sessão).
+  incomoda»); os restantes ficam numa bandeira com o número na barra de cima, ao lado
+  do sino (`BotaoAvisosAdiados`, 20-10-2026, Elmar: o botão no canto tapava a
+  caixa do Chat; nunca voltar a pô-lo por cima do conteúdo), e só um aviso novo
+  reabre a janela (`bsp-avisos-adiados`, por sessão).
 - Desactivados (05-10-2026, `utilizadores-desactivar.sql`): `inactivo: true` na
   equipa + conta bloqueada (`criar-utilizador` com `desactivar`); fora das listas
   por `bspSemOcultos`, nome nas mensagens por `__bspInactivos`. Nunca apagar

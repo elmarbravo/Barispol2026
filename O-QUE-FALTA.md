@@ -4888,3 +4888,16 @@ Envia para ela um e-mail».
   entrada ela activa a 2FA (app ou e-mail).
 - Sem chave secreta no cofre: a conta não passou pela `criar-utilizador`; foi
   criada por SQL com a mesma forma das contas existentes.
+
+## 3-ho. Avisos adiados na barra de cima (20-10-2026)
+
+Elmar (captura do #DAF): «A posição do botão notificações não está a facilitar o
+trabalho. Coloque-o noutro sítio, num sítio menos importante.» O botão
+flutuante «N avisos por abrir» (canto inferior esquerdo) tapava a caixa de
+escrita do Chat.
+- Agora é uma bandeira com o número (laranja, variável nova `--aviso`) na barra
+  de cima, ao lado do sino, no computador e no telemóvel (`BotaoAvisosAdiados`,
+  eventos `bsp-avisos-contagem` / `bsp-avisos-abrir`). Tocar abre a janela dos
+  avisos como antes.
+- Testado no Playwright a 390 px: bandeira com «2», sem botão em baixo, janela
+  abre ao tocar.

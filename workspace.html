@@ -291,6 +291,7 @@
     --navy-texto: #292F58;
     /* Avisos (27-09-2026): erro e confirmacao, legiveis nos dois modos. */
     --perigo: #B42318;
+    --aviso: #D97706;
     --sucesso: #06713F;
     /* Series dos graficos do Painel (27-09-2026), validadas para
        daltonismo: azul da marca, laranja, verde-agua, amarelo. */
@@ -323,6 +324,7 @@
     --text-3: #858B9E;
     --navy-texto: #C9CFEA;
     --perigo: #F97066;
+    --aviso: #F59E0B;
     --sucesso: #47CD89;
     --serie-1: #2291CE;
     --serie-2: #D95926;
@@ -3726,7 +3728,7 @@ function Topbar({
     onClick: () => onSwitchPage && onSwitchPage('chat')
   }, React.createElement(I.Edit, {
     size: 16
-  })), !bspESocio(currentUser) && React.createElement("button", {
+  })), !bspESocio(currentUser) && React.createElement(BotaoAvisosAdiados, null), !bspESocio(currentUser) && React.createElement("button", {
     title: "Notificações",
     className: "bsp-iconbtn",
     onClick: () => onSwitchPage && onSwitchPage('notifications'),
@@ -18306,9 +18308,36 @@ function bspAbrirPastaAviso(pasta) {
   window.bspIrParaEcra(ecra);
   return true;
 }
+/* Bandeira dos avisos importantes adiados, na barra de cima (20-10-2026). */
+function BotaoAvisosAdiados({ tamanho } = {}) {
+  const [n, setN] = React.useState(window.__bspAvisosAdiados || 0);
+  React.useEffect(() => {
+    const ver = () => setN(window.__bspAvisosAdiados || 0);
+    window.addEventListener('bsp-avisos-contagem', ver);
+    return () => window.removeEventListener('bsp-avisos-contagem', ver);
+  }, []);
+  if (!n) return null;
+  const rotulo = n + (n === 1 ? ' aviso importante por abrir' : ' avisos importantes por abrir');
+  return React.createElement("button", {
+    title: rotulo, 'aria-label': rotulo, className: "bsp-iconbtn",
+    style: Object.assign({ position: 'relative' }, tamanho ? { width: tamanho, height: tamanho } : {}),
+    onClick: () => { try { window.dispatchEvent(new Event('bsp-avisos-abrir')); } catch (e) {} }
+  }, React.createElement(I.Flag, { size: tamanho ? 18 : 16 }), React.createElement("span", {
+    style: { position: 'absolute', top: 2, right: 2, minWidth: 15, height: 15, padding: '0 4px', background: 'var(--aviso)', borderRadius: 999, border: '2px solid var(--surface)', color: '#fff', fontSize: 9, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }
+  }, n > 9 ? '9+' : n));
+}
 function AvisosImportantes({ currentUser }) {
   const [lista, setLista] = React.useState([]);
   const [fechada, setFechada] = React.useState(false);
+  React.useEffect(() => {
+    const abrir = () => setFechada(false);
+    window.addEventListener('bsp-avisos-abrir', abrir);
+    return () => window.removeEventListener('bsp-avisos-abrir', abrir);
+  }, []);
+  React.useEffect(() => {
+    window.__bspAvisosAdiados = fechada ? lista.length : 0;
+    try { window.dispatchEvent(new Event('bsp-avisos-contagem')); } catch (e) {}
+  }, [fechada, lista.length]);
   const primeira = React.useRef(true);
   const vistos = React.useRef({});
   const adiados = React.useRef((() => { try { return JSON.parse(sessionStorage.getItem('bsp-avisos-adiados') || '{}') || {}; } catch (e) { return {}; } })());
@@ -18374,10 +18403,11 @@ function AvisosImportantes({ currentUser }) {
     g.itens.push(a);
   });
   const resumo = lista.length > 3;
-  if (fechada) return ReactDOM.createPortal(React.createElement("button", {
-    onClick: () => setFechada(false), 'aria-label': 'Ver os avisos importantes por abrir',
-    style: { position: 'fixed', left: 12, bottom: 'calc(' + (window.innerWidth < 768 ? 76 : 16) + 'px + env(safe-area-inset-bottom, 0px))', zIndex: 98000, display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 14px', border: '1px solid var(--border)', borderRadius: 999, background: 'var(--surface)', color: 'var(--navy-texto)', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', boxShadow: '0 6px 20px rgba(0,0,0,.18)' }
-  }, React.createElement(I.Bell, { size: 16 }), lista.length + (lista.length === 1 ? ' aviso por abrir' : ' avisos por abrir')), document.body);
+  /* 20-10-2026 (Elmar: «a posição do botão… não está a facilitar o trabalho»):
+     o botão «N avisos por abrir» tapava a caixa de escrita do Chat. Os avisos
+     adiados passam a ser uma bandeira com o número na barra de cima
+     (BotaoAvisosAdiados), ao lado do sino. */
+  if (fechada) return null;
   const linhaGrupo = g => {
     const pn = BSP_ALERTA_PASTAS[g.pasta] || { nome: g.pasta };
     const t = BSP_ALERTA_TIPOS[g.itens[0].tipo] || BSP_ALERTA_TIPOS.tarefa;
@@ -21108,7 +21138,7 @@ function MobileTopbar({
     className: "bsp-iconbtn",
     style: { width: 38, height: 38 },
     "aria-label": "Ver como outra pessoa"
-  }, React.createElement(I.Eye, { size: 18 })), React.createElement("button", {
+  }, React.createElement(I.Eye, { size: 18 })), React.createElement(BotaoAvisosAdiados, { tamanho: 38 }), React.createElement("button", {
     onClick: () => onSwitchPage && onSwitchPage('notifications'),
     className: "bsp-iconbtn",
     style: { width: 38, height: 38, position: 'relative' },
