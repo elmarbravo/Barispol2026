@@ -4901,3 +4901,18 @@ escrita do Chat.
   avisos como antes.
 - Testado no Playwright a 390 px: bandeira com «2», sem botão em baixo, janela
   abre ao tocar.
+
+## 3-hp. «Os documentos desapareceram»: sessões gémeas na 2FA (20-10-2026)
+
+Elmar: «Os documentos todos desapareceram… eu abro e está vazio». Os dados
+estavam intactos (18 documentos, 17 textos, todos os ficheiros; outros postos
+abriram PDF às 10h46–10h48).
+- Causa: no iPhone a entrada saía duas vezes no mesmo segundo → duas sessões.
+  O código do e-mail ficava numa (`mfa_email_sessoes`) e o Workspace usava a
+  outra (aal1). As regras `bsp_mfa_aal2` (RESTRICTIVE) devolviam vazio em tudo
+  o que se lia de novo; o Chat parecia normal por estar guardado no separador.
+  Afectava 5 pessoas (26 sessões) desde 16-10.
+- `mfa-sessoes-gemeas.sql` (aplicado): `bsp_mfa_ok` aceita a sessão se a gémea
+  do mesmo utilizador (criada até 10 s de diferença) foi verificada. Testado
+  com a sessão actual do Elmar: verificada, 18 documentos. Ensaio desfeito.
+- Ecrã: `LoginScreen` ignora um segundo envio durante 4 s (`aEntrar`).

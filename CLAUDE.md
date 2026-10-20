@@ -73,7 +73,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   Duas vias valem (Elmar: «por e-mail ou app»): app (aal2) ou código por e-mail
   (`MfaEmailPasso`, `mfa-email.sql`, `bsp_mfa_ok`; aparelho lembrado 30 dias em
   `bsp-mfa-aparelho`, apagado ao sair).
-  No servidor, `mfa-obrigatoria.sql` (regra aal2). Terminar a sessão de todos:
+  No servidor, `mfa-obrigatoria.sql` (regra aal2). Sessões gémeas (20-10-2026,
+  `mfa-sessoes-gemeas.sql`): a entrada no iPhone saía duas vezes; `bsp_mfa_ok`
+  aceita a gémea verificada (10 s) e a entrada ignora o 2.º envio (`aEntrar`). Terminar a sessão de todos:
   mudar `BSP_SESSAO_GERACAO` e correr `sessoes-terminar.sql`. Workspace a mudar para `ws.barispol.com` (aprovado pelo Elmar; o site
   já não liga à equipa): um host novo entra na CSP, nas `ORIGENS_PERMITIDAS` e
   no `PERMITIDOS` da app PC. O fluxo «Verificar» confirma a sintaxe a cada push.

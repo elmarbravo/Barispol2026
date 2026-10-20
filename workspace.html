@@ -7652,8 +7652,13 @@ function LoginScreen({
     setShake(true);
     setTimeout(() => setShake(false), 500);
   };
+  /* 20-10-2026: no iPhone a entrada saía duas vezes no mesmo segundo
+     (preenchimento automático + envio), duas sessões, e a 2FA ficava na outra
+     (mfa-sessoes-gemeas.sql). Um segundo envio com o primeiro a correr ignora-se. */
+  const aEntrar = React.useRef(false);
   const submit = async e => {
     e && e.preventDefault();
+    if (aEntrar.current) return;
     setErr('');
     setInfo('');
     const norm = email.trim().toLowerCase();
@@ -7662,6 +7667,8 @@ function LoginScreen({
       setErr('O servidor ainda não está ligado neste dispositivo. Peça ao administrador o endereço e a chave, e introduza-os no ecrã de ligação.');
       return;
     }
+    aEntrar.current = true;
+    setTimeout(() => { aEntrar.current = false; }, 4000);
     setBusy(true);
     try {
       const {
