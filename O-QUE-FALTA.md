@@ -5046,3 +5046,16 @@ Avisos de credenciais e de pagamento dos médicos abrem o separador certo
 (`__bspMedicosAba`). Sem mudanças no servidor. Testado no navegador
 (Playwright) com o Dr. Osvaldo (7 médicos para avaliar), a Arlete (com
 Pagamentos), a Dra. Creusa (só o que é seu) e a Juliana (sem o menu).
+
+## 3-hw. Funcionário do Mês: médicos fora dos nomeados; voto em papel (21-10-2026)
+
+Pedidos da Arlete (via Elmar): «pode retirar os nomes dos médicos no campo do
+funcionário do mês?» e «os nomes das técnicas de Raio-X não aparecem ao
+seleccionar quem votou».
+- `bsp_fm_equipa` (aplicado): médicos (código MetaGest ou cargo de médico,
+  pediatra, imagiologista) votam mas não são nomeados (motivo «Médico»).
+- Voto em papel: a lista mostra também quem ainda não pode votar, a cinzento
+  e com o motivo. As técnicas de Raio-X (Dra. Joana Tati, Dra. Neusa Chimi)
+  estavam de fora porque a conta só existe desde 24 e 29-09 e ninguém pôs a
+  data de admissão (`fm_pessoas` vazio): corrige-se em «Quem pode votar e ser
+  nomeado» → «Alterar».

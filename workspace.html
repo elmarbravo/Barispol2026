@@ -28320,7 +28320,9 @@ function FuncionarioMesPainel() {
   const ultimo = (est.historico || []).find(h => h.estado === 'eleito');
   const formulario = (est.fase === 'votacao' && est.vota && !est.meu_voto) || papel;
   const candidatos = (est.candidatos || []).filter(c => !papel || c.id !== f.votante);
-  const votantesPapel = ap && ap.equipa ? ap.equipa.filter(q => q.vota && !(ap.votos || []).some(v => v.votante === q.id)) : [];
+  /* Quem ainda não pode votar aparece a cinzento, com o motivo (21-10-2026, Arlete:
+     «os nomes das técnicas de Raio-X não aparecem ao seleccionar quem votou»). */
+  const votantesPapel = ap && ap.equipa ? ap.equipa.filter(q => !(ap.votos || []).some(v => v.votante === q.id)) : [];
   const meses = [];
   { const d = new Date(est.mes + 'T12:00:00'); for (let i = 0; i < 12; i++) { const x = new Date(d.getFullYear(), d.getMonth() - i, 1, 12); meses.push(bspDataLocalISO(x).slice(0, 8) + '01'); } }
   const res = ap && ap.resultado;
@@ -28333,7 +28335,7 @@ function FuncionarioMesPainel() {
       React.createElement("div", { style: { fontSize: 16, fontWeight: 700, color: 'var(--navy-texto)' } }, 'Funcionário do Mês · ' + est.mes_nome),
       React.createElement("div", { style: { fontSize: 13.5, color: 'var(--text-1)', marginTop: 4 } }, fases[est.fase]),
       React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', marginTop: 6 } },
-        'Cada colega escolhe quem mais se destacou e avalia cinco critérios de 1 a 5. Um voto por mês; ninguém vota em si próprio. ' +
+        'Cada colega escolhe quem mais se destacou e avalia cinco critérios de 1 a 5. Um voto por mês; ninguém vota em si próprio. Os médicos votam, mas não são nomeados. ' +
         'O voto é confidencial: só a Direcção e a responsável operacional o vêem. Vota e é nomeado quem tem 120 dias de vínculo e não tem processo disciplinar em curso; os directores votam, mas não são nomeados; quem venceu no mês anterior não pode ser eleito.'),
       est.premio && React.createElement("div", { style: { fontSize: 13.5, fontWeight: 700, color: 'var(--text-1)', marginTop: 6 } }, 'Prémio: ' + est.premio + '.')),
     ultimo && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }) },
@@ -28350,7 +28352,8 @@ function FuncionarioMesPainel() {
       React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 } }, papel ? 'Registar voto em papel' : 'O meu voto'),
       papel && React.createElement("label", { style: { display: 'block', marginBottom: 10 } }, rot('Quem votou (formulário em papel)'),
         React.createElement("select", { value: f.votante, onChange: e => setF(Object.assign({}, f, { votante: e.target.value, nomeado: f.nomeado === e.target.value ? '' : f.nomeado })), style: bspTranspCampo },
-          React.createElement("option", { value: '' }, 'Escolha…'), votantesPapel.map(q => React.createElement("option", { key: q.id, value: q.id }, q.nome)))),
+          React.createElement("option", { value: '' }, 'Escolha…'), votantesPapel.map(q => React.createElement("option", { key: q.id, value: q.id, disabled: !q.vota }, q.nome + (q.vota ? '' : ' — ' + (q.motivo || 'não pode votar')))))),
+      papel && votantesPapel.some(q => !q.vota) && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-2)', margin: '-4px 0 10px' } }, 'Quem aparece a cinzento ainda não pode votar. Se a data estiver errada, corrija a data de admissão em «Quem pode votar e ser nomeado», mais abaixo.'),
       React.createElement("label", { style: { display: 'block', marginBottom: 12 } }, rot('Colega que nomeio'),
         React.createElement("select", { value: f.nomeado, onChange: e => setF(Object.assign({}, f, { nomeado: e.target.value })), style: bspTranspCampo },
           React.createElement("option", { value: '' }, 'Escolha…'), candidatos.map(c => React.createElement("option", { key: c.id, value: c.id }, c.nome + (c.funcao ? ' · ' + c.funcao : ''))))),

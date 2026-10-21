@@ -20,6 +20,8 @@
 -- Processo disciplinar: fm_pessoas.impedido_ate, sem motivo escrito.
 -- Fora da votação: sócios, ocultos, desactivados, a conta de teste (semEmails) e
 -- os apuradores como nomeados (votam, mas não são nomeados).
+-- Médicos fora dos nomeados (21-10-2026, Arlete: «pode retirar os nomes dos
+-- médicos no campo do funcionário do mês?»): código MetaGest ou cargo de médico.
 -- Directores fora dos nomeados (Elmar, 20-10-2026: «Estão fora da lista de
 -- nomeados os directores»): cargo «Director…» ou camada Direcção; votam.
 -- Prémio (Elmar, 20-10-2026): valor em dinheiro e certificado de reconhecimento.
@@ -104,6 +106,7 @@ as $f$
   equipa as (
     select e->>'id' id, e->>'name' nome, coalesce(e->>'role', '') funcao, coalesce(e->>'dept', '') area,
            (coalesce(e->>'role', '') ~* '^\s*director' or e->>'accessLevel' = 'Direcção') director,
+           (jsonb_array_length(coalesce(e->'metagest', '[]'::jsonb)) > 0 or coalesce(e->>'role', '') ~* '(m[ée]dic|pediatra|imagiolog)') medico,
            p.admissao, p.impedido_ate,
            case when (e->>'id') ~ '^u\d{13}$' then (to_timestamp(substr(e->>'id', 2)::bigint / 1000.0) at time zone 'Africa/Luanda')::date end conta
       from shared_state s cross join jsonb_array_elements(coalesce(s.team, '[]'::jsonb)) e
@@ -123,11 +126,12 @@ as $f$
   select x.id, x.nome, x.funcao, x.area, x.ini, x.fonte_, x.impedido_ate,
          (x.ini is null or x.ini <= x.dia - 120) and not coalesce(x.impedido_ate >= x.dia, false),
          (x.ini is null or x.ini <= x.dia - 120) and not coalesce(x.impedido_ate >= x.dia, false)
-           and x.id not in ('u1', 'u2') and not x.director and x.id is distinct from (select vencedor from anterior),
+           and x.id not in ('u1', 'u2') and not x.director and not x.medico and x.id is distinct from (select vencedor from anterior),
          case when coalesce(x.impedido_ate >= x.dia, false) then 'Impedido até ' || to_char(x.impedido_ate, 'DD-MM-YYYY')
               when x.ini is not null and x.ini > x.dia - 120 then 'Menos de 120 dias de vínculo (desde ' || to_char(x.ini, 'DD-MM-YYYY') || ')'
               when x.id in ('u1', 'u2') then 'Apurador (vota, não é nomeado)'
               when x.director then 'Director (vota, não é nomeado)'
+              when x.medico then 'Médico (vota, não é nomeado)'
               when x.id = (select vencedor from anterior) then 'Eleito no mês anterior'
          end
     from x
