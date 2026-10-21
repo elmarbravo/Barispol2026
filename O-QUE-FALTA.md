@@ -4994,3 +4994,17 @@ Laboratório e Imagiologia, mais a Direcção Clínica e a gestão: a partir de
 Pedido à Arlete (NIF e IBAN do Dr. Mário; mínimo de votos do Funcionário do
 Mês) por e-mail de geral@, assinado pelo sistema, resposta para o Elmar;
 verificação às 16h00.
+
+## 3-ht. Cópia de segurança do Workspace por e-mail (21-10-2026)
+
+Elmar: «envie o backup para o meu e-mail Elmar.bravo@hotmail.com; e-mail
+assinado pelo sistema»; opção 1 («só o Workspace»). Edge Function nova
+`copia-workspace` (versão 1, verificação de JWT desligada, só com o código do
+agendamento): lê 43 tabelas do Workspace, faz um ZIP com um JSON por tabela e
+envia pela Resend de geral@, assinado «Sistema · Workspace Barispol». O destino
+vai no corpo do pedido, nunca no código. Fora: utentes, marcações, inquéritos,
+registo clínico, facturação, pagamentos, salários, avaliações, registos de
+acesso, sessões e chaves; os ficheiros do Drive e dos Documentos também não.
+Primeiro envio a 21-10-2026. **Por fazer:** a cópia semanal para a pasta
+Barispol da Drive do Elmar (precisa de credenciais Google na função) ou um
+agendamento semanal deste mesmo e-mail, se o Elmar quiser.
