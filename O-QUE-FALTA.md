@@ -4962,3 +4962,23 @@ regulamento: 17 a 25, apuramento no 1.º dia útil). Aplicado no servidor
   recebem «Prémio do Funcionário do Mês por entregar».
 - **Por decidir (Elmar):** o regulamento elege a maior média, sem número
   mínimo de votos (um só voto de 5 vence dez votos de 4,9).
+
+## 3-hr. OWASP: A01, A06, A07 e A09 (21-10-2026)
+
+Elmar: «OWASP avance».
+- **A06 (feito, publicado):** o leitor de PDF abre com `isEvalSupported: false`
+  (PDF.js 3.11, falha CVE-2024-4367).
+- **A07 «Repor 2FA» (ecrã publicado, servidor por aplicar):** botão com o
+  escudo em Admin → Pessoas, só para a gestão e nunca à própria conta.
+  `mfa-repor.sql` (`bsp_mfa_repor`): tira o factor TOTP, os aparelhos
+  lembrados e as sessões verificadas por e-mail, e termina as sessões. Até
+  aplicar, o botão responde com erro.
+- **A01 (por aplicar):** `grupos-guarda.sql` substitui o
+  `bsp_estado_canais_guarda`. Quem não é da gestão só muda um grupo se for
+  membro ou o tiver criado, só apaga os que criou, e um grupo novo fica com o
+  seu `criadoPor`. O que não pode mudar fica como estava, sem erro.
+- **A09 (por aplicar, no mesmo ficheiro):** uma gravação que tire 2 ou mais
+  grupos, entradas do Drive ou pessoas da equipa avisa a gestão (novidade e
+  telemóvel a u1 e u2, etiqueta `vigilancia-estado`).
+- **Por aplicar quando o conector do Supabase voltar:** `mfa-repor.sql` e
+  `grupos-guarda.sql`, com testes por sessões simuladas.

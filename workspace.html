@@ -5419,7 +5419,9 @@ function LeitorPdf({ url }) {
   React.useEffect(() => {
     let vivo = true;
     setEstado('A abrir o PDF…');
-    bspCarregarPdfJs().then(lib => lib.getDocument({ url: url }).promise).then(doc => {
+    /* isEvalSupported: false (21-10-2026, OWASP A06): o PDF.js 3.11 tem a falha
+       CVE-2024-4367 (um PDF preparado corre código pelas fontes). */
+    bspCarregarPdfJs().then(lib => lib.getDocument({ url: url, isEvalSupported: false }).promise).then(doc => {
       if (!vivo) return;
       docRef.current = doc;
       setEstado('');
@@ -19387,6 +19389,16 @@ function AdminUsers() {
     if (desactivar) { try { await bspGetClient().rpc('bsp_utilizador_desactivado', { p_id: u.id }); } catch (e) {} }
     toast(desactivar ? u.name + ' foi desactivado.' : u.name + ' foi reactivado.');
   }
+  /* Repor 2FA (21-10-2026, mfa-repor.sql): para quem perdeu o telemóvel. Tira
+     o factor, os aparelhos lembrados e as sessões; na entrada seguinte a
+     pessoa inscreve-se de novo ou usa o código por e-mail. */
+  async function reporMfa(u) {
+    if (u.id === meId) { toast('Não pode repor a sua própria verificação.'); return; }
+    if (!window.confirm('Repor a verificação em dois passos de ' + u.name + '? A sessão termina em todos os aparelhos e, na próxima entrada, a pessoa volta a ligar a app de autenticação ou usa o código por e-mail.')) return;
+    const r = await bspGetClient().rpc('bsp_mfa_repor', { p_id: u.id });
+    if (r.error) { toast('Não foi possível: ' + r.error.message); return; }
+    toast('Verificação reposta. ' + bspNomeProprio(u.name) + ' volta a configurá-la na próxima entrada.');
+  }
   function remove(u) {
     /* Antes era o nome 'Direcção' à letra. Com camadas editáveis, o que
        interessa é não deixar a plataforma sem ninguém que a administre. */
@@ -19567,6 +19579,17 @@ function AdminUsers() {
     'aria-label': u.inactivo ? "Reactivar" : "Desactivar",
     onClick: () => alternarActivo(u)
   }, React.createElement(u.inactivo ? I.Check : I.X, {
+    size: 13
+  })), !u.inactivo && u.id !== meId && React.createElement("button", {
+    className: "bsp-iconbtn",
+    style: {
+      width: 28,
+      height: 28
+    },
+    title: "Repor 2FA (perdeu o telemóvel)",
+    'aria-label': "Repor 2FA",
+    onClick: () => reporMfa(u)
+  }, React.createElement(I.Shield, {
     size: 13
   })), React.createElement("button", {
     className: "bsp-iconbtn",
