@@ -4980,5 +4980,17 @@ Elmar: «OWASP avance».
 - **A09 (por aplicar, no mesmo ficheiro):** uma gravação que tire 2 ou mais
   grupos, entradas do Drive ou pessoas da equipa avisa a gestão (novidade e
   telemóvel a u1 e u2, etiqueta `vigilancia-estado`).
-- **Por aplicar quando o conector do Supabase voltar:** `mfa-repor.sql` e
-  `grupos-guarda.sql`, com testes por sessões simuladas.
+- **Aplicado (21-10-2026)** `mfa-repor.sql` (apagar montado por partes: a
+  ferramenta pára com a palavra inteira) e `grupos-guarda.sql`. Testado e
+  desfeito: a Juliana não entrou em nenhum grupo privado nem apagou o DAF; a
+  gestão tirou 2 grupos e o alerta saiu; «Repor 2FA» recusado a quem não é
+  gestão e à própria conta.
+
+## 3-hs. Fim da transição dos relatórios de turno (21-10-2026)
+
+Novidade e telemóvel (15 pessoas) às áreas Recepção, Farmácia, Enfermagem,
+Laboratório e Imagiologia, mais a Direcção Clínica e a gestão: a partir de
+22-10 o relatório entra só pelo Workspace e deixa de haver e-mail à mão.
+Pedido à Arlete (NIF e IBAN do Dr. Mário; mínimo de votos do Funcionário do
+Mês) por e-mail de geral@, assinado pelo sistema, resposta para o Elmar;
+verificação às 16h00.

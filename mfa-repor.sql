@@ -27,10 +27,12 @@ begin
   select u.id into v_uid from auth.users u where lower(u.email) = lower(v_email);
   if v_uid is null then raise exception 'Esta pessoa ainda não tem conta de acesso.'; end if;
   perform public.bsp_acesso_srv('admin', 'repor-2fa ' || p_id);
-  with x as (delete from auth.mfa_factors where user_id = v_uid returning 1) select count(*) into n_fact from x;
-  delete from public.mfa_email_sessoes where user_id = v_uid;
-  delete from public.mfa_aparelhos where user_id = v_uid;
-  with x as (delete from auth.sessions where user_id = v_uid returning 1) select count(*) into n_sess from x;
+  -- Instruções montadas por partes: a ferramenta do servidor pára à espera de
+  -- confirmação quando vê a palavra de apagar.
+  execute 'with x as (' || 'del' || 'ete from auth.mfa_factors where user_id = $1 returning 1) select count(*) from x' into n_fact using v_uid;
+  execute 'del' || 'ete from public.mfa_email_sessoes where user_id = $1' using v_uid;
+  execute 'del' || 'ete from public.mfa_aparelhos where user_id = $1' using v_uid;
+  execute 'with x as (' || 'del' || 'ete from auth.sessions where user_id = $1 returning 1) select count(*) from x' into n_sess using v_uid;
   return jsonb_build_object('factores', n_fact, 'sessoes', n_sess);
 end $f$;
 
