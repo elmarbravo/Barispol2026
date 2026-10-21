@@ -2916,7 +2916,7 @@ const NAV_ITEMS = [{
   /* A minha actividade (30-09-2026) e Registo clinico (05-10-2026) num so
      menu, com separadores (Elmar, 05-10-2026: «tem muita coisa espalhada»). */
   id: 'actividade',
-  label: 'Actividade e registo',
+  label: 'Equipa médica',
   icon: 'TrendUp',
   badge: null,
   actividadeOnly: true
@@ -3612,7 +3612,7 @@ function Topbar({
     'painel-clinico': 'Painel clínico',
     relatorios: 'Relatórios do dia',
     documentos: 'Documentos da clínica',
-    actividade: 'Actividade e registo',
+    actividade: 'Equipa médica',
     directory: 'Equipa',
     avarias: 'Serviços gerais',
     qualidade: 'Qualidade',
@@ -21127,7 +21127,7 @@ function MobileTopbar({
     'painel-clinico': 'Painel clínico',
     relatorios: 'Relatórios',
     documentos: 'Documentos',
-    actividade: 'Actividade e registo',
+    actividade: 'Equipa médica',
     admin: 'Admin',
     notifications: 'Notificações',
     directory: 'Equipa',
@@ -21478,7 +21478,7 @@ function MobileMore({
     icon: 'File'
   }, {
     id: 'actividade',
-    label: 'Actividade e registo',
+    label: 'Equipa médica',
     icon: 'TrendUp'
   }, {
     id: 'documentos',
@@ -26670,20 +26670,42 @@ function RegistoClinicoScreen({ currentUser }) {
       ? React.createElement(RegistoClinicoDia, { key: alvo + dia, dia, setDia, alvo, proprio, escolhe, gestor, toast, escolhaMedico, voltar: () => setAba('comparar') })
       : React.createElement(RegistoClinicoComparar, { escolhe, alvo: escolhe ? '' : currentUser.id, abrir })));
 }
-/* Menu dos médicos (05-10-2026, Elmar: «podes juntar a actividade com esse
-   menu novo dos médicos? tem muita coisa espalhada»): «A minha actividade» e
-   «Registo clínico» como separadores do mesmo ecrã. A rota antiga «registo»
-   abre aqui, no separador do registo. */
+/* Equipa médica (21-10-2026, Elmar: «criar um módulo "Equipa Médica" para
+   adicionar todas as informações relacionadas a eles»). Era o menu dos médicos
+   (05-10-2026: «A minha actividade» e «Registo clínico»); junta agora as
+   credenciais, as presenças, a avaliação dos médicos e o pagamento, que
+   estavam em Equipa e em Utentes. Rota 'actividade' (a antiga «registo» abre no
+   separador do registo). Quem vê cada separador é o mesmo de antes:
+   credenciais bspVeCredenciais, presenças e escolha de médico
+   bspEscolheMedicoActividade, pagamento bspVeSalarios. */
+function bspEMedico(u) {
+  if (!u || bspESocio(u)) return false;
+  return (Array.isArray(u.metagest) && u.metagest.length > 0) || /(m[ée]dic|pediatra|imagiolog|director cl[ií]nico)/i.test(String(u.role || ''));
+}
 function MedicosScreen({ currentUser, inicial }) {
-  const [aba, setAba] = React.useState(inicial === 'registo' ? 'registo' : 'actividade');
+  const pedida = window.__bspMedicosAba || inicial;
+  const [aba, setAba] = React.useState(['registo', 'medicos', 'presencas', 'avaliacao', 'pagamentos'].indexOf(pedida) !== -1 ? pedida : 'actividade');
+  React.useEffect(() => { window.__bspMedicosAba = null; }, []);
   useBspAbaVoltar(aba, setAba);
   const escolhe = bspEscolheMedicoActividade(currentUser);
+  const abas = [
+    bspVeCredenciais(currentUser) && ['medicos', escolhe ? 'Médicos e credenciais' : 'As minhas credenciais'],
+    escolhe && ['presencas', 'Presenças'],
+    ['actividade', escolhe ? 'Actividade' : 'A minha actividade'],
+    ['registo', 'Registo clínico'],
+    ['avaliacao', 'Avaliação'],
+    bspVeSalarios(currentUser) && ['pagamentos', 'Pagamentos']
+  ].filter(Boolean);
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 } },
     React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap', padding: '0 0 10px' } },
-      React.createElement("button", { onClick: () => setAba('actividade'), style: bspEscChip(aba === 'actividade') }, escolhe ? 'Actividade' : 'A minha actividade'),
-      React.createElement("button", { onClick: () => setAba('registo'), style: bspEscChip(aba === 'registo') }, 'Registo clínico')),
-    React.createElement("div", { style: { flex: 1, minHeight: 0 } },
-      aba === 'registo' ? React.createElement(RegistoClinicoScreen, { currentUser }) : React.createElement(ActividadeScreen, { currentUser })));
+      abas.map(([id, txt]) => React.createElement("button", { key: id, onClick: () => setAba(id), style: bspEscChip(aba === id) }, txt))),
+    React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: aba === 'actividade' || aba === 'registo' ? 'visible' : 'auto', paddingBottom: 12 } },
+      aba === 'registo' ? React.createElement(RegistoClinicoScreen, { currentUser })
+      : aba === 'medicos' && bspVeCredenciais(currentUser) ? React.createElement(MedicosCredenciaisPainel, null)
+      : aba === 'presencas' && escolhe ? React.createElement(PresencasMedicos, null)
+      : aba === 'avaliacao' ? React.createElement(AvaliacaoPainel, { grupo: 'medicos' })
+      : aba === 'pagamentos' && bspVeSalarios(currentUser) ? React.createElement(PagamentoMedicosPainel, null)
+      : React.createElement(ActividadeScreen, { currentUser })));
 }
 /* Rascunho por médico e dia, só nesta sessão (sessionStorage: nunca dados
    clínicos no localStorage de um computador partilhado). Mudar de dia ou de
@@ -27232,9 +27254,12 @@ const BSP_GUIA_FICHAS = [
     ],
     quem: 'Todos preenchem. Lêem: Direcção e Coordenação (tudo) e Direcção Clínica (áreas médicas).',
     dica: 'Nunca escreva nomes de utentes no relatório. Cada relatório segue por e-mail para a Arlete.' },
-  { icone: 'TrendUp', nome: 'Actividade e registo',
-    serve: 'Para cada médico, a sua própria produção na clínica e o registo clínico de cada dia, em dois separadores.',
+  { icone: 'TrendUp', nome: 'Equipa médica',
+    serve: 'Tudo o que diz respeito aos médicos num só sítio: credenciais, presenças, actividade, registo clínico, avaliação e pagamentos. Cada médico vê só o que é seu.',
     faz: [
+      ['Em «Médicos e credenciais», veja as validades', 'da cédula, do seguro e do contrato de cada médico.'],
+      ['Em «Presenças», confira as chegadas e saídas', 'marcadas pela Recepção.'],
+      ['Em «Avaliação», avalie os médicos', '(Direcção Clínica e gestão) ou leia a sua avaliação.'],
       ['No separador «Registo clínico», escreva o que fez em cada dia:', 'motivo e diagnóstico já vêm do MetaGest; confirme, complete a conduta e o destino, e submeta.'],
       ['Veja doentes, consultas, exames e facturas', 'do período: hoje, semana, mês, ano ou as datas que escolher.'],
       ['Filtre por serviço', '(consultas, ecografia, laboratório...): só contam as facturas desse serviço.'],
@@ -28414,18 +28439,16 @@ function EquipaScreen() {
   return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflow: 'hidden' } },
     React.createElement("div", { style: { display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', flex: 'none', overflowX: 'auto' } },
       aba_('contactos', 'Contactos'), aba_('ausencias', 'Férias e ausências'), aba_('formacoes', 'Formações'),
-      bspVeCredenciais(window.userById(window.CURRENT_USER_ID)) && aba_('medicos', 'Médicos e credenciais'), aba_('integracao', 'Integração'), aba_('avaliacao', 'Avaliação'), aba_('produtividade', 'Produtividade'), aba_('funcionario', 'Funcionário do mês'),
-      bspVeSalarios(window.userById(window.CURRENT_USER_ID)) && aba_('pagamentos', 'Pagamento dos médicos')),
+      aba_('integracao', 'Integração'), aba_('avaliacao', 'Avaliação'), aba_('produtividade', 'Produtividade'), aba_('funcionario', 'Funcionário do mês')),
     React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: 'auto', paddingBottom: 12 } },
       aba === 'contactos' && React.createElement(DirectoryScreen, null),
       aba === 'ausencias' && React.createElement(AusenciasPainel, null),
       aba === 'formacoes' && React.createElement(FormacoesPainel, null),
-      aba === 'medicos' && bspVeCredenciais(window.userById(window.CURRENT_USER_ID)) && React.createElement(MedicosCredenciaisPainel, null),
       aba === 'integracao' && React.createElement(IntegracaoPainel, null),
       aba === 'avaliacao' && React.createElement(AvaliacaoPainel, null),
       aba === 'produtividade' && React.createElement(ProdutividadePainel, null),
       aba === 'funcionario' && React.createElement(FuncionarioMesPainel, null),
-      aba === 'pagamentos' && bspVeSalarios(window.userById(window.CURRENT_USER_ID)) && React.createElement(PagamentoMedicosPainel, null)));
+      (aba === 'medicos' || aba === 'pagamentos') && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13.5, color: 'var(--text-1)' }) }, 'Passou para o menu «Equipa médica».')));
 }
 
 const BSP_CREDENCIAIS_TIPOS = ['Cédula profissional', 'Quota da Ordem dos Médicos', 'Seguro de responsabilidade civil', 'Contrato', 'Suporte básico de vida', 'Suporte avançado de vida', 'Título de especialidade', 'Outro'];
@@ -28463,6 +28486,8 @@ function bspAvaliaPessoa(eu, x) {
   if (!eu || !x || eu.id === x.id || bspESocio(x)) return false;
   if (bspCamada(eu).podeGerirUtilizadores) return true;
   if (x.superior === eu.id) return true;
+  /* A Direcção Clínica avalia todos os médicos (igual a bsp_avalia no servidor). */
+  if (BSP_DIRECCAO_CLINICA_IDS.indexOf(eu.id) !== -1 && bspEMedico(x)) return true;
   return BSP_ESCALA_CHEFIA.test(String(eu.role || '')) && !!eu.dept && bspAreaChave(eu.dept) === bspAreaChave(x.dept);
 }
 function bspAvaliacaoFolha(pessoa, ano, a, modelo) {
@@ -28479,7 +28504,9 @@ function bspAvaliacaoFolha(pessoa, ano, a, modelo) {
     '<p style="margin-top:30px">Avaliador(a): ____________________________ &nbsp; Colaborador: ____________________________</p>' +
     '<p style="color:#4E5366">Clínica Barispol, Lda. · documento interno, confidencial.</p></body></html>';
 }
-function AvaliacaoPainel() {
+function AvaliacaoPainel({ grupo } = {}) {
+  /* Médicos na Equipa médica, os outros em Equipa (21-10-2026). */
+  const doGrupo = x => grupo === 'medicos' ? bspEMedico(x) : !bspEMedico(x);
   const toast = useToast();
   const eu = window.userById(window.CURRENT_USER_ID);
   const anoActual = new Date().getFullYear();
@@ -28491,8 +28518,8 @@ function AvaliacaoPainel() {
   const [comentario, setComentario] = React.useState('');
   const modelo = (md.linhas || []).slice().sort((a, b) => a.ordem - b.ordem);
   const daAno = (av.linhas || []).filter(a => a.ano === ano);
-  const minha = daAno.find(a => a.user_id === (eu && eu.id) && a.estado !== 'Rascunho');
-  const pessoas = bspSemOcultos(window.USERS || []).filter(x => bspAvaliaPessoa(eu, x)).sort((a, b) => bspCompararTexto(a.name, b.name));
+  const minha = eu && doGrupo(eu) ? daAno.find(a => a.user_id === eu.id && a.estado !== 'Rascunho') : null;
+  const pessoas = bspSemOcultos(window.USERS || []).filter(x => bspAvaliaPessoa(eu, x) && doGrupo(x)).sort((a, b) => bspCompararTexto(a.name, b.name));
   function abrir(x) {
     const a = daAno.find(v => v.user_id === x.id) || {};
     setForm({ pessoa: x, factores: Object.assign({}, a.factores || {}), aprovada: a.aprovada == null ? null : a.aprovada, comentarios: a.comentarios || '', estado: a.estado || 'Novo' });
@@ -28527,7 +28554,7 @@ function AvaliacaoPainel() {
   const anos = [anoActual, anoActual - 1, anoActual - 2];
   const cab = React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } },
     anos.map(a => React.createElement("button", { key: a, onClick: () => { setAno(a); setForm(null); }, style: bspEscChip(ano === a) }, String(a))),
-    React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Formulário «Avaliação de Desempenho – Barispol» (RI-5.3).'));
+    React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Formulário «Avaliação de Desempenho – Barispol» (RI-5.3).' + (grupo === 'medicos' ? ' Só os médicos.' : ' Os médicos são avaliados em Equipa médica.')));
   if (md.linhas && !modelo.length) return React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, 'O modelo da avaliação ainda não está no servidor.');
   if (form) {
     const ap = apoio || {};
@@ -28569,7 +28596,7 @@ function AvaliacaoPainel() {
         React.createElement("textarea", { rows: 2, value: comentario, placeholder: 'O seu comentário (opcional)', onChange: e => setComentario(e.target.value), style: Object.assign({}, bspTranspCampo, { height: 'auto', padding: 10 }) }),
         React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end' } }, React.createElement("button", { onClick: tomeiConhecimento, style: bspEscBotao(true) }, 'Tomei conhecimento')))
         : React.createElement("div", { style: { fontSize: 12.5, color: 'var(--sucesso)', fontWeight: 700 } }, 'Tomou conhecimento a ' + bspDataExacta(new Date(minha.conhecimento_em)) + '.')),
-    !minha && !pessoas.length && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, 'A sua avaliação de ' + ano + ' ainda não está disponível.'),
+    !minha && !pessoas.length && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { fontSize: 13, color: 'var(--text-3)' }) }, eu && !doGrupo(eu) ? (grupo === 'medicos' ? 'Esta lista é só dos médicos.' : 'A sua avaliação está em Equipa médica → Avaliação.') : 'A sua avaliação de ' + ano + ' ainda não está disponível.'),
     pessoas.length > 0 && React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)' } }, 'Quem avalia em ' + ano + ' (' + daAno.filter(a => a.estado !== 'Rascunho' && pessoas.some(p => p.id === a.user_id)).length + ' de ' + pessoas.length + ' concluídas)'),
     pessoas.map(x => {
       const a = daAno.find(v => v.user_id === x.id);
@@ -32278,6 +32305,12 @@ function App() {
       const d = String(n.destino || '');
       if (d === 'directory' && /f[ée]rias|aus[êe]ncia|licen|doen|falta/i.test(String(n.text || '') + ' ' + String(n.preview || ''))) window.__bspEquipaAba = 'ausencias';
       if (d === 'directory' && /Funcion[áa]rio do M[êe]s/i.test(String(n.text || '') + ' ' + String(n.preview || ''))) window.__bspEquipaAba = 'funcionario';
+      /* Credenciais e pagamento dos médicos passaram para a Equipa médica (21-10-2026). */
+      if (d === 'directory' && /credencia|pagamento dos m[ée]dicos/i.test(String(n.text || '') + ' ' + String(n.preview || ''))) {
+        window.__bspMedicosAba = /credencia/i.test(String(n.text || '') + ' ' + String(n.preview || '')) ? 'medicos' : 'pagamentos';
+        setPage('actividade');
+        return;
+      }
       /* Os toners passaram para Logística e stock (07-10-2026). */
       if ((d === 'avarias' || d === 'stock') && /toner/i.test(String(n.text || '') + ' ' + String(n.preview || ''))) {
         window.__bspStockAba = 'toners';

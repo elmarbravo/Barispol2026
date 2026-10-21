@@ -634,6 +634,11 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   copiado do MetaGest todos os dias; validades em `credenciais` (gestão e
   u14 registam, cada médico lê as suas); avisos por `bsp_credenciais_alertar`
   nas novidades. Ecrã Equipa → `MedicosCredenciaisPainel`.
+- Equipa médica (21-10-2026, Elmar: «criar um módulo "Equipa Médica"»): a rota
+  `actividade` chama-se «Equipa médica» (`MedicosScreen`): credenciais,
+  presenças, actividade, registo clínico, avaliação só dos médicos
+  (`bspEMedico`) e pagamentos (u1/u2). Em Equipa ficam os outros; nunca voltar a
+  pôr credenciais nem pagamentos dos médicos em Equipa.
 - Menus (07-10-2026, Elmar: «o separador Avarias teria de trocar de nome»): a rota
   `avarias` chama-se «Serviços gerais» (Avarias, Equipamentos e
   manutenção, Gerador; aprovado pelo Elmar); a rota `stock` chama-se «Logística e stock»

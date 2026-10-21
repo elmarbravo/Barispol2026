@@ -5025,3 +5025,24 @@ chefia (13 na Administração, 16 com chefia). No ecrã: `bspAvalFamilias` /
 `bspAvalModeloDe` (mudar com o servidor), grupos «Critérios gerais», «Critérios
 da função» e «Chefia», numeração seguida; a folha impressa igual. As avaliações
 já concluídas não mudam. **Por fazer:** a Arlete (RH) rever os textos.
+
+## 3-hv. Módulo «Equipa médica» (21-10-2026)
+
+Elmar: «os médicos não podem passar para outro grupo? … Ou pode-se criar um
+módulo "Equipa Médica"»; «Sim faça». O menu «Actividade e registo» (rota
+`actividade`, mesmo acesso: `bspVeActividade`) passa a «Equipa médica»
+(`MedicosScreen`), com separadores:
+- «Médicos e credenciais» / «As minhas credenciais» (`MedicosCredenciaisPainel`,
+  `bspVeCredenciais`), que saiu de Equipa;
+- «Presenças» (`PresencasMedicos`), só gestão, Direcção Clínica e Painel;
+- «Actividade» e «Registo clínico» (os de antes);
+- «Avaliação» (`AvaliacaoPainel({ grupo: 'medicos' })`): só os médicos
+  (`bspEMedico`: código MetaGest ou cargo de médico, pediatra, imagiologista ou
+  Director Clínico); em Equipa → Avaliação ficam os outros. A Direcção Clínica
+  avalia todos os médicos também no ecrã (`bspAvaliaPessoa`, igual a
+  `bsp_avalia`);
+- «Pagamentos» (`PagamentoMedicosPainel`), só u1 e u2, que saiu de Equipa.
+Avisos de credenciais e de pagamento dos médicos abrem o separador certo
+(`__bspMedicosAba`). Sem mudanças no servidor. Testado no navegador
+(Playwright) com o Dr. Osvaldo (7 médicos para avaliar), a Arlete (com
+Pagamentos), a Dra. Creusa (só o que é seu) e a Juliana (sem o menu).
