@@ -28442,6 +28442,23 @@ function bspVeCredenciais(u) {
    conhecimento. Ao lado do formulário: ausências, formações e o histórico
    de produtividade e assiduidade importado dos RH. */
 const BSP_AVAL_LETRAS = { A: 'Excelente', B: 'Bom', C: 'Regular', D: 'Insatisfatório' };
+/* Critérios da função (21-10-2026, avaliacao-funcoes.sql, Elmar: «mais critérios
+   relacionados à função que cada um exerce»): cada critério tem familias (nulo =
+   todos; a área de bspAreaChave; 'chefia'). Igual a bsp_avaliacao_familias no
+   servidor: mudar os dois juntos. */
+function bspAvalFamilias(p) {
+  const f = [];
+  const area = bspAreaChave(p && p.dept);
+  if (area) f.push(area);
+  if (/(chefe|supervisor|director|coordenador)/i.test(String((p && p.role) || ''))) f.push('chefia');
+  return f;
+}
+function bspAvalModeloDe(modelo, p) {
+  const f = bspAvalFamilias(p);
+  const ordem = { 'Geral': 0, 'Da função': 1, 'Chefia': 2 };
+  return modelo.filter(m => !m.familias || !m.familias.length || m.familias.some(x => f.indexOf(x) !== -1))
+    .sort((a, b) => ((ordem[a.grupo] || 0) - (ordem[b.grupo] || 0)) || (a.ordem - b.ordem));
+}
 function bspAvaliaPessoa(eu, x) {
   if (!eu || !x || eu.id === x.id || bspESocio(x)) return false;
   if (bspCamada(eu).podeGerirUtilizadores) return true;
@@ -28455,7 +28472,7 @@ function bspAvaliacaoFolha(pessoa, ano, a, modelo) {
     '<h1>Avaliação de desempenho · ' + ano + '</h1><div>Colaborador: <b>' + esc(pessoa.name) + '</b> · ' + esc(pessoa.role || '') + ' · ' + esc(pessoa.dept || '') + '</div>' +
     '<div>Avaliador(a): ' + esc(bspNomeDe(a.avaliador)) + ' · ' + esc(a.estado) + (a.concluida_em ? ' a ' + esc(bspDataExacta(new Date(a.concluida_em))) : '') + '</div>' +
     '<table><thead><tr><th>Factor</th><th class="l">Classificação</th><th>Descrição</th></tr></thead><tbody>' +
-    modelo.map(m => { const l = (a.factores || {})[m.chave] || ''; const o = (m.opcoes || []).find(x => x.l === l); return '<tr><td><b>' + esc(m.nome) + '</b></td><td class="l">' + (l ? l + ' · ' + BSP_AVAL_LETRAS[l] : '—') + '</td><td>' + esc(o ? o.t : '') + '</td></tr>'; }).join('') +
+    modelo.map((m, i) => { const l = (a.factores || {})[m.chave] || ''; const o = (m.opcoes || []).find(x => x.l === l); return (i === 0 || modelo[i - 1].grupo !== m.grupo ? '<tr><th colspan="3" style="background:#E9EBF2;color:#292F58">' + esc(m.grupo === 'Da função' ? 'Critérios da função' : m.grupo === 'Chefia' ? 'Chefia' : 'Critérios gerais') + '</th></tr>' : '') + '<tr><td><b>' + (i + 1) + '. ' + esc(m.nome) + '</b></td><td class="l">' + (l ? l + ' · ' + BSP_AVAL_LETRAS[l] : '—') + '</td><td>' + esc(o ? o.t : '') + '</td></tr>'; }).join('') +
     '</tbody></table><p><b>Avaliação aprovada:</b> ' + (a.aprovada === true ? 'Sim' : a.aprovada === false ? 'Não' : '—') + '</p>' +
     (a.comentarios ? '<p><b>Comentários do(a) avaliador(a):</b> ' + esc(a.comentarios) + '</p>' : '') +
     (a.comentario_colaborador ? '<p><b>Comentário do colaborador:</b> ' + esc(a.comentario_colaborador) + '</p>' : '') +
@@ -28496,8 +28513,9 @@ function AvaliacaoPainel() {
     toast('Registado. Obrigado.'); av.recarregar();
   }
   const rot = bspTranspRot;
-  const linhaFactor = (m, a, editavel) => React.createElement("div", { key: m.chave, style: { borderTop: '1px solid var(--border)', paddingTop: 10 } },
-    React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)' } }, m.ordem + '. ' + m.nome),
+  const linhaFactor = (m, a, editavel, i, lista) => React.createElement("div", { key: m.chave, style: { borderTop: '1px solid var(--border)', paddingTop: 10 } },
+    (i === 0 || lista[i - 1].grupo !== m.grupo) && React.createElement("div", { style: { fontSize: 12, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent-d)', marginBottom: 6 } }, m.grupo === 'Da função' ? 'Critérios da função' : m.grupo === 'Chefia' ? 'Chefia' : 'Critérios gerais'),
+    React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)' } }, (i + 1) + '. ' + m.nome),
     React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', margin: '2px 0 6px' } }, m.descricao),
     (m.opcoes || []).map(o => {
       const sel = (a.factores || {})[m.chave] === o.l;
@@ -28528,7 +28546,7 @@ function AvaliacaoPainel() {
             React.createElement("div", null, 'Formações: ' + ((ap.formacoes || {}).n || 0) + ' (' + ((ap.formacoes || {}).horas || 0) + ' h)'),
             React.createElement("div", null, hr.meses ? 'Histórico dos RH (' + hr.meses + ' meses): produtividade média ' + (hr.produtividade_media != null ? String(hr.produtividade_media).replace('.', ',') + '%' : '—') + ' · faltas injustificadas ' + (hr.faltas_injustificadas || 0) + ' · justificadas ' + (hr.faltas_justificadas || 0) + ' · atrasos ' + (hr.atrasos || 0) + (hr.meses_sem_subsidio ? ' · ' + hr.meses_sem_subsidio + ' meses sem subsídio de assiduidade' : '')
               : 'Ainda sem produtividade aprovada neste ano (Equipa → Produtividade); a assiduidade dos RH está por importar (pedido à Arlete a 03-10-2026).'))),
-        modelo.map(m => linhaFactor(m, form, true)),
+        bspAvalModeloDe(modelo, form.pessoa).map((m, i, l) => linhaFactor(m, form, true, i, l)),
         React.createElement("div", { style: { borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
           React.createElement("b", { style: { fontSize: 14, color: 'var(--text-1)' } }, 'Avaliação aprovada?'),
           React.createElement("button", { onClick: () => setForm(Object.assign({}, form, { aprovada: true })), style: bspEscChip(form.aprovada === true) }, 'Sim'),
@@ -28545,7 +28563,7 @@ function AvaliacaoPainel() {
     minha && React.createElement("div", { style: Object.assign({}, bspRegCaixa, { display: 'flex', flexDirection: 'column', gap: 8, borderLeft: '4px solid var(--accent)' }) },
       React.createElement("b", { style: { fontSize: 15, color: 'var(--text-1)' } }, 'A minha avaliação de ' + ano),
       React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Avaliador(a): ' + bspNomeDe(minha.avaliador) + ' · ' + minha.estado + ' · aprovada: ' + (minha.aprovada ? 'sim' : 'não')),
-      modelo.map(m => linhaFactor(m, minha, false)),
+      bspAvalModeloDe(modelo, eu).filter(m => (minha.factores || {})[m.chave]).map((m, i, l) => linhaFactor(m, minha, false, i, l)),
       minha.comentarios && React.createElement("div", { style: { fontSize: 13.5, color: 'var(--text-1)' } }, React.createElement("b", null, 'Comentários: '), minha.comentarios),
       minha.estado === 'Concluída' ? React.createElement(React.Fragment, null,
         React.createElement("textarea", { rows: 2, value: comentario, placeholder: 'O seu comentário (opcional)', onChange: e => setComentario(e.target.value), style: Object.assign({}, bspTranspCampo, { height: 'auto', padding: 10 }) }),
@@ -28560,8 +28578,8 @@ function AvaliacaoPainel() {
         React.createElement("div", { style: { flex: '1 1 200px', minWidth: 0 } },
           React.createElement("b", { style: { fontSize: 14, color: 'var(--text-1)' } }, x.name),
           React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, (x.role || '') + (x.dept ? ' · ' + x.dept : ''))),
-        React.createElement("span", { style: { fontSize: 12.5, fontWeight: 700, color: cor } }, a ? a.estado + (a.estado !== 'Rascunho' ? ' · ' + modelo.map(m => (a.factores || {})[m.chave] || '–').join('') : '') : 'Por avaliar'),
-        a && a.estado !== 'Rascunho' && React.createElement("button", { onClick: () => bspImprimirHtml(bspAvaliacaoFolha(x, ano, a, modelo)), style: bspEscBotao(false) }, 'Imprimir'),
+        React.createElement("span", { style: { fontSize: 12.5, fontWeight: 700, color: cor } }, a ? a.estado + (a.estado !== 'Rascunho' ? ' · ' + bspAvalModeloDe(modelo, x).map(m => (a.factores || {})[m.chave] || '–').join('') : '') : 'Por avaliar'),
+        a && a.estado !== 'Rascunho' && React.createElement("button", { onClick: () => bspImprimirHtml(bspAvaliacaoFolha(x, ano, a, bspAvalModeloDe(modelo, x).filter(m => (a.factores || {})[m.chave] || !m.familias))), style: bspEscBotao(false) }, 'Imprimir'),
         (!a || a.estado === 'Rascunho' || bspCamada(eu).podeGerirUtilizadores) && React.createElement("button", { onClick: () => abrir(x), style: bspEscBotao(!a || a.estado === 'Rascunho') }, !a ? 'Avaliar' : a.estado === 'Rascunho' ? 'Continuar' : 'Alterar'));
     }));
 }

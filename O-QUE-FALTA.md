@@ -5008,3 +5008,20 @@ acesso, sessões e chaves; os ficheiros do Drive e dos Documentos também não.
 Primeiro envio a 21-10-2026. **Por fazer:** a cópia semanal para a pasta
 Barispol da Drive do Elmar (precisa de credenciais Google na função) ou um
 agendamento semanal deste mesmo e-mail, se o Elmar quiser.
+
+## 3-hu. Avaliação de desempenho com critérios da função (21-10-2026)
+
+Elmar: «A avaliação do workspace está muito básica, sugiro que se adicione mais
+critérios de avaliação relacionados à função que cada um exerce».
+`avaliacao-funcoes.sql` (aplicado): `avaliacao_modelo.familias` (nulo = todos;
+área de `bsp_area_chave`; `chefia`) e `grupo`; `bsp_avaliacao_familias(user)`;
+`bsp_avaliacao_gravar` só conclui com todos os critérios da pessoa. Textos
+(nome, descrição, A–D) só no servidor: 4 gerais novos (trabalho em equipa,
+relacionamento com o utente, confidencialidade, registos no Workspace), 4 por
+área (Clínica, Enfermagem, Laboratório, Farmácia, Imagiologia, Recepção, 3 na
+Administração, Serviços Gerais) e 3 de chefia (cargo com chefe, supervisor,
+director ou coordenador). Ao todo: 14 critérios por pessoa, 17 para quem
+chefia (13 na Administração, 16 com chefia). No ecrã: `bspAvalFamilias` /
+`bspAvalModeloDe` (mudar com o servidor), grupos «Critérios gerais», «Critérios
+da função» e «Chefia», numeração seguida; a folha impressa igual. As avaliações
+já concluídas não mudam. **Por fazer:** a Arlete (RH) rever os textos.
