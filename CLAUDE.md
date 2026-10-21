@@ -46,7 +46,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
    autorização expressa dele na própria conversa (Elmar, 16-10-2026: «Não
    envies e-mails do meu Gmail sem a minha autorização»). Se o Workspace e o
    correio da Barispol não estiverem disponíveis, a mensagem fica pendente e
-   diz-se ao Elmar.
+   diz-se ao Elmar. E-mails que o assistente manda em nome do Elmar vão
+   assinados pelo sistema («Sistema · Workspace Barispol»), nunca com o nome
+   dele (Elmar, 21-10-2026: «E-mail assinado pelo sistema, nunca por mim»).
 
 ## Segurança (auditoria de 12-10-2026, Elmar: «estamos vulneráveis»)
 
