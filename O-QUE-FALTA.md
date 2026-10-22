@@ -5059,3 +5059,27 @@ seleccionar quem votou».
   estavam de fora porque a conta só existe desde 24 e 29-09 e ninguém pôs a
   data de admissão (`fm_pessoas` vazio): corrige-se em «Quem pode votar e ser
   nomeado» → «Alterar».
+
+## 3-hx. Política de privacidade assinada e uso só na rede da clínica (22-10-2026)
+
+Elmar: «no próximo login de cada pessoa mandes a política para eles assinarem e
+receberem por e-mail» e «além de mim, do Dr. Osvaldo, da Arlete e do Emanuel…
+mais ninguém pode usar o software fora da instituição».
+- Texto novo: `politica-privacidade-equipa.html` (versão 2: Lei n.º 22/11,
+  dados tratados, IP e registos, uso só na clínica, dados de utentes, deveres,
+  subcontratantes Supabase/Resend/Anthropic/notificações/MetaGest, prazos,
+  direitos). **Por aprovar pelo Elmar** antes de ficar activa.
+- Servidor: `privacidade-rede.sql` (**por aplicar**: o conector do Supabase
+  estava sem acesso). `politica_versoes`/`politica_aceites`,
+  `bsp_entrada_estado`, `bsp_politica_aceitar` (regista nome, hora, IP e
+  aparelho; cópia por e-mail de geral@, assinada pelo sistema);
+  `rede_clinica`/`rede_config` (`activa` false; isentos u1, u14, u2, u22),
+  `bsp_ip_pedido`, `bsp_rede_ok` na regra RESTRICTIVE de todas as tabelas
+  (`bsp_sessao_aal2`) e, a fazer, em `bsp_meu_id()`; `bsp_privacidade_resumo`,
+  `bsp_rede_juntar` (gestão junta o IP actual).
+- Ecrã (publicado, sem efeito até o servidor responder): `useBspEntrada`,
+  `ForaDaClinicaEcra`, `PoliticaEcra` (texto em iframe sem programas). Testado
+  no navegador (Playwright): fora da rede, política por assinar, normal.
+- **Por fazer:** aplicar o SQL; tirar os IP das entradas recentes
+  (`auth.audit_log_entries`/`auth.sessions`) e propor a lista da clínica;
+  aprovação do Elmar ao texto e aos IP; activar; actualizar `privacidade.html`.

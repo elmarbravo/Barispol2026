@@ -3245,6 +3245,76 @@ function useBspMfaNivel(authed) {
   }, [authed]);
   return [nivel, setNivel];
 }
+/* Entrada (22-10-2026, privacidade-rede.sql, Elmar: «no próximo login de cada
+   pessoa mandes a política para eles assinarem» e «mais ninguém pode usar o
+   software fora da instituição»): depois da 2FA, bsp_entrada_estado diz se a
+   rede é a da clínica (ou a pessoa está isenta) e se falta assinar a política
+   em vigor. Se o servidor ainda não tiver a função, deixa entrar (o bloqueio a
+   sério está no servidor: bsp_rede_ok nas regras das tabelas). */
+function useBspEntrada(pronto) {
+  const [e, setE] = React.useState({ estado: pronto ? 'a-verificar' : 'ok' });
+  React.useEffect(() => {
+    if (!pronto) { setE({ estado: 'ok' }); return; }
+    if (e.estado !== 'a-verificar' && e.vez == null) setE({ estado: 'a-verificar' });
+    const cl = bspGetClient();
+    if (!cl) { setE({ estado: 'ok' }); return; }
+    let vivo = true;
+    cl.rpc('bsp_entrada_estado').then(r => {
+      if (!vivo) return;
+      const d = r && !r.error ? r.data : null;
+      if (!d) { setE({ estado: 'ok' }); return; }
+      if (d.rede_ok === false) { setE({ estado: 'fora', ip: d.ip }); return; }
+      if (d.politica && !bspEmVerComo()) { setE({ estado: 'politica', politica: d.politica }); return; }
+      setE({ estado: 'ok' });
+    }, () => { if (vivo) setE({ estado: 'ok' }); });
+    return () => { vivo = false; };
+  }, [pronto, e.vez]);
+  return [e, setE];
+}
+function ForaDaClinicaEcra({ ip, onSair, onTentar }) {
+  return React.createElement("div", { style: { minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'var(--bg)' } },
+    React.createElement("div", { style: { maxWidth: 440, width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 24, display: 'flex', flexDirection: 'column', gap: 12 } },
+      React.createElement(BarispolLogo, { size: 'md' }),
+      React.createElement("div", { style: { fontSize: 19, fontWeight: 700, color: 'var(--navy-texto)' } }, 'Só na rede da clínica'),
+      React.createElement("div", { style: { fontSize: 14.5, color: 'var(--text-1)', lineHeight: 1.5 } }, 'O Workspace só pode ser usado dentro do Centro Médico Barispol, ligado à rede da clínica. Fora da clínica, o acesso está reservado às funções que a Direcção autorizou.'),
+      React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)' } }, 'Se está na clínica, ligue-se ao Wi-Fi da clínica e carregue em «Tentar de novo».' + (ip ? ' Endereço desta ligação: ' + ip + '.' : '')),
+      React.createElement("div", { style: { display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' } },
+        React.createElement("button", { onClick: onSair, style: bspEscBotao(false) }, 'Sair'),
+        React.createElement("button", { onClick: onTentar, style: bspEscBotao(true) }, 'Tentar de novo'))));
+}
+/* O texto vem do servidor (politica_versoes) e mostra-se num quadro sem
+   programas (iframe sandbox), como a impressão. */
+function PoliticaEcra({ politica, currentUser, onSair, onOk }) {
+  const toast = useToast();
+  const [li, setLi] = React.useState(false);
+  const [nome, setNome] = React.useState('');
+  const [aEnviar, setAEnviar] = React.useState(false);
+  const pronto = li && nome.trim().length >= 5 && !aEnviar;
+  const doc = '<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><style>body{margin:0;padding:16px;font-family:"Titillium Web","Segoe UI",Arial,sans-serif;font-size:15px;line-height:1.55;color:#1C2033}h1{font-size:20px;color:#292F58;margin:0 0 8px}h2{font-size:16px;color:#292F58;margin:18px 0 6px}ul{padding-left:20px}</style></head><body>' + String(politica.texto || '') + '</body></html>';
+  async function assinar() {
+    if (!pronto) return;
+    setAEnviar(true);
+    const r = await bspGetClient().rpc('bsp_politica_aceitar', { p_versao: politica.versao, p_nome: nome.trim(), p_aparelho: String(navigator.userAgent || '').slice(0, 300) });
+    setAEnviar(false);
+    if (r.error) { toast(r.error.message); return; }
+    toast('Assinado. A cópia segue para o seu e-mail.');
+    onOk();
+  }
+  return React.createElement("div", { style: { height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg)', padding: 16, boxSizing: 'border-box', gap: 10 } },
+    React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 12 } },
+      React.createElement(BarispolLogo, { size: 'sm' }),
+      React.createElement("div", null,
+        React.createElement("div", { style: { fontSize: 17, fontWeight: 700, color: 'var(--navy-texto)' } }, 'Antes de continuar: política de privacidade'),
+        React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)' } }, 'Leia até ao fim, assine e receba a cópia por e-mail.'))),
+    React.createElement("iframe", { title: 'Política de privacidade', sandbox: '', srcDoc: doc, style: { flex: 1, minHeight: 240, width: '100%', border: '1px solid var(--border)', borderRadius: 8, background: '#fff' } }),
+    React.createElement("label", { style: { display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 14, color: 'var(--text-1)', cursor: 'pointer' } },
+      React.createElement("input", { type: 'checkbox', checked: li, onChange: e => setLi(e.target.checked), style: { marginTop: 3, width: 18, height: 18 } }),
+      React.createElement("span", null, 'Li e aceito a política de privacidade e os deveres de protecção de dados.')),
+    React.createElement("input", { value: nome, onChange: e => setNome(e.target.value), placeholder: 'Nome completo (assinatura)' + (currentUser && currentUser.name ? ': ' + currentUser.name : ''), style: Object.assign({}, bspTranspCampo, { fontSize: 16 }) }),
+    React.createElement("div", { style: { display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' } },
+      React.createElement("button", { onClick: onSair, style: bspEscBotao(false) }, 'Sair'),
+      React.createElement("button", { onClick: assinar, disabled: !pronto, style: Object.assign({}, bspEscBotao(true), { opacity: pronto ? 1 : .5 }) }, aEnviar ? 'A assinar…' : 'Assinar e receber por e-mail')));
+}
 const BSP_MFA_APARELHO = 'bsp-mfa-aparelho';
 async function bspMfaEmailSessaoOk(cl) {
   try {
@@ -32360,6 +32430,7 @@ function App() {
   const [t, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
   const [menuRecolhido, setMenuRecolhido] = useBspPrefSimNao('bsp-menu-recolhido', false);
   const [mfaNivel, setMfaNivel] = useBspMfaNivel(authed);
+  const [entrada, setEntrada] = useBspEntrada(authed && mfaNivel === 'ok');
   const utilizadorReal = bspResolveUser(authedEmail, window.USERS);
   /* Quem esta mesmo com a sessao aberta (a marca de agua usa-o, tambem no «Ver como»). */
   window.__bspQuemEsta = utilizadorReal;
@@ -32418,6 +32489,10 @@ function App() {
   const mfaFeito = () => { try { window.location.reload(); } catch (e) { setMfaNivel('ok'); } };
   if (mfaNivel === 'precisa') return React.createElement(MfaCodigoEcra, { onOk: mfaFeito, onSair: sairMfa });
   if (mfaNivel === 'inscrever') return React.createElement(MfaInscreverEcra, { onOk: mfaFeito, onSair: sairMfa });
+  /* Rede da clínica e política de privacidade (22-10-2026, privacidade-rede.sql). */
+  if (entrada.estado === 'a-verificar') return React.createElement("div", { style: { width: '100%', height: '100%', background: 'var(--bg)' } });
+  if (entrada.estado === 'fora') return React.createElement(ForaDaClinicaEcra, { ip: entrada.ip, onSair: sairMfa, onTentar: () => setEntrada({ estado: 'a-verificar', vez: Date.now() }) });
+  if (entrada.estado === 'politica') return React.createElement(PoliticaEcra, { politica: entrada.politica, currentUser, onSair: sairMfa, onOk: () => setEntrada({ estado: 'a-verificar', vez: Date.now() }) });
   const isAdmin = currentUser && bspCamada(currentUser).podeGerirUtilizadores;
   /* O socio ve sempre o Painel, venha de onde vier (link, notificacao). */
   const socio = bspESocio(currentUser);
