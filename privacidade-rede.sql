@@ -197,3 +197,11 @@ $function$;
 -- Ligar: update rede_config set valor = 'true' where chave = 'activa';
 --        update politica_versoes set activa = true where versao = '2';
 -- Desligar em emergência: update rede_config set valor = 'false' where chave = 'activa';
+
+-- 22-10-2026, Elmar: «Sim» ao plano. Passo 1 feito: política v2 activa
+-- (insert … on conflict do update set activa = true). Passo 2: registo sem
+-- bloqueio — rede_bloqueios.bloqueado (false = só registo) e bsp_rede_fora();
+-- bsp_entrada_estado regista toda a entrada de fora de quem não é isento.
+-- Passo 3 (depois de 2–3 dias): «só Chat e Escalas» fora da clínica por
+-- pgrst.db_pre_request; nessa altura tirar bsp_rede_ok de bsp_meu_id e de
+-- bsp_sessao_aal2, para o Chat funcionar fora.

@@ -5093,7 +5093,12 @@ mais ninguém pode usar o software fora da instituição».
   fora das instalações, subcontratantes, transferências, conservação,
   segurança, deveres, incidentes em 72 h, decisões automatizadas, direitos).
   Gravado no servidor (inactivo). Fora da clínica: «comunicações e escalas».
-- **Antes de ligar (Elmar):** confirmar o plano (política já; registo sem
+- **22-10-2026, Elmar: «Sim».** Política v2 **activa** (todos assinam no
+  próximo login; novidade a todos); `privacidade.html` com o texto v2. Registo
+  das entradas de fora sem bloquear (`rede_bloqueios.bloqueado = false`,
+  `bsp_rede_fora`), testado com a Filomena simulada. Revisão marcada para
+  25-10 (registo, assinaturas, passo 3 «só Chat e Escalas»).
+- (Antes:) confirmar o plano (política já; registo sem
   bloqueio 2–3 dias; depois «só Chat e Escalas» por `pgrst.db_pre_request`); esclarecer a Filomena Silva (22
   entradas, sempre de 154.71.192.28, nunca da rede da clínica: segunda linha
   na Enfermagem ou dados móveis?) e quem usa dados móveis dentro da clínica
