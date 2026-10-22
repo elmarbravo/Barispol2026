@@ -5085,7 +5085,16 @@ mais ninguém pode usar o software fora da instituição».
   IP simulados (desfeito): Juliana fora bloqueada (0 linhas, `bsp_meu_id` nulo,
   bloqueio registado), na clínica entra e assina; Emmanuel e Dr. Osvaldo fora
   entram (isentos).
-- **Antes de ligar (Elmar):** aprovar o texto; esclarecer a Filomena Silva (22
+- Texto v2 reescrito (22-10-2026, Elmar: «tem que ser o standard… a nível
+  internacional… não é uma coisa criada por mim»): estrutura do RGPD (art.º
+  13.º) e das ISO/IEC 27001/27701, Lei n.º 22/11 e Lei n.º 7/17; emitido pela
+  Clínica Barispol, Lda. (responsável pelo tratamento), sem assinatura pessoal;
+  16 secções (âmbito, princípios, finalidades e fundamentos, monitorização, uso
+  fora das instalações, subcontratantes, transferências, conservação,
+  segurança, deveres, incidentes em 72 h, decisões automatizadas, direitos).
+  Gravado no servidor (inactivo). Fora da clínica: «comunicações e escalas».
+- **Antes de ligar (Elmar):** confirmar o plano (política já; registo sem
+  bloqueio 2–3 dias; depois «só Chat e Escalas» por `pgrst.db_pre_request`); esclarecer a Filomena Silva (22
   entradas, sempre de 154.71.192.28, nunca da rede da clínica: segunda linha
   na Enfermagem ou dados móveis?) e quem usa dados móveis dentro da clínica
   (Dra. Joana Tati, Domingos). Depois: ligar com os dois `update` do fim do
