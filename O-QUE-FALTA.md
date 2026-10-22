@@ -5080,6 +5080,13 @@ mais ninguém pode usar o software fora da instituição».
 - Ecrã (publicado, sem efeito até o servidor responder): `useBspEntrada`,
   `ForaDaClinicaEcra`, `PoliticaEcra` (texto em iframe sem programas). Testado
   no navegador (Playwright): fora da rede, política por assinar, normal.
-- **Por fazer:** aplicar o SQL; tirar os IP das entradas recentes
-  (`auth.audit_log_entries`/`auth.sessions`) e propor a lista da clínica;
-  aprovação do Elmar ao texto e aos IP; activar; actualizar `privacidade.html`.
+- **Aplicado (22-10-2026), desligado.** IP da clínica: 129.122.165.219 (13
+  pessoas de 6 áreas, 16 a 22-10). Texto v2 no servidor, inactivo. Testado com
+  IP simulados (desfeito): Juliana fora bloqueada (0 linhas, `bsp_meu_id` nulo,
+  bloqueio registado), na clínica entra e assina; Emmanuel e Dr. Osvaldo fora
+  entram (isentos).
+- **Antes de ligar (Elmar):** aprovar o texto; esclarecer a Filomena Silva (22
+  entradas, sempre de 154.71.192.28, nunca da rede da clínica: segunda linha
+  na Enfermagem ou dados móveis?) e quem usa dados móveis dentro da clínica
+  (Dra. Joana Tati, Domingos). Depois: ligar com os dois `update` do fim do
+  SQL e actualizar `privacidade.html`.

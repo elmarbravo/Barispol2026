@@ -177,5 +177,23 @@ create or replace function public.bsp_sessao_aal2()
 returns boolean language sql stable security definer set search_path to 'public'
 as $function$ select public.bsp_mfa_ok() and public.bsp_rede_ok() $function$;
 
--- bsp_meu_id(): ver o texto actual no servidor e acrescentar «and
--- public.bsp_rede_ok()» à condição, para fechar as funções security definer.
+-- bsp_meu_id() com a rede: fora da rede (e não isento) devolve nulo e todas as
+-- funções security definer que dependem dela recusam.
+create or replace function public.bsp_meu_id()
+returns text language sql stable security definer set search_path to 'public'
+as $function$
+  select e->>'id'
+  from shared_state s, jsonb_array_elements(coalesce(s.team, '[]'::jsonb)) e
+  where s.id = 1
+    and lower(e->>'email') = lower(coalesce(auth.jwt()->>'email', ''))
+    and public.bsp_rede_ok()
+  limit 1
+$function$;
+
+-- Aplicado a 22-10-2026, desligado. IP da clínica tirado das sessões de 16 a
+-- 22-10 (13 pessoas de 6 áreas pelo mesmo IP):
+--   insert into rede_clinica (faixa, nota, criado_por) values ('129.122.165.219/32', …, 'sistema');
+-- Texto da versão 2 (politica-privacidade-equipa.html) em politica_versoes, activa = false.
+-- Ligar: update rede_config set valor = 'true' where chave = 'activa';
+--        update politica_versoes set activa = true where versao = '2';
+-- Desligar em emergência: update rede_config set valor = 'false' where chave = 'activa';
