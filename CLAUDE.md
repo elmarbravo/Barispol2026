@@ -81,6 +81,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   mudar `BSP_SESSAO_GERACAO` e correr `sessoes-terminar.sql`. Workspace a mudar para `ws.barispol.com` (aprovado pelo Elmar; o site
   já não liga à equipa): um host novo entra na CSP, nas `ORIGENS_PERMITIDAS` e
   no `PERMITIDOS` da app PC. O fluxo «Verificar» confirma a sintaxe a cada push.
+- Rede da clínica (25-10-2026, `rede-limitada.sql`): fora da rede (e não isento) só
+  Chat e Escalas: `bsp_pre_pedido` (pgrst.db_pre_request) e `BSP_ROTAS_FORA` no ecrã;
+  uma tabela ou função nova do Chat ou das Escalas entra nas duas listas. Nunca
+  voltar a pôr `bsp_rede_ok` em `bsp_meu_id`/`bsp_sessao_aal2` (fechava o Chat).
 - Estado, notificações e endereços assinados só no `sessionStorage`
   (12-10-2026, Fase 2 em `O-QUE-FALTA.md` 3-gy); endereços de 4 h.
 - Push das mensagens sem texto (`push-sem-texto.sql`): «Nova mensagem» e o

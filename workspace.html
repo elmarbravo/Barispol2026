@@ -3072,6 +3072,7 @@ function Sidebar({
     if (item.clinicoOnly && !bspVePainelClinico(currentUser)) return null;
     if ((item.id === 'relatorios' || item.id === 'qualidade') && bspSemClinico(currentUser)) return null;
     if (bspESocio(currentUser) && item.id !== 'painel') return null;
+    if (window.__bspLimitado && !BSP_ROTAS_FORA.includes(item.id)) return null;
     const active = current === item.id || (item.id === 'seguimento' && current === 'marcacoes');
     const IconComp = I[item.icon];
     return React.createElement("button", {
@@ -3262,25 +3263,22 @@ function useBspEntrada(pronto) {
     cl.rpc('bsp_entrada_estado').then(r => {
       if (!vivo) return;
       const d = r && !r.error ? r.data : null;
-      if (!d) { setE({ estado: 'ok' }); return; }
-      if (d.rede_ok === false) { setE({ estado: 'fora', ip: d.ip }); return; }
+      if (!d) { window.__bspLimitado = false; setE({ estado: 'ok' }); return; }
+      /* Fora da clínica (25-10-2026, rede-limitada.sql): entra só no Chat e
+         nas Escalas; o servidor recusa o resto (bsp_pre_pedido). */
+      window.__bspLimitado = d.rede_ok === false;
       if (d.politica && !bspEmVerComo()) { setE({ estado: 'politica', politica: d.politica }); return; }
-      setE({ estado: 'ok' });
+      setE({ estado: 'ok', limitado: d.rede_ok === false, ip: d.ip });
     }, () => { if (vivo) setE({ estado: 'ok' }); });
     return () => { vivo = false; };
   }, [pronto, e.vez]);
   return [e, setE];
 }
-function ForaDaClinicaEcra({ ip, onSair, onTentar }) {
-  return React.createElement("div", { style: { minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'var(--bg)' } },
-    React.createElement("div", { style: { maxWidth: 440, width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 24, display: 'flex', flexDirection: 'column', gap: 12 } },
-      React.createElement(BarispolLogo, { size: 'md' }),
-      React.createElement("div", { style: { fontSize: 19, fontWeight: 700, color: 'var(--navy-texto)' } }, 'Só na rede da clínica'),
-      React.createElement("div", { style: { fontSize: 14.5, color: 'var(--text-1)', lineHeight: 1.5 } }, 'O Workspace só pode ser usado dentro do Centro Médico Barispol, ligado à rede da clínica. Fora da clínica, o acesso está reservado às funções que a Direcção autorizou.'),
-      React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)' } }, 'Se está na clínica, ligue-se ao Wi-Fi da clínica e carregue em «Tentar de novo».' + (ip ? ' Endereço desta ligação: ' + ip + '.' : '')),
-      React.createElement("div", { style: { display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' } },
-        React.createElement("button", { onClick: onSair, style: bspEscBotao(false) }, 'Sair'),
-        React.createElement("button", { onClick: onTentar, style: bspEscBotao(true) }, 'Tentar de novo'))));
+/* Fora da rede da clínica só abrem estes menus (o servidor faz a mesma lista). */
+const BSP_ROTAS_FORA = ['chat', 'escalas'];
+function FaixaForaClinica() {
+  return React.createElement("div", { role: 'status', style: { background: 'var(--accent-soft)', color: 'var(--navy-texto)', borderBottom: '1px solid var(--border)', padding: '8px 14px', fontSize: 13.5, fontWeight: 600 } },
+    'Fora da clínica: só Chat e Escalas. Os restantes menus abrem ligado à rede da clínica.');
 }
 /* O texto vem do servidor (politica_versoes) e mostra-se num quadro sem
    programas (iframe sandbox), como a impressão. */
@@ -21289,9 +21287,11 @@ function MobileNav({
     label: 'Feed',
     icon: 'Feed'
   }];
+  const limitado = !!window.__bspLimitado;
+  const lista = limitado ? [items[1], { id: 'escalas', label: 'Escalas', icon: 'Clock' }] : items;
   return React.createElement("nav", {
     className: "bsp-mnav"
-  }, items.map(it => {
+  }, lista.map(it => {
     const Ico = I[it.icon];
     const n = it.id === 'chat' ? chatPorLer : 0;
     return React.createElement("button", {
@@ -21325,7 +21325,7 @@ function MobileNav({
         boxSizing: 'content-box'
       }
     }, n > 99 ? '99+' : n)), it.label);
-  }), React.createElement("button", {
+  }), !limitado && React.createElement("button", {
     "data-on": ['calendar', 'stock', 'avarias', 'meetings', 'drive', 'admin', 'notifications', 'directory', 'relatorios', 'escalas', 'transporte', 'seguimento', 'marcacoes', 'painel', 'actividade', 'registo', 'documentos', 'qualidade'].includes(current),
     onClick: onMore
   }, React.createElement(I.MoreH, {
@@ -32491,12 +32491,11 @@ function App() {
   if (mfaNivel === 'inscrever') return React.createElement(MfaInscreverEcra, { onOk: mfaFeito, onSair: sairMfa });
   /* Rede da clínica e política de privacidade (22-10-2026, privacidade-rede.sql). */
   if (entrada.estado === 'a-verificar') return React.createElement("div", { style: { width: '100%', height: '100%', background: 'var(--bg)' } });
-  if (entrada.estado === 'fora') return React.createElement(ForaDaClinicaEcra, { ip: entrada.ip, onSair: sairMfa, onTentar: () => setEntrada({ estado: 'a-verificar', vez: Date.now() }) });
   if (entrada.estado === 'politica') return React.createElement(PoliticaEcra, { politica: entrada.politica, currentUser, onSair: sairMfa, onOk: () => setEntrada({ estado: 'a-verificar', vez: Date.now() }) });
   const isAdmin = currentUser && bspCamada(currentUser).podeGerirUtilizadores;
   /* O socio ve sempre o Painel, venha de onde vier (link, notificacao). */
   const socio = bspESocio(currentUser);
-  const pg = socio ? 'painel' : page;
+  const pg = socio ? 'painel' : entrada.limitado && !BSP_ROTAS_FORA.includes(page) ? 'chat' : page;
   return React.createElement("div", {
     style: {
       display: 'flex',
@@ -32522,11 +32521,12 @@ function App() {
       overflow: 'hidden'
     }
   }, vista && React.createElement(FaixaVerComo, { vista: vista, real: utilizadorReal }),
+  entrada.limitado && React.createElement(FaixaForaClinica, null),
   React.createElement(VerComoModal, { open: verComoAberto, real: utilizadorReal, onClose: () => setVerComoAberto(false) }),
   isMobile ? React.createElement(MobileTopbar, {
     current: pg,
     currentUser: currentUser,
-    onMenu: () => setMoreOpen(true),
+    onMenu: () => { if (!entrada.limitado) setMoreOpen(true); },
     onSwitchPage: setPage,
     onVerComo: podeVerComo && !vista ? () => setVerComoAberto(true) : null
   }) : React.createElement(Topbar, {

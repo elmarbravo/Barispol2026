@@ -5104,3 +5104,31 @@ mais ninguém pode usar o software fora da instituição».
   na Enfermagem ou dados móveis?) e quem usa dados móveis dentro da clínica
   (Dra. Joana Tati, Domingos). Depois: ligar com os dois `update` do fim do
   SQL e actualizar `privacidade.html`.
+
+## 3-hy. Fora da clínica: só Chat e Escalas (25-10-2026, preparado, desligado)
+
+Passo 3 do plano da rede (3-hx). Em vez de fechar o Workspace a quem está fora
+da rede da clínica, deixa abrir só o Chat e as Escalas (Elmar, 22-10: «fora de
+lá só abram os chats» e «tem um chefe de escala que tem que fazer a escala»).
+- `rede-limitada.sql` (aplicado): `bsp_pre_pedido()` recusa com 403, fora da
+  rede, tudo o que não está na lista (tabelas `messages`, `shared_state`,
+  `presenca`, `escalas`, `trocas_turno`, `capturas_ecra`, `acessos_registo` e as
+  funções da 2FA, avisos, push e trocas). `bsp_meu_id` e `bsp_sessao_aal2` já
+  não levam `bsp_rede_ok`. Ficheiros: regra `bsp_rede_ficheiros` (fora, só os
+  anexos das conversas; o Drive não). Testado com IP simulados: Filomena de
+  fora → Chat e Escalas passam, marcações e CRM dão 403; na clínica e os
+  isentos (u1, u2, u14, u22) passam em tudo.
+- Ecrã: `bsp_entrada_estado` devolve `limitado`; o menu, a barra do telemóvel e
+  a rota ficam em `BSP_ROTAS_FORA` (chat, escalas) com a faixa
+  `FaixaForaClinica`. O ecrã «Só na rede da clínica» foi retirado.
+- Registo de 22 a 25-10: o IP da clínica 129.122.165.219 manteve-se (11
+  pessoas). Entradas de fora de quem não é isento: Filomena (154.71.192.28 no
+  turno de 23-10, 08h–22h, e rede móvel a 22-10), Ludmila Da Silva (06h43 de
+  23-10), Cássia (22h20 de 22-10) e Nicolau (22h26 de 24-10). Política: 14
+  assinaram, 11 por assinar (sobretudo médicos que ainda não entraram).
+- **Falta:** o «sim» do Elmar para ligar, e decidir se 154.71.192.28 é rede da
+  clínica (a Filomena usa-o durante o turno). Ligar: `alter role authenticator
+  set pgrst.db_pre_request = 'public.bsp_pre_pedido'; notify pgrst, 'reload
+  config';` e `rede_config.activa = true`. Depois de ligar, confirmar com um
+  telemóvel em dados móveis que o Chat abre e a página Utentes recusa, e que
+  as imagens do Chat abrem (o Storage pode não passar o IP).
