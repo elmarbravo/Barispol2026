@@ -16919,7 +16919,8 @@ function DriveScreen() {
    Nunca se pedem nomes de pacientes: so contagens e escolhas.
 
    Tipos de campo: 'escolha' (uma opcao), 'varias' (varias opcoes),
-   'numero' e 'texto' (observacao curta, opcional). */
+   'numero' e 'texto' (opcional; com livre: true e o relato do turno, ate 4000
+   caracteres, que substitui o e-mail de fim de turno). */
 const BSP_OCORRENCIAS = ['Nenhuma', 'Reclamação de utente', 'Falha de sistema / MetaGest', 'Falha de internet ou energia', 'Falta de material', 'Atraso ou ausência de colega', 'Outra (ver observação)'];
 const BSP_RELATORIOS = [{
   id: 'rececao',
@@ -16934,7 +16935,7 @@ const BSP_RELATORIOS = [{
     { id: 'marcacoes', tipo: 'escolha', rotulo: 'Estado das marcações do dia (compareceu, faltou, cancelou, remarcado)', opcoes: ['Todas actualizadas', 'Algumas por actualizar', 'Nenhuma actualizada'] },
     { id: 'documentos', tipo: 'varias', rotulo: 'Documentos por regularizar no MetaGest', opcoes: ['Nenhum', 'Anulação / nota de crédito por emitir', 'Factura a crédito por emitir', 'Rascunho por eliminar ou submeter', 'Documento em duplicado'] },
     { id: 'ocorrencias', tipo: 'varias', rotulo: 'Ocorrências', opcoes: BSP_OCORRENCIAS },
-    { id: 'obs', tipo: 'texto', rotulo: 'Observação (opcional, sem nomes de utentes)' }
+    { id: 'obs', tipo: 'texto', livre: true, rotulo: 'Relato do turno (escrita livre: o que antes ia no e-mail; sem nomes de utentes)', dica: 'Ex.: pedidos do dia (WhatsApp e presencial) e quantos ficaram marcados; marcações de amanhã; o que fica pendente para o turno seguinte; pedidos à Direcção.' }
   ]
 }, {
   id: 'farmacia',
@@ -16948,7 +16949,7 @@ const BSP_RELATORIOS = [{
     { id: 'avarias', tipo: 'varias', rotulo: 'Avarias', opcoes: ['Nenhuma', 'Computador ou periféricos', 'TPA', 'Frigorífico / conservação', 'Outra (ver observação)'] },
     { id: 'inventario', tipo: 'escolha', rotulo: 'Inventário semanal', opcoes: ['Não se aplica hoje', 'Enviado', 'Por enviar'] },
     { id: 'ocorrencias', tipo: 'varias', rotulo: 'Ocorrências', opcoes: BSP_OCORRENCIAS },
-    { id: 'obs', tipo: 'texto', rotulo: 'Observação (opcional, sem nomes de utentes)' }
+    { id: 'obs', tipo: 'texto', livre: true, rotulo: 'Relato do turno (escrita livre: o que antes ia no e-mail; sem nomes de utentes)', dica: 'Ex.: receitas por suprir, medicamentos ou material em falta, pedidos aos fornecedores, o que fica pendente para o colega.' }
   ]
 }, {
   id: 'laboratorio',
@@ -16966,7 +16967,7 @@ const BSP_RELATORIOS = [{
        Uma linha por reagente: { r, cap, proc }; ficam = cap − proc. */
     { id: 'reagentes_exames', tipo: 'reagentes', rotulo: 'Reagentes do analisador de bioquímica (BS-200): testes restantes e processados no dia' },
     { id: 'ocorrencias', tipo: 'varias', rotulo: 'Ocorrências', opcoes: BSP_OCORRENCIAS },
-    { id: 'obs', tipo: 'texto', rotulo: 'Observação (opcional, sem nomes de utentes)' }
+    { id: 'obs', tipo: 'texto', livre: true, rotulo: 'Relato do turno (escrita livre: o que antes ia no e-mail; sem nomes de utentes)', dica: 'Ex.: pacientes e exames por médico, amostras ou resultados pendentes, reagentes a pedir, avarias.' }
   ]
 }, {
   id: 'imagiologia',
@@ -16984,7 +16985,7 @@ const BSP_RELATORIOS = [{
     { id: 'aparelhos', tipo: 'escolha', rotulo: 'Aparelhos', opcoes: ['Todos operacionais', 'Algum com avaria', 'Algum em manutenção'] },
     { id: 'consumiveis', tipo: 'escolha', rotulo: 'Películas e consumíveis', opcoes: ['Suficientes', 'Stock baixo', 'Em ruptura'] },
     { id: 'ocorrencias', tipo: 'varias', rotulo: 'Ocorrências', opcoes: BSP_OCORRENCIAS },
-    { id: 'obs', tipo: 'texto', rotulo: 'Observação (opcional, sem nomes de utentes)' }
+    { id: 'obs', tipo: 'texto', livre: true, rotulo: 'Relato do turno (escrita livre: o que antes ia no e-mail; sem nomes de utentes)', dica: 'Ex.: exames feitos e repetidos, películas, avarias, o que fica pendente.' }
   ]
 }, {
   id: 'enfermagem',
@@ -17005,7 +17006,7 @@ const BSP_RELATORIOS = [{
     { id: 'medicacao_oral', tipo: 'numero', rotulo: 'Medicação oral', opcional: true },
     { id: 'material', tipo: 'varias', rotulo: 'Material em falta', opcoes: ['Nenhum', 'Máscaras de nebulização', 'Seringas e agulhas', 'Luvas', 'Soros', 'Material de penso', 'Outro (ver observação)'] },
     { id: 'relatorio_anexo', tipo: 'escolha', rotulo: 'Folha de registo enviada', opcoes: ['Sim', 'Por enviar'] },
-    { id: 'obs', tipo: 'texto', rotulo: 'Observação (opcional, sem nomes de utentes)' }
+    { id: 'obs', tipo: 'texto', livre: true, rotulo: 'Relato do turno (escrita livre: o que antes ia no e-mail; sem nomes de utentes)', dica: 'Ex.: como correu o turno, consultas e procedimentos fora da lista, material em falta, o que fica pendente.' }
   ]
 }];
 /* Qualidade clinica (02-10-2026, pedido do Elmar: «avance com as 5
@@ -17304,7 +17305,7 @@ function RelatoriosScreen() {
       const v = resp[c.id];
       if (c.tipo === 'numero' && c.opcional && (v == null || String(v).trim() === '')) return;
       if (c.tipo === 'numero') limpo[c.id] = Math.max(0, c.opcional ? Math.round((parseFloat(String(v).replace(',', '.')) || 0) * 10) / 10 : (parseInt(v, 10) || 0));
-      else if (c.tipo === 'texto') { if (String(v || '').trim()) limpo[c.id] = String(v).trim().slice(0, 1000); }
+      else if (c.tipo === 'texto') { if (String(v || '').trim()) limpo[c.id] = String(v).trim().slice(0, c.livre ? 4000 : 1000); }
       else if (c.tipo === 'reagentes') limpo[c.id] = bspReagentesLimpos(v);
       else limpo[c.id] = v;
     });
@@ -17387,7 +17388,9 @@ function RelatoriosScreen() {
     onChange: e => definir(c.id, e.target.value),
     style: { width: 120, height: 38, padding: '0 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 14, fontFamily: 'inherit' }
   }) : React.createElement("textarea", {
-    rows: 3, value: resp[c.id] || '', maxLength: 1000,
+    /* Relato do turno (26-10-2026, Elmar: «cria um campo de escrita livre além
+       dos que já temos de assinalar para eliminar os e-mails em paralelo»). */
+    rows: c.livre ? 8 : 3, value: resp[c.id] || '', maxLength: c.livre ? 4000 : 1000, placeholder: c.dica || '',
     onChange: e => definir(c.id, e.target.value),
     style: { width: '100%', boxSizing: 'border-box', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 13.5, fontFamily: 'inherit', resize: 'vertical' }
   }));

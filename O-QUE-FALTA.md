@@ -5187,3 +5187,18 @@ Relatórios de turno e Marcações da Recepção).
 - Testado (Playwright, servidor simulado): mensagem sem rede → «por enviar» e
   fila → com rede, gravada uma vez; relatório na fila → gravado; recarregar sem
   internet abre o Workspace com a faixa.
+
+## 3-ib. Relato do turno: escrita livre nos relatórios (26-10-2026)
+
+Elmar: «Vê os relatórios que recebemos e o que temos no sistema, cria um campo
+de escrita livre além dos que já temos de assinalar para eliminar os e-mails em
+paralelo». Visto a 26-10: as cinco áreas continuam a mandar e-mail de fim de
+turno (texto corrido + Excel/fecho em anexo), e no Workspace faltam entregas
+(Imagiologia 2 e Enfermagem 3 na semana de 20 a 26-10); a «Observação» de uma
+linha quase não se usava.
+- O campo `obs` das cinco áreas passa a «Relato do turno» (`livre: true`, 8
+  linhas, até 4000 caracteres, exemplo por área em `dica`). Mesmo id: o
+  servidor, o e-mail e os relatórios antigos continuam iguais.
+- Falta para acabar com os e-mails: anexos no relatório (fechos de caixa e do
+  TPA, folhas de Excel da Enfermagem, Laboratório e Raio-X), por decidir com o
+  Elmar; o Raio-X manda tabela com nomes de utentes (nunca no relatório).
