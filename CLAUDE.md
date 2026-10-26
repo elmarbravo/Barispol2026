@@ -87,6 +87,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   Chat e Escalas: `bsp_pre_pedido` (pgrst.db_pre_request) e `BSP_ROTAS_FORA` no ecrã;
   uma tabela ou função nova do Chat ou das Escalas entra nas duas listas. Nunca
   voltar a pôr `bsp_rede_ok` em `bsp_meu_id`/`bsp_sessao_aal2` (fechava o Chat).
+- Sem internet (26-10-2026, 3-ia): fila `bsp-fila-v1` (`bspFilaPor`, `BSP_FILA_ENVIO`:
+  Chat, relatórios, estado das marcações) e cópias `bsp-cache-*`, só no separador;
+  `sw.js` guarda só a casca (nunca dados). Escrita nova que deva funcionar sem
+  rede entra em `BSP_FILA_ENVIO` e confirma se já chegou antes de gravar.
 - Estado, notificações e endereços assinados só no `sessionStorage`
   (12-10-2026, Fase 2 em `O-QUE-FALTA.md` 3-gy); endereços de 4 h.
 - Push das mensagens sem texto (`push-sem-texto.sql`): «Nova mensagem» e o

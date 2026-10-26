@@ -3317,7 +3317,16 @@ const BSP_MFA_APARELHO = 'bsp-mfa-aparelho';
 async function bspMfaEmailSessaoOk(cl) {
   try {
     const r = await cl.rpc('bsp_mfa_ok');
-    if (!r.error && r.data === true) return true;
+    /* Sem internet (26-10-2026): esta sessão já tinha passado o código neste
+       separador; o servidor volta a confirmar quando a ligação voltar. */
+    let ses = '';
+    try {
+      const s = await cl.auth.getSession();
+      const t = (s && s.data && s.data.session && s.data.session.access_token) || '';
+      ses = String(JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).session_id || '');
+    } catch (e) {}
+    if (!r.error && r.data === true) { try { if (ses) sessionStorage.setItem('bsp-mfa-ok', ses); } catch (e) {} return true; }
+    if (r.error && bspSemRede(r.error)) { try { if (ses && sessionStorage.getItem('bsp-mfa-ok') === ses) return true; } catch (e) {} }
     let tok = null;
     try { tok = localStorage.getItem(BSP_MFA_APARELHO); } catch (e) {}
     if (!tok) return false;
@@ -3589,6 +3598,7 @@ function MenuConta({
       sessionStorage.removeItem(STORAGE_KEY);
       sessionStorage.removeItem('bsp-notifs-v1');
     } catch (e) {}
+    bspCacheLimpar();
     try {
       window.location.reload();
     } catch (e) {}
@@ -4591,6 +4601,139 @@ function bspGetClient() {
   });
   if (bspEmVerComo()) return __bspClienteLeitura || (__bspClienteLeitura = bspClienteSoLeitura(__bspClient));
   return __bspClient;
+}
+/* Sem internet (26-10-2026, Elmar: «Preciso que funcione sem rede»). O que se
+   escreve sem ligação (mensagens do Chat, relatórios de turno, estado das
+   marcações) vai para uma fila no separador (bsp-fila-v1, sessionStorage) e
+   segue sozinho quando a ligação volta (evento online e de 20 em 20 s). As
+   leituras do Chat, Escalas, Agenda e Marcações guardam a última cópia
+   (bsp-cache-*, também no separador) e mostram-na sem rede. Nada disto vai
+   para o localStorage: fechar o separador ou sair apaga tudo. As regras do
+   servidor não mudam; a fila envia com a sessão de quem escreveu. */
+const BSP_FILA = 'bsp-fila-v1';
+function bspFilaLer() {
+  try { const l = JSON.parse(sessionStorage.getItem(BSP_FILA) || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; }
+}
+function bspFilaGravar(l) {
+  try { if (l.length) sessionStorage.setItem(BSP_FILA, JSON.stringify(l)); else sessionStorage.removeItem(BSP_FILA); } catch (e) {}
+  try { window.dispatchEvent(new Event('bsp-fila')); } catch (e) {}
+}
+function bspFilaPor(tipo, dados) {
+  const l = bspFilaLer();
+  l.push({ id: 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), tipo: tipo, dados: dados, criado: new Date().toISOString(), tentativas: 0 });
+  bspFilaGravar(l);
+  setTimeout(bspFilaEnviar, 500);
+}
+/* Erro de rede (sem ligação) e não recusa do servidor. */
+function bspSemRede(err) {
+  try { if (navigator.onLine === false) return true; } catch (e) {}
+  return /Failed to fetch|NetworkError|Load failed|network|ERR_INTERNET|ERR_NETWORK|ERR_NAME|timed? ?out|aborted/i.test(String((err && (err.message || err.details)) || err || ''));
+}
+async function bspRelatorioCopiaEmail(d) {
+  const corpo = '<b>' + bspEmailTexto(d.nome) + '</b> · enviado por ' + bspEmailTexto(d.autor || 'colega') + ' · ' + bspEmailTexto(bspDataExacta(new Date(d.quando))) +
+    '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:12px 0 0;width:100%;border-collapse:collapse">' +
+    (d.linhas || []).map(([k, v]) => '<tr><td style="padding:5px 10px 5px 0;vertical-align:top;color:#5A6180;font-size:13px;border-bottom:1px solid #E7EBF3">' + bspEmailTexto(k) + '</td><td style="padding:5px 0;vertical-align:top;color:#292F58;font-size:13px;border-bottom:1px solid #E7EBF3">' + bspEmailTexto(v) + '</td></tr>').join('') +
+    '</table>';
+  BSP_RELATORIOS_EMAIL.forEach(id => {
+    const u = window.userById && window.userById(id);
+    if (u && u.email && id !== d.user_id) bspSendEmail(u.email, '[Relatório] ' + d.nome + ' — ' + bspDataExacta(new Date(d.quando)) + (d.autor ? ' — ' + d.autor.split(' ')[0] : ''), bspEmailWrap('Relatório do dia: ' + bspEmailTexto(d.nome), corpo, 'relatorios', 'Ver no Workspace'));
+  });
+}
+/* Cada tipo confirma primeiro se já chegou (a resposta pode ter-se perdido
+   com a ligação), para nunca gravar duas vezes. */
+const BSP_FILA_ENVIO = {
+  msg: async (cl, d) => {
+    const ja = await cl.from('messages').select('id').eq('conv_key', d.conv_key).eq('cid', d.cid).limit(1);
+    if (ja.error) throw ja.error;
+    if (ja.data && ja.data.length) return;
+    const r = await cl.from('messages').insert({ conv_key: d.conv_key, user_id: d.user_id, text: d.text, cid: d.cid });
+    if (r.error) throw r.error;
+  },
+  relatorio: async (cl, d) => {
+    const ja = await cl.from('relatorios_area').select('id').eq('area', d.linha.area).eq('dia', d.linha.dia).eq('user_id', d.linha.user_id).gte('created_at', d.quando).limit(1);
+    if (ja.error) throw ja.error;
+    if (ja.data && ja.data.length) return;
+    const r = await cl.from('relatorios_area').insert(d.linha);
+    if (r.error) throw r.error;
+    try { await bspRelatorioCopiaEmail(d.email); } catch (e) {}
+  },
+  'marc-estado': async (cl, d) => {
+    const r = await cl.from('marcacoes').update({ estado: d.estado }).eq('id', d.id).select('id');
+    if (r.error) throw r.error;
+    if (!r.data || !r.data.length) throw new Error('Sem permissão.');
+  }
+};
+let __bspFilaAEnviar = false;
+async function bspFilaEnviar() {
+  if (__bspFilaAEnviar || !bspFilaLer().length) return;
+  try { if (navigator.onLine === false) return; } catch (e) {}
+  if (bspEmVerComo()) return;
+  const cl = bspGetClient();
+  if (!cl) return;
+  __bspFilaAEnviar = true;
+  let enviados = 0;
+  try {
+    for (const it of bspFilaLer()) {
+      const f = BSP_FILA_ENVIO[it.tipo];
+      try {
+        if (f) await f(cl, it.dados);
+        bspFilaGravar(bspFilaLer().filter(x => x.id !== it.id));
+        enviados++;
+      } catch (e) {
+        if (bspSemRede(e)) break;
+        /* Recusado pelo servidor: tenta mais quatro vezes e depois desiste, com aviso. */
+        const t = (it.tentativas || 0) + 1;
+        if (t >= 5) {
+          bspFilaGravar(bspFilaLer().filter(x => x.id !== it.id));
+          try { window.dispatchEvent(new CustomEvent('bsp-fila-recusado', { detail: { tipo: it.tipo, erro: String(e.message || e) } })); } catch (x) {}
+        } else bspFilaGravar(bspFilaLer().map(x => x.id === it.id ? Object.assign({}, x, { tentativas: t, erro: String(e.message || e) }) : x));
+      }
+    }
+  } finally { __bspFilaAEnviar = false; }
+  if (enviados) try { window.dispatchEvent(new CustomEvent('bsp-fila-enviada', { detail: { n: enviados } })); } catch (e) {}
+}
+try {
+  window.addEventListener('online', () => setTimeout(bspFilaEnviar, 1500));
+  setInterval(bspFilaEnviar, 20000);
+  /* O service worker guarda a casca do Workspace para abrir sem internet
+     (sw.js); antes só se registava com as notificações activas. */
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+} catch (e) {}
+/* Última cópia de uma leitura, só no separador. */
+function bspCacheGravar(chave, dados) {
+  try { const t = JSON.stringify({ em: new Date().toISOString(), dados: dados }); if (t.length < 1500000) sessionStorage.setItem('bsp-cache-' + chave, t); } catch (e) {}
+}
+function bspCacheLer(chave) {
+  try { const o = JSON.parse(sessionStorage.getItem('bsp-cache-' + chave) || 'null'); return o && o.dados !== undefined ? o : null; } catch (e) { return null; }
+}
+function bspCacheLimpar() {
+  try { Object.keys(sessionStorage).forEach(k => { if (k.indexOf('bsp-cache-') === 0 || k === BSP_FILA) sessionStorage.removeItem(k); }); } catch (e) {}
+}
+/* Rede e fila para o ecrã. */
+function useBspRede() {
+  const ler = () => ({ online: (() => { try { return navigator.onLine !== false; } catch (e) { return true; } })(), fila: bspFilaLer().length });
+  const [st, setSt] = React.useState(ler);
+  React.useEffect(() => {
+    const f = () => setSt(ler());
+    window.addEventListener('online', f); window.addEventListener('offline', f); window.addEventListener('bsp-fila', f);
+    return () => { window.removeEventListener('online', f); window.removeEventListener('offline', f); window.removeEventListener('bsp-fila', f); };
+  }, []);
+  return st;
+}
+function FaixaSemRede() {
+  const r = useBspRede();
+  const toast = useToast();
+  React.useEffect(() => {
+    const ok = e => toast((e.detail && e.detail.n === 1 ? '1 registo guardado sem internet foi enviado.' : (e.detail.n + ' registos guardados sem internet foram enviados.')));
+    const nao = e => toast('O servidor recusou um registo guardado sem internet (' + ({ msg: 'mensagem', relatorio: 'relatório', 'marc-estado': 'marcação' }[e.detail.tipo] || 'registo') + '): ' + e.detail.erro, 'error');
+    window.addEventListener('bsp-fila-enviada', ok); window.addEventListener('bsp-fila-recusado', nao);
+    return () => { window.removeEventListener('bsp-fila-enviada', ok); window.removeEventListener('bsp-fila-recusado', nao); };
+  }, []);
+  if (r.online && !r.fila) return null;
+  const txt = !r.online
+    ? 'Sem internet. Pode continuar: mensagens, relatórios e mudanças de marcações ficam guardados' + (r.fila ? ' (' + r.fila + ' por enviar)' : '') + ' e seguem quando a ligação voltar. Não feche o Workspace.'
+    : 'A enviar ' + r.fila + (r.fila === 1 ? ' registo guardado' : ' registos guardados') + ' sem internet…';
+  return React.createElement("div", { role: 'status', style: { background: r.online ? 'var(--accent-soft)' : 'var(--aviso)', color: r.online ? 'var(--navy-texto)' : 'var(--papel)', borderBottom: '1px solid var(--border)', padding: '8px 14px', fontSize: 13.5, fontWeight: 600 } }, txt);
 }
 const BSP_BUCKET = 'drive';
 const BSP_MAX_BYTES = 25 * 1024 * 1024;
@@ -5711,6 +5854,7 @@ function StoreProvider({
     status: 'off',
     error: ''
   });
+  const [tentarSync, setTentarSync] = React.useState(0);
   const syncRef = React.useRef({
     client: null,
     seen: new Set(),
@@ -5817,6 +5961,7 @@ function StoreProvider({
           [m.conv_key]: arr.map(x => x.cid === m.cid ? {
             ...x,
             sid: m.id,
+            pendente: false,
             iso: m.created_at || x.iso
           } : x)
         }
@@ -6461,7 +6606,16 @@ function StoreProvider({
       } catch (e) {}
       syncRef.current.client = null;
     };
-  }, []);
+  }, [tentarSync]);
+  /* Sem internet ao abrir (26-10-2026): a ligação volta a tentar-se quando
+     a rede regressa e, em erro, de 30 em 30 s. */
+  React.useEffect(() => {
+    if (sync.status !== 'error') return;
+    const de_novo = () => setTentarSync(n => n + 1);
+    window.addEventListener('online', de_novo);
+    const iv = setInterval(() => { try { if (navigator.onLine !== false) de_novo(); } catch (e) {} }, 30000);
+    return () => { window.removeEventListener('online', de_novo); clearInterval(iv); };
+  }, [sync.status]);
   React.useEffect(() => {
     if (sync.status !== 'live') return;
     const cl = syncRef.current.client;
@@ -6973,14 +7127,29 @@ function StoreProvider({
         }
       }));
       const cl = syncRef.current && syncRef.current.client;
-      if (cl) {
+      /* Sem internet (26-10-2026): a mensagem fica «por enviar» e vai para a
+         fila (bspFilaPor); a fila confirma pelo cid antes de gravar. */
+      const paraFila = () => {
+        setState(s => ({
+          ...s,
+          channelMessages: {
+            ...s.channelMessages,
+            [convKey]: (s.channelMessages[convKey] || []).map(x => x.cid === cid && !x.sid ? { ...x, pendente: true } : x)
+          }
+        }));
+        bspFilaPor('msg', { conv_key: convKey, user_id: msg.userId, text: msg.text, cid });
+      };
+      let semRede = false;
+      try { semRede = navigator.onLine === false; } catch (e) {}
+      if (semRede && !bspEmVerComo()) paraFila();
+      else if (cl) {
         try {
           cl.from('messages').insert({
             conv_key: convKey,
             user_id: msg.userId,
             text: msg.text,
             cid
-          }).then(() => {}, () => {});
+          }).then(r => { if (r && r.error && bspSemRede(r.error)) paraFila(); }, e => { if (bspSemRede(e)) paraFila(); });
         } catch (e) {}
       }
       /* O aviso por e-mail das mensagens directas deixou de sair daqui
@@ -10369,7 +10538,7 @@ function ChatScreen({
     }), isOwn ? React.createElement("div", {
       /* Nas minhas, a data fica dentro da bolha, em baixo à direita. */
       style: { fontSize: 10.5, color: 'var(--text-3)', textAlign: 'right', marginTop: 2, whiteSpace: 'nowrap' }
-    }, m.editada && React.createElement("em", { style: { marginRight: 6 } }, "editada"), bspQuandoChat(m.iso, m.ts)) : grouped && m.editada && React.createElement("em", {
+    }, m.pendente && !m.sid && React.createElement("span", { style: { marginRight: 6, color: 'var(--aviso)', fontWeight: 600 } }, "🕓 por enviar"), m.editada && React.createElement("em", { style: { marginRight: 6 } }, "editada"), bspQuandoChat(m.iso, m.ts)) : grouped && m.editada && React.createElement("em", {
       style: { fontSize: 11, color: 'var(--text-3)', marginLeft: 6 }
     }, "editada")), React.createElement("div", {
       /* Os quatro botões passam a viver num grupo. No telemóvel são
@@ -12929,7 +13098,13 @@ function useAgendaEventos() {
     const cl = bspGetClient();
     if (!cl) return;
     let vivo = true;
-    cl.from('agenda_eventos').select('*').order('hora', { ascending: true }).then(r => { if (vivo && !r.error) setLinhas(r.data || []); });
+    cl.from('agenda_eventos').select('*').order('hora', { ascending: true }).then(r => {
+      if (!vivo) return;
+      /* Sem internet (26-10-2026): a última cópia da agenda. */
+      if (r.error) { const c = bspSemRede(r.error) && bspCacheLer('agenda'); if (c) setLinhas(c.dados || []); return; }
+      bspCacheGravar('agenda', r.data || []);
+      setLinhas(r.data || []);
+    });
     return () => { vivo = false; };
   }, [tick]);
   /* Tempo real: um convite novo aparece sem recarregar a página. */
@@ -13310,7 +13485,13 @@ function MeusTurnosCartao() {
     const mes = bspDataLocalISO(new Date()).slice(0, 8) + '01';
     const prox = bspSomarMeses(mes, 1);
     cl.from('escalas').select('area, mes, turnos, dias, estado, visto_em, exige_visto').in('mes', [mes, prox]).eq('estado', 'publicada')
-      .then(r => { if (vivo && !r.error) setLista((r.data || []).filter(bspEscalaEmVigor)); });
+      .then(r => {
+        if (!vivo) return;
+        /* Sem internet (26-10-2026): a última cópia. */
+        if (r.error) { const c = bspSemRede(r.error) && bspCacheLer('meus-turnos-' + mes); if (c) setLista((c.dados || []).filter(bspEscalaEmVigor)); return; }
+        bspCacheGravar('meus-turnos-' + mes, r.data || []);
+        setLista((r.data || []).filter(bspEscalaEmVigor));
+      });
     return () => { vivo = false; };
   }, []);
   const hoje = bspDataLocalISO(new Date());
@@ -17116,6 +17297,7 @@ function RelatoriosScreen() {
     }
     const cl = bspGetClient();
     if (!cl) { toast('O servidor não está ligado.'); return; }
+    if (bspEmVerComo()) { toast('Em «Ver como» não se grava nada.'); return; }
     setAEnviar(true);
     const limpo = {};
     def.campos.forEach(c => {
@@ -17126,7 +17308,7 @@ function RelatoriosScreen() {
       else if (c.tipo === 'reagentes') limpo[c.id] = bspReagentesLimpos(v);
       else limpo[c.id] = v;
     });
-    const r = await cl.from('relatorios_area').insert({
+    const linha = {
       area: def.id,
       dia: diaForm,
       turno: typeof limpo.turno === 'string' ? limpo.turno : null,
@@ -17134,21 +17316,25 @@ function RelatoriosScreen() {
       respostas: limpo,
       /* As perguntas por extenso, para o e-mail do servidor. */
       resumo: def.campos.map(c => [c.rotulo, bspRespostaTexto(c, limpo[c.id])]).filter(x => x[1] != null)
-    });
+    };
+    /* Copia por e-mail para quem a Direccao escolheu (a Arlete). */
+    const copia = { nome: def.nome, autor: eu ? eu.name : '', quando: new Date().toISOString(), user_id: window.CURRENT_USER_ID, linhas: linha.resumo };
+    /* Sem internet (26-10-2026): o relatório fica na fila e segue sozinho. */
+    const guardarFila = () => {
+      bspFilaPor('relatorio', { linha: linha, email: copia, quando: new Date(Date.now() - 60000).toISOString() });
+      setAEnviar(false);
+      toast('Sem internet: o relatório ficou guardado e é entregue quando a ligação voltar.');
+      setResp({});
+      setDiaForm(bspDiaRelatorio());
+    };
+    let semRede = false;
+    try { semRede = navigator.onLine === false; } catch (e) {}
+    if (semRede) { guardarFila(); return; }
+    const r = await cl.from('relatorios_area').insert(linha);
+    if (r.error && bspSemRede(r.error)) { guardarFila(); return; }
     setAEnviar(false);
     if (r.error) { toast('Não foi possível enviar: ' + (r.error.message || 'erro')); return; }
-    /* Copia por e-mail para quem a Direccao escolheu (a Arlete). */
-    try {
-      const linhas = def.campos.map(c => [c.rotulo, bspRespostaTexto(c, limpo[c.id])]).filter(x => x[1] != null);
-      const corpo = '<b>' + bspEmailTexto(def.nome) + '</b> · enviado por ' + bspEmailTexto(eu ? eu.name : 'colega') + ' · ' + bspEmailTexto(bspDataExacta(new Date())) +
-        '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:12px 0 0;width:100%;border-collapse:collapse">' +
-        linhas.map(([k, v]) => '<tr><td style="padding:5px 10px 5px 0;vertical-align:top;color:#5A6180;font-size:13px;border-bottom:1px solid #E7EBF3">' + bspEmailTexto(k) + '</td><td style="padding:5px 0;vertical-align:top;color:#292F58;font-size:13px;border-bottom:1px solid #E7EBF3">' + bspEmailTexto(v) + '</td></tr>').join('') +
-        '</table>';
-      BSP_RELATORIOS_EMAIL.forEach(id => {
-        const d = window.userById && window.userById(id);
-        if (d && d.email && id !== window.CURRENT_USER_ID) bspSendEmail(d.email, '[Relatório] ' + def.nome + ' — ' + bspDataExacta(new Date()) + (eu ? ' — ' + eu.name.split(' ')[0] : ''), bspEmailWrap('Relatório do dia: ' + bspEmailTexto(def.nome), corpo, 'relatorios', 'Ver no Workspace'));
-      });
-    } catch (e) {}
+    try { bspRelatorioCopiaEmail(copia); } catch (e) {}
     toast('Relatório enviado.');
     setResp({});
     setDia(diaForm);
@@ -23699,10 +23885,22 @@ function useMarcacoes(de, ate) {
       let q = cl.from('marcacoes').select('*').order('data_marcada', { ascending: true }).order('hora', { ascending: true, nullsFirst: true }).limit(5000);
       if (de) q = q.gte('data_marcada', de);
       if (ate) q = q.lte('data_marcada', ate);
+      const chave = 'marc-' + (de || '') + '-' + (ate || '');
       const r = await q;
       if (!vivo) return;
+      /* Sem internet (26-10-2026): mostra a última lista deste período, com
+         as mudanças de estado ainda na fila. */
+      if (r.error && bspSemRede(r.error)) {
+        const c = bspCacheLer(chave);
+        if (c) {
+          const fila = {};
+          bspFilaLer().forEach(f => { if (f.tipo === 'marc-estado') fila[f.dados.id] = f.dados.estado; });
+          setLista((c.dados || []).map(x => fila[x.id] ? { ...x, estado: fila[x.id] } : x)); setEstado('pronto'); setErro('sem-rede'); return;
+        }
+      }
       if (r.error) { setErro(r.error.message || ''); setEstado(/relation|does not exist|schema cache/i.test(r.error.message || '') ? 'sem-tabela' : 'erro'); return; }
-      setLista(r.data || []); setEstado('pronto');
+      setLista(r.data || []); setEstado('pronto'); setErro('');
+      bspCacheGravar(chave, r.data || []);
     })();
     /* Outros postos da recepcao podem marcar ao mesmo tempo. */
     const iv = setInterval(() => setTick(t => t + 1), 60000);
@@ -23722,7 +23920,11 @@ function useMarcacoes(de, ate) {
     const cl = bspGetClient();
     if (!cl) return 'O servidor não está ligado.';
     setLista(l => l.map(x => x.id === id ? { ...x, estado: novo } : x));
+    let semRede = false;
+    try { semRede = navigator.onLine === false; } catch (e) {}
+    if (semRede && !bspEmVerComo()) { bspFilaPor('marc-estado', { id, estado: novo }); return null; }
     const r = await cl.from('marcacoes').update({ estado: novo }).eq('id', id).select('id');
+    if (r.error && bspSemRede(r.error)) { bspFilaPor('marc-estado', { id, estado: novo }); return null; }
     if (r.error || !r.data || !r.data.length) { recarregar(); return (r.error && r.error.message) || 'Sem permissão.'; }
     return null;
   }, [recarregar]);
@@ -24730,6 +24932,12 @@ function useEscala(area, mes) {
     setSt({ estado: 'a-carregar', escala: null, erro: '' });
     cl.from('escalas').select('*').eq('area', area).eq('mes', mes).maybeSingle().then(r => {
       if (!vivo) return;
+      /* Sem internet (26-10-2026): a última cópia desta escala. */
+      if (r.error && bspSemRede(r.error)) {
+        const c = bspCacheLer('escala-' + area + '-' + mes);
+        if (c) { setSt({ estado: 'pronto', escala: c.dados, erro: '', semRede: true }); return; }
+      }
+      if (!r.error) bspCacheGravar('escala-' + area + '-' + mes, r.data || null);
       if (r.error) {
         const m = String(r.error.message || '');
         setSt({ estado: /relation|does not exist|schema cache/i.test(m) ? 'sem-tabela' : 'erro', escala: null, erro: m });
@@ -25334,7 +25542,13 @@ function EscalaHojeCartao({ onAbrir }) {
     if (!cl) return;
     let vivo = true;
     const mes = bspDataLocalISO(new Date()).slice(0, 8) + '01';
-    cl.from('escalas').select('area, mes, turnos, dias, estado, visto_em, exige_visto').eq('mes', mes).eq('estado', 'publicada').then(r => { if (vivo && !r.error) setLista((r.data || []).filter(bspEscalaEmVigor)); });
+    cl.from('escalas').select('area, mes, turnos, dias, estado, visto_em, exige_visto').eq('mes', mes).eq('estado', 'publicada').then(r => {
+      if (!vivo) return;
+      /* Sem internet (26-10-2026): a última cópia. */
+      if (r.error) { const c = bspSemRede(r.error) && bspCacheLer('escalas-publicadas-' + mes); if (c) setLista((c.dados || []).filter(bspEscalaEmVigor)); return; }
+      bspCacheGravar('escalas-publicadas-' + mes, r.data || []);
+      setLista((r.data || []).filter(bspEscalaEmVigor));
+    });
     return () => { vivo = false; };
   }, []);
   const hoje = bspDataLocalISO(new Date());
@@ -32294,6 +32508,7 @@ function App() {
       sessionStorage.removeItem(STORAGE_KEY);
       sessionStorage.removeItem('bsp-notifs-v1');
     } catch (e) {}
+    bspCacheLimpar();
     setAuthedEmail(null);
     setAuthed(false);
     try {
@@ -32481,6 +32696,7 @@ function App() {
   const sairMfa = async () => {
     try { const c = bspGetClient(); if (c) await c.auth.signOut(); } catch (e) {}
     try { sessionStorage.removeItem(STORAGE_KEY); sessionStorage.removeItem('bsp-notifs-v1'); } catch (e) {}
+    bspCacheLimpar();
     try { localStorage.removeItem(BSP_MFA_APARELHO); } catch (e) {}
     try { window.location.reload(); } catch (e) {}
   };
@@ -32522,6 +32738,7 @@ function App() {
     }
   }, vista && React.createElement(FaixaVerComo, { vista: vista, real: utilizadorReal }),
   entrada.limitado && React.createElement(FaixaForaClinica, null),
+  React.createElement(FaixaSemRede, null),
   React.createElement(VerComoModal, { open: verComoAberto, real: utilizadorReal, onClose: () => setVerComoAberto(false) }),
   isMobile ? React.createElement(MobileTopbar, {
     current: pg,

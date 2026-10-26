@@ -5154,3 +5154,36 @@ passos por e-mail não chega: de 32 códigos pedidos desde 24-10, nenhum foi usa
   respondesse «aceite». O Elmar retirou-os da lista e o e-mail de teste chegou
   ao Outlook. Se o correio da Barispol voltar a falhar: Resend → Suppressions e
   retirar os endereços @barispol.com depois de o correio voltar.
+
+## 3-ia. Funcionar sem internet (26-10-2026)
+
+Elmar: «Preciso que funcione sem rede» (sem internet; Chat, Escalas e Agenda,
+Relatórios de turno e Marcações da Recepção).
+- Fila (`bsp-fila-v1`, sessionStorage): `bspFilaPor(tipo, dados)` e
+  `bspFilaEnviar()` (evento `online` e de 20 em 20 s). Tipos `msg` (Chat,
+  confirma pelo `cid` antes de gravar), `relatorio` (relatorios_area + cópia por
+  e-mail, `bspRelatorioCopiaEmail`; confirma pelo dia, área e autor) e
+  `marc-estado`. Recusa do servidor: 5 tentativas e aviso
+  (`bsp-fila-recusado`). Uma escrita nova que deva funcionar sem rede entra em
+  `BSP_FILA_ENVIO`.
+- Chat: sem rede a mensagem fica «🕓 por enviar» (`pendente`) até o servidor a
+  devolver pelo `cid`.
+- Leituras: última cópia em `bsp-cache-*` (`bspCacheGravar`/`bspCacheLer`) nas
+  Escalas (`useEscala`, `EscalaHojeCartao`, `MeusTurnosCartao`), Agenda
+  (`useAgendaEventos`) e Marcações (`useMarcacoes`, com as mudanças da fila).
+  O Chat já guardava o estado no separador.
+- Faixa `FaixaSemRede` (sem internet / a enviar N). Sair apaga cópias e fila
+  (`bspCacheLimpar`).
+- `sw.js` guarda a casca (página e ficheiros do programa, nunca dados; primeiro
+  a rede) e regista-se sempre, não só com notificações. Recarregar sem internet
+  abre o Workspace. 2FA: sem rede, aceita a sessão que já passou o código neste
+  separador (`bsp-mfa-ok`, pelo `session_id`).
+- A sincronização volta a tentar ligar-se quando a rede regressa
+  (`tentarSync`; antes só tentava ao abrir).
+- Limites: fechar o separador ou a app sem internet obriga a entrar de novo com
+  internet (sessão só no separador, regra de segurança); ficheiros novos do
+  Drive e anexos não se enviam sem rede; na app Android/iPhone, abrir a frio sem
+  internet continua a mostrar «sem ligação».
+- Testado (Playwright, servidor simulado): mensagem sem rede → «por enviar» e
+  fila → com rede, gravada uma vez; relatório na fila → gravado; recarregar sem
+  internet abre o Workspace com a faixa.
