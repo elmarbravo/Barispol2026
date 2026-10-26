@@ -5148,3 +5148,9 @@ passos por e-mail não chega: de 32 códigos pedidos desde 24-10, nenhum foi usa
   remetente geral@barispol.com) e, em resend.com → Domains, confirmar que
   barispol.com está «Verified» (DKIM `resend._domainkey`, MX e SPF de `send`
   no DNS). Depois, um código de teste e confirmar a chegada no Outlook.
+- **Resolvido (26-10-2026, 15h13):** a causa foram 48 h sem correio no Microsoft 365
+  (24-10). A Resend recebeu recusas e pôs os endereços @barispol.com em
+  «Suppressions»; os envios seguintes ficavam «Suppressed», embora a Resend
+  respondesse «aceite». O Elmar retirou-os da lista e o e-mail de teste chegou
+  ao Outlook. Se o correio da Barispol voltar a falhar: Resend → Suppressions e
+  retirar os endereços @barispol.com depois de o correio voltar.
