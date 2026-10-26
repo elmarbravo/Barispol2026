@@ -5132,3 +5132,19 @@ lá só abram os chats» e «tem um chefe de escala que tem que fazer a escala»
   config';` e `rede_config.activa = true`. Depois de ligar, confirmar com um
   telemóvel em dados móveis que o Chat abre e a página Utentes recusa, e que
   as imagens do Chat abrem (o Storage pode não passar o IP).
+
+## 3-hz. E-mails do sistema não chegam ao Microsoft 365; desbloqueio da 2FA (26-10-2026)
+
+Desde 24-10 nenhum e-mail do sistema (Resend, geral@barispol.com) chega às
+caixas @barispol.com. A Resend aceita e o Gmail recebe, mas o Microsoft 365
+não entrega, nem no lixo electrónico. Com isso o código da verificação em dois
+passos por e-mail não chega: de 32 códigos pedidos desde 24-10, nenhum foi usado.
+- Desbloqueio (Elmar: «Desbloqueia»): sessões abertas da Arlete, da Joana Tati
+  e do Domingos Henriques dadas como verificadas (`mfa_email_sessoes`, via
+  `direccao`); `mfa-liberacao.sql` (aplicado): tabela `mfa_liberacoes` e
+  `bsp_mfa_ok` aceita a pessoa até ao prazo. Déricka, Neusa (Raio-X) e Cássia
+  até 28-10, 15h02. Testado: com dispensa passa, sem dispensa não.
+- **Falta (Elmar):** quarentena do Microsoft 365 (security.microsoft.com/quarantine,
+  remetente geral@barispol.com) e, em resend.com → Domains, confirmar que
+  barispol.com está «Verified» (DKIM `resend._domainkey`, MX e SPF de `send`
+  no DNS). Depois, um código de teste e confirmar a chegada no Outlook.

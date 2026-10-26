@@ -75,6 +75,8 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   Duas vias valem (Elmar: «por e-mail ou app»): app (aal2) ou código por e-mail
   (`MfaEmailPasso`, `mfa-email.sql`, `bsp_mfa_ok`; aparelho lembrado 30 dias em
   `bsp-mfa-aparelho`, apagado ao sair).
+  Dispensa temporária (`mfa-liberacao.sql`, 26-10-2026): `mfa_liberacoes` com prazo
+  curto, só por decisão da Direcção, quando o e-mail do código não chega.
   No servidor, `mfa-obrigatoria.sql` (regra aal2). Sessões gémeas (20-10-2026,
   `mfa-sessoes-gemeas.sql`): a entrada no iPhone saía duas vezes; `bsp_mfa_ok`
   aceita a gémea verificada (10 s) e a entrada ignora o 2.º envio (`aEntrar`). Terminar a sessão de todos:
