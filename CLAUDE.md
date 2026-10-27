@@ -74,7 +74,8 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   página recarrega. Nunca voltar a pôr «Desligar» (só «Mudar de telemóvel»).
   Duas vias valem (Elmar: «por e-mail ou app»): app (aal2) ou código por e-mail
   (`MfaEmailPasso`, `mfa-email.sql`, `bsp_mfa_ok`; aparelho lembrado 30 dias em
-  `bsp-mfa-aparelho`, apagado ao sair).
+  `bsp-mfa-aparelho`; desde 27-10-2026 «Sair» já não o apaga, só Conta →
+  «Esquecer este aparelho», `BotaoEsquecerAparelho`, e um erro nunca o apaga).
   Dispensa temporária (`mfa-liberacao.sql`, 26-10-2026): `mfa_liberacoes` com prazo
   curto, só por decisão da Direcção, quando o e-mail do código não chega.
   No servidor, `mfa-obrigatoria.sql` (regra aal2). Sessões gémeas (20-10-2026,

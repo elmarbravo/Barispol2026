@@ -5215,3 +5215,7 @@ saídas) apagam `bsp-ver-como`.
   `true`, também com erro (cliente só de leitura do «Ver como», rede). Agora só
   apaga quando o servidor responde `false`. «Sair» continua a apagar a
   lembrança (regra para computadores partilhados).
+- 27-10-2026, Elmar escolheu a opção 2 («tenho colegas a reclamar»): «Sair» e
+  «Terminar sessão» já não apagam o aparelho lembrado; o botão «Esquecer este
+  aparelho» (`BotaoEsquecerAparelho`, nos três menus de conta, só aparece com
+  um aparelho lembrado) apaga-o. A caixa da 2FA explica-o.

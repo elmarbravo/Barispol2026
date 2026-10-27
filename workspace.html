@@ -3386,7 +3386,7 @@ function MfaEmailPasso({ onOk }) {
       React.createElement(BotaoMfa, { primario: true, type: 'submit', disabled: busy || codigo.length !== 6 }, busy ? 'A confirmar…' : 'Entrar')),
     React.createElement("label", { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, fontSize: 13, color: 'var(--text-2)' } },
       React.createElement("input", { type: 'checkbox', checked: lembrar, onChange: e => setLembrar(e.target.checked) }),
-      'Lembrar este aparelho durante 30 dias (não marque num computador partilhado)'),
+      'Lembrar este aparelho durante 30 dias, mesmo depois de «Sair» (não marque num computador partilhado; para esquecer: Conta → «Esquecer este aparelho»)'),
     erro && React.createElement("div", { style: { marginTop: 10, fontSize: 12.5, color: 'var(--perigo)' } }, erro),
     React.createElement("button", { type: 'button', onClick: enviar, disabled: busy, style: { marginTop: 10, background: 'transparent', border: 'none', color: 'var(--accent-d)', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0 } }, 'Enviar outro código'));
 }
@@ -3576,6 +3576,22 @@ function DoisPassosModal({ open, onClose }) {
       React.createElement(BotaoMfa, { onClick: mudar, disabled: busy }, 'Mudar de telemóvel')) :
     React.createElement(MfaInscricaoCorpo, { insc }));
 }
+/* Esquecer este aparelho (27-10-2026): com «Sair» o aparelho lembrado já não
+   se esquece; num computador partilhado carrega-se aqui. */
+function BotaoEsquecerAparelho() {
+  const toast = useToast();
+  const [tem, setTem] = React.useState(() => { try { return !!localStorage.getItem(BSP_MFA_APARELHO); } catch (e) { return false; } });
+  if (!tem) return null;
+  return React.createElement("button", {
+    onClick: () => {
+      try { localStorage.removeItem(BSP_MFA_APARELHO); } catch (e) {}
+      setTem(false);
+      toast('Este aparelho foi esquecido: na próxima entrada volta a pedir o código.');
+    },
+    title: 'Use num computador partilhado',
+    style: { marginTop: 8, width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)' }
+  }, 'Esquecer este aparelho');
+}
 function MenuConta({
   sFg,
   recolhido
@@ -3589,7 +3605,8 @@ function MenuConta({
       const c = bspGetClient();
       if (c) await c.auth.signOut();
     } catch (e) {}
-    try { localStorage.removeItem(BSP_MFA_APARELHO); } catch (e) {}
+    /* O aparelho lembrado (30 dias) fica (27-10-2026, Elmar: opção 2, «tenho
+       colegas a reclamar»): esquece-se em Conta → «Esquecer este aparelho». */
     bspUrlCacheLimpar();
     /* Limpar o estado guardado neste separador. Sem isto, o bsp-workspace-v1
        mantém as mensagens directas, o feed e o directório, e o loadInitial()
@@ -3635,7 +3652,7 @@ function MenuConta({
       boxShadow: '0 10px 30px rgba(0,0,0,.25)',
       padding: 10
     })
-  }, React.createElement(AlterarSenha, null), React.createElement("button", {
+  }, React.createElement(AlterarSenha, null), React.createElement(BotaoEsquecerAparelho, null), React.createElement("button", {
     onClick: () => { setAberto(false); setDoisPassos(true); },
     style: {
       marginTop: 8, width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--border)',
@@ -21829,7 +21846,7 @@ function MobileMore({
     }, React.createElement(Ico, {
       size: 22
     }), it.label);
-  })), React.createElement(AlterarSenha, null), React.createElement("button", {
+  })), React.createElement(AlterarSenha, null), React.createElement(BotaoEsquecerAparelho, null), React.createElement("button", {
     onClick: () => {
       onLogout();
       onClose();
@@ -32702,7 +32719,6 @@ function App() {
     try { const c = bspGetClient(); if (c) await c.auth.signOut(); } catch (e) {}
     try { sessionStorage.removeItem(STORAGE_KEY); sessionStorage.removeItem('bsp-notifs-v1'); } catch (e) {}
     bspCacheLimpar();
-    try { localStorage.removeItem(BSP_MFA_APARELHO); } catch (e) {}
     try { sessionStorage.removeItem('bsp-ver-como'); } catch (e) {}
     try { window.location.reload(); } catch (e) {}
   };
@@ -32886,7 +32902,7 @@ function TweaksPanelWrap({
       value: 'online',
       label: 'Online'
     }]
-  }), React.createElement(AlterarSenha, null), onLogout && React.createElement("button", {
+  }), React.createElement(AlterarSenha, null), React.createElement(BotaoEsquecerAparelho, null), onLogout && React.createElement("button", {
     onClick: onLogout,
     style: {
       marginTop: 8,
