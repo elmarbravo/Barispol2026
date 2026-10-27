@@ -5202,3 +5202,11 @@ linha quase não se usava.
 - Falta para acabar com os e-mails: anexos no relatório (fechos de caixa e do
   TPA, folhas de Excel da Enfermagem, Laboratório e Raio-X), por decidir com o
   Elmar; o Raio-X manda tabela com nomes de utentes (nunca no relatório).
+
+## 3-ic. «Ver como» preso no ecrã do código (27-10-2026)
+
+Elmar ficou no ecrã «Código por e-mail» com «Está em «Ver como»: só leitura»: o
+«Ver como» fica no separador (`bsp-ver-como`) e o ecrã da 2FA não tem «Voltar a
+si». Agora: com a 2FA por fazer e «Ver como» ligado, o App chama
+`bspSairVerComo()`; «Terminar sessão» (`sairMfa`) e `bspCacheLimpar` (todas as
+saídas) apagam `bsp-ver-como`.

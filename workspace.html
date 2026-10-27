@@ -4707,7 +4707,7 @@ function bspCacheLer(chave) {
   try { const o = JSON.parse(sessionStorage.getItem('bsp-cache-' + chave) || 'null'); return o && o.dados !== undefined ? o : null; } catch (e) { return null; }
 }
 function bspCacheLimpar() {
-  try { Object.keys(sessionStorage).forEach(k => { if (k.indexOf('bsp-cache-') === 0 || k === BSP_FILA) sessionStorage.removeItem(k); }); } catch (e) {}
+  try { Object.keys(sessionStorage).forEach(k => { if (k.indexOf('bsp-cache-') === 0 || k === BSP_FILA || k === 'bsp-ver-como') sessionStorage.removeItem(k); }); } catch (e) {}
 }
 /* Rede e fila para o ecrã. */
 function useBspRede() {
@@ -32701,11 +32701,15 @@ function App() {
     try { sessionStorage.removeItem(STORAGE_KEY); sessionStorage.removeItem('bsp-notifs-v1'); } catch (e) {}
     bspCacheLimpar();
     try { localStorage.removeItem(BSP_MFA_APARELHO); } catch (e) {}
+    try { sessionStorage.removeItem('bsp-ver-como'); } catch (e) {}
     try { window.location.reload(); } catch (e) {}
   };
   /* Depois do código, recarregar: o cliente da sincronização tem o seu próprio
      testemunho em memória e só o de nível aal2 passa as regras do servidor. */
   const mfaFeito = () => { try { window.location.reload(); } catch (e) { setMfaNivel('ok'); } };
+  /* «Ver como» é só leitura e bloqueia o envio do código (27-10-2026, Elmar:
+     «Como volto?»): antes da verificação em dois passos nunca fica ligado. */
+  if ((mfaNivel === 'precisa' || mfaNivel === 'inscrever') && bspEmVerComo()) { bspSairVerComo(); return null; }
   if (mfaNivel === 'precisa') return React.createElement(MfaCodigoEcra, { onOk: mfaFeito, onSair: sairMfa });
   if (mfaNivel === 'inscrever') return React.createElement(MfaInscreverEcra, { onOk: mfaFeito, onSair: sairMfa });
   /* Rede da clínica e política de privacidade (22-10-2026, privacidade-rede.sql). */
