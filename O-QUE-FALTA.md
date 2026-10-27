@@ -5210,3 +5210,8 @@ Elmar ficou no ecrã «Código por e-mail» com «Está em «Ver como»: só lei
 si». Agora: com a 2FA por fazer e «Ver como» ligado, o App chama
 `bspSairVerComo()`; «Terminar sessão» (`sairMfa`) e `bspCacheLimpar` (todas as
 saídas) apagam `bsp-ver-como`.
+- 27-10-2026, Elmar: «não está a gravar os 30 dias?». O `bspMfaEmailSessaoOk`
+  apagava `bsp-mfa-aparelho` sempre que `bsp_mfa_email_retomar` não devolvia
+  `true`, também com erro (cliente só de leitura do «Ver como», rede). Agora só
+  apaga quando o servidor responde `false`. «Sair» continua a apagar a
+  lembrança (regra para computadores partilhados).

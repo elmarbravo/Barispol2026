@@ -3332,7 +3332,9 @@ async function bspMfaEmailSessaoOk(cl) {
     if (!tok) return false;
     const x = await cl.rpc('bsp_mfa_email_retomar', { p_token: tok });
     if (!x.error && x.data === true) return true;
-    try { localStorage.removeItem(BSP_MFA_APARELHO); } catch (e) {}
+    /* Só se esquece o aparelho quando o servidor diz que a lembrança já não
+       vale (27-10-2026): um erro («Ver como», rede) apagava os 30 dias. */
+    if (!x.error && x.data === false) { try { localStorage.removeItem(BSP_MFA_APARELHO); } catch (e) {} }
   } catch (e) {}
   return false;
 }
