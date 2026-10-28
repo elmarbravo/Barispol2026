@@ -5104,3 +5104,21 @@ mais ninguém pode usar o software fora da instituição».
   na Enfermagem ou dados móveis?) e quem usa dados móveis dentro da clínica
   (Dra. Joana Tati, Domingos). Depois: ligar com os dois `update` do fim do
   SQL e actualizar `privacidade.html`.
+
+## 3-hy. Metas financeiras mensais (28-10-2026)
+
+Elmar: «Sim faz a tabela nova e a meta».
+- Servidor: `financas-metas.sql` (**aplicado**). Tabela `financas_metas` (mês,
+  indicador, realista, alta, sentido `max`/`min`), RLS só `bsp_ve_salarios`
+  (u1 e u2), gatilho `bsp_auditar`, nada a `anon`. `bsp_financas_metas(mes)`
+  devolve metas e realizado pela regra do Painel (`erp.sales_invoice`
+  submetidas, notas de crédito abatidas), regista o acesso
+  (`bsp_acesso_srv`) e recusa os outros (testado).
+- Metas de Novembro de 2026 gravadas só no servidor (facturado, recebido, por
+  receber, utentes, pessoal). Valores nunca no repositório.
+- Atenção: os e-mails semanais do MetaGest dão cerca de 7% a mais do que o
+  Painel (não descontam as notas de crédito). As metas medem-se pelo Painel.
+- Por fazer: resumo financeiro às segundas, 08h00 (receita, cobranças,
+  compras, alertas), a ler `bsp_financas_metas`; prémio da Recepção (meta da
+  equipa ou por pessoa; as notas de crédito contam a quem emitiu a factura
+  original) por decidir pelo Elmar antes de se comunicar.
