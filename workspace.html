@@ -3314,6 +3314,49 @@ function PoliticaEcra({ politica, currentUser, onSair, onOk }) {
       React.createElement("button", { onClick: assinar, disabled: !pronto, style: Object.assign({}, bspEscBotao(true), { opacity: pronto ? 1 : .5 }) }, aEnviar ? 'A assinar…' : 'Assinar e receber por e-mail')));
 }
 const BSP_MFA_APARELHO = 'bsp-mfa-aparelho';
+/* Sessão de 30 dias nos aparelhos lembrados (28-10-2026, Elmar: «A equipa
+   está descontente»: pedia a palavra-passe sempre que a app fechava). Quem
+   marcou «Lembrar este aparelho» fica com a sessão no localStorage até ao fim
+   dos 30 dias; os outros (computadores partilhados) continuam só no
+   separador. Os dois clientes do Supabase usam sempre o mesmo armazém
+   (bspArmazemSessao). «Esquecer este aparelho» e o fim do prazo devolvem a
+   sessão ao separador. */
+const BSP_MFA_APARELHO_ATE = 'bsp-mfa-aparelho-ate';
+function bspChavesSessao(arm) {
+  const l = [];
+  try { for (let i = 0; i < arm.length; i++) { const k = arm.key(i); if (k && k.indexOf('sb-') === 0 && k.indexOf('-auth-token') !== -1) l.push(k); } } catch (e) {}
+  return l;
+}
+function bspMoverSessao(de, para) {
+  try { bspChavesSessao(de).forEach(k => { const v = de.getItem(k); if (v != null) para.setItem(k, v); de.removeItem(k); }); } catch (e) {}
+}
+function bspAparelhoLembrado() {
+  try {
+    if (!localStorage.getItem(BSP_MFA_APARELHO)) return false;
+    let ate = Number(localStorage.getItem(BSP_MFA_APARELHO_ATE) || 0);
+    if (!ate) { ate = Date.now() + 30 * 86400000; localStorage.setItem(BSP_MFA_APARELHO_ATE, String(ate)); }
+    if (ate > Date.now()) return true;
+    bspEsquecerAparelho();
+  } catch (e) {}
+  return false;
+}
+function bspLembrarAparelho(token) {
+  try {
+    localStorage.setItem(BSP_MFA_APARELHO, token);
+    localStorage.setItem(BSP_MFA_APARELHO_ATE, String(Date.now() + 30 * 86400000));
+    bspMoverSessao(sessionStorage, localStorage);
+  } catch (e) {}
+}
+function bspEsquecerAparelho() {
+  try {
+    localStorage.removeItem(BSP_MFA_APARELHO);
+    localStorage.removeItem(BSP_MFA_APARELHO_ATE);
+    bspMoverSessao(localStorage, sessionStorage);
+  } catch (e) {}
+}
+function bspArmazemSessao() {
+  try { return bspAparelhoLembrado() ? window.localStorage : window.sessionStorage; } catch (e) { return undefined; }
+}
 async function bspMfaEmailSessaoOk(cl) {
   try {
     const r = await cl.rpc('bsp_mfa_ok');
@@ -3334,7 +3377,7 @@ async function bspMfaEmailSessaoOk(cl) {
     if (!x.error && x.data === true) return true;
     /* Só se esquece o aparelho quando o servidor diz que a lembrança já não
        vale (27-10-2026): um erro («Ver como», rede) apagava os 30 dias. */
-    if (!x.error && x.data === false) { try { localStorage.removeItem(BSP_MFA_APARELHO); } catch (e) {} }
+    if (!x.error && x.data === false) bspEsquecerAparelho();
   } catch (e) {}
   return false;
 }
@@ -3366,7 +3409,7 @@ function MfaEmailPasso({ onOk }) {
       const r = await cl.rpc('bsp_mfa_email_verificar', { p_codigo: codigo, p_lembrar: lembrar });
       setBusy(false);
       if (r.error || !r.data || !r.data.ok) { setErro((r.data && r.data.erro) || 'Código errado ou fora de prazo.'); setCodigo(''); return; }
-      if (r.data.token) { try { localStorage.setItem(BSP_MFA_APARELHO, r.data.token); } catch (e2) {} }
+      if (r.data.token) bspLembrarAparelho(r.data.token);
       onOk();
     } catch (err) { setBusy(false); setErro('Não foi possível confirmar o código. Verifique a internet.'); }
   };
@@ -3386,7 +3429,7 @@ function MfaEmailPasso({ onOk }) {
       React.createElement(BotaoMfa, { primario: true, type: 'submit', disabled: busy || codigo.length !== 6 }, busy ? 'A confirmar…' : 'Entrar')),
     React.createElement("label", { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, fontSize: 13, color: 'var(--text-2)' } },
       React.createElement("input", { type: 'checkbox', checked: lembrar, onChange: e => setLembrar(e.target.checked) }),
-      'Lembrar este aparelho durante 30 dias, mesmo depois de «Sair» (não marque num computador partilhado; para esquecer: Conta → «Esquecer este aparelho»)'),
+      'Lembrar este aparelho durante 30 dias: fica com a sessão aberta e não pede o código (não marque num computador partilhado; para esquecer: Conta → «Esquecer este aparelho»)'),
     erro && React.createElement("div", { style: { marginTop: 10, fontSize: 12.5, color: 'var(--perigo)' } }, erro),
     React.createElement("button", { type: 'button', onClick: enviar, disabled: busy, style: { marginTop: 10, background: 'transparent', border: 'none', color: 'var(--accent-d)', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0 } }, 'Enviar outro código'));
 }
@@ -3584,7 +3627,7 @@ function BotaoEsquecerAparelho() {
   if (!tem) return null;
   return React.createElement("button", {
     onClick: () => {
-      try { localStorage.removeItem(BSP_MFA_APARELHO); } catch (e) {}
+      bspEsquecerAparelho();
       setTem(false);
       toast('Este aparelho foi esquecido: na próxima entrada volta a pedir o código.');
     },
@@ -4590,8 +4633,9 @@ function bspGetClient() {
      Elmar: «contas a abrirem sem início de sessão»). Antes ficava no
      localStorage e entrava sozinha para sempre: num computador partilhado
      abria a conta de outra pessoa. As sessões antigas guardadas apagam-se. */
+  const lembrado = bspAparelhoLembrado();
   try {
-    for (let i = localStorage.length - 1; i >= 0; i--) {
+    if (!lembrado) for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
       if (k && k.indexOf('sb-') === 0 && k.indexOf('-auth-token') !== -1) localStorage.removeItem(k);
     }
@@ -4606,11 +4650,11 @@ function bspGetClient() {
         const k = sessionStorage.key(i);
         if (k && ((k.indexOf('sb-') === 0 && k.indexOf('-auth-token') !== -1) || k === STORAGE_KEY || k === 'bsp-notifs-v1' || k.indexOf('bsp-urls-') === 0)) sessionStorage.removeItem(k);
       }
+      bspChavesSessao(localStorage).forEach(k => localStorage.removeItem(k));
       localStorage.setItem('bsp-sessao-geracao', BSP_SESSAO_GERACAO);
     }
   } catch (e) {}
-  let armazem;
-  try { armazem = window.sessionStorage; } catch (e) { armazem = undefined; }
+  const armazem = bspArmazemSessao();
   __bspClient = window.supabase.createClient(cfg.url, cfg.key, {
     auth: {
       persistSession: true,
@@ -5957,8 +6001,7 @@ function StoreProvider({
          sempre e o Workspace não lia nem gravava a equipa, não recebia em
          tempo real nem dava sinal de presença. */
       bspGetClient();
-      let armazem;
-      try { armazem = window.sessionStorage; } catch (e) { armazem = undefined; }
+      const armazem = bspArmazemSessao();
       client = window.supabase.createClient(cleanUrl, String(cfg.key || '').trim(), {
         auth: { persistSession: true, autoRefreshToken: true, storage: armazem }
       });

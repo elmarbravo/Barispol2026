@@ -260,11 +260,14 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `avisos_mensagens`. O Workspace já não envia esse e-mail directamente.
 - Som das notificações: um só `AudioContext` (`bspAudio`), desbloqueado
   no primeiro toque (`bspDesbloquearSom`). Nunca criar um por aviso.
-- Sessão (02-10-2026): só no `sessionStorage` (`bspGetClient` e o cliente da
-  sincronização, os dois com o mesmo armazém; com armazéns diferentes o
-  Workspace parava de sincronizar); nunca voltar
-  a guardar a sessão no `localStorage` (contas abriam sozinhas em
-  computadores partilhados).
+- Sessão (02-10-2026): no `sessionStorage` (`bspGetClient` e o cliente da
+  sincronização, os dois com o mesmo armazém, `bspArmazemSessao`; com armazéns
+  diferentes o Workspace parava de sincronizar). Excepção aprovada pelo Elmar
+  (28-10-2026, «A equipa está descontente»): nos aparelhos lembrados (caixa dos
+  30 dias, `bspAparelhoLembrado`) a sessão fica no `localStorage` até ao fim do
+  prazo (`bsp-mfa-aparelho-ate`); «Esquecer este aparelho» e o fim do prazo
+  devolvem-na ao separador (`bspEsquecerAparelho`). Sem a caixa, nunca no
+  `localStorage` (contas abriam sozinhas em computadores partilhados).
 - Quem está online (02-10-2026): sempre `bspEstadoDe(user)` /
   `bspEstaOnline(id)` (tempo real ou sinal na `presenca` há menos de 3
   min), nunca `user.status` sozinho, que é o que ficou gravado na ficha.

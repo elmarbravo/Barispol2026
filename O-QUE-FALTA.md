@@ -5219,6 +5219,14 @@ saídas) apagam `bsp-ver-como`.
   «Terminar sessão» já não apagam o aparelho lembrado; o botão «Esquecer este
   aparelho» (`BotaoEsquecerAparelho`, nos três menus de conta, só aparece com
   um aparelho lembrado) apaga-o. A caixa da 2FA explica-o.
+- 28-10-2026, Elmar: «O acesso não está guardar um mês» / «A equipa está
+  descontente». O código já não era pedido (o servidor mostra entradas pelo
+  aparelho lembrado), mas a palavra-passe sim, porque a sessão só vivia no
+  separador. Agora, nos aparelhos lembrados, a sessão fica no `localStorage`
+  30 dias (`bspArmazemSessao`, `bspLembrarAparelho`, `bspEsquecerAparelho`,
+  `bsp-mfa-aparelho-ate`); a geração de sessões (`BSP_SESSAO_GERACAO`) apaga
+  também essas. Testado no navegador (lembrar, caducar, esquecer).
+
 ## 3-id. Metas financeiras mensais (28-10-2026)
 
 Elmar: «Sim faz a tabela nova e a meta».
