@@ -74,13 +74,24 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   página recarrega. Nunca voltar a pôr «Desligar» (só «Mudar de telemóvel»).
   Duas vias valem (Elmar: «por e-mail ou app»): app (aal2) ou código por e-mail
   (`MfaEmailPasso`, `mfa-email.sql`, `bsp_mfa_ok`; aparelho lembrado 30 dias em
-  `bsp-mfa-aparelho`, apagado ao sair).
+  `bsp-mfa-aparelho`; desde 27-10-2026 «Sair» já não o apaga, só Conta →
+  «Esquecer este aparelho», `BotaoEsquecerAparelho`, e um erro nunca o apaga).
+  Dispensa temporária (`mfa-liberacao.sql`, 26-10-2026): `mfa_liberacoes` com prazo
+  curto, só por decisão da Direcção, quando o e-mail do código não chega.
   No servidor, `mfa-obrigatoria.sql` (regra aal2). Sessões gémeas (20-10-2026,
   `mfa-sessoes-gemeas.sql`): a entrada no iPhone saía duas vezes; `bsp_mfa_ok`
   aceita a gémea verificada (10 s) e a entrada ignora o 2.º envio (`aEntrar`). Terminar a sessão de todos:
   mudar `BSP_SESSAO_GERACAO` e correr `sessoes-terminar.sql`. Workspace a mudar para `ws.barispol.com` (aprovado pelo Elmar; o site
   já não liga à equipa): um host novo entra na CSP, nas `ORIGENS_PERMITIDAS` e
   no `PERMITIDOS` da app PC. O fluxo «Verificar» confirma a sintaxe a cada push.
+- Rede da clínica (25-10-2026, `rede-limitada.sql`): fora da rede (e não isento) só
+  Chat e Escalas: `bsp_pre_pedido` (pgrst.db_pre_request) e `BSP_ROTAS_FORA` no ecrã;
+  uma tabela ou função nova do Chat ou das Escalas entra nas duas listas. Nunca
+  voltar a pôr `bsp_rede_ok` em `bsp_meu_id`/`bsp_sessao_aal2` (fechava o Chat).
+- Sem internet (26-10-2026, 3-ia): fila `bsp-fila-v1` (`bspFilaPor`, `BSP_FILA_ENVIO`:
+  Chat, relatórios, estado das marcações) e cópias `bsp-cache-*`, só no separador;
+  `sw.js` guarda só a casca (nunca dados). Escrita nova que deva funcionar sem
+  rede entra em `BSP_FILA_ENVIO` e confirma se já chegou antes de gravar.
 - Estado, notificações e endereços assinados só no `sessionStorage`
   (12-10-2026, Fase 2 em `O-QUE-FALTA.md` 3-gy); endereços de 4 h.
 - Push das mensagens sem texto (`push-sem-texto.sql`): «Nova mensagem» e o

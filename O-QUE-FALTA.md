@@ -5105,7 +5105,121 @@ mais ninguém pode usar o software fora da instituição».
   (Dra. Joana Tati, Domingos). Depois: ligar com os dois `update` do fim do
   SQL e actualizar `privacidade.html`.
 
-## 3-hy. Metas financeiras mensais (28-10-2026)
+## 3-hy. Fora da clínica: só Chat e Escalas (25-10-2026, preparado, desligado)
+
+Passo 3 do plano da rede (3-hx). Em vez de fechar o Workspace a quem está fora
+da rede da clínica, deixa abrir só o Chat e as Escalas (Elmar, 22-10: «fora de
+lá só abram os chats» e «tem um chefe de escala que tem que fazer a escala»).
+- `rede-limitada.sql` (aplicado): `bsp_pre_pedido()` recusa com 403, fora da
+  rede, tudo o que não está na lista (tabelas `messages`, `shared_state`,
+  `presenca`, `escalas`, `trocas_turno`, `capturas_ecra`, `acessos_registo` e as
+  funções da 2FA, avisos, push e trocas). `bsp_meu_id` e `bsp_sessao_aal2` já
+  não levam `bsp_rede_ok`. Ficheiros: regra `bsp_rede_ficheiros` (fora, só os
+  anexos das conversas; o Drive não). Testado com IP simulados: Filomena de
+  fora → Chat e Escalas passam, marcações e CRM dão 403; na clínica e os
+  isentos (u1, u2, u14, u22) passam em tudo.
+- Ecrã: `bsp_entrada_estado` devolve `limitado`; o menu, a barra do telemóvel e
+  a rota ficam em `BSP_ROTAS_FORA` (chat, escalas) com a faixa
+  `FaixaForaClinica`. O ecrã «Só na rede da clínica» foi retirado.
+- Registo de 22 a 25-10: o IP da clínica 129.122.165.219 manteve-se (11
+  pessoas). Entradas de fora de quem não é isento: Filomena (154.71.192.28 no
+  turno de 23-10, 08h–22h, e rede móvel a 22-10), Ludmila Da Silva (06h43 de
+  23-10), Cássia (22h20 de 22-10) e Nicolau (22h26 de 24-10). Política: 14
+  assinaram, 11 por assinar (sobretudo médicos que ainda não entraram).
+- **Falta:** o «sim» do Elmar para ligar, e decidir se 154.71.192.28 é rede da
+  clínica (a Filomena usa-o durante o turno). Ligar: `alter role authenticator
+  set pgrst.db_pre_request = 'public.bsp_pre_pedido'; notify pgrst, 'reload
+  config';` e `rede_config.activa = true`. Depois de ligar, confirmar com um
+  telemóvel em dados móveis que o Chat abre e a página Utentes recusa, e que
+  as imagens do Chat abrem (o Storage pode não passar o IP).
+
+## 3-hz. E-mails do sistema não chegam ao Microsoft 365; desbloqueio da 2FA (26-10-2026)
+
+Desde 24-10 nenhum e-mail do sistema (Resend, geral@barispol.com) chega às
+caixas @barispol.com. A Resend aceita e o Gmail recebe, mas o Microsoft 365
+não entrega, nem no lixo electrónico. Com isso o código da verificação em dois
+passos por e-mail não chega: de 32 códigos pedidos desde 24-10, nenhum foi usado.
+- Desbloqueio (Elmar: «Desbloqueia»): sessões abertas da Arlete, da Joana Tati
+  e do Domingos Henriques dadas como verificadas (`mfa_email_sessoes`, via
+  `direccao`); `mfa-liberacao.sql` (aplicado): tabela `mfa_liberacoes` e
+  `bsp_mfa_ok` aceita a pessoa até ao prazo. Déricka, Neusa (Raio-X) e Cássia
+  até 28-10, 15h02. Testado: com dispensa passa, sem dispensa não.
+- **Falta (Elmar):** quarentena do Microsoft 365 (security.microsoft.com/quarantine,
+  remetente geral@barispol.com) e, em resend.com → Domains, confirmar que
+  barispol.com está «Verified» (DKIM `resend._domainkey`, MX e SPF de `send`
+  no DNS). Depois, um código de teste e confirmar a chegada no Outlook.
+- **Resolvido (26-10-2026, 15h13):** a causa foram 48 h sem correio no Microsoft 365
+  (24-10). A Resend recebeu recusas e pôs os endereços @barispol.com em
+  «Suppressions»; os envios seguintes ficavam «Suppressed», embora a Resend
+  respondesse «aceite». O Elmar retirou-os da lista e o e-mail de teste chegou
+  ao Outlook. Se o correio da Barispol voltar a falhar: Resend → Suppressions e
+  retirar os endereços @barispol.com depois de o correio voltar.
+
+## 3-ia. Funcionar sem internet (26-10-2026)
+
+Elmar: «Preciso que funcione sem rede» (sem internet; Chat, Escalas e Agenda,
+Relatórios de turno e Marcações da Recepção).
+- Fila (`bsp-fila-v1`, sessionStorage): `bspFilaPor(tipo, dados)` e
+  `bspFilaEnviar()` (evento `online` e de 20 em 20 s). Tipos `msg` (Chat,
+  confirma pelo `cid` antes de gravar), `relatorio` (relatorios_area + cópia por
+  e-mail, `bspRelatorioCopiaEmail`; confirma pelo dia, área e autor) e
+  `marc-estado`. Recusa do servidor: 5 tentativas e aviso
+  (`bsp-fila-recusado`). Uma escrita nova que deva funcionar sem rede entra em
+  `BSP_FILA_ENVIO`.
+- Chat: sem rede a mensagem fica «🕓 por enviar» (`pendente`) até o servidor a
+  devolver pelo `cid`.
+- Leituras: última cópia em `bsp-cache-*` (`bspCacheGravar`/`bspCacheLer`) nas
+  Escalas (`useEscala`, `EscalaHojeCartao`, `MeusTurnosCartao`), Agenda
+  (`useAgendaEventos`) e Marcações (`useMarcacoes`, com as mudanças da fila).
+  O Chat já guardava o estado no separador.
+- Faixa `FaixaSemRede` (sem internet / a enviar N). Sair apaga cópias e fila
+  (`bspCacheLimpar`).
+- `sw.js` guarda a casca (página e ficheiros do programa, nunca dados; primeiro
+  a rede) e regista-se sempre, não só com notificações. Recarregar sem internet
+  abre o Workspace. 2FA: sem rede, aceita a sessão que já passou o código neste
+  separador (`bsp-mfa-ok`, pelo `session_id`).
+- A sincronização volta a tentar ligar-se quando a rede regressa
+  (`tentarSync`; antes só tentava ao abrir).
+- Limites: fechar o separador ou a app sem internet obriga a entrar de novo com
+  internet (sessão só no separador, regra de segurança); ficheiros novos do
+  Drive e anexos não se enviam sem rede; na app Android/iPhone, abrir a frio sem
+  internet continua a mostrar «sem ligação».
+- Testado (Playwright, servidor simulado): mensagem sem rede → «por enviar» e
+  fila → com rede, gravada uma vez; relatório na fila → gravado; recarregar sem
+  internet abre o Workspace com a faixa.
+
+## 3-ib. Relato do turno: escrita livre nos relatórios (26-10-2026)
+
+Elmar: «Vê os relatórios que recebemos e o que temos no sistema, cria um campo
+de escrita livre além dos que já temos de assinalar para eliminar os e-mails em
+paralelo». Visto a 26-10: as cinco áreas continuam a mandar e-mail de fim de
+turno (texto corrido + Excel/fecho em anexo), e no Workspace faltam entregas
+(Imagiologia 2 e Enfermagem 3 na semana de 20 a 26-10); a «Observação» de uma
+linha quase não se usava.
+- O campo `obs` das cinco áreas passa a «Relato do turno» (`livre: true`, 8
+  linhas, até 4000 caracteres, exemplo por área em `dica`). Mesmo id: o
+  servidor, o e-mail e os relatórios antigos continuam iguais.
+- Falta para acabar com os e-mails: anexos no relatório (fechos de caixa e do
+  TPA, folhas de Excel da Enfermagem, Laboratório e Raio-X), por decidir com o
+  Elmar; o Raio-X manda tabela com nomes de utentes (nunca no relatório).
+
+## 3-ic. «Ver como» preso no ecrã do código (27-10-2026)
+
+Elmar ficou no ecrã «Código por e-mail» com «Está em «Ver como»: só leitura»: o
+«Ver como» fica no separador (`bsp-ver-como`) e o ecrã da 2FA não tem «Voltar a
+si». Agora: com a 2FA por fazer e «Ver como» ligado, o App chama
+`bspSairVerComo()`; «Terminar sessão» (`sairMfa`) e `bspCacheLimpar` (todas as
+saídas) apagam `bsp-ver-como`.
+- 27-10-2026, Elmar: «não está a gravar os 30 dias?». O `bspMfaEmailSessaoOk`
+  apagava `bsp-mfa-aparelho` sempre que `bsp_mfa_email_retomar` não devolvia
+  `true`, também com erro (cliente só de leitura do «Ver como», rede). Agora só
+  apaga quando o servidor responde `false`. «Sair» continua a apagar a
+  lembrança (regra para computadores partilhados).
+- 27-10-2026, Elmar escolheu a opção 2 («tenho colegas a reclamar»): «Sair» e
+  «Terminar sessão» já não apagam o aparelho lembrado; o botão «Esquecer este
+  aparelho» (`BotaoEsquecerAparelho`, nos três menus de conta, só aparece com
+  um aparelho lembrado) apaga-o. A caixa da 2FA explica-o.
+## 3-id. Metas financeiras mensais (28-10-2026)
 
 Elmar: «Sim faz a tabela nova e a meta».
 - Servidor: `financas-metas.sql` (**aplicado**). Tabela `financas_metas` (mês,
