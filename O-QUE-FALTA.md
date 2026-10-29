@@ -5304,3 +5304,7 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   corredor com o letreiro): texto sobre marinho à esquerda e fotografia limpa à
   direita; no telemóvel a fotografia fica por cima. «De serviço hoje» passou para
   a coluna da direita (no computador estava quase vazia). Testado no navegador.
+- 29-10-2026, Emmanuel (no Chat ao Elmar): «Dei como concluído por engano» o
+  aparelho de AC do Laboratório. Avaria 44 reaberta no servidor (Aberta, sem data
+  de resolução; reabrir não manda e-mails). Em Serviços gerais, as resolvidas têm
+  agora «Reabrir» para quem trata as avarias (`bspTrataAvarias`).
