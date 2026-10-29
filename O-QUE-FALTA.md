@@ -5299,3 +5299,8 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   «De serviço hoje» mostra a área da pessoa primeiro. Ficha do guia actualizada.
   Testado no navegador (computador e telemóvel, servidor simulado).
 - Por fazer (D, não pedido): telefones na ficha da equipa (só 1 de 24).
+- 29-10-2026, Elmar: «O layout está adequado? Uma imagem nossa». Cartão de
+  boas-vindas do Início com a fotografia da clínica (`assets/facility.jpg`, o
+  corredor com o letreiro): texto sobre marinho à esquerda e fotografia limpa à
+  direita; no telemóvel a fotografia fica por cima. «De serviço hoje» passou para
+  a coluna da direita (no computador estava quase vazia). Testado no navegador.
