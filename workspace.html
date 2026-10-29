@@ -31698,18 +31698,25 @@ function PainelFacturacao() {
   const [erro, setErro] = React.useState('');
   const [tabela, setTabela] = React.useState(false);
   const [tick, setTick] = React.useState(0);
+  const chaveVista = React.useRef('');
   React.useEffect(() => { try { localStorage.setItem('bsp-painel-periodo', periodo); } catch (e) {} }, [periodo]);
   React.useEffect(() => {
     const cl = bspGetClient();
     if (!cl) { setErro('O servidor não está ligado neste aparelho.'); return; }
     let vivo = true;
     setACarregar(true);
-    cl.rpc('bsp_painel', { p_de: p[2], p_ate: p[3] }).then(r => {
+    /* Servidor ocupado (29-10-2026, «statement timeout» às 10h30, quando as
+       cargas do MetaGest coincidiam): tenta mais duas vezes antes de mostrar
+       o erro; na actualização de cada minuto, um erro não apaga o que está à vista. */
+    const pedir = n => cl.rpc('bsp_painel', { p_de: p[2], p_ate: p[3] }).then(r => {
       if (!vivo) return;
+      if (r.error && n < 2 && /timeout|57014|fetch|network/i.test(String(r.error.message || r.error.code || ''))) { setTimeout(() => { if (vivo) pedir(n + 1); }, 4000); return; }
       setACarregar(false);
-      if (r.error) { setErro(r.error.message || 'Não foi possível carregar.'); return; }
+      if (r.error) { if (chaveVista.current !== p[2] + p[3]) setErro(r.error.message || 'Não foi possível carregar.'); return; }
+      chaveVista.current = p[2] + p[3];
       setErro(''); setDados(r.data);
     });
+    pedir(0);
     return () => { vivo = false; };
   }, [p[2], p[3], tick]);
   /* Com o dia de hoje no periodo, volta a perguntar a cada minuto. */

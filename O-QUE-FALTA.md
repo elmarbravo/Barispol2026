@@ -5269,3 +5269,10 @@ Elmar: «A equipa está descontente», «Por omissão e aviso», «Coloque enque
   dados. Agora, ao alterar, o ficheiro vem primeiro («Actual: … · Ver», botão
   «Trocar pelo ficheiro certo») e o aviso diz se o ficheiro mudou ou não.
   Falta a Arlete trocar o ficheiro (com assinatura e carimbo, pedido do Elmar).
+- 29-10-2026, Elmar (Painel: «canceling statement due to statement timeout», 10h30):
+  às horas certas e meias arrancavam juntas seis cargas (WhatsApp ~25 s, pedidos
+  do CRM ~18 s, stock, clínico, Painel, vigilância); a base saturava e houve 8
+  pedidos do Workspace cortados aos 8 s entre 09h30 e 09h31 UTC. O `bsp_painel` em
+  si leva 0,13 s. Feito: minutos desencontrados nos crons (lista no `CLAUDE.md`)
+  e o Painel tenta mais duas vezes antes de mostrar o erro; na actualização de cada
+  minuto, um erro não apaga os números à vista.

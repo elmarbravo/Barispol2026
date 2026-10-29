@@ -584,6 +584,11 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   agenda. Utentes
   nunca com nome. Nas funções SQL do servidor, nunca a palavra `truncate`
   (a ferramenta fica à espera de confirmação).
+- Agendamentos desencontrados (29-10-2026, Painel com «statement timeout» às
+  10h30): as cargas pesadas não arrancam no mesmo minuto (whatsapp-sync 3/13…,
+  crm-pedidos 7/22…, bsp-painel-hoje 1/6…, bsp-stock 9/24…, bsp-vigilancia
+  14/29…, bsp-clinico-hoje 17 e 47). Um cron novo de carga escolhe um minuto livre,
+  nunca :00 nem :30.
 - Funções com filtro de acesso (01-10-2026): calcular primeiro o que a
   pessoa vê (CTE com `offset 0`), nunca uma função de acesso por linha numa
   tabela grande (o Stock levava 10 s).
