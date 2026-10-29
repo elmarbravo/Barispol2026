@@ -8644,16 +8644,15 @@ function DashboardScreen({
   }, React.createElement("div", { style: { overflow: 'auto', padding: '4px 0' } },
     /* Fotografia da clínica no cartão de boas-vindas (29-10-2026, Elmar:
        «Uma imagem nossa»), com uma camada marinha para o texto se ler. */
-    React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap-reverse', overflow: 'hidden', background: 'var(--navy)', borderRadius: 6, color: '#fff', marginBottom: 16 } },
-      React.createElement("div", { style: { flex: '1 1 340px', padding: '22px 24px' } },
+    React.createElement("div", { style: { overflow: 'hidden', backgroundColor: 'var(--navy)', backgroundImage: 'url(assets/facility.jpg)', backgroundSize: 'cover', backgroundPosition: 'center 44%', borderRadius: 6, color: '#fff', marginBottom: 16 } },
+      React.createElement("div", { style: { background: 'rgba(41,47,88,.74)', textShadow: '0 1px 3px rgba(0,0,0,.3)', padding: '22px 24px', minHeight: 150 } },
       React.createElement("div", { style: { fontSize: 11.5, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.72)', marginBottom: 4 } }, dateLine),
       React.createElement("h2", { style: { fontSize: 23, fontWeight: 700, margin: '0 0 6px' } }, bspSaudacao() + ', ' + currentUser.name.split(' ')[0] + '.'),
       React.createElement("p", { style: { fontSize: 14, color: 'rgba(255,255,255,.82)', margin: '0 0 14px', lineHeight: 1.5 } }, summary),
       React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
         quick.map(([ic, rot, to]) => React.createElement("button", { key: to, onClick: () => ir(to),
           style: { padding: '8px 14px', background: 'rgba(255,255,255,.14)', color: '#fff', border: '1px solid rgba(255,255,255,.28)', borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: 'inherit' }
-        }, I[ic] ? React.createElement(I[ic], { size: 15 }) : null, rot)))),
-      React.createElement("div", { role: 'img', 'aria-label': 'Centro Médico Barispol', style: { flex: '1 1 220px', minHeight: 130, backgroundImage: 'url(assets/facility.jpg)', backgroundSize: 'cover', backgroundPosition: '34% 46%' } })),
+        }, I[ic] ? React.createElement(I[ic], { size: 15 }) : null, rot))))),
     recepcao && React.createElement(MarcLembretesInicio, { onAbrir: () => ir('marcacoes') }),
     React.createElement(InicioRelatorioPorEntregar, { onAbrir: () => ir('relatorios') }),
     React.createElement(InicioPorDecidir, { currentUser }),

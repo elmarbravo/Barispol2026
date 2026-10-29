@@ -5308,3 +5308,6 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   aparelho de AC do Laboratório. Avaria 44 reaberta no servidor (Aberta, sem data
   de resolução; reabrir não manda e-mails). Em Serviços gerais, as resolvidas têm
   agora «Reabrir» para quem trata as avarias (`bspTrataAvarias`).
+- 29-10-2026, Elmar: «A fotografia opaca estava melhor». O cartão de boas-vindas
+  volta a ter a fotografia a toda a largura, por baixo de uma camada marinha
+  (74%), com o texto por cima; sem a fotografia à parte.
