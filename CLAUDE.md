@@ -266,7 +266,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   (28-10-2026, «A equipa está descontente»): nos aparelhos lembrados (caixa dos
   30 dias, `bspAparelhoLembrado`) a sessão fica no `localStorage` até ao fim do
   prazo (`bsp-mfa-aparelho-ate`); «Esquecer este aparelho» e o fim do prazo
-  devolvem-na ao separador (`bspEsquecerAparelho`). Sem a caixa, nunca no
+  devolvem-na ao separador (`bspEsquecerAparelho`). A caixa (`BspCaixaLembrar`, marcada por
+  omissão, 29-10-2026) está no código por e-mail e no da app
+  (`bsp_mfa_app_lembrar`, `mfa-app-lembrar.sql`). Sem a caixa, nunca no
   `localStorage` (contas abriam sozinhas em computadores partilhados).
 - Quem está online (02-10-2026): sempre `bspEstadoDe(user)` /
   `bspEstaOnline(id)` (tempo real ou sinal na `presenca` há menos de 3
@@ -299,6 +301,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `useBspPrefSimNao` (preferência do aparelho); formatação atrás de «Aa»;
   «Procurar conversa…» filtra canais e pessoas. Botões do cabeçalho sem
   moldura (32 px).
+- Enquetes do Feed (29-10-2026, `enquetes.sql`): opções em `posts.poll`, votos
+  em `enquete_votos` só por `bsp_enquete_votar`; totais por
+  `bsp_enquete_resultados` (`useEnquete`). Quem votou em quê nunca se mostra.
 - Anexos do Feed (06-10-2026): `ComposePostModal` aceita vários (`atts`); cada
   um vai para o Drive e entra no texto como `[anexo:nome]`.
 - Aspecto do Chat (06-10-2026, Elmar: «eu escrevo e fico do lado direito»):

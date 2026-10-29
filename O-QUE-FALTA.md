@@ -5244,3 +5244,21 @@ Elmar: «Sim faz a tabela nova e a meta».
   compras, alertas), a ler `bsp_financas_metas`; prémio da Recepção (meta da
   equipa ou por pessoa; as notas de crédito contam a quem emitiu a factura
   original) por decidir pelo Elmar antes de se comunicar.
+
+## 3-ie. 30 dias também com a app; enquetes a sério (29-10-2026)
+
+Elmar: «A equipa está descontente», «Por omissão e aviso», «Coloque enquete».
+- Causa que faltava: a caixa «Lembrar este aparelho durante 30 dias» só existia
+  no código por e-mail. Quem usa a app de autenticação (6 pessoas) escrevia a
+  palavra-passe e o código sempre que o separador fechava. Agora a caixa
+  (`BspCaixaLembrar`, marcada por omissão) está nos dois; com a app, o
+  `MfaCodigoEcra` pede a lembrança a `bsp_mfa_app_lembrar` (`mfa-app-lembrar.sql`,
+  **aplicado**, só a sessões aal2). Testado no navegador.
+- Enquetes do Feed (`enquetes.sql`, **aplicado**): até aqui eram só aspecto (as
+  opções nem iam para o servidor; tocar não fazia nada). Agora `posts.poll`
+  guarda as opções, `enquete_votos` um voto por pessoa (pode mudar),
+  `bsp_enquete_votar` / `bsp_enquete_resultados` (só totais; quem votou em quê
+  nunca sai do servidor). Ecrã: `useEnquete`, `bspEnqueteVotar`. Testado no
+  navegador.
+- Publicados: aviso em #avisos e enquete no Feed sobre a entrada.
+

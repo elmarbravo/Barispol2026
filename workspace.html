@@ -3427,11 +3427,16 @@ function MfaEmailPasso({ onOk }) {
         style: { width: 150, height: 42, padding: '0 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 18, letterSpacing: 6, textAlign: 'center', fontFamily: 'inherit' }
       }),
       React.createElement(BotaoMfa, { primario: true, type: 'submit', disabled: busy || codigo.length !== 6 }, busy ? 'A confirmar…' : 'Entrar')),
-    React.createElement("label", { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, fontSize: 13, color: 'var(--text-2)' } },
-      React.createElement("input", { type: 'checkbox', checked: lembrar, onChange: e => setLembrar(e.target.checked) }),
-      'Lembrar este aparelho durante 30 dias: fica com a sessão aberta e não pede o código (não marque num computador partilhado; para esquecer: Conta → «Esquecer este aparelho»)'),
+    React.createElement(BspCaixaLembrar, { lembrar, setLembrar }),
     erro && React.createElement("div", { style: { marginTop: 10, fontSize: 12.5, color: 'var(--perigo)' } }, erro),
     React.createElement("button", { type: 'button', onClick: enviar, disabled: busy, style: { marginTop: 10, background: 'transparent', border: 'none', color: 'var(--accent-d)', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0 } }, 'Enviar outro código'));
+}
+/* Caixa dos 30 dias, marcada por omissão (29-10-2026, Elmar: «Por omissão»),
+   igual no código por e-mail e no da app. */
+function BspCaixaLembrar({ lembrar, setLembrar, estilo }) {
+  return React.createElement("label", { style: Object.assign({ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 12, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.45 }, estilo || {}) },
+    React.createElement("input", { type: 'checkbox', checked: lembrar, onChange: e => setLembrar(e.target.checked), style: { marginTop: 2, width: 18, height: 18, flex: 'none' } }),
+    React.createElement("span", null, 'Lembrar este aparelho durante 30 dias: fica com a sessão aberta, sem palavra-passe nem código. Num computador partilhado, tire o visto (para esquecer depois: Conta → «Esquecer este aparelho»).'));
 }
 /* Cartão dos ecrãs de entrada do 2FA. */
 function MfaCartao({ titulo, children, onSair }) {
@@ -3455,6 +3460,7 @@ function MfaCodigoEcra({ onOk, onSair }) {
   const [codigo, setCodigo] = React.useState('');
   const [erro, setErro] = React.useState('');
   const [busy, setBusy] = React.useState(false);
+  const [lembrar, setLembrar] = React.useState(true);
   const confirmar = async e => {
     e && e.preventDefault();
     if (codigo.length !== 6 || busy) return;
@@ -3467,6 +3473,8 @@ function MfaCodigoEcra({ onOk, onSair }) {
       const r = await cl.auth.mfa.challengeAndVerify({ factorId: f.id, code: codigo });
       setBusy(false);
       if (r.error) { setErro(bspMfaErroTexto(r.error)); setCodigo(''); return; }
+      /* 29-10-2026: a app também lembra o aparelho 30 dias (antes só o e-mail). */
+      if (lembrar) { try { const x = await cl.rpc('bsp_mfa_app_lembrar'); if (!x.error && x.data) bspLembrarAparelho(x.data); } catch (e2) {} }
       onOk();
     } catch (err) {
       setBusy(false);
@@ -3484,6 +3492,7 @@ function MfaCodigoEcra({ onOk, onSair }) {
         onChange: e => setCodigo(bspMfaCodigoLimpo(e.target.value)),
         style: { height: 48, padding: '0 14px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 22, letterSpacing: 8, textAlign: 'center', fontFamily: 'inherit' }
       }),
+      React.createElement(BspCaixaLembrar, { lembrar, setLembrar, estilo: { marginTop: 0 } }),
       erro && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--perigo)' } }, erro),
       React.createElement(BotaoMfa, { primario: true, type: 'submit', disabled: busy || codigo.length !== 6 }, busy ? 'A confirmar…' : 'Entrar')),
     bspMfaTroca('Não tem o telemóvel? Receber o código por e-mail', () => setModo('email')));
@@ -4596,7 +4605,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_alertas_por_ler', 'bsp_fm_estado', 'bsp_fm_votos', 'bsp_relatorio_metagest', 'bsp_pagamento_banco', 'bsp_pagamento_etapas', 'bsp_segmento', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
+const BSP_RPC_LEITURA = ['bsp_enquete_resultados', 'bsp_alertas_por_ler', 'bsp_fm_estado', 'bsp_fm_votos', 'bsp_relatorio_metagest', 'bsp_pagamento_banco', 'bsp_pagamento_etapas', 'bsp_segmento', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -6081,6 +6090,7 @@ function StoreProvider({
           type: p.type || 'normal',
           title: p.title,
           body: p.body,
+          poll: p.poll && Array.isArray(p.poll.options) ? { options: p.poll.options, total: 0 } : undefined,
           ts: fmtTs(p.created_at),
           iso: p.created_at,
           reactions: {},
@@ -7045,6 +7055,7 @@ function StoreProvider({
             type: post.type || 'normal',
             title: post.title || null,
             body: post.body || null,
+            poll: post.poll ? { options: post.poll.options.map(o => ({ id: o.id, label: o.label })) } : null,
             cid
           }).then(() => {}, () => {});
         } catch (e) {}
@@ -12469,6 +12480,56 @@ function ComposePostModal({
     }
   }, "Aparece com destaque para toda a clínica."))));
 }
+/* Votos das enquetes do Feed (29-10-2026, enquetes.sql, Elmar: «Coloque
+   enquete»). Antes a enquete era só aspecto: nada se gravava. Os totais vêm de
+   bsp_enquete_resultados (quem votou em quê não sai do servidor); um voto por
+   pessoa, pode mudar de opção. Uma leitura partilhada por todas as enquetes. */
+const __bspEnq = { dados: {}, ouvintes: new Set(), em: 0, aLer: false };
+async function bspEnqueteLer(forcar) {
+  if (__bspEnq.aLer || (!forcar && Date.now() - __bspEnq.em < 30000)) return;
+  const cl = bspGetClient();
+  if (!cl) return;
+  __bspEnq.aLer = true;
+  try {
+    const r = await cl.rpc('bsp_enquete_resultados');
+    if (!r.error && Array.isArray(r.data)) {
+      const d = {};
+      r.data.forEach(x => {
+        const k = String(x.post_id);
+        d[k] = d[k] || { votos: {}, meu: null };
+        d[k].votos[x.opcao] = Number(x.votos) || 0;
+        if (x.meu) d[k].meu = x.opcao;
+      });
+      __bspEnq.dados = d;
+      __bspEnq.em = Date.now();
+      __bspEnq.ouvintes.forEach(f => f());
+    }
+  } catch (e) {}
+  __bspEnq.aLer = false;
+}
+function useEnquete(sid) {
+  const [, setN] = React.useState(0);
+  React.useEffect(() => {
+    if (!sid) return;
+    const f = () => setN(n => n + 1);
+    __bspEnq.ouvintes.add(f);
+    bspEnqueteLer();
+    const t = setInterval(() => { if (!document.hidden) bspEnqueteLer(); }, 60000);
+    return () => { __bspEnq.ouvintes.delete(f); clearInterval(t); };
+  }, [sid]);
+  return sid ? (__bspEnq.dados[String(sid)] || { votos: {}, meu: null }) : null;
+}
+async function bspEnqueteVotar(sid, opcao) {
+  if (bspEmVerComo()) return 'Em «Ver como» não se vota.';
+  const cl = bspGetClient();
+  if (!cl) return 'Sem ligação ao servidor.';
+  try {
+    const r = await cl.rpc('bsp_enquete_votar', { p_post: sid, p_opcao: opcao });
+    if (r.error) return bspSemRede(r.error) ? 'Sem internet: vote quando a ligação voltar.' : (r.error.message || 'Não foi possível votar.');
+  } catch (e) { return 'Não foi possível votar.'; }
+  await bspEnqueteLer(true);
+  return null;
+}
 function FeedPost({
   post
 }) {
@@ -12480,6 +12541,13 @@ function FeedPost({
   const toast = useToast();
   const me = window.userById(window.CURRENT_USER_ID);
   const pk = 'post-' + (post.sid || post.id);
+  const enq = useEnquete(post.poll ? post.sid : null);
+  const enqTotal = enq ? Object.values(enq.votos).reduce((a, b) => a + b, 0) : 0;
+  const votar = async o => {
+    if (!post.sid) { toast('A enquete ainda está a gravar. Tente daqui a pouco.'); return; }
+    const err = await bspEnqueteVotar(post.sid, o.id);
+    toast(err || 'Voto registado: ' + o.label);
+  };
   const comments = (state.channelMessages[pk] || []).filter(m => !bspLinhaDeControlo(m.text));
   const [showComments, setShowComments] = React.useState(false);
   const [cDraft, setCDraft] = React.useState('');
@@ -12744,11 +12812,15 @@ function FeedPost({
     }
   }, post.poll.options.map(o => React.createElement("div", {
     key: o.id,
+    role: 'button',
+    tabIndex: 0,
+    onClick: () => votar(o),
+    onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); votar(o); } },
     style: {
       position: 'relative',
       padding: '10px 14px',
       borderRadius: 10,
-      border: '1px solid var(--border)',
+      border: enq && enq.meu === o.id ? '2px solid var(--accent)' : '1px solid var(--border)',
       background: 'var(--surface)',
       overflow: 'hidden',
       cursor: 'pointer'
@@ -12757,7 +12829,7 @@ function FeedPost({
     style: {
       position: 'absolute',
       inset: 0,
-      width: `${o.pct}%`,
+      width: `${enqTotal ? Math.round(100 * (enq.votos[o.id] || 0) / enqTotal) : 0}%`,
       background: 'var(--accent-soft)',
       zIndex: 0
     }
@@ -12773,17 +12845,17 @@ function FeedPost({
       fontWeight: 600,
       color: 'var(--text-1)'
     }
-  }, o.label), React.createElement("span", {
+  }, (enq && enq.meu === o.id ? '✓ ' : '') + o.label), React.createElement("span", {
     style: {
       color: 'var(--text-2)',
       fontWeight: 600
     }
-  }, o.pct, "% · ", o.votes, " votos")))), React.createElement("div", {
+  }, (enqTotal ? Math.round(100 * (enq.votos[o.id] || 0) / enqTotal) : 0), "% · ", (enq && enq.votos[o.id]) || 0, ((enq && enq.votos[o.id]) === 1 ? ' voto' : ' votos'))))), React.createElement("div", {
     style: {
       fontSize: 11.5,
       color: 'var(--text-3)'
     }
-  }, post.poll.total, " respostas · Termina em 2 dias")), post.eventDate && React.createElement("div", {
+  }, enqTotal, enqTotal === 1 ? ' resposta' : ' respostas', enq && enq.meu ? ' · Já votou (pode mudar)' : ' · Toque numa opção para votar')), post.eventDate && React.createElement("div", {
     style: {
       display: 'flex',
       gap: 12,
