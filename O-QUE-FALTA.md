@@ -5276,3 +5276,26 @@ Elmar: «A equipa está descontente», «Por omissão e aviso», «Coloque enque
   si leva 0,13 s. Feito: minutos desencontrados nos crons (lista no `CLAUDE.md`)
   e o Painel tenta mais duas vezes antes de mostrar o erro; na actualização de cada
   minuto, um erro não apaga os números à vista.
+
+## 3-ie-b. Auditoria do Início (29-10-2026)
+
+Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz as 3».
+- A (defeitos): «Documentos por ler» (`bspDocsPorLer`) e os avisos do servidor
+  (`bsp_alertas_por_ler`) só com os documentos destinados à pessoa (quem publica
+  via os das outras áreas como por ler); saudação certa na barra de cima
+  (`bspSaudacao`) e hora que anda; resumo com as tarefas da própria pessoa e as
+  mensagens do Chat por ler (antes: o quadro inteiro e as notificações); caixa de
+  procura sem função escondida; seta do nome retirada.
+- B (protecção): `bspEcraSensivel` — o Início conta como ecrã sensível para a
+  Recepção (utentes nos lembretes), quem vê o Painel e o Painel clínico: tapa-se
+  fora da janela, marca de água forte, acesso registado como `inicio`.
+- C (Início pessoal, `DashboardScreen`): entram «Relatório de turno por entregar»
+  (`bsp_relatorio_por_entregar`, `inicio-pessoal.sql`, **aplicado**), «À espera da
+  sua decisão» (férias/ausências do meu passo; pedidos de compra para a gestão),
+  «Os meus turnos» (`MeusTurnosCartao`), «As minhas tarefas» (privadas,
+  partilhadas, delegadas e do quadro atribuídas a mim; atrasadas primeiro),
+  alertas de stock (`bspVeStock`) e avarias em aberto (quem trata: todas; os
+  outros: as que reportaram). Saem «Tarefas da equipa» e «Actividade recente».
+  «De serviço hoje» mostra a área da pessoa primeiro. Ficha do guia actualizada.
+  Testado no navegador (computador e telemóvel, servidor simulado).
+- Por fazer (D, não pedido): telefones na ficha da equipa (só 1 de 24).

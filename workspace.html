@@ -3798,13 +3798,14 @@ function Topbar({
       fontSize: 12.5,
       color: 'var(--text-3)'
     }
-  }, current === 'dashboard' && 'Bom dia, ' + currentUser.name.split(' ')[0], current === 'chat' && CHANNELS.filter(c => bspVeCanal(currentUser, c)).length + ' canais', current === 'meetings' && 'Reuniões da equipa', current === 'feed' && 'Mural de avisos', current === 'drive' && 'Ficheiros partilhados', current === 'calendar' && 'O seu calendário', current === 'tasks' && 'Quadro de tarefas', (current === 'seguimento' || current === 'marcacoes') && 'Marcações, pedidos, funil e fichas', current === 'admin' && ('Camada: ' + bspCamadaNome(currentUser)))), React.createElement("div", {
+  }, current === 'dashboard' && bspSaudacao() + ', ' + currentUser.name.split(' ')[0], current === 'chat' && CHANNELS.filter(c => bspVeCanal(currentUser, c)).length + ' canais', current === 'meetings' && 'Reuniões da equipa', current === 'feed' && 'Mural de avisos', current === 'drive' && 'Ficheiros partilhados', current === 'calendar' && 'O seu calendário', current === 'tasks' && 'Quadro de tarefas', (current === 'seguimento' || current === 'marcacoes') && 'Marcações, pedidos, funil e fichas', current === 'admin' && ('Camada: ' + bspCamadaNome(currentUser)))), React.createElement("div", {
     style: {
       flex: 1,
       display: 'flex',
       justifyContent: 'center',
-      /* O socio so ve o Painel: sem pesquisa geral (27-09-2026). */
-      visibility: bspESocio(currentUser) ? 'hidden' : 'visible'
+      /* A caixa de procura nunca procurou nada (auditoria do Início,
+         29-10-2026): fica escondida e serve só de espaço até haver procura. */
+      visibility: 'hidden'
     }
   }, React.createElement("div", {
     style: {
@@ -3912,9 +3913,10 @@ function Topbar({
       background: 'var(--border)',
       margin: '0 8px'
     }
-  }), React.createElement("button", {
-    className: "bsp-iconbtn",
+  }), React.createElement("div", {
     style: {
+      display: 'flex',
+      alignItems: 'center',
       paddingRight: 12,
       gap: 8
     }
@@ -3928,10 +3930,7 @@ function Topbar({
       fontWeight: 600,
       color: 'var(--text-1)'
     }
-  }, currentUser.name.split(' ').slice(0, 2).join(' ')), React.createElement(I.ChevD, {
-    size: 13,
-    stroke: "var(--text-3)"
-  }))));
+  }, currentUser.name.split(' ').slice(0, 2).join(' ')))));
 }
 Object.assign(window, {
   Sidebar,
@@ -8505,445 +8504,174 @@ function FeedInicioCartao({ onAbrir }) {
         corpo ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginTop: 2, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere' } }, corpo) : null));
     }));
 }
+/* Início pessoal (29-10-2026, auditoria do Início; Elmar: «Faz as 3»).
+   Cada pessoa vê primeiro o que é seu: turnos, tarefas (também as privadas e
+   as delegadas), o que espera uma decisão sua, o relatório de turno por
+   entregar e os alertas da sua área. Sairam o quadro inteiro da equipa e a
+   «Actividade recente» (era só deste aparelho). */
+function bspSaudacao() {
+  const h = new Date().getHours();
+  return h < 12 ? 'Bom dia' : h < 19 ? 'Boa tarde' : 'Boa noite';
+}
+function InicioCartao({ titulo, icone, accao, onAccao, cor, children }) {
+  return React.createElement(Card, { pad: 16, style: { marginBottom: 16, borderLeft: cor ? '4px solid ' + cor : undefined } },
+    React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 } },
+      icone && I[icone] ? React.createElement(I[icone], { size: 16, stroke: cor || 'var(--accent-d)' }) : null,
+      React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: 'var(--text-1)', flex: 1 } }, titulo),
+      accao && React.createElement("button", { onClick: onAccao, style: { border: 0, background: 'transparent', color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' } }, accao)),
+    children);
+}
+const bspInicioLinha = (chave, principal, secundario, onClick, aviso) => React.createElement("button", {
+  key: chave, onClick,
+  style: { display: 'flex', gap: 10, alignItems: 'baseline', width: '100%', textAlign: 'left', padding: '7px 0', border: 'none', borderTop: '1px solid var(--border)', background: 'transparent', cursor: onClick ? 'pointer' : 'default', fontFamily: 'inherit' }
+}, React.createElement("span", { style: { fontSize: 13.5, color: 'var(--text-1)', flex: 1, minWidth: 0, overflowWrap: 'anywhere' } }, principal),
+  secundario ? React.createElement("span", { style: { fontSize: 12, color: aviso ? 'var(--perigo)' : 'var(--text-3)', fontWeight: aviso ? 700 : 400, whiteSpace: 'nowrap' } }, secundario) : null);
+/* As minhas tarefas: privadas (minhas ou partilhadas comigo) e as do quadro
+   da equipa atribuídas a mim; atrasadas primeiro. */
+function useMinhasTarefas(currentUser) {
+  const { state } = useStore();
+  const pess = useTarefasPessoais();
+  const eu = currentUser && currentUser.id;
+  const hoje = bspDataLocalISO(new Date());
+  return React.useMemo(() => {
+    const l = [];
+    (pess.tarefas || []).forEach(t => {
+      if (t.coluna === 'done') return;
+      if (t.user_id !== eu && (t.partilhada_com || []).indexOf(eu) === -1) return;
+      l.push({ id: 'p' + t.id, titulo: t.titulo, prazo: String(t.prazo || '').slice(0, 10), delegada: t.criada_por && t.criada_por !== eu ? t.criada_por : null, privada: true });
+    });
+    ['todo', 'doing', 'review'].forEach(c => (state.tasks[c] || []).forEach(t => {
+      if ((t.assignees || []).indexOf(eu) === -1) return;
+      l.push({ id: 'e' + t.id, titulo: t.title, prazo: String(t.due || '').slice(0, 10) });
+    }));
+    l.forEach(x => { x.atrasada = !!x.prazo && /^\d{4}-\d{2}-\d{2}$/.test(x.prazo) && x.prazo < hoje; });
+    l.sort((a, b) => (b.atrasada ? 1 : 0) - (a.atrasada ? 1 : 0) || String(a.prazo || '9').localeCompare(String(b.prazo || '9')));
+    return l;
+  }, [pess.tarefas, state.tasks, eu, hoje]);
+}
+function InicioMinhasTarefas({ lista, onAbrir }) {
+  const atrasadas = lista.filter(x => x.atrasada).length;
+  return React.createElement(InicioCartao, { titulo: 'As minhas tarefas' + (lista.length ? ' (' + lista.length + ')' : ''), icone: 'Tasks', accao: 'Abrir →', onAccao: onAbrir, cor: atrasadas ? 'var(--perigo)' : null },
+    !lista.length ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Sem tarefas por fazer.') :
+    lista.slice(0, 5).map(x => bspInicioLinha(x.id,
+      (x.privada ? '🔒 ' : '') + x.titulo + (x.delegada ? ' · de ' + bspNomeCurto(x.delegada) : ''),
+      x.atrasada ? 'Atrasada · ' + bspDataCurta(x.prazo) : x.prazo && /^\d{4}-/.test(x.prazo) ? 'Até ' + bspDataCurta(x.prazo) : '', onAbrir, x.atrasada)),
+    lista.length > 5 && React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginTop: 6 } }, 'E mais ' + (lista.length - 5) + '.'));
+}
+/* À espera de uma decisão minha: férias e ausências (o meu passo) e, para a
+   gestão, pedidos de compra. O servidor decide; isto só lembra. */
+function InicioPorDecidir({ currentUser }) {
+  const [d, setD] = React.useState(null);
+  const eu = currentUser && currentUser.id;
+  const gestao = bspGereMarcacoes(currentUser);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl || !eu) return;
+    let vivo = true;
+    Promise.all([
+      cl.from('ausencias').select('id, user_id, tipo, inicio, fim, estado, superior_id, superior_ok_em, final_id').eq('estado', 'Pedido'),
+      gestao ? cl.from('pedidos_compra').select('id, armazem, criado_em').eq('estado', 'Pedido') : Promise.resolve({ data: [] })
+    ]).then(([a, p]) => {
+      if (!vivo) return;
+      setD({ aus: (a.data || []).filter(x => bspAusenciaDecideEu(x, eu)), compras: p.data || [] });
+    }, () => {});
+    return () => { vivo = false; };
+  }, [eu]);
+  if (!d || (!d.aus.length && !d.compras.length)) return null;
+  return React.createElement(InicioCartao, { titulo: 'À espera da sua decisão', icone: 'Users', cor: 'var(--perigo)' },
+    d.aus.map(x => bspInicioLinha('a' + x.id, x.tipo + ' · ' + bspNomeCurto(x.user_id), bspDataCurta(x.inicio) + ' a ' + bspDataCurta(x.fim), () => bspAbrirPastaAviso('ferias'))),
+    d.compras.length > 0 && bspInicioLinha('compras', d.compras.length === 1 ? '1 pedido de compra' : d.compras.length + ' pedidos de compra',
+      Array.from(new Set(d.compras.map(x => bspStockArmazemNome(x.armazem)))).join(', '), () => bspAbrirPastaAviso('stock')));
+}
+/* Relatório de turno por entregar (bsp_relatorio_por_entregar, inicio-pessoal.sql). */
+function InicioRelatorioPorEntregar({ onAbrir }) {
+  const [l, setL] = React.useState(null);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    cl.rpc('bsp_relatorio_por_entregar').then(r => { if (vivo && !r.error && Array.isArray(r.data)) setL(r.data); }, () => {});
+    return () => { vivo = false; };
+  }, []);
+  if (!l || !l.length) return null;
+  const nome = { rececao: 'Recepção', laboratorio: 'Laboratório', farmacia: 'Farmácia', enfermagem: 'Enfermagem', imagiologia: 'Imagiologia' };
+  return React.createElement(InicioCartao, { titulo: 'Relatório de turno por entregar', icone: 'File', accao: 'Entregar →', onAccao: onAbrir, cor: 'var(--perigo)' },
+    l.map(x => bspInicioLinha(x.area + x.dia + x.turno, (nome[x.area] || x.area) + ' · ' + (x.turno || 'Turno'), bspDataCurta(x.dia) + (x.fim ? ', fim às ' + x.fim : ''), onAbrir)));
+}
+/* Avarias em aberto: quem as trata vê todas as que o servidor lhe mostra;
+   os outros, as que reportaram. */
+function InicioAvarias({ currentUser, onAbrir }) {
+  const [l, setL] = React.useState(null);
+  const eu = currentUser && currentUser.id;
+  const trata = bspTrataAvarias(currentUser);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl || !eu) return;
+    let vivo = true;
+    cl.from('avarias').select('id, equipamento, local, estado, prioridade, criado_por, criado_em').not('estado', 'in', '("Resolvida","Cancelada")').order('criado_em', { ascending: false }).limit(60)
+      .then(r => { if (vivo && !r.error) setL((r.data || []).filter(x => trata || x.criado_por === eu)); }, () => {});
+    return () => { vivo = false; };
+  }, [eu]);
+  if (!l || !l.length) return null;
+  return React.createElement(InicioCartao, { titulo: (trata ? 'Avarias em aberto' : 'As avarias que reportei') + ' (' + l.length + ')', icone: 'Cog', accao: 'Ver →', onAccao: onAbrir },
+    l.slice(0, 3).map(x => bspInicioLinha('v' + x.id, (x.equipamento || 'Avaria') + (x.local ? ' · ' + x.local : ''), x.estado + (x.prioridade === 'alta' || x.prioridade === 'urgente' ? ' · ' + x.prioridade : ''), onAbrir, x.prioridade === 'urgente')));
+}
 function DashboardScreen({
   currentUser,
   onSwitch
 }) {
-  const userById = window.userById;
-  const {
-    state
-  } = useStore();
+  const { state } = useStore();
   const upcoming = useProximosEventos(5);
-  const myTasks = [...(state.tasks.todo || []), ...(state.tasks.doing || []), ...(state.tasks.review || [])].filter(tk => (tk.assignees || []).includes(currentUser.id));
-  /* Actividade recente com data exacta. As publicacoes vem do servidor,
-     com a data em que foram feitas, e sao iguais em todos os aparelhos.
-     O resto (tarefas, ficheiros, eventos) vem do registo deste aparelho,
-     so o que tem data: o que foi gravado antes com a palavra "agora" nao
-     tem data nenhuma e deixa de aparecer. */
-  const recent = React.useMemo(() => {
-    const dataDe = x => {
-      const t = new Date(String(x || '')).getTime();
-      return isNaN(t) ? 0 : t;
-    };
-    const tipoPost = { comunicado: 'publicou comunicado', reconhecimento: 'publicou reconhecimento', enquete: 'publicou enquete', evento: 'publicou evento' };
-    const dosPosts = (state.feedPosts || []).filter(p => dataDe(p.iso)).map(p => ({
-      id: 'act-' + p.id,
-      userId: p.userId,
-      action: tipoPost[p.type] || 'publicou no feed',
-      meta: p.title || String(p.body || '').replace(/\[anexo:[^\]]*\]/g, '').slice(0, 40),
-      ts: p.iso
-    }));
-    const doRegisto = (state.activityLog || []).filter(a => dataDe(a.ts) && String(a.action || '').indexOf('publicou') !== 0);
-    return dosPosts.concat(doRegisto).sort((a, b) => dataDe(b.ts) - dataDe(a.ts)).slice(0, 6);
-  }, [state.feedPosts, state.activityLog]);
-  const unread = (state.notifications || []).filter(n => n.unread).length;
-  const pendingTasks = (state.tasks.todo || []).length + (state.tasks.doing || []).length + (state.tasks.review || []).length;
-  const now = new Date();
+  const minhas = useMinhasTarefas(currentUser);
+  const chatPorLer = useChatPorLer(currentUser);
+  const [agora, setAgora] = React.useState(() => new Date());
+  React.useEffect(() => { const iv = setInterval(() => setAgora(new Date()), 60000); return () => clearInterval(iv); }, []);
+  const ir = to => onSwitch && onSwitch(to);
   const dias = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
   const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-  const hh = String(now.getHours()).padStart(2, '0'),
-    mm = String(now.getMinutes()).padStart(2, '0');
-  const greeting = now.getHours() < 12 ? 'Bom dia' : now.getHours() < 19 ? 'Boa tarde' : 'Boa noite';
-  const dateLine = dias[now.getDay()] + ' · ' + now.getDate() + ' de ' + meses[now.getMonth()] + ' · ' + hh + ':' + mm + ' WAT';
-  const summary = upcoming.length || unread || pendingTasks ? 'Tem ' + upcoming.length + ' ' + (upcoming.length === 1 ? 'evento' : 'eventos') + ' nos próximos 7 dias, ' + unread + ' ' + (unread === 1 ? 'mensagem não lida' : 'mensagens não lidas') + ' e ' + pendingTasks + ' ' + (pendingTasks === 1 ? 'tarefa pendente' : 'tarefas pendentes') + '.' : 'Está tudo em dia. Comece por publicar um aviso ou agendar uma reunião.';
-  const quick = [{
-    icon: 'Megaphone',
-    label: 'Publicar aviso',
-    to: 'feed'
-  }, {
-    icon: 'Chat',
-    label: 'Abrir chat',
-    to: 'chat'
-  }, {
-    icon: 'Cal',
-    label: 'Novo evento',
-    to: 'calendar'
-  }, {
-    icon: 'Tasks',
-    label: 'Nova tarefa',
-    to: 'tasks'
-  }];
-  const Empty = ({
-    icon,
-    text
-  }) => React.createElement("div", {
-    style: {
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: 8,
-      padding: '26px 12px',
-      textAlign: 'center'
-    }
-  }, React.createElement("span", {
-    style: {
-      width: 44,
-      height: 44,
-      borderRadius: 12,
-      background: 'var(--surface-2)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: 'var(--text-3)'
-    }
-  }, icon), React.createElement("span", {
-    style: {
-      fontSize: 12.5,
-      color: 'var(--text-3)',
-      maxWidth: 240,
-      lineHeight: 1.5
-    }
-  }, text));
+  const dateLine = dias[agora.getDay()] + ' · ' + agora.getDate() + ' de ' + meses[agora.getMonth()] + ' · ' + String(agora.getHours()).padStart(2, '0') + ':' + String(agora.getMinutes()).padStart(2, '0');
+  const atrasadas = minhas.filter(x => x.atrasada).length;
+  const partes = [];
+  if (chatPorLer) partes.push(chatPorLer + (chatPorLer === 1 ? ' mensagem por ler' : ' mensagens por ler'));
+  if (minhas.length) partes.push(minhas.length + (minhas.length === 1 ? ' tarefa sua por fazer' : ' tarefas suas por fazer') + (atrasadas ? ' (' + atrasadas + (atrasadas === 1 ? ' atrasada' : ' atrasadas') + ')' : ''));
+  if (upcoming.length) partes.push(upcoming.length + (upcoming.length === 1 ? ' evento' : ' eventos') + ' nos próximos 7 dias');
+  const summary = partes.length ? 'Tem ' + (partes.length > 1 ? partes.slice(0, -1).join(', ') + ' e ' + partes[partes.length - 1] : partes[0]) + '.' : 'Está tudo em dia.';
+  const quick = [['Chat', 'Abrir o chat', 'chat'], ['Tasks', 'Nova tarefa', 'tasks'], ['Cal', 'Agenda', 'calendar'], ['Megaphone', 'Feed', 'feed']];
+  const recepcao = bspAreaChave(currentUser && currentUser.dept) === 'recepcao';
   return React.createElement("div", {
     className: "bsp-stack-mobile",
-    style: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 340px',
-      gap: 20,
-      height: '100%',
-      overflow: 'hidden'
-    }
-  }, React.createElement("div", {
-    style: {
-      overflow: 'auto',
-      padding: '4px 0'
-    }
-  }, bspVePainel(currentUser) && React.createElement(PainelAtalho, {
-    onAbrir: () => onSwitch && onSwitch('painel')
-  }), bspVePainelClinico(currentUser) && React.createElement(PainelClinicoCartao, {
-    onAbrir: () => onSwitch && onSwitch('painel-clinico')
-  }), bspVeActividade(currentUser) && React.createElement(ActividadeAtalho, {
-    currentUser: currentUser,
-    onAbrir: () => onSwitch && onSwitch('actividade')
-  }), bspAreaChave(currentUser && currentUser.dept) === 'recepcao' && React.createElement(MarcLembretesInicio, {
-    onAbrir: () => onSwitch && onSwitch('marcacoes')
-  }), bspAreaChave(currentUser && currentUser.dept) === 'recepcao' && React.createElement(PresencasMedicos, {
-    compacto: true,
-    onVerTudo: () => { window.__bspCrmAba = 'presencas'; if (onSwitch) onSwitch('seguimento'); }
-  }), React.createElement(GuiaRecepcaoCartao, {
-    currentUser: currentUser
-  }), React.createElement(GuiaRecepcoesRhCartao, {
-    currentUser: currentUser
-  }), React.createElement(EscalasPorPublicarCartao, {
-    currentUser: currentUser,
-    onAbrir: () => onSwitch && onSwitch('escalas')
-  }),React.createElement(EscalasPorAprovarCartao, {
-    currentUser: currentUser,
-    onAbrir: () => onSwitch && onSwitch('escalas')
-  }), React.createElement(DocsPorLerCartao, {
-    currentUser: currentUser,
-    onAbrir: () => onSwitch && onSwitch('documentos')
-  }), React.createElement(EscalaHojeCartao, {
-    onAbrir: () => onSwitch && onSwitch('escalas')
-  }), React.createElement("div", {
-    style: {
-      background: '#292F58',
-      borderRadius: 6,
-      padding: '28px 32px',
-      color: '#fff',
-      position: 'relative',
-      overflow: 'hidden',
-      marginBottom: 20
-    }
-  }, React.createElement("div", {
-    style: {
-      position: 'absolute',
-      right: -60,
-      top: -40,
-      width: 240,
-      height: 240,
-      borderRadius: '50%',
-      background: 'transparent'
-    }
-  }), React.createElement("div", {
-    style: {
-      position: 'relative'
-    }
-  }, React.createElement("div", {
-    style: {
-      fontSize: 11.5,
-      fontWeight: 600,
-      letterSpacing: '.08em',
-      textTransform: 'uppercase',
-      color: '#7DD3FC',
-      marginBottom: 6
-    }
-  }, dateLine), React.createElement("h2", {
-    style: {
-      fontSize: 26,
-      fontWeight: 700,
-      margin: '0 0 8px',
-      letterSpacing: '-.01em'
-    }
-  }, greeting, ", ", currentUser.name.split(' ')[0], "."), React.createElement("p", {
-    style: {
-      fontSize: 14,
-      color: 'rgba(255,255,255,.78)',
-      margin: '0 0 18px',
-      maxWidth: 520,
-      lineHeight: 1.5
-    }
-  }, summary), React.createElement("div", {
-    style: {
-      display: 'flex',
-      gap: 10,
-      flexWrap: 'wrap'
-    }
-  }, quick.map(q => React.createElement("button", {
-    key: q.to,
-    onClick: () => onSwitch(q.to),
-    style: {
-      padding: '9px 16px',
-      background: 'rgba(255,255,255,.14)',
-      color: '#fff',
-      border: '1px solid rgba(255,255,255,.28)',
-      borderRadius: 10,
-      fontWeight: 600,
-      fontSize: 13,
-      cursor: 'pointer',
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 8,
-      fontFamily: 'inherit'
-    }
-  }, I[q.icon] ? React.createElement(I[q.icon], {
-    size: 15
-  }) : null, " ", q.label))))), React.createElement(FeedInicioCartao, { onAbrir: () => onSwitch('feed') }), React.createElement(Card, {
-    style: {
-      marginBottom: 20
-    }
-  }, React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 4
-    }
-  }, React.createElement("h3", {
-    style: {
-      fontSize: 15,
-      fontWeight: 700,
-      margin: 0,
-      color: 'var(--text-1)'
-    }
-  }, "Próximos 7 dias"), React.createElement("button", {
-    onClick: () => onSwitch('calendar'),
-    style: {
-      fontSize: 12.5,
-      fontWeight: 600,
-      color: 'var(--accent-d)',
-      background: 'none',
-      border: 'none',
-      cursor: 'pointer',
-      fontFamily: 'inherit'
-    }
-  }, "Agenda →")), upcoming.length === 0 ? React.createElement(Empty, {
-    icon: React.createElement(I.Cal, {
-      size: 20
-    }),
-    text: "Nada marcado nos próximos 7 dias. Crie na Agenda."
-  }) : upcoming.map(e => React.createElement("div", {
-    key: e.id + e.quandoIso,
-    style: {
-      display: 'flex',
-      gap: 12,
-      padding: '12px 0 0',
-      alignItems: 'baseline'
-    }
-  }, React.createElement("div", {
-    style: {
-      fontSize: 12.5,
-      fontWeight: 700,
-      color: 'var(--navy-texto)',
-      width: 76,
-      flex: 'none'
-    }
-  }, bspDiaCurtoEvento(e.quandoIso) + ' · ' + e.time), React.createElement("div", {
-    style: {
-      fontSize: 13,
-      color: 'var(--text-1)'
-    }
-  }, (e.origem === 'agenda' && e.privado ? '🔒 ' : '') + e.title)))), React.createElement(Card, null, React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 12
-    }
-  }, React.createElement("h3", {
-    style: {
-      fontSize: 15,
-      fontWeight: 700,
-      margin: 0,
-      color: 'var(--text-1)'
-    }
-  }, "Tarefas da equipa"), React.createElement("button", {
-    onClick: () => onSwitch('tasks'),
-    style: {
-      fontSize: 12.5,
-      fontWeight: 600,
-      color: 'var(--accent-d)',
-      background: 'none',
-      border: 'none',
-      cursor: 'pointer',
-      fontFamily: 'inherit'
-    }
-  }, "Abrir quadro →")), pendingTasks + (state.tasks.done || []).length === 0 ? React.createElement(Empty, {
-    icon: React.createElement(I.Tasks, {
-      size: 20
-    }),
-    text: "Sem tarefas ainda. Crie a primeira no quadro."
-  }) : React.createElement("div", {
-    className: "bsp-stack-mobile",
-    style: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(4, 1fr)',
-      gap: 10
-    }
-  }, [['todo', 'A Fazer', '#94A3B8'], ['doing', 'Em Progresso', '#2291CE'], ['review', 'Em Revisão', '#D97706'], ['done', 'Concluído', '#10B981']].map(([id, label, c]) => React.createElement("button", {
-    key: id,
-    onClick: () => onSwitch('tasks'),
-    style: {
-      textAlign: 'left',
-      padding: 12,
-      borderRadius: 10,
-      border: '1px solid var(--border)',
-      background: 'var(--surface-2)',
-      cursor: 'pointer',
-      fontFamily: 'inherit',
-      minWidth: 0
-    }
-  }, React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 6,
-      fontSize: 10.5,
-      color: 'var(--text-3)',
-      fontWeight: 700,
-      letterSpacing: '.04em',
-      textTransform: 'uppercase'
-    }
-  }, React.createElement("span", {
-    style: {
-      width: 7,
-      height: 7,
-      borderRadius: '50%',
-      background: c,
-      flex: 'none'
-    }
-  }), label), React.createElement("div", {
-    style: {
-      fontSize: 20,
-      fontWeight: 800,
-      color: 'var(--text-1)',
-      margin: '4px 0 6px'
-    }
-  }, (state.tasks[id] || []).length), (state.tasks[id] || []).slice(0, 2).map(tk => React.createElement("div", {
-    key: tk.id,
-    style: {
-      fontSize: 11,
-      color: 'var(--text-2)',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap',
-      marginTop: 2
-    }
-  }, "• ", tk.title))))), myTasks.length > 0 && React.createElement("div", {
-    style: {
-      marginTop: 12,
-      paddingTop: 12,
-      borderTop: '1px solid var(--border)'
-    }
-  }, React.createElement("div", {
-    style: {
-      fontSize: 11,
-      fontWeight: 700,
-      color: 'var(--text-3)',
-      letterSpacing: '.05em',
-      textTransform: 'uppercase',
-      marginBottom: 6
-    }
-  }, "Atribuídas a si"), myTasks.slice(0, 3).map(tk => React.createElement("div", {
-    key: tk.id,
-    style: {
-      display: 'flex',
-      gap: 10,
-      padding: '6px 0 0',
-      alignItems: 'center'
-    }
-  }, React.createElement("span", {
-    style: {
-      width: 14,
-      height: 14,
-      borderRadius: 4,
-      border: '2px solid var(--accent)',
-      flex: 'none'
-    }
-  }), React.createElement("div", {
-    style: {
-      fontSize: 12.5,
-      color: 'var(--text-1)'
-    }
-  }, tk.title)))))), React.createElement("aside", {
-    style: {
-      overflow: 'auto'
-    }
-  }, React.createElement(Card, null, React.createElement("h3", {
-    style: {
-      fontSize: 15,
-      fontWeight: 700,
-      margin: '0 0 4px',
-      color: 'var(--text-1)'
-    }
-  }, "Atividade recente"), recent.length === 0 ? React.createElement(Empty, {
-    icon: React.createElement(I.Feed, {
-      size: 20
-    }),
-    text: "Ainda sem atividade. As ações da equipa aparecem aqui."
-  }) : recent.map(a => {
-    const u = userById(a.userId);
-    return React.createElement("div", {
-      key: a.id,
-      style: {
-        display: 'flex',
-        gap: 10,
-        padding: '12px 0 0'
-      }
-    }, React.createElement("div", {
-      style: {
-        flex: 1,
-        minWidth: 0
-      }
-    }, React.createElement("div", {
-      style: {
-        fontSize: 12.5,
-        color: 'var(--text-1)',
-        lineHeight: 1.4
-      }
-    }, u && React.createElement("strong", {
-      style: {
-        fontWeight: 600
-      }
-    }, u.name.split(' ').slice(0, 2).join(' '), " "), React.createElement("span", {
-      style: {
-        color: 'var(--text-2)'
-      }
-    }, a.action)), a.meta && React.createElement("div", {
-      style: {
-        fontSize: 11.5,
-        color: 'var(--text-3)',
-        marginTop: 2
-      }
-    }, a.meta), React.createElement("div", {
-      style: {
-        fontSize: 10.5,
-        color: 'var(--text-3)',
-        marginTop: 3
-      },
-      title: bspQuandoCompleto(a.ts)
-    }, bspQuando(a.ts))));
-  }))));
+    style: { display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20, height: '100%', overflow: 'hidden' }
+  }, React.createElement("div", { style: { overflow: 'auto', padding: '4px 0' } },
+    React.createElement("div", { style: { background: 'var(--navy)', borderRadius: 6, padding: '20px 24px', color: '#fff', marginBottom: 16 } },
+      React.createElement("div", { style: { fontSize: 11.5, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,.72)', marginBottom: 4 } }, dateLine),
+      React.createElement("h2", { style: { fontSize: 23, fontWeight: 700, margin: '0 0 6px' } }, bspSaudacao() + ', ' + currentUser.name.split(' ')[0] + '.'),
+      React.createElement("p", { style: { fontSize: 14, color: 'rgba(255,255,255,.82)', margin: '0 0 14px', lineHeight: 1.5 } }, summary),
+      React.createElement("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+        quick.map(([ic, rot, to]) => React.createElement("button", { key: to, onClick: () => ir(to),
+          style: { padding: '8px 14px', background: 'rgba(255,255,255,.14)', color: '#fff', border: '1px solid rgba(255,255,255,.28)', borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: 'inherit' }
+        }, I[ic] ? React.createElement(I[ic], { size: 15 }) : null, rot)))),
+    recepcao && React.createElement(MarcLembretesInicio, { onAbrir: () => ir('marcacoes') }),
+    React.createElement(InicioRelatorioPorEntregar, { onAbrir: () => ir('relatorios') }),
+    React.createElement(InicioPorDecidir, { currentUser }),
+    React.createElement(DocsPorLerCartao, { currentUser, onAbrir: () => ir('documentos') }),
+    React.createElement(EscalasPorAprovarCartao, { currentUser, onAbrir: () => ir('escalas') }),
+    React.createElement(EscalasPorPublicarCartao, { currentUser, onAbrir: () => ir('escalas') }),
+    React.createElement(GuiaRecepcaoCartao, { currentUser }),
+    React.createElement(GuiaRecepcoesRhCartao, { currentUser }),
+    React.createElement(MeusTurnosCartao, null),
+    React.createElement(InicioMinhasTarefas, { lista: minhas, onAbrir: () => ir('tasks') }),
+    recepcao && React.createElement(PresencasMedicos, { compacto: true, onVerTudo: () => { window.__bspCrmAba = 'presencas'; ir('seguimento'); } }),
+    bspVePainel(currentUser) && React.createElement(PainelAtalho, { onAbrir: () => ir('painel') }),
+    bspVePainelClinico(currentUser) && React.createElement(PainelClinicoCartao, { onAbrir: () => ir('painel-clinico') }),
+    bspVeActividade(currentUser) && React.createElement(ActividadeAtalho, { currentUser, onAbrir: () => ir('actividade') }),
+    bspVeStock(currentUser) && React.createElement(StockAlertaCartao, { onAbrir: () => ir('stock') }),
+    React.createElement(InicioAvarias, { currentUser, onAbrir: () => ir('avarias') }),
+    React.createElement(EscalaHojeCartao, { onAbrir: () => ir('escalas'), minhaArea: bspAreaChave(currentUser && currentUser.dept) })),
+  React.createElement("aside", { style: { overflow: 'auto' } },
+    React.createElement(InicioCartao, { titulo: 'Próximos 7 dias', icone: 'Cal', accao: 'Agenda →', onAccao: () => ir('calendar') },
+      upcoming.length === 0 ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Nada marcado nos próximos 7 dias.') :
+      upcoming.map(e => bspInicioLinha(e.id + e.quandoIso, (e.origem === 'agenda' && e.privado ? '🔒 ' : '') + e.title, bspDiaCurtoEvento(e.quandoIso) + ' · ' + e.time, () => ir('calendar')))),
+    React.createElement(FeedInicioCartao, { onAbrir: () => ir('feed') })));
 }
 Object.assign(window, {
   LoginScreen,
@@ -15535,7 +15263,7 @@ function useTarefasPessoais() {
     return b;
   }, [tarefas]);
 
-  return { porColuna, estado, criar, mover, apagar, actualizar, recarregar };
+  return { porColuna, tarefas, estado, criar, mover, apagar, actualizar, recarregar };
 }
 
 function TasksScreen() {
@@ -25672,7 +25400,7 @@ function GuiaRecepcoesRhCartao({ currentUser }) {
         React.createElement("span", null, (window.userById(x.user_id) || {}).name || x.user_id),
         React.createElement("span", { style: { color: dados.conf[x.user_id] ? 'var(--sucesso)' : 'var(--perigo)', fontWeight: 600, whiteSpace: 'nowrap' } }, dados.conf[x.user_id] ? '✓ ' + bspDataExacta(new Date(dados.conf[x.user_id])) : 'por confirmar')))));
 }
-function EscalaHojeCartao({ onAbrir }) {
+function EscalaHojeCartao({ onAbrir, minhaArea }) {
   const [lista, setLista] = React.useState(null);
   React.useEffect(() => {
     const cl = bspGetClient();
@@ -25693,7 +25421,7 @@ function EscalaHojeCartao({ onAbrir }) {
     const d = (e.dias || {})[hoje] || {};
     const turnos = (e.turnos || []).map((t, i) => ({ t, i, l: d[t.id] || [] })).filter(x => x.l.length);
     return { e, turnos, nota: d._n };
-  }).filter(x => x.turnos.length || x.nota).sort((a, b) => bspCompararTexto(bspEscalaAreaNome(a.e.area), bspEscalaAreaNome(b.e.area)));
+  }).filter(x => x.turnos.length || x.nota).sort((a, b) => (b.e.area === minhaArea ? 1 : 0) - (a.e.area === minhaArea ? 1 : 0) || bspCompararTexto(bspEscalaAreaNome(a.e.area), bspEscalaAreaNome(b.e.area)));
   if (!linhas.length) return null;
   return React.createElement(Card, { pad: 16, style: { marginBottom: 16 } },
     React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 } },
@@ -26687,7 +26415,10 @@ function bspDocLidoEm(docId, eu) {
 }
 function bspDocsPorLer(eu) {
   if (!eu) return [];
-  return bspDocs.docs.filter(d => !d.arquivado && d.leitura_obrigatoria && d.publicado_por !== eu && !bspDocLidoEm(d.id, eu));
+  /* Só os destinados à pessoa (29-10-2026): quem publica vê todos os
+     documentos, mas não tem de ler os que são só para outras áreas. */
+  const u = window.userById && window.userById(eu);
+  return bspDocs.docs.filter(d => !d.arquivado && d.leitura_obrigatoria && d.publicado_por !== eu && !bspDocLidoEm(d.id, eu) && (!u || bspNosGrupos(u, bspDocGrupos(d))));
 }
 function DocsPorLerCartao({ currentUser, onAbrir }) {
   useDocumentos();
@@ -27521,6 +27252,14 @@ function ActividadeAtalho({ currentUser, onAbrir }) {
    tirou fica escrito nele. Na app Android os prints estao bloqueados
    (FLAG_SECURE na MainActivity). */
 const BSP_ECRAS_SENSIVEIS = ['painel', 'painel-clinico', 'actividade', 'registo', 'seguimento', 'marcacoes', 'qualidade'];
+/* O Início também é sensível para quem lá vê utentes (Recepção: lembretes de
+   chamadas com nome e telefone) ou valores (o Painel) — auditoria de 29-10-2026. */
+function bspEcraSensivel(pg) {
+  if (BSP_ECRAS_SENSIVEIS.indexOf(pg) !== -1) return true;
+  if (pg !== 'dashboard') return false;
+  const u = window.userById && window.userById(window.CURRENT_USER_ID);
+  return !!u && (bspAreaChave(u.dept) === 'recepcao' || bspVePainel(u) || bspVePainelClinico(u));
+}
 function MarcaDagua({ forte }) {
   const [agora, setAgora] = React.useState(() => new Date());
   React.useEffect(() => {
@@ -27552,11 +27291,11 @@ const BSP_GUIA_FICHAS = [
   { icone: 'Home', nome: 'Início',
     serve: 'O resumo do seu dia: o que precisa de atenção agora e os atalhos para o trabalho de todos os dias.',
     faz: [
-      ['Veja o que falta:', 'documentos por ler, lembretes das marcações e escalas por publicar aparecem no topo.'],
-      ['Saiba quem está de serviço hoje,', 'pelas escalas publicadas de cada área.'],
-      ['Use os atalhos:', 'publicar aviso, abrir o Chat, novo evento e nova tarefa.'],
-      ['Acompanhe', 'a rotina da semana e as tarefas da equipa.'],
-      ['Médicos:', 'o atalho «O meu mês» abre a sua actividade.']
+      ['Veja o que é seu:', 'relatório de turno por entregar, pedidos à espera da sua decisão, documentos por ler e lembretes das marcações aparecem no topo.'],
+      ['Os seus turnos e as suas tarefas,', 'também as privadas e as que lhe delegaram; as atrasadas a vermelho.'],
+      ['Saiba quem está de serviço hoje,', 'a sua área primeiro.'],
+      ['Use os atalhos:', 'Chat, nova tarefa, Agenda e Feed.'],
+      ['Conforme a função:', '«O meu mês» (médicos), Painel, alertas de stock e avarias em aberto.']
     ],
     quem: 'Toda a equipa. Cada pessoa vê os cartões que lhe dizem respeito.',
     dica: 'Comece o dia aqui. Um cartão com borda vermelha pede uma acção sua.' },
@@ -28014,8 +27753,8 @@ function bspRegistarAcesso(ecra, detalhe) {
 function ProteccaoEcra({ pg }) {
   const [escuro, setEscuro] = React.useState(false);
   const [tapado, setTapado] = React.useState(false);
-  const sensivel = BSP_ECRAS_SENSIVEIS.indexOf(pg) !== -1;
-  React.useEffect(() => { if (sensivel) bspRegistarAcesso(pg, ''); }, [pg]);
+  const sensivel = bspEcraSensivel(pg);
+  React.useEffect(() => { if (sensivel) bspRegistarAcesso(pg === 'dashboard' ? 'inicio' : pg, ''); }, [pg]);
   const pgRef = React.useRef(pg);
   pgRef.current = pg;
   React.useEffect(() => {

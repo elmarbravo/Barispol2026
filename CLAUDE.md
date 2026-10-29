@@ -595,6 +595,14 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
 - Funil de vendas (01-10-2026, `crm-funil.sql`): `crm_funil(dias, origem,
   servico)` sobre `crm.caixa`; separador `CrmFunil` no CRM. Cada pedido
   conta na etapa mais avançada.
+- Início pessoal (29-10-2026, auditoria, `inicio-pessoal.sql`): primeiro o que é
+  da pessoa (relatório por entregar `bsp_relatorio_por_entregar`, «À espera da
+  sua decisão», documentos por ler, os meus turnos, as minhas tarefas com as
+  privadas `useMinhasTarefas`), depois os cartões da função (Painel, clínico,
+  stock, avarias). Nunca voltar a pôr o quadro inteiro da equipa nem dados só
+  deste aparelho no Início. Documentos por ler só os do grupo da pessoa
+  (`bspNosGrupos`; no servidor `bsp_doc_no_grupo` no `bsp_alertas_por_ler`).
+  O Início é sensível para a Recepção e para quem vê o Painel (`bspEcraSensivel`).
 - Barra do telemóvel (01-10-2026): Início, Chat, Tarefas, Feed, Mais (a
   Agenda está em «Mais»); no Início, `FeedInicioCartao`.
 - Menu «Utentes» (01-10-2026): CRM + Marcações num só item (`seguimento`,
