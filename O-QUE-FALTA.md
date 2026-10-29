@@ -5262,3 +5262,10 @@ Elmar: «A equipa está descontente», «Por omissão e aviso», «Coloque enque
   navegador.
 - Publicados: aviso em #avisos e enquete no Feed sobre a entrada.
 
+- 29-10-2026, Arlete no #DAF: «O documento selecionado não era este… Já tentei
+  alterar e continua a aparecer este» (documento 22, «Protocolo de recepção de
+  documentos», com o PDF dos critérios de recepção de novos colaboradores). O
+  servidor mostra duas gravações pelo «Alterar» sem ficheiro novo: só mudaram os
+  dados. Agora, ao alterar, o ficheiro vem primeiro («Actual: … · Ver», botão
+  «Trocar pelo ficheiro certo») e o aviso diz se o ficheiro mudou ou não.
+  Falta a Arlete trocar o ficheiro (com assinatura e carimbo, pedido do Elmar).

@@ -26742,7 +26742,10 @@ function DocPublicarModal({ open, substituir, editar, onClose }) {
         const r = await bspGetClient().from('documentos').update(mud).eq('id', editar.id).select('id');
         if (r.error) throw r.error;
         if (!r.data || !r.data.length) throw new Error('o servidor não deixou alterar este documento.');
-        toast('Alterações gravadas.');
+        /* 29-10-2026 (Arlete: «Já tentei alterar e continua a aparecer este»):
+           gravou duas vezes sem escolher ficheiro e o aviso parecia dizer que
+           o ficheiro tinha mudado. */
+        toast(ficheiro ? 'Ficheiro trocado: ' + ficheiro.name + '. Alterações gravadas.' : 'Dados gravados. O ficheiro continua o mesmo (' + (editar.nome_ficheiro || 'actual') + ').');
         bspDocsCarregar();
         onClose();
       } catch (e) {
@@ -26767,12 +26770,24 @@ function DocPublicarModal({ open, substituir, editar, onClose }) {
       setAGravar(false);
     }
   };
+  /* Ficheiro: ao alterar, vem primeiro, com o actual à vista e «Ver»
+     (29-10-2026: trocar o ficheiro errado não se encontrava). */
+  const blocoFicheiro = React.createElement("div", editar ? { style: { padding: 12, border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface-2)' } } : null,
+    bspTranspRot(editar ? 'Ficheiro do documento' : soTexto ? 'Ficheiro (opcional)' : 'Ficheiro'),
+    editar && editar.caminho && !ficheiro && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)', marginBottom: 8 } },
+      'Actual: ' + (editar.nome_ficheiro || 'ficheiro') + ' ',
+      React.createElement("button", { type: 'button', onClick: () => bspAbrirFicheiro({ name: editar.nome_ficheiro, path: editar.caminho }, m => toast(m || 'Não foi possível abrir.')), style: { background: 'transparent', border: 'none', color: 'var(--accent-d)', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, padding: 0 } }, 'Ver')),
+    React.createElement("input", { ref, type: 'file', accept: '.pdf,image/*,.doc,.docx,.xls,.xlsx,.pptx', style: { display: 'none' }, onChange: e => { const x = e.target.files && e.target.files[0]; e.target.value = ''; if (x) setFicheiro(x); } }),
+    React.createElement("button", { type: 'button', onClick: () => ref.current && ref.current.click(), style: bspEscBotao(!!editar && !ficheiro) }, React.createElement(I.Upload, { size: 15 }), (ficheiro || (editar && editar.caminho)) ? (editar ? 'Trocar pelo ficheiro certo' : 'Trocar ficheiro') : 'Escolher ficheiro'),
+    ficheiro ? React.createElement("span", { style: { marginLeft: 10, fontSize: 12.5, color: 'var(--sucesso)' } }, '✓ Novo: ' + ficheiro.name + (editar ? ' (entra ao gravar)' : ''))
+      : null);
   return React.createElement(Modal, {
     open, onClose, width: 560, title: editar ? 'Alterar: ' + editar.titulo : substituir ? 'Nova versão: ' + substituir.titulo : 'Publicar documento',
     footer: React.createElement(React.Fragment, null,
       React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: onClose }, 'Cancelar'),
       React.createElement(Button, { variant: 'primary', size: 'sm', onClick: publicar }, aGravar ? (editar ? 'A gravar…' : 'A publicar…') : editar ? 'Gravar alterações' : 'Publicar e avisar a equipa'))
   }, React.createElement("div", { style: { padding: 20, display: 'flex', flexDirection: 'column', gap: 14 } },
+    editar && blocoFicheiro,
     React.createElement("div", null, bspTranspRot('Tipo'),
       React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
         BSP_DOC_CATEGORIAS.map(c => React.createElement("button", { key: c[0], type: 'button', onClick: () => setF(x => Object.assign({}, x, { categoria: c[0] }, c[0] === 'procedimento' && !x.revisao ? { revisao: bspSomarMeses(x.vigor || bspDataLocalISO(new Date()), 24) } : {})), style: bspEscChip(f.categoria === c[0]) }, c[1])))),
@@ -26801,11 +26816,7 @@ function DocPublicarModal({ open, substituir, editar, onClose }) {
     f.categoria !== 'comunicado' && React.createElement("p", { style: { margin: '-6px 0 0', fontSize: 12, color: 'var(--text-3)' } }, 'Com data de revisão, a Direcção recebe o aviso 30 dias antes e no dia. Protocolos e procedimentos: pelo menos de 2 em 2 anos.'),
     React.createElement("label", null, bspTranspRot(soTexto ? (ficheiro ? 'Texto do comunicado (opcional com ficheiro)' : 'Texto do comunicado') : 'Resumo (opcional)'),
       React.createElement("textarea", { value: f.descricao, onChange: e => setF(x => Object.assign({}, x, { descricao: e.target.value })), rows: soTexto ? 6 : 3, style: Object.assign({}, bspTranspCampo, { height: 'auto', padding: '10px 12px' }) })),
-    React.createElement("div", null, bspTranspRot(soTexto ? 'Ficheiro (opcional)' : 'Ficheiro'),
-      React.createElement("input", { ref, type: 'file', accept: '.pdf,image/*,.doc,.docx,.xls,.xlsx,.pptx', style: { display: 'none' }, onChange: e => { const x = e.target.files && e.target.files[0]; e.target.value = ''; if (x) setFicheiro(x); } }),
-      React.createElement("button", { type: 'button', onClick: () => ref.current && ref.current.click(), style: bspEscBotao(false) }, React.createElement(I.Upload, { size: 15 }), (ficheiro || (editar && editar.caminho)) ? 'Trocar ficheiro' : 'Escolher ficheiro'),
-      ficheiro ? React.createElement("span", { style: { marginLeft: 10, fontSize: 12.5, color: 'var(--sucesso)' } }, '✓ ' + ficheiro.name)
-        : editar && editar.caminho ? React.createElement("span", { style: { marginLeft: 10, fontSize: 12.5, color: 'var(--text-3)' } }, 'Fica o actual: ' + (editar.nome_ficheiro || 'ficheiro')) : null),
+    !editar && blocoFicheiro,
     substituir && React.createElement("p", { style: { margin: 0, fontSize: 12.5, color: 'var(--text-3)' } }, 'A versão anterior passa para o arquivo. A leitura volta a ser pedida a toda a equipa.'),
     editar ? React.createElement("p", { style: { margin: 0, fontSize: 12.5, color: 'var(--text-3)' } }, 'As alterações não voltam a avisar a equipa nem a pedir a leitura. Para isso, use «Nova versão».') :
     React.createElement("p", { style: { margin: 0, fontSize: 12.5, color: 'var(--text-3)' } }, 'Ao publicar, a equipa recebe logo um aviso no sino e no telemóvel, e o documento segue no e-mail das novidades da manhã. Cada pessoa tem de confirmar a leitura.'),
