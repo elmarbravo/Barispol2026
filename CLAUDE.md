@@ -391,6 +391,13 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   id `ficheiros`), ficheiros em `drive` → `relatorio/<área>/<id>/…`, lidos só por
   quem lê o relatório; nunca voltar a aceitar HEIC nem a mandar os ficheiros
   por e-mail. Obrigatório no Laboratório e na Enfermagem.
+  Abertura e fecho do turno (30-10-2026, `turno-contagens.sql`, Elmar: «ao abrir o
+  dia lançam as quantidades e ao fechar também», «obrigatório»): Laboratório e
+  Enfermagem; `TurnoPorta` tapa o Workspace (abertura e fecho em atraso) pela
+  escala em vigor (`bsp_turno_pendente`); gravar só por `bsp_turno_contar`
+  (passagem de turno e mínimo avisam chefe, gestão e u14); listas em
+  `turno_listas` (`bsp_turno_lista_gravar`; Enfermagem: Filomena u9 e os
+  enfermeiros). Fotografia do BS-200 obrigatória e números escritos.
   Reagentes do Laboratório (16-10-2026, fotografias do BS-200): campo tipo
   `reagentes` (`reagentes_exames`: `[{r, r1, r2, proc}]`, testes restantes no
   R1 e no R2 lidos no aparelho; dá para = o menor), `bspReagentesLimpos`,

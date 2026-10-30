@@ -4620,7 +4620,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_enquete_resultados', 'bsp_alertas_por_ler', 'bsp_fm_estado', 'bsp_fm_votos', 'bsp_relatorio_metagest', 'bsp_pagamento_banco', 'bsp_pagamento_etapas', 'bsp_segmento', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
+const BSP_RPC_LEITURA = ['bsp_turno_pendente', 'bsp_turno_base', 'bsp_enquete_resultados','bsp_alertas_por_ler', 'bsp_fm_estado', 'bsp_fm_votos', 'bsp_relatorio_metagest', 'bsp_pagamento_banco', 'bsp_pagamento_etapas', 'bsp_segmento', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -8634,6 +8634,227 @@ function InicioAvarias({ currentUser, onAbrir }) {
   return React.createElement(InicioCartao, { titulo: (trata ? 'Avarias em aberto' : 'As avarias que reportei') + ' (' + l.length + ')', icone: 'Cog', accao: 'Ver →', onAccao: onAbrir },
     l.slice(0, 3).map(x => bspInicioLinha('v' + x.id, (x.equipamento || 'Avaria') + (x.local ? ' · ' + x.local : ''), x.estado + (x.prioridade === 'alta' || x.prioridade === 'urgente' ? ' · ' + x.prioridade : ''), onAbrir, x.prioridade === 'urgente')));
 }
+/* Abertura e fecho do turno (30-10-2026, turno-contagens.sql; Elmar: «Ao abrir
+   o dia, lançam lá as quantidades e ao fechar o dia também»; «obrigatório,
+   logo que a pessoa entra»). Laboratório: R1 e R2 de cada reagente do BS-200,
+   com a fotografia do ecrã; Enfermagem: quantidade de cada artigo. A TurnoPorta
+   tapa o Workspace até o turno estar aberto e, passada a hora, fechado. O
+   servidor compara a abertura com o último fecho e avisa o chefe e a gestão. */
+const BSP_TURNO_AREAS = { laboratorio: 'Laboratório', enfermagem: 'Enfermagem' };
+function bspTurnoArea(u) {
+  const a = bspAreaChave(u && u.dept);
+  return BSP_TURNO_AREAS[a] ? a : null;
+}
+function TurnoListaEditor({ area, lista, onGravado }) {
+  const toast = useToast();
+  const [l, setL] = React.useState(() => (lista || []).map(x => ({ nome: x.nome, minimo: x.minimo == null ? '' : String(x.minimo) })));
+  const [aGravar, setAGravar] = React.useState(false);
+  const mudar = (i, k, v) => setL(a => a.map((x, j) => j === i ? Object.assign({}, x, { [k]: v }) : x));
+  const gravar = async () => {
+    const cl = bspGetClient();
+    if (!cl || aGravar) return;
+    setAGravar(true);
+    const r = await cl.rpc('bsp_turno_lista_gravar', { p_area: area, p_itens: l.filter(x => String(x.nome || '').trim()) });
+    setAGravar(false);
+    if (r.error) { toast('Não foi possível gravar a lista: ' + (r.error.message || 'erro')); return; }
+    toast('Lista gravada.');
+    onGravado && onGravado();
+  };
+  const caixa = { height: 36, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 16, fontFamily: 'inherit', boxSizing: 'border-box' };
+  return React.createElement("div", null,
+    React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginBottom: 8, lineHeight: 1.5 } }, 'O que se conta em cada abertura e fecho. «Mínimo»: abaixo deste número, o chefe da área e a gestão recebem aviso (0 = sem aviso).'),
+    l.map((x, i) => React.createElement("div", { key: i, style: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 } },
+      React.createElement("input", { value: x.nome, maxLength: 60, placeholder: 'Nome', onChange: e => mudar(i, 'nome', e.target.value), style: Object.assign({}, caixa, { flex: 1, minWidth: 0 }) }),
+      React.createElement("input", { type: 'number', min: 0, inputMode: 'numeric', value: x.minimo, placeholder: 'Mínimo', 'aria-label': 'Mínimo', onChange: e => mudar(i, 'minimo', e.target.value), style: Object.assign({}, caixa, { width: 90 }) }),
+      React.createElement("button", { type: 'button', 'aria-label': 'Tirar', onClick: () => setL(a => a.filter((y, j) => j !== i)), style: Object.assign({}, caixa, { width: 36, padding: 0, cursor: 'pointer', color: 'var(--text-3)' }) }, '×'))),
+    React.createElement("div", { style: { display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' } },
+      React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: () => setL(a => a.concat({ nome: '', minimo: '' })) }, '+ Acrescentar'),
+      React.createElement(Button, { variant: 'primary', size: 'sm', onClick: gravar, disabled: aGravar }, aGravar ? 'A gravar…' : 'Gravar a lista')));
+}
+function TurnoContagemForm({ item, onFeito }) {
+  const toast = useToast();
+  const lab = item.area === 'laboratorio';
+  const [base, setBase] = React.useState(null);
+  const [vals, setVals] = React.useState({});
+  const [frio, setFrio] = React.useState('');
+  const [motivo, setMotivo] = React.useState('');
+  const [fichs, setFichs] = React.useState([]);
+  const [aSubir, setASubir] = React.useState(0);
+  const [aGravar, setAGravar] = React.useState(false);
+  const [editarLista, setEditarLista] = React.useState(false);
+  const [vez, setVez] = React.useState(0);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    cl.rpc('bsp_turno_base', { p_area: item.area }).then(r => {
+      if (!vivo) return;
+      const b = (!r.error && r.data) || { lista: [] };
+      setBase(b);
+      const ult = {};
+      ((b.ultima && b.ultima.itens) || []).forEach(x => { ult[x.k] = x; });
+      setVals(v => {
+        const n = Object.assign({}, v);
+        (b.lista || []).forEach(i => {
+          if (n[i.k]) return;
+          const u = ult[i.k] || {};
+          n[i.k] = lab ? { r1: u.r1 == null ? '' : String(u.r1), r2: u.r2 == null ? '' : String(u.r2) } : { q: u.q == null ? '' : String(u.q) };
+        });
+        return n;
+      });
+    }, () => setBase({ lista: [] }));
+    return () => { vivo = false; };
+  }, [item.area, vez]);
+  const lista = (base && base.lista) || [];
+  const ultima = base && base.ultima;
+  const antDe = k => { const x = ((ultima && ultima.itens) || []).find(y => y.k === k); return x || null; };
+  const num = v => { const s = String(v == null ? '' : v).trim().replace(',', '.'); return s === '' || isNaN(Number(s)) ? null : Number(s); };
+  const campos = lab ? ['r1', 'r2'] : ['q'];
+  const faltam = lista.filter(i => num((vals[i.k] || {})[campos[0]]) == null);
+  const comparaFecho = item.momento === 'abertura' && ultima && ultima.momento === 'fecho';
+  const difs = comparaFecho ? lista.filter(i => {
+    const a = antDe(i.k);
+    return a && campos.some(c => num(a[c]) != null && num((vals[i.k] || {})[c]) != null && num(a[c]) !== num((vals[i.k] || {})[c]));
+  }) : [];
+  const subir = async lst => {
+    const fs = Array.from(lst || []);
+    const heic = fs.filter(f => /\.(heic|heif)$/i.test(f.name || '') || /hei[cf]/i.test(f.type || ''));
+    if (heic.length) toast('Fotografia em HEIC não abre noutros aparelhos. Use «Tirar fotografia» ou mude a câmara para JPEG.');
+    for (const f0 of fs.filter(f => heic.indexOf(f) === -1)) {
+      setASubir(n => n + 1);
+      try {
+        const f = await bspReduzirImagem(f0);
+        const caminho = await bspUploadToStorage(f, 'relatorio/' + item.area + '/' + window.CURRENT_USER_ID);
+        setFichs(a => a.concat({ path: caminho, name: f.name || f0.name, size: f.size }));
+      } catch (e) {
+        toast('Não foi possível anexar «' + (f0.name || 'ficheiro') + '»: ' + (bspSemRede(e) ? 'sem internet.' : (e && e.message) || 'erro'));
+      }
+      setASubir(n => n - 1);
+    }
+  };
+  const gravar = async () => {
+    if (aGravar || !base) return;
+    if (bspEmVerComo()) { toast('Em «Ver como» não se grava nada.'); return; }
+    if (aSubir > 0) { toast('Espere: ainda há fotografias a subir.'); return; }
+    if (faltam.length) { toast('Falta preencher: ' + faltam.slice(0, 3).map(i => i.nome).join(', ') + (faltam.length > 3 ? '…' : '') + '.'); return; }
+    if (lab && !fichs.length) { toast('Falta a fotografia do ecrã do BS-200.'); return; }
+    if (difs.length && !motivo.trim()) { toast('A contagem não bate com o último fecho: escreva o motivo.'); return; }
+    const cl = bspGetClient();
+    if (!cl) { toast('O servidor não está ligado.'); return; }
+    setAGravar(true);
+    const itens = lista.map(i => {
+      const v = vals[i.k] || {};
+      return lab ? { k: i.k, r1: num(v.r1), r2: num(v.r2) } : { k: i.k, q: num(v.q) };
+    });
+    const r = await cl.rpc('bsp_turno_contar', { p_area: item.area, p_dia: item.dia, p_turno: item.turno, p_momento: item.momento, p_itens: itens, p_frio: num(frio), p_motivo: motivo, p_ficheiros: fichs });
+    setAGravar(false);
+    if (r.error) { toast('Não foi possível gravar: ' + (bspSemRede(r.error) ? 'sem internet. Tente de novo quando a ligação voltar.' : r.error.message || 'erro')); return; }
+    toast(item.momento === 'abertura' ? 'Turno aberto.' : 'Turno fechado. Entregue também o relatório de turno.');
+    try { window.dispatchEvent(new Event('bsp-turno')); } catch (e) {}
+    onFeito && onFeito(item.momento);
+  };
+  const caixa = { width: 78, height: 38, padding: '0 8px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 16, fontFamily: 'inherit', boxSizing: 'border-box' };
+  const mudar = (k, c, v) => setVals(a => Object.assign({}, a, { [k]: Object.assign({}, a[k], { [c]: v }) }));
+  if (!base) return React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'A carregar…');
+  if (editarLista) return React.createElement("div", null,
+    React.createElement(TurnoListaEditor, { area: item.area, lista, onGravado: () => { setEditarLista(false); setVez(v => v + 1); } }),
+    React.createElement("button", { type: 'button', onClick: () => setEditarLista(false), style: { marginTop: 12, border: 0, background: 'transparent', color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 13, cursor: 'pointer', padding: 0 } }, '← Voltar à contagem'));
+  const botao = (rot, props) => React.createElement("label", {
+    style: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-2)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }
+  }, rot, React.createElement("input", Object.assign({ type: 'file', style: { display: 'none' }, onChange: e => { subir(e.target.files); e.target.value = ''; } }, props)));
+  return React.createElement("div", null,
+    React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginBottom: 10, lineHeight: 1.5 } },
+      lab ? 'No BS-200: Estado → Disco de reagentes → toque no teste. Escreva os testes restantes do R1 e do R2 (o número depois da barra) e tire a fotografia do ecrã.'
+          : 'Conte o material na sala e escreva a quantidade de cada artigo.',
+      ultima ? ' Os números vêm do último ' + (ultima.momento === 'fecho' ? 'fecho' : 'registo') + ' (' + bspQuando(ultima.criado) + '): confirme ou corrija.' : ''),
+    lista.map(i => {
+      const a = antDe(i.k);
+      const dif = difs.indexOf(i) !== -1;
+      return React.createElement("div", { key: i.k, style: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: '1px solid var(--border)' } },
+        React.createElement("div", { style: { flex: '1 1 140px', minWidth: 0, fontSize: 13.5, color: 'var(--text-1)', fontWeight: 600 } }, i.nome,
+          dif && React.createElement("div", { style: { fontSize: 11.5, fontWeight: 600, color: 'var(--perigo)' } }, 'Último fecho: ' + campos.map(c => (lab ? c.toUpperCase() + ' ' : '') + (a[c] == null ? '—' : a[c])).join(' · '))),
+        campos.map(c => React.createElement("label", { key: c, style: { fontSize: 11, color: 'var(--text-3)' } }, lab ? c.toUpperCase() : 'Quantidade',
+          React.createElement("input", { type: 'number', min: 0, step: 1, inputMode: 'numeric', value: (vals[i.k] || {})[c] || '', onChange: e => mudar(i.k, c, e.target.value), style: Object.assign({}, caixa, { display: 'block', marginTop: 2, borderColor: dif ? 'var(--perigo)' : 'var(--border)' }) }))));
+    }),
+    !lista.length && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)', padding: '8px 0' } }, 'A lista desta área ainda está vazia.'),
+    React.createElement("label", { style: { display: 'block', marginTop: 12, fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)' } }, 'Frigorífico agora (°C)',
+      React.createElement("input", { type: 'number', step: 'any', inputMode: 'decimal', value: frio, onChange: e => setFrio(e.target.value), style: Object.assign({}, caixa, { display: 'block', marginTop: 4, width: 100 }) })),
+    difs.length > 0 && React.createElement("label", { style: { display: 'block', marginTop: 12, fontSize: 12.5, fontWeight: 600, color: 'var(--perigo)' } }, 'A contagem não bate com o último fecho em ' + difs.length + (difs.length === 1 ? ' linha' : ' linhas') + '. Motivo (obrigatório):',
+      React.createElement("textarea", { rows: 2, maxLength: 1000, value: motivo, onChange: e => setMotivo(e.target.value), style: { display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 4, padding: '8px 10px', border: '1px solid var(--perigo)', borderRadius: 10, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 16, fontFamily: 'inherit' } })),
+    React.createElement("div", { style: { marginTop: 14, fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)' } }, lab ? 'Fotografia do ecrã do BS-200 (obrigatória)' : 'Fotografia (opcional)'),
+    fichs.map(f => React.createElement("div", { key: f.path, style: { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', fontSize: 12.5 } },
+      React.createElement("span", { style: { flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-1)' } }, f.name),
+      React.createElement("button", { type: 'button', 'aria-label': 'Tirar esta fotografia', onClick: () => { setFichs(a => a.filter(x => x.path !== f.path)); bspDeleteFromStorage(f.path); }, style: { height: 30, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', fontFamily: 'inherit' } }, '×'))),
+    React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6, alignItems: 'center' } },
+      botao('Tirar fotografia', { accept: 'image/*', capture: 'environment' }),
+      botao('Escolher', { accept: 'image/jpeg,image/png,image/webp,application/pdf', multiple: true }),
+      aSubir > 0 && React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, 'A subir ' + aSubir + '…')),
+    React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginTop: 18 } },
+      React.createElement(Button, { variant: 'primary', onClick: gravar, disabled: aGravar }, aGravar ? 'A gravar…' : item.momento === 'abertura' ? 'Abrir o turno' : 'Fechar o turno'),
+      faltam.length > 0 && React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, 'Faltam ' + faltam.length + '.'),
+      base.pode_lista && React.createElement("button", { type: 'button', onClick: () => setEditarLista(true), style: { marginLeft: 'auto', border: 0, background: 'transparent', color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' } }, 'Corrigir a lista')));
+}
+function useTurnoPendente(area) {
+  const [p, setP] = React.useState({ pendentes: [] });
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!area || !cl || bspEmVerComo()) return;
+    let vivo = true;
+    const ler = () => cl.rpc('bsp_turno_pendente').then(r => { if (vivo && !r.error && r.data) setP(r.data); }, () => {});
+    ler();
+    const iv = setInterval(ler, 5 * 60000);
+    const vis = () => { if (!document.hidden) ler(); };
+    document.addEventListener('visibilitychange', vis);
+    window.addEventListener('bsp-turno', ler);
+    return () => { vivo = false; clearInterval(iv); document.removeEventListener('visibilitychange', vis); window.removeEventListener('bsp-turno', ler); };
+  }, [area]);
+  return p.pendentes || [];
+}
+function TurnoPorta({ currentUser }) {
+  const area = bspTurnoArea(currentUser);
+  const pend = useTurnoPendente(area);
+  const obrig = pend.find(x => x.obrigatorio);
+  if (!obrig) return null;
+  const abrir = obrig.momento === 'abertura';
+  return React.createElement("div", { role: 'dialog', 'aria-modal': true, style: { position: 'fixed', inset: 0, zIndex: 99990, background: 'var(--bg)', overflow: 'auto', padding: '24px 16px' } },
+    React.createElement("div", { style: { maxWidth: 560, margin: '0 auto' } },
+      React.createElement(Card, { pad: 20 },
+        React.createElement("div", { style: { fontSize: 11.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent-d)', marginBottom: 4 } }, BSP_TURNO_AREAS[obrig.area] + ' · ' + obrig.turno + ' (' + obrig.inicio + '–' + obrig.fim + ')'),
+        React.createElement("h2", { style: { fontSize: 20, fontWeight: 700, margin: '0 0 6px', color: 'var(--text-1)' } }, abrir ? 'Abrir o turno' : 'Fechar o turno de ' + bspDataCurta(obrig.dia)),
+        React.createElement("p", { style: { fontSize: 13, color: 'var(--text-2)', margin: '0 0 14px', lineHeight: 1.5 } }, abrir
+          ? 'Antes de usar o Workspace, registe a contagem com que recebe o turno. Leva 2 minutos e fica registado em seu nome.'
+          : 'O turno acabou às ' + obrig.fim + ' sem fecho. Registe a contagem final antes de continuar.'),
+        React.createElement(TurnoContagemForm, { key: obrig.area + obrig.dia + obrig.turno + obrig.momento, item: obrig }))));
+}
+function TurnoCartao({ currentUser }) {
+  const area = bspTurnoArea(currentUser);
+  const pend = useTurnoPendente(area);
+  const [form, setForm] = React.useState(null);
+  const [hoje, setHoje] = React.useState([]);
+  const [vez, setVez] = React.useState(0);
+  const dia = bspHojeLuanda();
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!area || !cl) return;
+    let vivo = true;
+    cl.from('turno_contagens').select('turno, momento, user_id, criado, fora_escala').eq('area', area).eq('dia', dia).order('criado').then(r => { if (vivo && !r.error) setHoje(r.data || []); }, () => {});
+    return () => { vivo = false; };
+  }, [area, dia, vez, pend.length]);
+  if (!area) return null;
+  const meuForaAberto = hoje.find(x => x.turno === 'Fora da escala' && x.momento === 'abertura' && !hoje.some(y => y.turno === x.turno && y.momento === 'fecho'));
+  const fechos = pend.filter(x => x.momento === 'fecho' && !x.obrigatorio);
+  const temTurnoHoje = pend.some(x => x.momento === 'abertura') || hoje.length > 0;
+  const fechar = () => { setForm(null); setVez(v => v + 1); };
+  return React.createElement(InicioCartao, { titulo: 'Turno de hoje · ' + BSP_TURNO_AREAS[area], icone: 'Clock', cor: fechos.length ? 'var(--perigo)' : null },
+    hoje.length ? hoje.map((x, i) => bspInicioLinha('h' + i, (x.momento === 'abertura' ? 'Aberto' : 'Fechado') + ' · ' + x.turno + ' · ' + bspNomeCurto(x.user_id), bspQuando(x.criado))) :
+      React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'Ainda sem abertura hoje.'),
+    React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 } },
+      fechos.map(x => React.createElement(Button, { key: x.turno + x.dia, variant: 'primary', size: 'sm', onClick: () => setForm(x) }, 'Fechar o turno (' + x.turno + ', até às ' + x.fim + ')')),
+      meuForaAberto && React.createElement(Button, { variant: 'primary', size: 'sm', onClick: () => setForm({ area, dia, turno: 'Fora da escala', momento: 'fecho' }) }, 'Fechar o turno'),
+      !temTurnoHoje && React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: () => setForm({ area, dia, turno: 'Fora da escala', momento: 'abertura' }) }, 'Estou de turno hoje')),
+    React.createElement(Modal, { open: !!form, onClose: () => setForm(null), title: form ? (form.momento === 'abertura' ? 'Abrir o turno' : 'Fechar o turno') + ' · ' + BSP_TURNO_AREAS[area] : '' },
+      form && React.createElement(TurnoContagemForm, { item: form, onFeito: fechar })));
+}
 function DashboardScreen({
   currentUser,
   onSwitch
@@ -8672,6 +8893,7 @@ function DashboardScreen({
           style: { padding: '8px 14px', background: 'rgba(255,255,255,.14)', color: '#fff', border: '1px solid rgba(255,255,255,.28)', borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: 'inherit' }
         }, I[ic] ? React.createElement(I[ic], { size: 15 }) : null, rot))))),
     recepcao && React.createElement(MarcLembretesInicio, { onAbrir: () => ir('marcacoes') }),
+    React.createElement(TurnoCartao, { currentUser }),
     React.createElement(InicioRelatorioPorEntregar, { onAbrir: () => ir('relatorios') }),
     React.createElement(InicioPorDecidir, { currentUser }),
     React.createElement(DocsPorLerCartao, { currentUser, onAbrir: () => ir('documentos') }),
@@ -32708,7 +32930,7 @@ function App() {
       color: 'var(--text-1)',
       overflow: 'hidden'
     }
-  }, !isMobile && React.createElement(Sidebar, {
+  }, !socio && React.createElement(TurnoPorta, { currentUser }), !isMobile && React.createElement(Sidebar, {
     current: pg,
     setCurrent: setPage,
     collapsed: menuRecolhido || t.sidebarCollapsed,

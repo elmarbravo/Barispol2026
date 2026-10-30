@@ -5347,3 +5347,21 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   turno obrigatórios no Laboratório e na Enfermagem, lista do material da
   Enfermagem); leitura das ~240 fotografias do BS-200 do canal do Laboratório
   (precisa do domínio do servidor autorizado no ambiente do assistente).
+- 30-10-2026, Elmar: «Tem que fazer a abertura do dia. Ao abrir o dia, lançam lá
+  as quantidades e ao fechar o dia também» (Laboratório e Enfermagem); «algo
+  intuitivo, obrigatório, logo que a pessoa entra»; responsável da lista da
+  Enfermagem: Filomena Silva (u9), de baixa; os enfermeiros mantêm a lista.
+  Etapa 2 (`turno-contagens.sql`, aplicado): `turno_listas` (reagentes do BS-200
+  e material da Enfermagem, com mínimo; muda por `bsp_turno_lista_gravar`),
+  `turno_contagens` (abertura e fecho por área, dia e turno, só por
+  `bsp_turno_contar`, que compara a abertura com o último fecho e o mínimo e
+  avisa chefe, gestão e Direcção Clínica), `bsp_turno_pendente` (pela escala em
+  vigor). No ecrã: `TurnoPorta` (ecrã obrigatório: abertura desde 30 min antes
+  do início; fecho obrigatório depois do fim, até 24 h), `TurnoContagemForm`
+  (números do último fecho já preenchidos, motivo obrigatório se não bater,
+  fotografia do BS-200 obrigatória), `TurnoCartao` no Início («Fechar o turno»
+  na última hora, «Estou de turno hoje» fora da escala), `TurnoListaEditor`.
+  Testado no navegador. Atenção: só conta escala em vigor (com visto) — a
+  Enfermagem de Outubro e de Novembro ainda não tem o visto do Dr. Osvaldo e o
+  Laboratório ainda não tem escala de Novembro. Por fazer: comparação do gasto
+  do turno com o MetaGest (testes do BS-200 × exames; seringas × injecções).
