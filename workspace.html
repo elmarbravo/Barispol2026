@@ -33471,7 +33471,7 @@ function App() {
          confirmacao de recepcao (GuiaRecepcaoCartao). */
       window.__bspConfirmarGuia = true;
       setPage('dashboard');
-    } else if (['feed', 'tarefas', 'agenda', 'drive', 'seguimento', 'marcacoes', 'escalas', 'transporte', 'painel', 'chat', 'relatorios', 'documentos', 'actividade', 'registo', 'notificacoes', 'qualidade', 'avarias', 'admin'].indexOf(onde) !== -1) {
+    } else if (['feed', 'tarefas', 'agenda', 'drive', 'seguimento', 'marcacoes', 'escalas', 'transporte', 'painel', 'chat', 'relatorios', 'documentos', 'actividade', 'registo', 'notificacoes', 'qualidade', 'avarias', 'admin', 'painel-clinico', 'stock', 'dashboard'].indexOf(onde) !== -1) {
       setPage({ tarefas: 'tasks', agenda: 'calendar', notificacoes: 'notifications' }[onde] || onde);
     } else {
       return;

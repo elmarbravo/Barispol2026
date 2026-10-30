@@ -5537,3 +5537,7 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   `bsp_fin_alertas` e `bsp_financeiro_alertar` (381 das 515 facturas de
   particulares eram restos de arredondamento, 118,50 Kz). Ficam 134 facturas,
   1,61 M Kz em 6 meses (71 emitidas pela Juliana).
+- 30-10-2026 (auditoria do Painel clínico): os endereços `#/painel-clinico`,
+  `#/stock` e `#/dashboard` não abriam o ecrã (avisos de toners e do pedido à
+  Farmácia levavam a `#/stock`/`#/dashboard`). Acrescentados à lista de rotas do
+  endereço no `App`.
