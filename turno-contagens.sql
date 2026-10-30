@@ -76,8 +76,11 @@ begin
           or exists (select 1 from turno_listas where area = p_area and eu = any(responsaveis))) then
     raise exception 'Só o chefe da área ou os responsáveis mudam esta lista.';
   end if;
+  -- tipo 'material' (30-10-2026): no Laboratório, contado por quantidade e não
+  -- pelo R1/R2 do BS-200 (testes rápidos, seringas, lamelas…).
   select coalesce(jsonb_agg(jsonb_build_object('k', left(trim(x->>'nome'), 60), 'nome', left(trim(x->>'nome'), 60),
-           'minimo', greatest(0, coalesce(public.bsp_num(x->>'minimo'), 0)))), '[]'::jsonb)
+           'minimo', greatest(0, coalesce(public.bsp_num(x->>'minimo'), 0)))
+           || case when p_area = 'laboratorio' and x->>'tipo' = 'material' then jsonb_build_object('tipo', 'material') else '{}'::jsonb end), '[]'::jsonb)
     into lim from jsonb_array_elements(coalesce(p_itens, '[]'::jsonb)) x where trim(coalesce(x->>'nome', '')) <> '';
   update turno_listas set itens = lim, alterado_por = eu, alterado_em = now() where area = p_area;
   return found;
@@ -229,3 +232,4 @@ grant execute on function public.bsp_turno_lista_gravar(text, jsonb) to authenti
 grant execute on function public.bsp_turno_pendente() to authenticated;
 grant execute on function public.bsp_turno_base(text) to authenticated;
 grant execute on function public.bsp_turno_contar(text, date, text, text, jsonb, numeric, text, jsonb) to authenticated;
+

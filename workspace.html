@@ -8651,7 +8651,10 @@ function bspTurnoArea(u) {
 }
 function TurnoListaEditor({ area, lista, onGravado }) {
   const toast = useToast();
-  const [l, setL] = React.useState(() => (lista || []).map(x => ({ nome: x.nome, minimo: x.minimo == null ? '' : String(x.minimo) })));
+  /* No Laboratório cada artigo é reagente do BS-200 (R1 e R2) ou material
+     contado por quantidade (testes rápidos, seringas, lamelas…), 30-10-2026. */
+  const lab = area === 'laboratorio';
+  const [l, setL] = React.useState(() => (lista || []).map(x => ({ nome: x.nome, minimo: x.minimo == null ? '' : String(x.minimo), tipo: x.tipo === 'material' ? 'material' : '' })));
   const [aGravar, setAGravar] = React.useState(false);
   const mudar = (i, k, v) => setL(a => a.map((x, j) => j === i ? Object.assign({}, x, { [k]: v }) : x));
   const gravar = async () => {
@@ -8669,15 +8672,22 @@ function TurnoListaEditor({ area, lista, onGravado }) {
     React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginBottom: 8, lineHeight: 1.5 } }, 'O que se conta em cada abertura e fecho. «Mínimo»: abaixo deste número, o chefe da área e a gestão recebem aviso (0 = sem aviso).'),
     l.map((x, i) => React.createElement("div", { key: i, style: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 } },
       React.createElement("input", { value: x.nome, maxLength: 60, placeholder: 'Nome', onChange: e => mudar(i, 'nome', e.target.value), style: Object.assign({}, caixa, { flex: 1, minWidth: 0 }) }),
+      lab && React.createElement("select", { value: x.tipo, 'aria-label': 'Como se conta', onChange: e => mudar(i, 'tipo', e.target.value), style: Object.assign({}, caixa, { width: 116, padding: '0 6px' }) },
+        React.createElement("option", { value: '' }, 'BS-200 (R1/R2)'),
+        React.createElement("option", { value: 'material' }, 'Quantidade')),
       React.createElement("input", { type: 'number', min: 0, inputMode: 'numeric', value: x.minimo, placeholder: 'Mínimo', 'aria-label': 'Mínimo', onChange: e => mudar(i, 'minimo', e.target.value), style: Object.assign({}, caixa, { width: 90 }) }),
       React.createElement("button", { type: 'button', 'aria-label': 'Tirar', onClick: () => setL(a => a.filter((y, j) => j !== i)), style: Object.assign({}, caixa, { width: 36, padding: 0, cursor: 'pointer', color: 'var(--text-3)' }) }, '×'))),
     React.createElement("div", { style: { display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' } },
-      React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: () => setL(a => a.concat({ nome: '', minimo: '' })) }, '+ Acrescentar'),
+      React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: () => setL(a => a.concat({ nome: '', minimo: '', tipo: lab ? 'material' : '' })) }, '+ Acrescentar'),
       React.createElement(Button, { variant: 'primary', size: 'sm', onClick: gravar, disabled: aGravar }, aGravar ? 'A gravar…' : 'Gravar a lista')));
 }
 function TurnoContagemForm({ item, onFeito }) {
   const toast = useToast();
   const lab = item.area === 'laboratorio';
+  /* Reagente do BS-200 (R1 e R2) ou artigo contado por quantidade (30-10-2026,
+     Elmar: «no laboratório também a contagem de testes rápidos, stock existente,
+     seringas, lamelas e afins»). */
+  const reag = i => lab && i.tipo !== 'material';
   const [base, setBase] = React.useState(null);
   const [vals, setVals] = React.useState({});
   const [frio, setFrio] = React.useState('');
@@ -8702,7 +8712,7 @@ function TurnoContagemForm({ item, onFeito }) {
         (b.lista || []).forEach(i => {
           if (n[i.k]) return;
           const u = ult[i.k] || {};
-          n[i.k] = lab ? { r1: u.r1 == null ? '' : String(u.r1), r2: u.r2 == null ? '' : String(u.r2) } : { q: u.q == null ? '' : String(u.q) };
+          n[i.k] = reag(i) ? { r1: u.r1 == null ? '' : String(u.r1), r2: u.r2 == null ? '' : String(u.r2) } : { q: u.q == null ? '' : String(u.q) };
         });
         return n;
       });
@@ -8713,12 +8723,12 @@ function TurnoContagemForm({ item, onFeito }) {
   const ultima = base && base.ultima;
   const antDe = k => { const x = ((ultima && ultima.itens) || []).find(y => y.k === k); return x || null; };
   const num = v => { const s = String(v == null ? '' : v).trim().replace(',', '.'); return s === '' || isNaN(Number(s)) ? null : Number(s); };
-  const campos = lab ? ['r1', 'r2'] : ['q'];
-  const faltam = lista.filter(i => num((vals[i.k] || {})[campos[0]]) == null);
+  const camposDe = i => reag(i) ? ['r1', 'r2'] : ['q'];
+  const faltam = lista.filter(i => num((vals[i.k] || {})[camposDe(i)[0]]) == null);
   const comparaFecho = item.momento === 'abertura' && ultima && ultima.momento === 'fecho';
   const difs = comparaFecho ? lista.filter(i => {
     const a = antDe(i.k);
-    return a && campos.some(c => num(a[c]) != null && num((vals[i.k] || {})[c]) != null && num(a[c]) !== num((vals[i.k] || {})[c]));
+    return a && camposDe(i).some(c => num(a[c]) != null && num((vals[i.k] || {})[c]) != null && num(a[c]) !== num((vals[i.k] || {})[c]));
   }) : [];
   const subir = async lst => {
     const fs = Array.from(lst || []);
@@ -8753,7 +8763,7 @@ function TurnoContagemForm({ item, onFeito }) {
     setAGravar(true);
     const itens = lista.map(i => {
       const v = vals[i.k] || {};
-      return lab ? { k: i.k, r1: num(v.r1), r2: num(v.r2) } : { k: i.k, q: num(v.q) };
+      return reag(i) ? { k: i.k, r1: num(v.r1), r2: num(v.r2) } : { k: i.k, q: num(v.q) };
     });
     const r = await cl.rpc('bsp_turno_contar', { p_area: item.area, p_dia: item.dia, p_turno: item.turno, p_momento: item.momento, p_itens: itens, p_frio: num(frio), p_motivo: motivo, p_ficheiros: fichs });
     setAGravar(false);
@@ -8773,17 +8783,19 @@ function TurnoContagemForm({ item, onFeito }) {
   }, rot, React.createElement("input", Object.assign({ type: 'file', style: { display: 'none' }, onChange: e => { subir(e.target.files); e.target.value = ''; } }, props)));
   return React.createElement("div", null,
     React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginBottom: 10, lineHeight: 1.5 } },
-      lab ? 'No BS-200: Estado → Disco de reagentes → toque no teste. Escreva os testes restantes do R1 e do R2 (o número depois da barra) e tire a fotografia do ecrã.'
+      lab ? 'No BS-200: Estado → Disco de reagentes → toque no teste. Escreva os testes restantes do R1 e do R2 (o número depois da barra) e tire a fotografia do ecrã. Depois conte os testes rápidos e o material e escreva a quantidade de cada um.'
           : 'Conte o material na sala e escreva a quantidade de cada artigo.',
       ultima ? ' Os números vêm do último ' + (ultima.momento === 'fecho' ? 'fecho' : 'registo') + ' (' + bspQuando(ultima.criado) + '): confirme ou corrija.' : ''),
-    lista.map(i => {
+    lista.map((i, ix) => {
       const a = antDe(i.k);
       const dif = difs.indexOf(i) !== -1;
-      return React.createElement("div", { key: i.k, style: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: '1px solid var(--border)' } },
+      const campos = camposDe(i);
+      const titulo = lab && (ix === 0 || reag(lista[ix - 1]) !== reag(i)) && React.createElement("div", { key: 't-' + i.k, style: { marginTop: ix ? 16 : 0, fontSize: 11.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent-d)' } }, reag(i) ? 'Reagentes do BS-200' : 'Testes rápidos e material');
+      return [titulo, React.createElement("div", { key: i.k, style: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: '1px solid var(--border)' } },
         React.createElement("div", { style: { flex: '1 1 140px', minWidth: 0, fontSize: 13.5, color: 'var(--text-1)', fontWeight: 600 } }, i.nome,
-          dif && React.createElement("div", { style: { fontSize: 11.5, fontWeight: 600, color: 'var(--perigo)' } }, 'Último fecho: ' + campos.map(c => (lab ? c.toUpperCase() + ' ' : '') + (a[c] == null ? '—' : a[c])).join(' · '))),
-        campos.map(c => React.createElement("label", { key: c, style: { fontSize: 11, color: 'var(--text-3)' } }, lab ? c.toUpperCase() : 'Quantidade',
-          React.createElement("input", { type: 'number', min: 0, step: 1, inputMode: 'numeric', value: (vals[i.k] || {})[c] || '', onChange: e => mudar(i.k, c, e.target.value), style: Object.assign({}, caixa, { display: 'block', marginTop: 2, borderColor: dif ? 'var(--perigo)' : 'var(--border)' }) }))));
+          dif && React.createElement("div", { style: { fontSize: 11.5, fontWeight: 600, color: 'var(--perigo)' } }, 'Último fecho: ' + campos.map(c => (c !== 'q' ? c.toUpperCase() + ' ' : '') + (a[c] == null ? '—' : a[c])).join(' · '))),
+        campos.map(c => React.createElement("label", { key: c, style: { fontSize: 11, color: 'var(--text-3)' } }, c !== 'q' ? c.toUpperCase() : 'Quantidade',
+          React.createElement("input", { type: 'number', min: 0, step: 1, inputMode: 'numeric', value: (vals[i.k] || {})[c] || '', onChange: e => mudar(i.k, c, e.target.value), style: Object.assign({}, caixa, { display: 'block', marginTop: 2, borderColor: dif ? 'var(--perigo)' : 'var(--border)' }) }))))];
     }),
     !lista.length && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)', padding: '8px 0' } }, 'A lista desta área ainda está vazia.'),
     React.createElement("label", { style: { display: 'block', marginTop: 12, fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)' } }, 'Frigorífico agora (°C)',

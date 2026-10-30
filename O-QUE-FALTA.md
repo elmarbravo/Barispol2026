@@ -5423,3 +5423,11 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   31-10-2026 (aplicado no servidor): hoje a porta do turno não aparece. E-mail às
   equipas do Laboratório e da Enfermagem: texto apresentado ao Elmar, à espera
   da aprovação.
+- 30-10-2026, Elmar: «no laboratório também a contagem de testes rápidos, stock
+  existente, seringas, lamelas e afins». Cada artigo da lista do Laboratório tem
+  agora um tipo: reagente do BS-200 (R1 e R2, como antes) ou `tipo: 'material'`
+  (uma quantidade, como na Enfermagem). `TurnoContagemForm` mostra os dois
+  grupos («Reagentes do BS-200», «Testes rápidos e material»); `TurnoListaEditor`
+  escolhe o tipo; `bsp_turno_lista_gravar` guarda-o. Testado no navegador. A
+  lista de material sai das entregas da Solange (e-mails e facturas da
+  Almiro/Farwell; o Laboratório não usa o MetaGest): por carregar.
