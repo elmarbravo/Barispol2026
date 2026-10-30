@@ -5611,5 +5611,8 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   chamada final em azul. Saiu a barra fixa do WhatsApp no telemóvel (a política
   proíbe botão flutuante). Sem travessões nem pontos médios no texto. Testado a 390
   e 1280 px em todas as páginas e o formulário do Contacto com o servidor simulado.
-  Falta: logotipos das seguradoras (PNG na pasta do SharePoint «PARA CARREGAR NO
-  GITHUB») e fotografias reais da equipa para substituir as cinco geradas por IA.
+  Logotipos em `assets/seguros/` (30-10-2026): Mundial (enviado pelo Elmar), Saúde+,
+  Fidelidade, Mediplus e Unisaúde (assinaturas dos e-mails que nos enviaram). Faltam
+  os outros 17: não há imagem nos e-mails nem no SharePoint (ADM, DAF, Marketing);
+  pedir às seguradoras ou ao Elmar. Faltam fotografias reais da equipa para
+  substituir as cinco geradas por IA (as de «FOTOS BARISPOL» são de 2024, salas vazias).
