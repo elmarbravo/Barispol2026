@@ -275,3 +275,11 @@ update public.turno_listas l set itens = (
     where not exists (select 1 from jsonb_array_elements(l.itens) y where y->>'k' = v.k)),
   alterado_em = now()
 where area = 'laboratorio';
+
+-- Mínimos do Laboratório por 6 meses (30-10-2026, Elmar: «estica o período para
+-- 6 meses»): consumo de 14 dias de 01-05 a 30-10. Testes e reagentes do BS-200
+-- pelas vendas de 180 dias (MetaGest); material pelos 35 pedidos do Laboratório
+-- (e-mails a Solange/Arlete/Gizela, Maio a Outubro). Novos: microtubos (unidades),
+-- ponteiras amarelas, seringas 10 ml, covetes, lancetas, curitas, tiras de
+-- glicemia e os controlos normal e patológico do BS-200. Aplicado no servidor
+-- (61 artigos, nenhum com mínimo 0); os números ficam em turno_listas.

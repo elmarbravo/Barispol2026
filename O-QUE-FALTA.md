@@ -5469,3 +5469,10 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   junta os nomes escritos à mão («Glicemia em Jejum», «Triglicerideos»).
   Vendidos raramente e sem reagente pedido (talvez exteriores): proteínas
   totais, albumina, GGT, HbA1c, ionograma, microalbuminúria.
+- 30-10-2026, Elmar: «estica o período para 6 meses». Mínimos do Laboratório
+  recalculados (consumo de 14 dias, 01-05 a 30-10): testes e BS-200 pelas vendas
+  de 180 dias, material pelos 35 pedidos reais do Laboratório (Maio a Outubro).
+  61 artigos, todos com mínimo ≥ 1; 9 artigos novos (microtubos, ponteiras
+  amarelas, seringas 10 ml, covetes, lancetas, curitas, tiras de glicemia,
+  controlos do BS-200). Em Maio o Laboratório pediu aumento de stock (dengue 40
+  por semana, EDTA 80 por semana) e registou a calibração do BS-200 a 06-05.
