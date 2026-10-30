@@ -31615,9 +31615,54 @@ function PainelClinicoScreen() {
     tabelaEx('Laboratório: testes e consumíveis', ['Artigo', 'Stock', 'Saídas 30 d', 'Dá para'], (ex.lab_consumiveis || []).map(x => [bspFrase(x.nome), qtd(x.stock), qtd(x.saidas_30d), diasTxt(x.dias)]), null, 'laboratorio')
   ].filter(Boolean);
   const grelha = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: 14 };
-  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 14, height: '100%', overflow: 'auto', paddingBottom: 12 } },
+  /* Auditoria (30-10-2026, clinico-auditoria.sql; Elmar: «a mesma auditoria faça
+     no painel clínico» → «sim»): qualidade, segurança, registo clínico, relatórios
+     e turnos em falta por pessoa, pedidos à Farmácia, presenças. Cada chefe só a
+     sua área (o servidor filtra). Nomes só da equipa e dos médicos. */
+  const caixaRef = React.useRef(null);
+  const estreito = useLargura(caixaRef) < 560;
+  const nomeArea = a => BSP_CLINICO_AREAS[a] || { rececao: 'Recepção', imagiologia: 'Imagiologia' }[a] || a;
+  const esp = d && d.espera, sat = d && d.satisfacao, rel = d && d.relatorios, reg = d && d.registo, comp = d && d.comparencia, ped = d && d.pedidos;
+  const seg = d && d.seguranca || [];
+  const segTot = seg.reduce((t, x) => t + Number(x.ocorrencias || 0) + Number(x.incidentes || 0) + Number(x.quase_erros || 0), 0);
+  const semSeg = seg.filter(x => !Number(x.ult30));
+  const relFalta = d && d.relatorios_falta || [], turFalta = d && d.turnos_falta || [];
+  const compTot = comp ? Number(comp.compareceu || 0) + Number(comp.faltou || 0) : 0;
+  const pctDe = (a, b) => b ? Math.round(100 * a / b) + '%' : '—';
+  const lista = (titulo, nota, linhas) => linhas.length ? React.createElement(Card, { pad: 16 }, tit(titulo),
+    nota && React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginTop: -6, marginBottom: 10 } }, nota),
+    React.createElement("div", { style: { maxHeight: 340, overflow: 'auto', display: 'flex', flexDirection: 'column' } },
+      linhas.map((l, i) => React.createElement("div", { key: i, style: { display: 'flex', gap: 10, alignItems: 'baseline', padding: '6px 0', borderBottom: '1px solid var(--border)', fontSize: 13 } },
+        React.createElement("span", { style: { color: 'var(--text-3)', width: 44, flex: 'none', fontVariantNumeric: 'tabular-nums' } }, l[0]),
+        React.createElement("span", { style: { flex: 1, minWidth: 0, color: 'var(--text-1)', overflowWrap: 'anywhere' } }, l[1],
+          l[2] && React.createElement("span", { style: { display: 'block', fontSize: 12, color: l[3] ? 'var(--perigo)' : 'var(--text-3)' } }, l[2])))))) : null;
+  const dm = x => x ? String(x).slice(8, 10) + '/' + String(x).slice(5, 7) : '';
+  const auditoriaCards = d ? [
+    rel && lista('Relatórios que precisam de atenção', (rel.com_atencao || 0) + ' de ' + (rel.entregues || 0) + ' relatórios entregues no período.',
+      (rel.lista || []).map(x => [dm(x.dia), nomeArea(x.area) + ' · ' + (x.turno || '') + ' · ' + (x.quem || ''), (x.pontos || []).join('; '), true])),
+    lista('Relatórios de turno por entregar', 'Pela escala publicada, desde o primeiro relatório de cada área. Turnos de chefia e opcionais não contam.',
+      relFalta.slice().reverse().map(x => [dm(x.dia), nomeArea(x.area) + ' · ' + (x.turno || ''), (x.pessoas || []).join(', '), true])),
+    lista('Aberturas e fechos de turno em falta', 'Laboratório e Enfermagem, desde 31-10-2026.',
+      turFalta.slice().reverse().map(x => [dm(x.dia), nomeArea(x.area) + ' · ' + (x.turno || '') + ' · ' + (x.momento === 'abertura' ? 'abertura' : 'fecho'), (x.pessoas || []).join(', '), true])),
+    d.turnos && lista('Passagem de turno com diferenças', (d.turnos.diferencas || 0) + ' de ' + (d.turnos.contagens || 0) + ' contagens' + (Number(d.turnos.reagentes_prazo) ? ' · ' + d.turnos.reagentes_prazo + ' aviso(s) de reagente no fim do prazo' : '') + '.',
+      (d.turnos.lista || []).map(x => [dm(x.dia), nomeArea(x.area) + ' · ' + (x.turno || '') + ' · ' + (x.quem || ''), x.linhas + (x.linhas === 1 ? ' linha' : ' linhas') + (x.motivo ? ' · ' + x.motivo : ''), !x.motivo])),
+    tudo(d) && esp && (esp.por_medico || []).length > 0 && React.createElement(Card, { pad: 16 }, tit('Espera triagem → consulta, por médico'),
+      React.createElement(PainelBarras, { dados: esp.por_medico.map(x => ({ rotulo: x.medico, valor: Number(x.media), extra: x.n + ' utentes · ' + x.acima_2h + ' acima de 2 h' })), formatar: v => qtd(v) + ' min', cor: '--serie-3' })),
+    tudo(d) && reg && (reg.por_medico || []).length > 0 && tabelaEx('Registo clínico no MetaGest, por médico', ['Médico', 'Consultas', 'Com registo', 'Sem diagnóstico'],
+      reg.por_medico.map(x => [x.medico, qtd(x.consultas), x.consultas ? pctDe(Number(x.registos), Number(x.consultas)) + ' (' + qtd(x.registos) + ')' : qtd(x.registos), qtd(x.sem_diag)]),
+      'Consultas facturadas e consultas com registo no MetaGest. ' + qtd(reg.workspace) + ' registos no Workspace; credenciais registadas de ' + qtd(reg.credenciais) + ' médico(s).'),
+    seg.length > 0 && tabelaEx('Segurança do doente', ['Área', 'Ocorrências', 'Incidentes', 'Quase-erros'],
+      seg.map(x => [nomeArea(x.area) + (Number(x.ult30) ? '' : ' · sem registos em 30 dias'), qtd(x.ocorrencias), qtd(x.incidentes), qtd(x.quase_erros)]),
+      'Pela OMS, zero registos indica subnotificação, não ausência de erros.'),
+    (d.sem_chegada || []).length > 0 && lista('Médicos com facturas hoje sem chegada marcada', 'A Recepção marca em Utentes → Presenças dos médicos.',
+      d.sem_chegada.map(x => ['Hoje', bspNomeProprio(x.nome), x.facturas + (x.facturas === 1 ? ' factura' : ' facturas'), true]))
+  ].filter(Boolean) : [];
+  function tudo(x) { return !!(x && x.tudo); }
+  return React.createElement("div", { ref: caixaRef, style: { display: 'flex', flexDirection: 'column', gap: 14, height: '100%', overflow: 'auto', paddingBottom: 12 } },
     React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', flex: 'none' } },
-      periodos.map(x => React.createElement("button", { key: x[0], onClick: () => setPeriodo(x[0]), style: chip(periodo === x[0]) }, x[1])),
+      estreito ? React.createElement("select", { value: periodo, onChange: e => setPeriodo(e.target.value), 'aria-label': 'Período', style: Object.assign({}, bspTranspCampo, { flex: '1 1 100%', fontWeight: 600 }) },
+          periodos.map(x => React.createElement("option", { key: x[0], value: x[0] }, x[1])))
+        : periodos.map(x => React.createElement("button", { key: x[0], onClick: () => setPeriodo(x[0]), style: chip(periodo === x[0]) }, x[1])),
       React.createElement("span", { style: { flex: 1 } }),
       React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, aCarregar ? 'A actualizar…' : 'MetaGest · sem valores')),
     periodo === 'datas' && React.createElement("div", { style: { flex: 'none' } },
@@ -31633,6 +31678,15 @@ function PainelClinicoScreen() {
         React.createElement(PainelTile, { rotulo: 'Actos de enfermagem', valor: qtd(n.actos_enfermagem) }),
         React.createElement(PainelTile, { rotulo: 'Imagiologia', valor: qtd(Number(n.raiox || 0) + Number(n.ecografias || 0) + Number(n.cardiologia || 0)), nota: qtd(n.raiox) + ' raio-X · ' + qtd(n.ecografias) + ' eco · ' + qtd(n.cardiologia) + ' cardio' }),
         React.createElement(PainelTile, { rotulo: 'Farmácia', valor: qtd(n.unidades_farmacia), nota: 'unidades · ' + qtd(n.produtos_farmacia) + ' produtos' })),
+      React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 } },
+        esp && React.createElement(PainelTile, { perigo: Number(esp.media) > 60, rotulo: 'Espera triagem → consulta', valor: esp.n ? qtd(esp.media) + ' min' : '—', nota: qtd(esp.n) + ' utentes · ' + qtd(esp.acima_2h) + ' acima de 2 h' }),
+        sat && React.createElement(PainelTile, { perigo: Number(sat.abertas) > 0, rotulo: 'Satisfação', valor: sat.n ? String(sat.media).replace('.', ',') + ' / 5' : '—', nota: qtd(sat.n) + ' respostas · ' + qtd(sat.reclamacoes) + ' reclamações' + (Number(sat.abertas) ? ' (' + sat.abertas + ' por fechar)' : '') }),
+        seg.length > 0 && React.createElement(PainelTile, { perigo: semSeg.length > 0, rotulo: 'Segurança do doente', valor: qtd(segTot), nota: 'ocorrências, incidentes e quase-erros' + (semSeg.length ? ' · ' + semSeg.length + (semSeg.length === 1 ? ' área' : ' áreas') + ' sem registos em 30 dias' : '') }),
+        rel && React.createElement(PainelTile, { perigo: relFalta.length > 0, rotulo: 'Relatórios de turno', valor: qtd(rel.entregues), nota: qtd(rel.com_atencao) + ' com atenção · ' + qtd(relFalta.length) + ' por entregar' }),
+        reg && React.createElement(PainelTile, { perigo: Number(reg.consultas) > 0 && Number(reg.registos) < 0.8 * Number(reg.consultas), rotulo: 'Registo clínico (MetaGest)', valor: pctDe(Number(reg.registos), Number(reg.consultas)), nota: qtd(reg.registos) + ' de ' + qtd(reg.consultas) + ' consultas · ' + qtd(reg.sem_diag) + ' sem diagnóstico' }),
+        tem('recepcao') && compTot > 0 && React.createElement(PainelTile, { rotulo: 'Comparência às marcações', valor: pctDe(Number(comp.compareceu), compTot), nota: qtd(comp.compareceu) + ' vieram · ' + qtd(comp.faltou) + ' faltaram · ' + qtd(comp.cancelou) + ' cancelaram' }),
+        ped && (Number(ped.por_entregar) + Number(ped.por_conferir) + Number(ped.com_problema)) > 0 && React.createElement(PainelTile, { perigo: Number(ped.com_problema) > 0, rotulo: 'Pedidos à Farmácia', valor: qtd(Number(ped.por_entregar) + Number(ped.por_conferir)), nota: qtd(ped.por_entregar) + ' por entregar · ' + qtd(ped.por_conferir) + ' por conferir' + (Number(ped.com_problema) ? ' · ' + ped.com_problema + ' com problema' : '') })),
+      auditoriaCards.length > 0 && React.createElement("div", { style: grelha }, auditoriaCards.map((c, i) => React.createElement(React.Fragment, { key: 'au' + i }, c))),
       serie.length > 1 && React.createElement(Card, { pad: 16 }, tit('Utentes por dia'), React.createElement(PainelColunas, { dados: serie, formatar: v => qtd(v) + (v === 1 ? ' utente' : ' utentes'), altura: 200 })),
       tem('recepcao') && React.createElement(Card, { pad: 16 }, tit('Recepção'),
         React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, fontSize: 13, color: 'var(--text-2)' } },

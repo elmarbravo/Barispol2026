@@ -5541,3 +5541,17 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   `#/stock` e `#/dashboard` não abriam o ecrã (avisos de toners e do pedido à
   Farmácia levavam a `#/stock`/`#/dashboard`). Acrescentados à lista de rotas do
   endereço no `App`.
+- 30-10-2026, Elmar: «a mesma auditoria faça no painel clínico» → «sim» (11 pontos
+  e três avisos). `clinico-auditoria.sql` (aplicado): `bsp_clinico_qualidade`
+  junta ao `bsp_painel_clinico` espera triagem → consulta (por médico), relatórios
+  com atenção e por entregar pela escala (por pessoa; cada área desde o primeiro
+  relatório; sem turnos de chefia nem opcionais), aberturas e fechos em falta
+  (desde 31-10), diferenças de turno, segurança por área (ocorrências, incidentes,
+  quase-erros), satisfação, registo clínico no MetaGest por médico (Outubro: 102
+  de 268 consultas, 21 sem diagnóstico), registos do Workspace (0), credenciais
+  (1 médico), pedidos à Farmácia, médicos sem chegada marcada, comparência; cada
+  chefe só a sua área. Telemóvel: `bsp_clinico_alertar` (cron
+  `bsp-clinico-alertas`, minutos 27 e 57): utente à espera há mais de 2 h, valores
+  críticos por comunicar, áreas sem registos de segurança em 30 dias (segundas).
+  Para u14 e u1 (críticos também ao chefe). Ecrã: quadros de qualidade, listas e
+  selector de período no telemóvel. Mês: 0,27 s.

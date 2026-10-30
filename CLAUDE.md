@@ -891,7 +891,11 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   marcações, relatório de turno). Desde a versão 11 sem WhatsApp nem
   «Workspace aberto»: estão só no e-mail das 08h00 (`wa_resumo_8h`).
   Painel clínico: `PainelClinicoScreen` / `bsp_painel_clinico` sobre
-  `erp.clinico_dados`; nunca Kz nem nomes de utentes. Os quadros da
+  `erp.clinico_dados`; nunca Kz nem nomes de utentes.
+  Auditoria (30-10-2026, `clinico-auditoria.sql`): `bsp_clinico_qualidade` junta
+  espera, relatórios e turnos em falta por pessoa, segurança, satisfação, registo
+  clínico por médico, pedidos à Farmácia e presenças; telemóvel por
+  `bsp_clinico_alertar` (cron `bsp-clinico-alertas`). Cada chefe só a sua área. Os quadros da
   Recepção, Farmácia e Laboratório vêm de `erp.clinico_extra` (campo
   `extra`, filtrado por área no `bsp_painel_clinico`).
 - Cadeia de frio (03-10-2026, `cadeia-frio.sql`): `frio_min`/`frio_max` nos
