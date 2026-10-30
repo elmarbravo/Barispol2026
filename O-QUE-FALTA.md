@@ -5476,3 +5476,11 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   amarelas, seringas 10 ml, covetes, lancetas, curitas, tiras de glicemia,
   controlos do BS-200). Em Maio o Laboratório pediu aumento de stock (dengue 40
   por semana, EDTA 80 por semana) e registou a calibração do BS-200 a 06-05.
+- 30-10-2026, Elmar: «audita os relatórios com base nas regras internacionais» →
+  «as 4 e mantenha sempre o director clínico informado no grupo direcção e no
+  e-mail». Campos novos nos relatórios de turno (`auditoria-relatorios.sql`,
+  aplicado): Laboratório `ciq`, `lote_novo`, `suspensos`, `criticos` /
+  `criticos_comunicados` (ISO 15189); frio obrigatório com `frio_accao` (OMS);
+  Enfermagem `carro_urgencia` (JCI COP.3); Imagiologia `repetidos` /
+  `repetidos_motivo`. Os casos graves entram em `bsp_relatorio_atencao` (aviso e
+  novidade). Recepção de produtos: no pedido à Farmácia pelo Workspace (a seguir).

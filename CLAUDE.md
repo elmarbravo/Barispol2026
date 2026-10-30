@@ -410,6 +410,11 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   vazio = 28 dias); aviso `bsp_turno_reagentes_alertar` (`turno-reagentes-prazo.sql`).
   Campos dos protocolos desligados (`BSP_PROTOCOLOS_ACTIVOS`) até a Direcção
   Clínica validar a lista (Elmar, 30-10-2026).
+  Auditoria (30-10-2026, `auditoria-relatorios.sql`): `BSP_CAMPOS_LAB_QUALIDADE`
+  (CIQ, lote novo, suspensos, valores críticos), frio obrigatório com `frio_accao`,
+  `BSP_CAMPOS_CARRO` (Enfermagem), `BSP_CAMPOS_RX_REPETIDOS`; ids lidos por
+  `bsp_relatorio_atencao`. A Direcção Clínica (u14) é informada de cada mudança
+  no grupo da Direcção e por e-mail (Elmar: «mantenha sempre»).
   Reagentes do Laboratório (16-10-2026, fotografias do BS-200): campo tipo
   `reagentes` (`reagentes_exames`: `[{r, r1, r2, proc}]`, testes restantes no
   R1 e no R2 lidos no aparelho; dá para = o menor), `bspReagentesLimpos`,

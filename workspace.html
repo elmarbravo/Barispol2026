@@ -17462,9 +17462,28 @@ const BSP_CAMPOS_PROTOCOLOS = [
 /* Cadeia de frio (03-10-2026, cadeia-frio.sql): fora de 2 a 8 °C o
    servidor avisa logo a gestão, a Direcção Clínica e o chefe da área
    (bsp_frio_aviso). Os ids frio_min / frio_max mudam-se dos dois lados. */
+/* Obrigatórios desde 30-10-2026 (auditoria, OMS: registo da cadeia de frio em
+   cada turno; Elmar: «as 4»), com a acção tomada quando sai dos 2–8 °C. */
 const BSP_CAMPOS_FRIO = [
-  { id: 'frio_min', tipo: 'numero', opcional: true, rotulo: 'Frigorífico: temperatura mínima no turno (°C)' },
-  { id: 'frio_max', tipo: 'numero', opcional: true, rotulo: 'Frigorífico: temperatura máxima no turno (°C)' }
+  { id: 'frio_min', tipo: 'numero', rotulo: 'Frigorífico: temperatura mínima no turno (°C)' },
+  { id: 'frio_max', tipo: 'numero', rotulo: 'Frigorífico: temperatura máxima no turno (°C)' },
+  { id: 'frio_accao', tipo: 'escolha', rotulo: 'Frigorífico: acção tomada', opcoes: ['Sempre dentro de 2–8 °C', 'Fora: produtos passados para outro frigorífico', 'Fora: Serviços Gerais avisados', 'Fora: sem acção (ver observação)'] }
+];
+/* Auditoria (30-10-2026, ISO 15189 §7.3.7, §6.6.3, §7.4; JCI COP.3; protecção
+   radiológica): ids lidos por bsp_relatorio_atencao (auditoria-relatorios.sql). */
+const BSP_CAMPOS_LAB_QUALIDADE = [
+  { id: 'ciq', tipo: 'escolha', rotulo: 'Controlo interno de qualidade antes de libertar resultados', opcoes: ['Feito, dentro dos limites', 'Feito, fora dos limites (resultados retidos)', 'Não feito (ver observação)'] },
+  { id: 'lote_novo', tipo: 'escolha', rotulo: 'Lote novo de reagente', opcoes: ['Nenhum lote novo', 'Lote novo verificado com controlo antes de usar', 'Lote novo usado sem verificação'] },
+  { id: 'suspensos', tipo: 'varias', rotulo: 'Exames suspensos no turno', opcoes: ['Nenhum', 'Hemograma', 'Bioquímica (BS-200)', 'Widal', 'PCR', 'Grupo sanguíneo', 'Testes rápidos', 'Outro (ver observação)'] },
+  { id: 'criticos', tipo: 'numero', rotulo: 'Valores críticos encontrados' },
+  { id: 'criticos_comunicados', tipo: 'numero', rotulo: 'Desses, comunicados ao médico' }
+];
+const BSP_CAMPOS_CARRO = [
+  { id: 'carro_urgencia', tipo: 'escolha', rotulo: 'Carro de urgência (material, medicação, validades, desfibrilhador)', opcoes: ['Verificado e completo', 'Verificado com faltas (ver observação)', 'Não verificado'] }
+];
+const BSP_CAMPOS_RX_REPETIDOS = [
+  { id: 'repetidos', tipo: 'numero', rotulo: 'Exames de Raio-X repetidos' },
+  { id: 'repetidos_motivo', tipo: 'varias', rotulo: 'Motivo da repetição', opcoes: ['Nenhum repetido', 'Posicionamento', 'Exposição', 'Movimento do utente', 'Artefacto', 'Avaria', 'Outro (ver observação)'] }
 ];
 const BSP_CAMPOS_AREA = {
   rececao: [
@@ -17481,9 +17500,9 @@ const BSP_CAMPOS_AREA = {
     { id: 'resultados_entregues', tipo: 'numero', rotulo: 'Resultados entregues hoje' },
     { id: 'resultados_atraso', tipo: 'numero', rotulo: 'Desses, fora do prazo combinado com o utente' },
     { id: 'tat_horas', tipo: 'numero', opcional: true, rotulo: 'Tempo médio da colheita ao resultado (horas, se souber)' }
-  ].concat(BSP_CAMPOS_FRIO, BSP_CAMPOS_INCIDENTES, BSP_PROTOCOLOS_ACTIVOS ? BSP_CAMPOS_PROTOCOLOS : []),
-  imagiologia: BSP_CAMPOS_INCIDENTES.concat(BSP_PROTOCOLOS_ACTIVOS ? BSP_CAMPOS_PROTOCOLOS : []),
-  enfermagem: BSP_CAMPOS_FRIO.concat(BSP_CAMPOS_INCIDENTES, BSP_PROTOCOLOS_ACTIVOS ? BSP_CAMPOS_PROTOCOLOS : [])
+  ].concat(BSP_CAMPOS_LAB_QUALIDADE, BSP_CAMPOS_FRIO, BSP_CAMPOS_INCIDENTES, BSP_PROTOCOLOS_ACTIVOS ? BSP_CAMPOS_PROTOCOLOS : []),
+  imagiologia: BSP_CAMPOS_RX_REPETIDOS.concat(BSP_CAMPOS_INCIDENTES, BSP_PROTOCOLOS_ACTIVOS ? BSP_CAMPOS_PROTOCOLOS : []),
+  enfermagem: BSP_CAMPOS_CARRO.concat(BSP_CAMPOS_FRIO, BSP_CAMPOS_INCIDENTES, BSP_PROTOCOLOS_ACTIVOS ? BSP_CAMPOS_PROTOCOLOS : [])
 };
 BSP_RELATORIOS.forEach(a => {
   const extra = BSP_CAMPOS_AREA[a.id];
@@ -17746,7 +17765,7 @@ function RelatoriosScreen() {
     /* A parte nunca passa do todo (qualidade clinica, 02-10-2026). */
     const nr = k => parseInt(resp[k], 10) || 0;
     const tem = k => def.campos.some(c => c.id === k);
-    const erroParte = [['prot_conformes', 'prot_verificados'], ['satisf_ok', 'satisf_resp'], ['resultados_atraso', 'resultados_entregues'], ['amostras_rejeitadas', 'amostras'], ['espera_30', 'utentes']]
+    const erroParte = [['prot_conformes', 'prot_verificados'], ['satisf_ok', 'satisf_resp'], ['resultados_atraso', 'resultados_entregues'], ['amostras_rejeitadas', 'amostras'], ['espera_30', 'utentes'], ['criticos_comunicados', 'criticos'], ['repetidos', 'raiox']]
       .find(([p, t]) => tem(p) && tem(t) && nr(p) > nr(t));
     if (erroParte) {
       const rot = k => (def.campos.find(c => c.id === k) || {}).rotulo;
