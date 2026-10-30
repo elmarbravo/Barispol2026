@@ -980,6 +980,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   fila `guia_envios`, confirmações `guia_recepcoes` (#confirmar-guia).
 - Acesso guiado (30-09-2026): `GuiaEcra` + `BSP_GUIA_FICHAS` (texto de cada
   menu) + `BotaoGuia` («?» no topo). Um menu novo ou mudado leva a sua ficha.
+- Galeria da conversa (30-10-2026, Elmar: «está muito difícil o acesso aos
+  ficheiros das conversas antigas»): botão «Ficheiros» no cabeçalho do Chat,
+  `GaleriaConversa` lê do servidor todos os anexos da conversa (não só as 300
+  carregadas). Um tipo novo de anexo tem de manter a marca `\u200bf`.
 - Anexos no chat: `enviarFicheiros(lista, opc)` no `ChatScreen` serve o
   clipe (vários ficheiros), o arrastar com o rato e as notas de voz
   (27-09-2026: `comecarGravacao`, `bspMensagemNotaVoz`, `bspEAudio`,

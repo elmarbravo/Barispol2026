@@ -5376,3 +5376,10 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
 - 30-10-2026, Elmar: «analise este documento criado por Arlete» (PDF no grupo
   DAF). Edge Function `anexo-ler` versão 2: também lê o texto de PDF (unpdf,
   sem OCR). Só leitura; mesmo código de agendamento.
+- 30-10-2026, Elmar: «Precisamos de uma galeria nos canais, está muito difícil o
+  acesso aos ficheiros das conversas antigas». Botão «Ficheiros» (ícone de imagem)
+  no cabeçalho de cada conversa, em todos os ecrãs: `GaleriaConversa` pede ao
+  servidor todos os anexos da conversa (marca `​f`, em páginas de 1000, não
+  só as 300 mensagens carregadas), com abas Fotografias (grelha), Documentos e
+  Áudio, pesquisa pelo nome e «Mostrar mais». Abre com `bspAbrirFicheiro`; as
+  regras de leitura são as da conversa. Testado no navegador.
