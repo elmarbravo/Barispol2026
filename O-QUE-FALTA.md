@@ -5383,3 +5383,7 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   só as 300 mensagens carregadas), com abas Fotografias (grelha), Documentos e
   Áudio, pesquisa pelo nome e «Mostrar mais». Abre com `bspAbrirFicheiro`; as
   regras de leitura são as da conversa. Testado no navegador.
+- 30-10-2026, Elmar: «na galeria faz também links». Aba «Ligações» na
+  `GaleriaConversa`: os endereços http(s) escritos nas mensagens da conversa
+  (até 2000 mensagens, sem linhas de controlo nem anexos), abrem num separador
+  novo. Testado no navegador.

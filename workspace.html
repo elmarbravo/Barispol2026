@@ -11249,7 +11249,7 @@ function ChannelInfo({
    canais, está muito difícil o acesso aos ficheiros das conversas antigas»).
    Pede ao servidor todos os anexos da conversa (mensagens com a marca ​f),
    não só as 300 carregadas; as regras de leitura são as da conversa. */
-const BSP_GALERIA_ABAS = [['fotos', 'Fotografias'], ['docs', 'Documentos'], ['audio', 'Áudio']];
+const BSP_GALERIA_ABAS = [['fotos', 'Fotografias'], ['docs', 'Documentos'], ['audio', 'Áudio'], ['links', 'Ligações']];
 function bspGaleriaTipo(nome) {
   if (BSP_IMAGEM.test(nome || '')) return 'fotos';
   if (/\.(wav|m4a|mp3|ogg|webm|aac)$/i.test(nome || '')) return 'audio';
@@ -11266,6 +11266,7 @@ function GaleriaMiniatura({ f, onAbrir }) {
 function GaleriaConversa({ conv, titulo, onFechar }) {
   const toast = useToast();
   const [lista, setLista] = React.useState(null);
+  const [links, setLinks] = React.useState(null);
   const [aba, setAba] = React.useState('fotos');
   const [busca, setBusca] = React.useState('');
   const [mostrar, setMostrar] = React.useState(60);
@@ -11283,23 +11284,44 @@ function GaleriaConversa({ conv, titulo, onFechar }) {
       }
       const vistos = {};
       if (vivo) setLista(todos.filter(f => vistos[f.path] ? false : (vistos[f.path] = true)));
+      /* Ligações (30-10-2026, Elmar: «na galeria faz também links»): os
+         endereços http(s) escritos nas mensagens, sem as linhas de controlo. */
+      const ls = [], vistas = {};
+      const r2 = await cl.from('messages').select('id, user_id, created_at, text').eq('conv_key', conv).ilike('text', '%http%').order('created_at', { ascending: false }).limit(2000);
+      (!r2.error && r2.data || []).forEach(m => {
+        if (bspLinhaDeControlo(m.text)) return;
+        const t = String(m.text || '');
+        const i = t.indexOf(BSP_MARCA_ANEXO);
+        (((i === -1 ? t : t.slice(0, i)).match(/https?:\/\/[^\s<>"]+/g)) || []).forEach(u => {
+          u = u.replace(/[).,;:!?»]+$/, '');
+          if (vistas[u]) return;
+          vistas[u] = true;
+          ls.push({ id: m.id + u, url: u, name: u, quem: m.user_id, quando: m.created_at });
+        });
+      });
+      if (vivo) setLinks(ls);
     })();
     return () => { vivo = false; };
   }, [conv]);
   const semAcento = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-  const daAba = (lista || []).filter(f => bspGaleriaTipo(f.name) === aba && (!busca.trim() || semAcento(f.name).indexOf(semAcento(busca.trim())) !== -1));
-  const conta = k => (lista || []).filter(f => bspGaleriaTipo(f.name) === k).length;
+  const daAba = (aba === 'links' ? (links || []) : (lista || []).filter(f => bspGaleriaTipo(f.name) === aba)).filter(f => !busca.trim() || semAcento(f.name).indexOf(semAcento(busca.trim())) !== -1);
+  const conta = k => k === 'links' ? (links || []).length : (lista || []).filter(f => bspGaleriaTipo(f.name) === k).length;
   const abrir = f => bspAbrirFicheiro({ path: f.path, name: f.name }, m => toast(m));
   const tam = b => !b ? '' : b >= 1048576 ? (b / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB';
   return React.createElement(Modal, { open: true, onClose: onFechar, title: 'Ficheiros · ' + (titulo || 'conversa'), width: 760 },
     React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginBottom: 12 } },
       BSP_GALERIA_ABAS.map(([k, rot]) => React.createElement("button", { key: k, type: 'button', onClick: () => { setAba(k); setMostrar(60); }, 'aria-pressed': aba === k,
         style: { padding: '7px 12px', borderRadius: 999, fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', border: '1px solid ' + (aba === k ? 'var(--accent-d)' : 'var(--border)'), background: aba === k ? 'var(--accent-soft)' : 'var(--surface)', color: aba === k ? 'var(--accent-d)' : 'var(--text-2)', fontWeight: aba === k ? 700 : 500 } },
-        rot + (lista ? ' (' + conta(k) + ')' : ''))),
-      React.createElement("input", { value: busca, onChange: e => setBusca(e.target.value), placeholder: 'Procurar pelo nome…', 'aria-label': 'Procurar ficheiro',
+        rot + ((k === 'links' ? links : lista) ? ' (' + conta(k) + ')' : ''))),
+      React.createElement("input", { value: busca, onChange: e => setBusca(e.target.value), placeholder: aba === 'links' ? 'Procurar no endereço…' : 'Procurar pelo nome…', 'aria-label': 'Procurar ficheiro',
         style: { flex: '1 1 160px', minWidth: 0, height: 34, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 16, fontFamily: 'inherit' } })),
-    lista === null ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'A procurar os ficheiros da conversa…') :
-    !daAba.length ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, busca.trim() ? 'Nenhum ficheiro com esse nome.' : 'Sem ficheiros deste tipo nesta conversa.') :
+    (aba === 'links' ? links === null : lista === null) ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'A procurar na conversa…') :
+    !daAba.length ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, busca.trim() ? 'Nada encontrado com esse texto.' : aba === 'links' ? 'Sem ligações nesta conversa.' : 'Sem ficheiros deste tipo nesta conversa.') :
+    aba === 'links' ? React.createElement("div", null, daAba.slice(0, mostrar).map(f => React.createElement("a", { key: f.id, href: f.url, target: '_blank', rel: 'noopener noreferrer',
+      style: { display: 'flex', gap: 10, alignItems: 'center', padding: '9px 2px', borderBottom: '1px solid var(--border)', textDecoration: 'none' } },
+      React.createElement(I.Link, { size: 16, stroke: 'var(--accent-d)' }),
+      React.createElement("span", { style: { flex: 1, minWidth: 0, fontSize: 13.5, color: 'var(--accent-d)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, f.url.replace(/^https?:\/\//, '')),
+      React.createElement("span", { style: { fontSize: 11.5, color: 'var(--text-3)', whiteSpace: 'nowrap' } }, [bspNomeCurto(f.quem), bspQuando(f.quando)].filter(Boolean).join(' · '))))) :
     aba === 'fotos' ? React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(104px, 1fr))', gap: 6 } },
       daAba.slice(0, mostrar).map(f => React.createElement(GaleriaMiniatura, { key: f.path, f, onAbrir: () => abrir(f) }))) :
     React.createElement("div", null, daAba.slice(0, mostrar).map(f => React.createElement("button", { key: f.path, type: 'button', onClick: () => abrir(f),
@@ -11307,7 +11329,7 @@ function GaleriaConversa({ conv, titulo, onFechar }) {
       React.createElement(I.File, { size: 16, stroke: 'var(--accent-d)' }),
       React.createElement("span", { style: { flex: 1, minWidth: 0, fontSize: 13.5, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, f.name),
       React.createElement("span", { style: { fontSize: 11.5, color: 'var(--text-3)', whiteSpace: 'nowrap' } }, [bspNomeCurto(f.quem), bspQuando(f.quando), tam(f.bytes)].filter(Boolean).join(' · '))))),
-    lista && daAba.length > mostrar && React.createElement("div", { style: { marginTop: 12 } }, React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: () => setMostrar(n => n + 60) }, 'Mostrar mais (' + (daAba.length - mostrar) + ')')));
+    daAba.length > mostrar && React.createElement("div", { style: { marginTop: 12 } }, React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: () => setMostrar(n => n + 60) }, 'Mostrar mais (' + (daAba.length - mostrar) + ')')));
 }
 /* Abrir a conversa directa com alguem, a partir de qualquer ecra. O App
    publica window.bspAbrirConversa; sem ele, fica o endereco. */
