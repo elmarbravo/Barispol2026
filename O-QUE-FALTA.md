@@ -5311,3 +5311,9 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
 - 29-10-2026, Elmar: «A fotografia opaca estava melhor». O cartão de boas-vindas
   volta a ter a fotografia a toda a largura, por baixo de uma camada marinha
   (74%), com o texto por cima; sem a fotografia à parte.
+- 30-10-2026, Elmar: «localize os pacotes que o Dr. Oswaldo mandou». Edge Function
+  `anexo-ler` (`funcoes/anexo-ler/`, **publicada**, JWT desligado, só o código do
+  agendamento ou a chave do servidor): lê um anexo de `conversa/` e devolve o texto
+  (.docx; imagens pelo Claude, mas a `ANTHROPIC_API_KEY` não chega a esta função).
+  Só lê. Encontrado: «Analise relacionada aos pacotes de check up.docx» (grupo
+  «direcção», 07-10). Proposta de pacotes enviada ao Elmar, à espera de aprovação.
