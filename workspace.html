@@ -17553,7 +17553,16 @@ function bspRespostaTexto(campo, v) {
    teste o «Restante» do frasco R1 e do R2 («40000.0 / 163» = 163 testes). O
    teste só corre enquanto houver os dois: dá para o menor. Linha:
    { r, r1, r2, proc }. As linhas antigas { r, cap, proc } lêem-se como R1. */
-const BSP_REAGENTES_BS200 = ['ALT-TGP', 'AST-TGO', 'Ácido úrico', 'Bilirrubina D', 'Bilirrubina T', 'Creatinina', 'HDL-Col', 'LDL-Col', 'Ureia'];
+/* Os 12 exames que o BS-200 faz na clínica (30-10-2026, Elmar: «falta
+   triglicéridos… vê todos que a máquina faz e coloca»): vendas de 12 meses,
+   pedidos de reagentes e relatórios. Iguais aos da contagem do turno
+   (turno_listas). O VLDL é calculado (triglicéridos ÷ 5), sem reagente. */
+const BSP_REAGENTES_BS200 = ['ALT-TGP', 'AST-TGO', 'Ácido úrico', 'Bilirrubina D', 'Bilirrubina T', 'Colesterol total', 'Creatinina', 'Glicemia', 'HDL-Col', 'LDL-Col', 'Triglicéridos', 'Ureia'];
+const BSP_REAGENTES_SINONIMOS = { 'glicemia em jejum': 'Glicemia', 'glicose': 'Glicemia', 'triglicerideos': 'Triglicéridos', 'acido urico': 'Ácido úrico', 'colesterol': 'Colesterol total' };
+function bspReagenteNome(r) {
+  const t = String(r || '').trim(), n = t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  return BSP_REAGENTES_BS200.find(b => b.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === n) || BSP_REAGENTES_SINONIMOS[n] || t;
+}
 const BSP_REAGENTE_MIN_TESTES = 50, BSP_REAGENTE_MIN_DIAS = 7;
 function bspReagentesLimpos(v) {
   const n = x => { const t = String(x == null ? '' : x).trim(); return t === '' ? null : Math.max(0, parseInt(t, 10) || 0); };
@@ -17567,8 +17576,10 @@ function bspReagenteAlerta(x) { return x.ficam != null && (x.ficam <= BSP_REAGEN
 /* O relatório seguinte começa com os mesmos testes (sem números: lêem-se no
    aparelho a cada turno); o primeiro, com a lista do BS-200. */
 function bspReagentesSeguintes(v) {
-  const nomes = bspReagentesLimpos(v).map(x => x.r);
-  return (nomes.length ? nomes : BSP_REAGENTES_BS200).map(r => ({ r, r1: '', r2: '', proc: '' }));
+  /* Sempre os 12 do BS-200, mais os que alguém tenha juntado à mão (30-10-2026:
+     antes repetia só os do relatório anterior e um reagente em falta nunca entrava). */
+  const extra = bspReagentesLimpos(v).map(x => bspReagenteNome(x.r)).filter(r => BSP_REAGENTES_BS200.indexOf(r) === -1);
+  return BSP_REAGENTES_BS200.concat(extra.filter((r, i) => extra.indexOf(r) === i)).map(r => ({ r, r1: '', r2: '', proc: '' }));
 }
 function RelatorioResumo({ rel, onApagar }) {
   const def = BSP_RELATORIOS.find(a => a.id === rel.area);

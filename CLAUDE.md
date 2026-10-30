@@ -414,6 +414,8 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `reagentes` (`reagentes_exames`: `[{r, r1, r2, proc}]`, testes restantes no
   R1 e no R2 lidos no aparelho; dá para = o menor), `bspReagentesLimpos`,
   `bspReagenteAlerta`, lista `BSP_REAGENTES_BS200`.
+  Os 12 do BS-200 (30-10-2026) são os mesmos em `BSP_REAGENTES_BS200` e em
+  `turno_listas`: mudar os dois juntos; nomes à mão por `bspReagenteNome`.
   Sem informação clínica (16-10-2026, `sem-clinico.sql`): `bspSemClinico` /
   `bsp_sem_clinico` (u22, Emmanuel) tira Relatórios, Painel clínico, Qualidade,
   Utentes e Actividade; um ecrã clínico novo verifica-o.

@@ -5460,3 +5460,12 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   relatórios de turno até haver lista validada pela Direcção Clínica (os ids
   ficam; no servidor o indicador fica vazio). Lista proposta enviada ao Dr.
   Osvaldo para validar.
+- 30-10-2026, Elmar: «bioquímica falta triglicéridos e ácido úrico, vê todos que
+  a máquina faz e coloca». `BSP_REAGENTES_BS200` (relatório de turno do
+  Laboratório) passa de 9 para os 12 exames do BS-200 (vendas de 12 meses,
+  pedidos de reagentes e relatórios): juntou Colesterol total, Glicemia e
+  Triglicéridos; iguais aos da contagem do turno. `bspReagentesSeguintes` traz
+  sempre os 12 (antes repetia só os do relatório anterior) e `bspReagenteNome`
+  junta os nomes escritos à mão («Glicemia em Jejum», «Triglicerideos»).
+  Vendidos raramente e sem reagente pedido (talvez exteriores): proteínas
+  totais, albumina, GGT, HbA1c, ionograma, microalbuminúria.
