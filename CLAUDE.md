@@ -599,6 +599,14 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `erp.sales_invoice` (histórico desde 2022, `metagest-historico.sql`),
   nunca de `crm.mg_consultas`, que está incompleto. Ecrã `painel` (`PainelScreen`,
   `PainelColunas`, `PainelBarras`), cores `--serie-1..4`.
+  Alertas e nomes (30-10-2026, `painel-alertas.sql`, Elmar: «faltam coisas
+  financeiras, nomes, alertas»): `bsp_fin_alertas` (`PainelAlertas` no topo),
+  `pessoas` por quem emitiu (`owner`, `bsp_fin_pessoa`; as notas de crédito
+  contam a quem emitiu a factura anulada), recebido, descontos, ano anterior.
+  Notas de crédito: alerta quando a soma do dia passa de 30 000 Kz; descontos de
+  50 000 Kz ou mais (`BSP_FIN_LIMITE_NC`/`_DESC`, mudar com o servidor);
+  telemóvel por `bsp_financeiro_alertar` (cron `bsp-financeiro-alertas`).
+  «All Customer Groups» conta como Particular. Nomes só da equipa, nunca de utentes.
 - Stock (01-10-2026, `stock.sql`): saldo pelo último movimento do MetaGest
   (`erp.stock_mov`, cron `bsp-stock`); `bsp_stock()` / `bsp_stock_resumo()`;
   quem vê: `stock_responsaveis` + gestão (`bsp_ve_stock`) e, no ecrã,

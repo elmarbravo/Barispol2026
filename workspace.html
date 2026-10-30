@@ -24952,14 +24952,73 @@ function PainelBarras({ dados, formatar, cor }) {
         React.createElement("div", { style: { height: 14, width: Math.max(2, 100 * Math.max(0, d.valor) / max) * 0.58 + '%', background: 'var(' + (cor || '--serie-1') + ')', borderRadius: '0 4px 4px 0', flex: '0 1 auto', minWidth: 2 } }),
         React.createElement("span", { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--text-1)', whiteSpace: 'nowrap' } }, formatar(d.valor))))));
 }
-function PainelTile({ rotulo, valor, delta, nota, grande, perigo }) {
+function PainelTile({ rotulo, valor, delta, deltaRotulo, nota, grande, perigo }) {
   return React.createElement(Card, { pad: 16, style: Object.assign(grande ? { gridColumn: 'span 2' } : {}, perigo ? { borderLeft: '4px solid var(--perigo)' } : {}) },
     React.createElement("div", { style: { fontSize: 12.5, fontWeight: 600, color: perigo ? 'var(--perigo)' : 'var(--text-2)' } }, rotulo),
     React.createElement("div", { style: { fontSize: grande ? 40 : 24, lineHeight: 1.15, fontWeight: 700, color: perigo ? 'var(--perigo)' : 'var(--text-1)', marginTop: 6 } }, valor),
     delta != null && isFinite(delta) && React.createElement("div", { style: { fontSize: 12, fontWeight: 600, marginTop: 6, color: delta >= 0 ? 'var(--sucesso)' : 'var(--perigo)' } },
       (delta >= 0 ? '▲ +' : '▼ ') + delta.toLocaleString('pt-PT', { maximumFractionDigits: 1 }) + '%',
-      React.createElement("span", { style: { color: 'var(--text-3)', fontWeight: 500 } }, ' vs período anterior')),
+      React.createElement("span", { style: { color: 'var(--text-3)', fontWeight: 500 } }, ' ' + (deltaRotulo || 'vs período anterior'))),
     nota && React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)', marginTop: 4 } }, nota));
+}
+/* Limites dos alertas financeiros (30-10-2026, Elmar: «a soma de notas de
+   crédito que passe de 30 mil no dia», «alerta a partir de 50 000 Kz»). Iguais
+   a bsp_fin_alertas e bsp_financeiro_alertar (painel-alertas.sql): mudar os
+   dois lados juntos. */
+const BSP_FIN_LIMITE_NC = 30000;
+const BSP_FIN_LIMITE_DESC = 50000;
+/* Alertas do Painel financeiro (bsp_fin_alertas): perigo primeiro. */
+function PainelAlertas({ alertas }) {
+  const [todos, setTodos] = React.useState(false);
+  const ordem = { perigo: 0, aviso: 1, info: 2 };
+  const pos = a => ordem[a.nivel] != null ? ordem[a.nivel] : 3;
+  const lista = (alertas || []).slice().sort((a, b) => pos(a) - pos(b));
+  if (!lista.length) return React.createElement(Card, { pad: 16, style: { borderLeft: '4px solid var(--sucesso)' } },
+    React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)' } }, 'Alertas'),
+    React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginTop: 4 } }, 'Sem alertas neste período.'));
+  const perigo = lista.some(a => a.nivel === 'perigo');
+  const ver = todos ? lista : lista.slice(0, 5);
+  const cor = { perigo: 'var(--perigo)', aviso: 'var(--accent-d)', info: 'var(--text-2)' };
+  const nome = { notas: 'Notas de crédito', desconto: 'Desconto', particulares: 'Particulares', rascunhos: 'Rascunhos', seguradoras: 'Seguradoras', dia: 'Facturação', 'sem-grupo': 'MetaGest', metagest: 'MetaGest' };
+  return React.createElement(Card, { pad: 16, style: { borderLeft: '4px solid ' + (perigo ? 'var(--perigo)' : 'var(--accent)') } },
+    React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: perigo ? 'var(--perigo)' : 'var(--text-1)', marginBottom: 4 } }, 'Alertas (' + lista.length + ')'),
+    React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginBottom: 10 } }, 'Notas de crédito acima de ' + bspPainelKz(BSP_FIN_LIMITE_NC) + ' num dia e descontos de ' + bspPainelKz(BSP_FIN_LIMITE_DESC) + ' ou mais seguem também para o telemóvel.'),
+    React.createElement("div", { style: { display: 'flex', flexDirection: 'column' } },
+      ver.map((a, i) => React.createElement("div", { key: i, style: { display: 'flex', gap: 10, alignItems: 'baseline', padding: '8px 0', borderTop: i ? '1px solid var(--border)' : 0, fontSize: 13, lineHeight: 1.45 } },
+        React.createElement("span", { style: { flex: 'none', width: 104, fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: cor[a.nivel] || 'var(--text-2)' } }, nome[a.tipo] || a.tipo),
+        React.createElement("span", { style: { flex: 1, minWidth: 0, color: a.nivel === 'perigo' ? 'var(--perigo)' : 'var(--text-1)', overflowWrap: 'anywhere' } }, a.texto)))),
+    lista.length > 5 && React.createElement("button", { onClick: () => setTodos(v => !v), style: { marginTop: 8, border: 0, background: 'transparent', color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', padding: 0 } }, todos ? 'Mostrar menos' : 'Ver os ' + lista.length));
+}
+/* Por quem emitiu (owner do MetaGest). As notas de crédito contam a quem
+   emitiu a factura anulada (Elmar, 30-10-2026). */
+function PainelPessoas({ pessoas, estreito }) {
+  const cel = { padding: '7px 8px', borderBottom: '1px solid var(--border)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' };
+  const cab = ['Quem emitiu', 'Facturas', 'Facturado', 'Descontos', 'Notas de crédito', 'Por pagar'];
+  /* No telemóvel, um bloco por pessoa em vez da tabela. */
+  const linha = (rot, val, cor) => React.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12.5, padding: '2px 0' } },
+    React.createElement("span", { style: { color: 'var(--text-3)' } }, rot),
+    React.createElement("span", { style: { color: cor || 'var(--text-1)', fontVariantNumeric: 'tabular-nums', fontWeight: 600 } }, val));
+  return React.createElement(Card, { pad: 16 },
+    React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 4 } }, 'Por pessoa'),
+    React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginBottom: 12 } }, 'Quem emitiu no MetaGest. As notas de crédito contam a quem emitiu a factura anulada; «por pagar» sem as seguradoras.'),
+    !(pessoas || []).length ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Sem facturas neste período.')
+      : estreito ? React.createElement("div", null, pessoas.map((x, k) => React.createElement("div", { key: k, style: { padding: '9px 0', borderTop: k ? '1px solid var(--border)' : 0 } },
+          React.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 13.5, fontWeight: 700, color: 'var(--text-1)', marginBottom: 2 } },
+            React.createElement("span", { style: { minWidth: 0, overflowWrap: 'anywhere' } }, x.nome),
+            React.createElement("span", { style: { whiteSpace: 'nowrap' } }, bspPainelKz(x.facturado, true))),
+          linha('Facturas', Number(x.facturas || 0).toLocaleString('pt-PT')),
+          Number(x.desc_valor) > 0 && linha('Descontos', bspPainelKz(x.desc_valor, true) + ' (' + x.desc_n + ')'),
+          Number(x.notas) > 0 && linha('Notas de crédito', '− ' + bspPainelKz(x.notas_valor, true) + ' (' + x.notas + ')', 'var(--perigo)'),
+          Number(x.por_pagar) > 0 && linha('Por pagar', bspPainelKz(x.por_pagar, true), 'var(--perigo)'))))
+      : React.createElement("div", { style: { overflowX: 'auto' } }, React.createElement("table", { style: { width: '100%', borderCollapse: 'collapse', fontSize: 12.5 } },
+        React.createElement("thead", null, React.createElement("tr", null, cab.map((h, i) => React.createElement("th", { key: h, style: Object.assign({}, cel, { textAlign: i ? 'right' : 'left', color: 'var(--text-3)', fontWeight: 600 }) }, h)))),
+        React.createElement("tbody", null, pessoas.map((x, k) => React.createElement("tr", { key: k },
+          React.createElement("td", { style: Object.assign({}, cel, { color: 'var(--text-1)', fontWeight: 600 }) }, x.nome),
+          React.createElement("td", { style: Object.assign({}, cel, { textAlign: 'right', color: 'var(--text-2)' }) }, Number(x.facturas || 0).toLocaleString('pt-PT')),
+          React.createElement("td", { style: Object.assign({}, cel, { textAlign: 'right', color: 'var(--text-1)', fontWeight: 700 }) }, bspPainelKz(x.facturado, true)),
+          React.createElement("td", { style: Object.assign({}, cel, { textAlign: 'right', color: Number(x.desc_valor) > 0 ? 'var(--text-1)' : 'var(--text-3)' }) }, Number(x.desc_valor) > 0 ? bspPainelKz(x.desc_valor, true) + ' (' + x.desc_n + ')' : '—'),
+          React.createElement("td", { style: Object.assign({}, cel, { textAlign: 'right', color: Number(x.notas) > 0 ? 'var(--perigo)' : 'var(--text-3)', fontWeight: Number(x.notas) > 0 ? 600 : 400 }) }, Number(x.notas) > 0 ? '− ' + bspPainelKz(x.notas_valor, true) + ' (' + x.notas + ')' : '—'),
+          React.createElement("td", { style: Object.assign({}, cel, { textAlign: 'right', color: Number(x.por_pagar) > 0 ? 'var(--perigo)' : 'var(--text-3)' }) }, Number(x.por_pagar) > 0 ? bspPainelKz(x.por_pagar, true) : '—')))))));
 }
 /* Atalho do Painel no Inicio (27-09-2026): os numeros de hoje e o botao
    para o abrir, so para quem ve o Painel. Le o servidor a cada 5 minutos,
@@ -32143,9 +32202,21 @@ function PainelFacturacao() {
   const cliTot = cli.reduce((a, x) => a + x.valor, 0) || 1;
   const marc = d && d.marcacoes || {};
   const quando = d && (d.sincronizado || d.actualizado);
-  return React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 14, height: '100%', overflow: 'auto', paddingBottom: 12 } },
+  /* No telemóvel, um selector em vez de 8 botões (auditoria, 30-10-2026). */
+  const caixaRef = React.useRef(null);
+  const estreito = useLargura(caixaRef) < 560;
+  const hom = d && d.homologo || {};
+  const recebido = Number(d && d.recebido || 0);
+  const desc = d && d.descontos || {};
+  /* Previsão do fim do mês: média por dia até hoje × dias do mês. */
+  const diaMes = Number(hoje.slice(8, 10));
+  const diasMes = new Date(Number(hoje.slice(0, 4)), Number(hoje.slice(5, 7)), 0).getDate();
+  const previsao = periodo === 'mes' && res.facturado ? Number(res.facturado) / diaMes * diasMes : null;
+  return React.createElement("div", { ref: caixaRef, style: { display: 'flex', flexDirection: 'column', gap: 14, height: '100%', overflow: 'auto', paddingBottom: 12 } },
     React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', flex: 'none' } },
-      periodos.map(x => React.createElement("button", { key: x[0], onClick: () => setPeriodo(x[0]), style: chip(periodo === x[0]) }, x[1])),
+      estreito ? React.createElement("select", { value: periodo, onChange: e => setPeriodo(e.target.value), 'aria-label': 'Período', style: Object.assign({}, bspTranspCampo, { flex: '1 1 100%', fontWeight: 600 }) },
+          periodos.map(x => React.createElement("option", { key: x[0], value: x[0] }, x[1])))
+        : periodos.map(x => React.createElement("button", { key: x[0], onClick: () => setPeriodo(x[0]), style: chip(periodo === x[0]) }, x[1])),
       React.createElement("span", { style: { flex: 1 } }),
       React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } },
         aCarregar ? 'A actualizar…' : quando ? 'MetaGest lido a ' + bspDataExacta(new Date(quando)) + ' · hoje actualiza de 5 em 5 min' : '')),
@@ -32153,8 +32224,13 @@ function PainelFacturacao() {
       React.createElement(DatasLivres, { de: livre.de, ate: livre.ate, maxDias: 800, onMudar: (de, ate) => setLivre({ de, ate }) })),
     erro && React.createElement(Card, { pad: 16 }, React.createElement("div", { style: { color: 'var(--perigo)', fontSize: 13 } }, 'Não foi possível carregar o painel. ' + erro)),
     d && React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 14, opacity: aCarregar ? 0.6 : 1 } },
+      React.createElement(PainelAlertas, { alertas: d.alertas }),
       React.createElement("div", { className: 'bsp-painel-tiles', style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12 } },
         React.createElement(PainelTile, { grande: true, rotulo: 'Facturado (líquido de devoluções)', valor: bspPainelKz(res.facturado, true), delta: pct(res.facturado, ant.facturado), nota: bspMarcDataPt(d.de) + (umDia ? '' : ' a ' + bspMarcDataPt(d.ate)) }),
+        React.createElement(PainelTile, { rotulo: 'Recebido', valor: bspPainelKz(recebido, true), nota: (Number(res.facturado) > 0 ? Math.round(100 * recebido / Number(res.facturado)) + '% do facturado · ' : '') + 'falta ' + bspPainelKz(d.divida && d.divida.valor, true) }),
+        Number(hom.facturado) > 0 && React.createElement(PainelTile, { rotulo: 'Mesmo período de ' + String(hom.de || '').slice(0, 4), valor: bspPainelKz(hom.facturado, true), delta: pct(res.facturado, hom.facturado), deltaRotulo: 'agora vs então', nota: bspMarcDataPt(hom.de) + (umDia ? '' : ' a ' + bspMarcDataPt(hom.ate)) }),
+        previsao != null && React.createElement(PainelTile, { rotulo: 'Previsão do mês', valor: bspPainelKz(previsao, true), nota: 'média de ' + bspPainelKz(Number(res.facturado) / diaMes, true) + ' por dia × ' + diasMes + ' dias' }),
+        React.createElement(PainelTile, { perigo: Number(desc.grandes) > 0, rotulo: 'Descontos dados', valor: bspPainelKz(desc.valor, true), nota: (desc.n || 0) + (desc.n === 1 ? ' factura' : ' facturas') + (Number(desc.grandes) > 0 ? ' · ' + desc.grandes + ' de ' + bspPainelKz(BSP_FIN_LIMITE_DESC) + ' ou mais' : '') }),
         React.createElement(PainelTile, { rotulo: 'Atendimentos', valor: Number(res.atendimentos || 0).toLocaleString('pt-PT'), delta: pct(res.atendimentos, ant.atendimentos), nota: (res.pacientes || 0) + ' pacientes diferentes' }),
         React.createElement(PainelTile, { rotulo: 'Valor médio por atendimento', valor: bspPainelKz(medio, true), delta: pct(medio, medioAnt) }),
         React.createElement(PainelTile, { rotulo: 'Facturas emitidas', valor: Number(res.facturas || 0).toLocaleString('pt-PT'), delta: pct(res.facturas, ant.facturas) }),
@@ -32165,6 +32241,7 @@ function PainelFacturacao() {
       React.createElement(Card, { pad: 16 }, tit('Facturação por área'),
         !(d.areas || []).length ? sub('Sem facturação neste período.')
           : React.createElement(PainelBarras, { dados: d.areas.slice(0, 10).map(a => ({ rotulo: a.area, valor: Number(a.valor), extra: a.actos + ' actos' })), formatar: v => bspPainelKz(v, true) })),
+      React.createElement(PainelPessoas, { pessoas: d.pessoas, estreito: estreito }),
       !umDia && React.createElement(Card, { pad: 16 },
         React.createElement("div", { style: { display: 'flex', alignItems: 'baseline', gap: 10 } },
           React.createElement("div", { style: { flex: 1 } }, tit('Facturação por dia')),
@@ -32200,7 +32277,11 @@ function PainelFacturacao() {
             : React.createElement("div", null,
               (todasNotas ? notas : notas.slice(0, 8)).map(nc => React.createElement("div", { key: nc.numero, style: { display: 'flex', gap: 10, alignItems: 'baseline', padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 12.5 } },
                 React.createElement("span", { style: { color: 'var(--text-3)', width: 44, flex: 'none', fontVariantNumeric: 'tabular-nums' } }, dm(nc.data)),
-                React.createElement("span", { style: { flex: 1, minWidth: 0, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, nc.numero + (nc.anula ? ' · anula ' + nc.anula : '')),
+                React.createElement("span", { style: { flex: 1, minWidth: 0 } },
+                  React.createElement("span", { style: { display: 'block', color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, nc.numero + (nc.anula ? ' · anula ' + nc.anula : '')),
+                  /* Quem emitiu a factura anulada (Elmar, 30-10-2026) e o motivo. */
+                  (nc.emissora || nc.anulou) && React.createElement("span", { style: { display: 'block', fontSize: 11.5, color: 'var(--text-3)' } },
+                    [nc.emissora && nc.emissora !== '—' ? 'Factura de ' + nc.emissora : '', nc.anulou && nc.anulou !== '—' ? 'anulada por ' + nc.anulou : '', nc.motivo ? 'motivo: ' + nc.motivo : 'sem motivo escrito'].filter(Boolean).join(' · '))),
                 React.createElement("b", { style: { color: 'var(--perigo)', whiteSpace: 'nowrap' } }, '− ' + bspPainelKz(nc.valor)))),
               notas.length > 8 && React.createElement("button", { onClick: () => setTodasNotas(v => !v), style: { marginTop: 8, border: 0, background: 'transparent', color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', padding: 0 } }, todasNotas ? 'Mostrar menos' : 'Ver as ' + notas.length))),
         React.createElement(Card, { pad: 16 }, tit('Marcações no período'),

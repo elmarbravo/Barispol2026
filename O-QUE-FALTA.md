@@ -5484,3 +5484,27 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   Enfermagem `carro_urgencia` (JCI COP.3); Imagiologia `repetidos` /
   `repetidos_motivo`. Os casos graves entram em `bsp_relatorio_atencao` (aviso e
   novidade). Recepção de produtos: no pedido à Farmácia pelo Workspace (a seguir).
+- 30-10-2026: nota da auditoria dos relatórios de turno enviada ao Dr. Osvaldo
+  no grupo da Direcção (mensagem 13818) e por e-mail (entregue, pedido 238).
+- 30-10-2026, Elmar: «audite o painel financeiro… sinto que faltam coisas
+  financeiras, nomes, alertas» → «sim, os 12, alerta a partir de 50 000 Kz» →
+  «a soma de notas de crédito que passe de 30 mil no dia, com a respectiva
+  emissora da factura principal». `painel-alertas.sql` (aplicado): o
+  `bsp_painel` devolve `recebido`, `descontos`, `pessoas` (por quem emitiu no
+  MetaGest; notas de crédito contadas a quem emitiu a factura anulada),
+  `homologo` (mesmo período do ano anterior), `notas_credito` com `emissora`,
+  `anulou` e `motivo`, e `alertas` (`bsp_fin_alertas`: notas de crédito acima de
+  30 000 Kz num dia, descontos de 50 000 Kz ou mais, particulares por pagar em 6
+  meses, rascunhos no MetaGest, seguradoras com mais de 90 dias, ontem abaixo de
+  60% da média, clientes sem grupo, MetaGest parado). «All Customer Groups»
+  (cliente sem grupo, sempre com utente) conta como Particular. Telemóvel do
+  Elmar e do Financeiro: `bsp_financeiro_alertar`, cron `bsp-financeiro-alertas`
+  (minutos 19 e 49), uma vez cada (`financeiro_avisos`); particulares do dia às
+  19h00. Ecrã: `PainelAlertas` no topo, quadros Recebido, Mesmo período do ano
+  anterior, Previsão do mês, Descontos dados; `PainelPessoas` (blocos no
+  telemóvel); selector de período abaixo de 560 px. Limites em
+  `BSP_FIN_LIMITE_NC` / `BSP_FIN_LIMITE_DESC`: mudar com o servidor. Mês: 0,6 s;
+  ano: 2,6 s (os acrescentos custam 0,25 s). Outubro (até 30): 21 notas de
+  crédito, todas emitidas na conta da Juliana e sem motivo escrito; 6 dias acima
+  de 30 000 Kz; 515 facturas de particulares por pagar em 6 meses (1,61 M Kz):
+  confirmar no MetaGest se estão mesmo por pagar.
