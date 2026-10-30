@@ -5527,3 +5527,7 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   sem 2FA. E-mail «Acesso de sócio ao Workspace Barispol» (pedido 267, Elmar em
   cópia): o que vê (Painel), entrar pelo «Esqueceu-se?» e activar os dois passos.
   Nenhuma palavra-passe no e-mail.
+- 30-10-2026, Elmar: «nas notas de crédito coloca todas possíveis com o botão de
+  rolar». Painel → «Notas de crédito»: todas as do período numa caixa de 420 px
+  com barra de deslocamento (sem «Ver as N»), total no título; `bsp_painel`
+  devolve até 1000 (antes 100; no ano de 2026 há 121).

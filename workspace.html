@@ -32398,7 +32398,6 @@ function PainelFacturacao() {
   const dm = x => x ? x.slice(8, 10) + '/' + x.slice(5, 7) : '';
   const umDia = p[2] === p[3];
   const serie = (d && d.serie || []).map(x => ({ rotulo: bspDiaExtenso(x.dia + 'T12:00:00'), curto: dm(x.dia), valor: Number(x.facturado), extra: x.atendimentos + (x.atendimentos === 1 ? ' atendimento' : ' atendimentos'), alerta: Number(x.notas_credito) > 0 ? 'Notas de crédito: − ' + bspPainelKz(x.notas_credito) : '' }));
-  const [todasNotas, setTodasNotas] = React.useState(false);
   const notas = d && d.notas_credito || [];
   const horas = (d && d.horas || []).map(x => ({ rotulo: String(x.hora).padStart(2, '0') + 'h00–' + String(x.hora).padStart(2, '0') + 'h59', curto: x.hora + 'h', valor: Number(x.n), extra: bspPainelKz(x.valor) }));
   const CLI = [['Particular', '--serie-1'], ['Seguro', '--serie-2'], ['Empresas', '--serie-3'], ['Outros', '--serie-4']];
@@ -32476,18 +32475,19 @@ function PainelFacturacao() {
           !(d.seguradoras || []).length ? sub('Sem facturas de seguradoras neste período.')
             : React.createElement(PainelBarras, { dados: d.seguradoras.map(x => ({ rotulo: bspNomeSeguradora(x.seguradora), valor: Number(x.valor), extra: x.n + (x.n === 1 ? ' factura' : ' facturas') + (Number(x.copagamento) > 0 ? ' · co-pagamento ' + bspPainelKz(x.copagamento, true) : '') })), formatar: v => bspPainelKz(v, true), cor: '--serie-2' })),
         React.createElement(Card, { pad: 16, style: { borderLeft: notas.length ? '4px solid var(--perigo)' : undefined } },
-          React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: notas.length ? 'var(--perigo)' : 'var(--text-1)', marginBottom: 12 } }, 'Notas de crédito' + (notas.length ? ' (' + notas.length + ')' : '')),
+          React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: notas.length ? 'var(--perigo)' : 'var(--text-1)', marginBottom: 12 } }, 'Notas de crédito' + (notas.length ? ' (' + notas.length + ') · − ' + bspPainelKz(notas.reduce((t, x) => t + Number(x.valor || 0), 0), true) : '')),
+          /* Todas as notas do período numa caixa com barra de deslocamento
+             (30-10-2026, Elmar: «coloca todas possíveis com o botão de rolar»). */
           !notas.length ? sub('Sem notas de crédito neste período.')
-            : React.createElement("div", null,
-              (todasNotas ? notas : notas.slice(0, 8)).map(nc => React.createElement("div", { key: nc.numero, style: { display: 'flex', gap: 10, alignItems: 'baseline', padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 12.5 } },
+            : React.createElement("div", { tabIndex: 0, 'aria-label': 'Lista das notas de crédito', style: { maxHeight: 420, overflowY: 'auto', overscrollBehavior: 'contain', paddingRight: 6 } },
+              notas.map(nc => React.createElement("div", { key: nc.numero, style: { display: 'flex', gap: 10, alignItems: 'baseline', padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 12.5 } },
                 React.createElement("span", { style: { color: 'var(--text-3)', width: 44, flex: 'none', fontVariantNumeric: 'tabular-nums' } }, dm(nc.data)),
                 React.createElement("span", { style: { flex: 1, minWidth: 0 } },
                   React.createElement("span", { style: { display: 'block', color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, nc.numero + (nc.anula ? ' · anula ' + nc.anula : '')),
                   /* Quem emitiu a factura anulada (Elmar, 30-10-2026) e o motivo. */
                   (nc.emissora || nc.anulou) && React.createElement("span", { style: { display: 'block', fontSize: 11.5, color: 'var(--text-3)' } },
                     [nc.emissora && nc.emissora !== '—' ? 'Factura de ' + nc.emissora : '', nc.anulou && nc.anulou !== '—' ? 'anulada por ' + nc.anulou : '', nc.motivo ? 'motivo: ' + nc.motivo : 'sem motivo escrito'].filter(Boolean).join(' · '))),
-                React.createElement("b", { style: { color: 'var(--perigo)', whiteSpace: 'nowrap' } }, '− ' + bspPainelKz(nc.valor)))),
-              notas.length > 8 && React.createElement("button", { onClick: () => setTodasNotas(v => !v), style: { marginTop: 8, border: 0, background: 'transparent', color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', padding: 0 } }, todasNotas ? 'Mostrar menos' : 'Ver as ' + notas.length))),
+                React.createElement("b", { style: { color: 'var(--perigo)', whiteSpace: 'nowrap' } }, '− ' + bspPainelKz(nc.valor)))))),
         React.createElement(Card, { pad: 16 }, tit('Marcações no período'),
           !Object.keys(marc).length ? sub('Sem marcações neste período.')
             : React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 8 } },

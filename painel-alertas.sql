@@ -329,7 +329,8 @@ begin
       from fp left join erp.sales_invoice s on s.name = fp.id
               left join erp.sales_invoice o on o.name = s.return_against
      where fp.total < 0
-     order by fp.data desc, fp.id desc limit 100
+     -- Todas as do período (30-10-2026, Elmar: «coloca todas possíveis»).
+     order by fp.data desc, fp.id desc limit 1000
   ),
   marc as (
     select estado, count(*) n from public.marcacoes where data_marcada between p_de and p_ate group by 1
