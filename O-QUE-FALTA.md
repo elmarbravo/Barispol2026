@@ -5413,3 +5413,8 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   fotografia do BS-200 ou com um número em falta parecia não fazer nada.
   Avisos passam a zIndex 100001; o `TurnoContagemForm` escreve também o motivo
   por baixo do botão (`aviso`, role alert). Testado no navegador.
+- 30-10-2026 (autorizado pelo Elmar): servidor passou a SMALL (reinício às
+  15:09 UTC; as falhas «job startup timeout» foram só durante a mudança, todas as
+  tarefas correm bem depois). Limpeza dos registos técnicos com mais de 30 dias
+  (`limpeza-registos-tecnicos.sql`): whatsapp.sync_log e erp.sync_log apagados;
+  o whatsapp.sync_log entrou na limpeza semanal `bsp-limpeza-registos`.
