@@ -5580,11 +5580,12 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   com a CSP do Workspace: HEIC de 1201×900 → JPEG legível em 1,4 s.
 - 30-10-2026, Elmar: «as imagens no site estão pequenas… inspecciona o site» → «e que
   tal criarmos já páginas e deixar de ser uma landing page extensa?» → «sim».
-  Site em várias páginas (EM PREVISÃO, só no ramo claude/amazing-galileo-2j4r55,
-  ainda não no `main`): `assets/site.css` e `assets/site.js` comuns; `index.html`
+  Site em várias páginas (publicado a 30-10-2026, Elmar: «o site novo pode subir»): `assets/site.css` e `assets/site.js` comuns; `index.html`
   curto (cartões grandes com as fotografias, carrossel no telemóvel, faixa de
   factos, como funciona, clínica, campanhas, galeria; endereços antigos #analises,
   #seguros, #perguntas, #contactos e #clinica levam às páginas novas);
-  `analises.html`, `consultas.html`, `cardiologia.html`. Falta: `seguros.html`,
-  `clinica.html`, `perguntas.html`, `ecografia.html` e `contacto.html` no mesmo
-  aspecto, `sitemap.xml`; publicar tudo junto depois do «sim» do Elmar.
+  `analises.html`, `consultas.html`, `cardiologia.html`, `seguros.html`, `clinica.html`
+  (com a galeria `media/galeria.json`), `perguntas.html` (com FAQPage para o Google);
+  `sitemap.xml` com todas. Testado a 390 e 1280 px: sem deslizar para o lado, sem
+  ligações partidas. Falta: `ecografia.html` e `contacto.html` no aspecto novo
+  (continuam com o antigo e funcionam).
