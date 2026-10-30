@@ -439,3 +439,20 @@ html[data-tema="escuro"] .seguro-logo.sem-logo{background:transparent}
 .mosaicos .cartao-corpo{flex:0 0 auto}
 .mosaicos .cartao .seta{margin-top:14px;align-self:flex-start}
 @media(max-width:560px){.marca span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.topo .caixa{gap:10px}}
+
+/* Separadores da página (30-10-2026, inspiração no Hospital da Luz, Elmar:
+   «pode subir já a inspiração»): ficam por baixo do cabeçalho ao descer e
+   levam a cada parte da página. O botão «Marcar» das listas é igual em todo
+   o site. */
+.separadores{position:sticky;top:112px;z-index:9;background:var(--fundo);border-bottom:1px solid var(--linha)}
+.separadores .caixa{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+.separadores .caixa::-webkit-scrollbar{display:none}
+.separadores a{flex:none;padding:14px 16px 12px;font-weight:600;font-size:15px;color:var(--t2);text-decoration:none;border-bottom:3px solid transparent;white-space:nowrap}
+.separadores a:hover{color:var(--titulo)}
+.separadores a[aria-current="true"]{color:var(--titulo);border-bottom-color:var(--azul)}
+.separadores a[href="#marcar"]{margin-left:auto;color:var(--azul-texto)}
+section[id],.chamada[id]{scroll-margin-top:170px}
+@media(max-width:560px){.separadores{top:88px}.separadores a{padding:12px 12px 10px;font-size:14.5px}section[id],.chamada[id]{scroll-margin-top:140px}}
+.mais a[href^="https://wa.me"]{display:inline-block;padding:8px 16px;background:var(--marinho-2);color:#fff;text-decoration:none;font-weight:700;font-size:14.5px;border-radius:2px}
+.mais a[href^="https://wa.me"]:hover{background:var(--marinho)}
+.chamada .mais a[href^="https://wa.me"],.mosaicos .mais a{background:#fff;color:var(--marinho)}

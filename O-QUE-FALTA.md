@@ -5624,3 +5624,11 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   espera da Direcção só para quem apura (u1, u2), com «Decidir». Sem nada para
   mostrar, não aparece. O servidor não mudou. Outubro de 2026 está empatado: até a
   Direcção decidir, a equipa não vê o cartão. Testado no navegador com os quatro casos.
+- 30-10-2026, Elmar: «vê o site do Hospital da Luz; pode subir já a inspiração» (o
+  site deles continua bloqueado na rede deste ambiente; usou-se o relatório do Chrome).
+  Separadores da página (`separadores`, presos por baixo do cabeçalho, parte à vista
+  marcada pelo `site.js`) em Análises, Consultas e Imagiologia, com «Marcar» a levar à
+  chamada final (`id="marcar"`); secções com id (`antes`, `como`, `onde`). Todos os
+  «Marcar» das listas (ligações `wa.me` em `.mais`) passam a botão marinho igual em
+  todo o site. Testado a 390 e 1280 px. Nota: os geradores do scratchpad não têm estas
+  mudanças; mexer agora nos `.html` directamente.

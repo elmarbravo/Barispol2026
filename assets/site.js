@@ -81,3 +81,17 @@
     if (img.complete && !img.naturalWidth) falhou(); else img.addEventListener('error', falhou);
   });
 })();
+
+/* Separadores da página: marca a parte que está à vista. */
+(function () {
+  var nav = document.querySelector('.separadores');
+  if (!nav || !('IntersectionObserver' in window)) return;
+  var ligacoes = Array.prototype.slice.call(nav.querySelectorAll('a'));
+  var marcar = function (id) {
+    ligacoes.forEach(function (a) { if (a.getAttribute('href') === '#' + id) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); });
+  };
+  var obs = new IntersectionObserver(function (es) {
+    es.forEach(function (e) { if (e.isIntersecting) marcar(e.target.id); });
+  }, { rootMargin: '-45% 0px -50% 0px' });
+  ligacoes.forEach(function (a) { var alvo = document.getElementById(a.getAttribute('href').slice(1)); if (alvo) obs.observe(alvo); });
+})();
