@@ -5332,3 +5332,18 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   Agora a sincronização usa o mesmo cliente. Testado no navegador (Início e Chat
   com e sem rede). Confirmar nos próximos dias, nos registos, se as entradas
   repetidas no iPhone param.
+- 30-10-2026, Elmar: «os anexos podem ir directamente no Workspace»; «parem de
+  enviar no chat e mandem só no relatório»; «da BS-200, além da fotografia, vão
+  ter de escrever os números». Etapa 1: campo «Anexos» no relatório de turno de
+  todas as áreas (`bspCampoFicheiros`, tipo `anexos`, «Tirar fotografia» e
+  «Escolher ficheiros»; HEIC recusado). Obrigatório no Laboratório (fotografia
+  do BS-200 e requisições, com os números escritos na mesma) e na Enfermagem
+  (folha de registo); opcional na Recepção, Farmácia e Imagiologia. Saíram as
+  perguntas «Requisições digitalizadas enviadas» e «Folha de registo enviada».
+  Ficheiros em `drive` → `relatorio/<área>/<id>/…`; lêem-nos só os leitores do
+  relatório (`relatorios-anexos.sql`, aplicado: regras do drive mudadas com
+  `alter policy`). O e-mail do relatório leva só os nomes. Testado no navegador.
+  Por fazer: data de corte do e-mail das áreas; etapa 2 (abertura e fecho do
+  turno obrigatórios no Laboratório e na Enfermagem, lista do material da
+  Enfermagem); leitura das ~240 fotografias do BS-200 do canal do Laboratório
+  (precisa do domínio do servidor autorizado no ambiente do assistente).
