@@ -3359,7 +3359,7 @@ function bspArmazemSessao() {
 }
 async function bspMfaEmailSessaoOk(cl) {
   try {
-    const r = await cl.rpc('bsp_mfa_ok');
+    const r = await bspRpcRenovando(cl, 'bsp_mfa_ok');
     /* Sem internet (26-10-2026): esta sessão já tinha passado o código neste
        separador; o servidor volta a confirmar quando a ligação voltar. */
     let ses = '';
@@ -3381,6 +3381,22 @@ async function bspMfaEmailSessaoOk(cl) {
   } catch (e) {}
   return false;
 }
+/* «JWT expired» no ecrã do código (30-10-2026, fotografia do DAF): o
+   computador ficou parado e o testemunho caducou. Renova a sessão e repete o
+   pedido uma vez; se a renovação falhar, volta à entrada com a palavra-passe,
+   em vez de mostrar o erro técnico. */
+function bspJwtExpirado(err) {
+  return /jwt expired|jwt.*expir|invalid jwt|PGRST301/i.test(String((err && (err.message || err.code)) || err || ''));
+}
+async function bspRpcRenovando(cl, nome, args) {
+  let r = await cl.rpc(nome, args);
+  if (!r.error || !bspJwtExpirado(r.error)) return r;
+  const s = await cl.auth.refreshSession().catch(() => ({ error: true }));
+  if (s && !s.error && s.data && s.data.session) return cl.rpc(nome, args);
+  try { await cl.auth.signOut({ scope: 'local' }); } catch (e) {}
+  setTimeout(() => { try { location.reload(); } catch (e) {} }, 1800);
+  return { error: { message: 'A sessão expirou. A abrir de novo a entrada: escreva a palavra-passe.' } };
+}
 /* Código de 6 algarismos para o e-mail da conta, enviado pelo servidor
    (bsp_mfa_email_enviar, geral@barispol.com), válido 10 minutos. */
 function MfaEmailPasso({ onOk }) {
@@ -3394,7 +3410,7 @@ function MfaEmailPasso({ onOk }) {
     if (!cl || busy) return;
     setBusy(true); setErro('');
     try {
-      const r = await cl.rpc('bsp_mfa_email_enviar');
+      const r = await bspRpcRenovando(cl, 'bsp_mfa_email_enviar');
       setBusy(false);
       if (r.error) { setErro(/does not exist|schema cache|404/i.test(r.error.message || '') ? 'O código por e-mail ainda não está ligado no servidor. Use a app de autenticação.' : (r.error.message || 'Não foi possível enviar o código.')); return; }
       setEnviado((r.data && r.data.para) || 'o seu e-mail'); setCodigo('');
@@ -3406,7 +3422,7 @@ function MfaEmailPasso({ onOk }) {
     if (!cl || busy || codigo.length !== 6) return;
     setBusy(true); setErro('');
     try {
-      const r = await cl.rpc('bsp_mfa_email_verificar', { p_codigo: codigo, p_lembrar: lembrar });
+      const r = await bspRpcRenovando(cl, 'bsp_mfa_email_verificar', { p_codigo: codigo, p_lembrar: lembrar });
       setBusy(false);
       if (r.error || !r.data || !r.data.ok) { setErro((r.data && r.data.erro) || 'Código errado ou fora de prazo.'); setCodigo(''); return; }
       if (r.data.token) bspLembrarAparelho(r.data.token);

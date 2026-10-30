@@ -5317,3 +5317,9 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   (.docx; imagens pelo Claude, mas a `ANTHROPIC_API_KEY` não chega a esta função).
   Só lê. Encontrado: «Analise relacionada aos pacotes de check up.docx» (grupo
   «direcção», 07-10). Proposta de pacotes enviada ao Elmar, à espera de aprovação.
+- 30-10-2026, Elmar (fotografia no #DAF, «Sempre a aparecer»): o ecrã do código
+  mostrava «JWT expired» ao carregar em «Enviar código por e-mail» (computador
+  parado, testemunho caducado). `bspRpcRenovando`: o `bsp_mfa_ok`, o envio e a
+  confirmação do código renovam a sessão e repetem o pedido; se a renovação
+  falhar, a sessão local termina e o Workspace volta à entrada com a palavra-passe
+  («A sessão expirou…»). Testado no navegador (renova / falha).
