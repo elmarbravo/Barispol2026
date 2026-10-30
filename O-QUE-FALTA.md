@@ -5590,4 +5590,9 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   ligações partidas. `ecografia.html` (Imagiologia) no aspecto novo a 30-10-2026
   (Elmar: «não cumpre o padrão das outras páginas»): mesmos 7 exames, preparação,
   códigos `data-wa` servico_01 a 07, dados estruturados e evento ViewContent.
+  Depois (Elmar: «a antiga tinha mais actividade e vida, que tal uma súmula das
+  duas?»): exames em cartões com a preparação destacada e botão em cada um, cartão
+  «Não sabe qual exame precisa?», 4 passos numerados e faixa com morada, horário e
+  contactos (classes `exames`, `exame`, `prep`, `passos numerados`, `dados` em
+  `assets/site.css`, para usar noutras páginas).
   Falta: `contacto.html` no aspecto novo (continua com o antigo e funciona).

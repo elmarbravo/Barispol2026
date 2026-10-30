@@ -287,3 +287,31 @@ html[data-tema="escuro"] .botao-claro{background:#fff;color:#292F58}
 .fixa{display:none;position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--topo);border-top:1px solid var(--linha);padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
 .fixa .botao{display:block;text-align:center}
 @media(max-width:640px){.fixa{display:block}body.com-fixa{padding-bottom:76px}}
+
+/* Exames em cartões (Imagiologia, 30-10-2026, Elmar: «a antiga tinha mais vida,
+   faz uma súmula das duas»): cartão com a preparação destacada e o botão de
+   marcação em cada exame; passos numerados; faixa com morada, horário e contactos. */
+.exames{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px}
+.exame{display:flex;flex-direction:column;border:1px solid var(--linha);border-top:3px solid var(--azul);background:var(--fundo);padding:24px}
+.exame h3{font-size:19px}
+.exame .desc{color:var(--t2);margin-top:8px;flex:1}
+.prep{margin:16px 0 18px;padding:12px 14px;background:var(--claro);border-left:3px solid var(--azul);color:var(--t2);font-size:15px;line-height:1.5}
+.prep b{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--titulo);margin-bottom:3px}
+.exame .botao{display:block;text-align:center}
+.passos.numerados{grid-template-columns:repeat(4,1fr);counter-reset:passo}
+.passos.numerados .passo{counter-increment:passo}
+.passos.numerados .passo::before{content:counter(passo);display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:var(--azul);color:#fff;font-weight:700;font-size:18px;margin-bottom:14px}
+.passos.numerados .passo h3{font-size:18px}
+.passos.numerados .passo p{color:var(--t2);margin-top:6px}
+@media(max-width:900px){.passos.numerados{grid-template-columns:1fr 1fr}.passos.numerados .passo:nth-child(3){padding-left:0;border-left:0}}
+@media(max-width:560px){.passos.numerados{grid-template-columns:1fr}.passos.numerados .passo+.passo{padding-left:0;border-left:0;border-top:1px solid var(--linha)}}
+.dados{display:grid;grid-template-columns:repeat(3,1fr);gap:28px}
+.dados h3{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--azul);margin-bottom:8px}
+.dados p{color:var(--t2)}
+.dados a{font-weight:600}
+.dados strong{color:var(--t1)}
+@media(max-width:760px){.dados{grid-template-columns:1fr;gap:22px}}
+.exame.exame-cta{background:var(--marinho);border-color:var(--marinho);border-top-color:var(--azul)}
+.exame.exame-cta h3,.exame.exame-cta .desc{color:#fff}
+.exame.exame-cta .desc{opacity:.85}
+@media(min-width:1000px){.exame.exame-cta{grid-column:span 2}}
