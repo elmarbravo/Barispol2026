@@ -5365,3 +5365,11 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   Enfermagem de Outubro e de Novembro ainda não tem o visto do Dr. Osvaldo e o
   Laboratório ainda não tem escala de Novembro. Por fazer: comparação do gasto
   do turno com o MetaGest (testes do BS-200 × exames; seringas × injecções).
+- 30-10-2026, Elmar: «Usa o 2, aliviar a sincronização do WhatsApp» (dois
+  congestionamentos da base nesse dia, 10h31 e 12h37 de Luanda; a
+  `whatsapp.cron_sync` chegou a 204 s numa só transacção). `whatsapp-sync-leve.sql`
+  (aplicado): `sync_contactos` só grava contactos que mudaram (regravava ~1.300
+  a cada 20 min; só 33 com actividade em 24 h); releitura completa dos contactos
+  de hora a hora (era 15 min); lote de mensagens de 25 conversas (era 75).
+  Confirmar nos próximos dias os tempos do `whatsapp-sync` em
+  `cron.job_run_details` e se os congestionamentos param.
