@@ -5578,3 +5578,13 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   O conversor (1,3 MB) só se carrega quando aparece um HEIC. Se a conversão
   falhar, o aviso diz «Não foi possível anexar» e nada sobe. Testado no Chromium
   com a CSP do Workspace: HEIC de 1201×900 → JPEG legível em 1,4 s.
+- 30-10-2026, Elmar: «as imagens no site estão pequenas… inspecciona o site» → «e que
+  tal criarmos já páginas e deixar de ser uma landing page extensa?» → «sim».
+  Site em várias páginas (EM PREVISÃO, só no ramo claude/amazing-galileo-2j4r55,
+  ainda não no `main`): `assets/site.css` e `assets/site.js` comuns; `index.html`
+  curto (cartões grandes com as fotografias, carrossel no telemóvel, faixa de
+  factos, como funciona, clínica, campanhas, galeria; endereços antigos #analises,
+  #seguros, #perguntas, #contactos e #clinica levam às páginas novas);
+  `analises.html`, `consultas.html`, `cardiologia.html`. Falta: `seguros.html`,
+  `clinica.html`, `perguntas.html`, `ecografia.html` e `contacto.html` no mesmo
+  aspecto, `sitemap.xml`; publicar tudo junto depois do «sim» do Elmar.
