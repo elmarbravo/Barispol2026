@@ -406,6 +406,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   Em vigor desde 31-10-2026. No Laboratório, artigos `tipo: 'material'` contam-se
   por quantidade (testes rápidos, lamelas…); todo o artigo por quantidade tem
   «Reforço» (`ref`, entregas da Solange): a abertura compara com fecho + reforço.
+  Reagentes com `aberto` (data do frasco, obrigatória) e `prazo` na lista (bula;
+  vazio = 28 dias); aviso `bsp_turno_reagentes_alertar` (`turno-reagentes-prazo.sql`).
+  Campos dos protocolos desligados (`BSP_PROTOCOLOS_ACTIVOS`) até a Direcção
+  Clínica validar a lista (Elmar, 30-10-2026).
   Reagentes do Laboratório (16-10-2026, fotografias do BS-200): campo tipo
   `reagentes` (`reagentes_exames`: `[{r, r1, r2, proc}]`, testes restantes no
   R1 e no R2 lidos no aparelho; dá para = o menor), `bspReagentesLimpos`,

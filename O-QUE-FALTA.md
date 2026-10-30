@@ -5446,3 +5446,17 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   colheitas facturadas; ou ritmo de compras da Solange, Jun–Out), nunca abaixo
   de 1. Lista tirada das proformas da Solange (Almiro, Farwell, Soneca, Aarnext,
   MND, OMR, Global). A Enfermagem ainda tem mínimos 0.
+- 30-10-2026, Elmar: «acrescente» (data de abertura dos reagentes do BS-200 e
+  aviso de prazo). `turno-reagentes-prazo.sql` (aplicado): cada reagente da
+  contagem leva `aberto` (obrigatório, vem da contagem anterior; vermelho «Fora
+  do prazo» no ecrã); prazo por reagente em «Corrigir a lista» (`prazo`, bula;
+  vazio = 28 dias, bula Mindray série BS); `bsp_turno_reagentes_alertar` (cron
+  `bsp-turno-reagentes`, 06h41 UTC) avisa 2 dias antes e no fim do prazo, uma
+  vez por frasco (`turno_reagente_avisos`), ao Laboratório e a u14. Testado no
+  navegador.
+- 30-10-2026, Elmar: «não deve ter a lista, elimine até ter» (o Domingos não
+  sabia preencher os campos dos protocolos). `BSP_PROTOCOLOS_ACTIVOS = false`:
+  «Actos verificados…», «Desses, cumpriram…» e «Passos que falharam» saem dos
+  relatórios de turno até haver lista validada pela Direcção Clínica (os ids
+  ficam; no servidor o indicador fica vazio). Lista proposta enviada ao Dr.
+  Osvaldo para validar.

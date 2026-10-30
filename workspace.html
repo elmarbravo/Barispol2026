@@ -8654,7 +8654,7 @@ function TurnoListaEditor({ area, lista, onGravado }) {
   /* No Laboratório cada artigo é reagente do BS-200 (R1 e R2) ou material
      contado por quantidade (testes rápidos, seringas, lamelas…), 30-10-2026. */
   const lab = area === 'laboratorio';
-  const [l, setL] = React.useState(() => (lista || []).map(x => ({ nome: x.nome, minimo: x.minimo == null ? '' : String(x.minimo), tipo: x.tipo === 'material' ? 'material' : '' })));
+  const [l, setL] = React.useState(() => (lista || []).map(x => ({ nome: x.nome, minimo: x.minimo == null ? '' : String(x.minimo), tipo: x.tipo === 'material' ? 'material' : '', prazo: x.prazo == null ? '' : String(x.prazo) })));
   const [aGravar, setAGravar] = React.useState(false);
   const mudar = (i, k, v) => setL(a => a.map((x, j) => j === i ? Object.assign({}, x, { [k]: v }) : x));
   const gravar = async () => {
@@ -8669,13 +8669,15 @@ function TurnoListaEditor({ area, lista, onGravado }) {
   };
   const caixa = { height: 36, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 16, fontFamily: 'inherit', boxSizing: 'border-box' };
   return React.createElement("div", null,
-    React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginBottom: 8, lineHeight: 1.5 } }, 'O que se conta em cada abertura e fecho. «Mínimo»: abaixo deste número, o chefe da área e a gestão recebem aviso (0 = sem aviso).'),
+    React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginBottom: 8, lineHeight: 1.5 } }, 'O que se conta em cada abertura e fecho. «Mínimo»: abaixo deste número, o chefe da área e a gestão recebem aviso (0 = sem aviso).' + (lab ? ' Nos reagentes do BS-200, o último número é o prazo depois de aberto, em dias (o da bula; vazio = 28).' : '')),
     l.map((x, i) => React.createElement("div", { key: i, style: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 } },
       React.createElement("input", { value: x.nome, maxLength: 60, placeholder: 'Nome', onChange: e => mudar(i, 'nome', e.target.value), style: Object.assign({}, caixa, { flex: 1, minWidth: 0 }) }),
       lab && React.createElement("select", { value: x.tipo, 'aria-label': 'Como se conta', onChange: e => mudar(i, 'tipo', e.target.value), style: Object.assign({}, caixa, { width: 116, padding: '0 6px' }) },
         React.createElement("option", { value: '' }, 'BS-200 (R1/R2)'),
         React.createElement("option", { value: 'material' }, 'Quantidade')),
       React.createElement("input", { type: 'number', min: 0, inputMode: 'numeric', value: x.minimo, placeholder: 'Mínimo', 'aria-label': 'Mínimo', onChange: e => mudar(i, 'minimo', e.target.value), style: Object.assign({}, caixa, { width: 90 }) }),
+      /* Prazo depois de aberto, em dias (30-10-2026): o da bula; vazio = 28. */
+      lab && x.tipo !== 'material' && React.createElement("input", { type: 'number', min: 1, inputMode: 'numeric', value: x.prazo, placeholder: '28 dias', title: 'Dias de uso depois de aberto (bula). Vazio = 28.', 'aria-label': 'Prazo depois de aberto (dias)', onChange: e => mudar(i, 'prazo', e.target.value), style: Object.assign({}, caixa, { width: 84 }) }),
       React.createElement("button", { type: 'button', 'aria-label': 'Tirar', onClick: () => setL(a => a.filter((y, j) => j !== i)), style: Object.assign({}, caixa, { width: 36, padding: 0, cursor: 'pointer', color: 'var(--text-3)' }) }, '×'))),
     React.createElement("div", { style: { display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' } },
       React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: () => setL(a => a.concat({ nome: '', minimo: '', tipo: lab ? 'material' : '' })) }, '+ Acrescentar'),
@@ -8712,7 +8714,7 @@ function TurnoContagemForm({ item, onFeito }) {
         (b.lista || []).forEach(i => {
           if (n[i.k]) return;
           const u = ult[i.k] || {};
-          n[i.k] = reag(i) ? { r1: u.r1 == null ? '' : String(u.r1), r2: u.r2 == null ? '' : String(u.r2) } : { q: u.q == null ? '' : String(u.q) };
+          n[i.k] = reag(i) ? { r1: u.r1 == null ? '' : String(u.r1), r2: u.r2 == null ? '' : String(u.r2), aberto: u.aberto || '' } : { q: u.q == null ? '' : String(u.q) };
         });
         return n;
       });
@@ -8758,6 +8760,8 @@ function TurnoContagemForm({ item, onFeito }) {
     if (aSubir > 0) { falha('Espere: ainda há fotografias a subir.'); return; }
     if (faltam.length) { falha('Falta preencher: ' + faltam.slice(0, 3).map(i => i.nome).join(', ') + (faltam.length > 3 ? '…' : '') + '.'); return; }
     if (lab && !fichs.length) { falha('Falta a fotografia do ecrã do BS-200.'); return; }
+    const semData = lista.filter(i => reag(i) && !/^\d{4}-\d{2}-\d{2}$/.test((vals[i.k] || {}).aberto || ''));
+    if (semData.length) { falha('Falta a data de abertura do frasco: ' + semData.slice(0, 3).map(i => i.nome).join(', ') + (semData.length > 3 ? '…' : '') + '.'); return; }
     if (difs.length && !motivo.trim()) { falha('A contagem não bate com o último fecho: escreva o motivo.'); return; }
     const cl = bspGetClient();
     if (!cl) { falha('O servidor não está ligado.'); return; }
@@ -8765,7 +8769,7 @@ function TurnoContagemForm({ item, onFeito }) {
     setAGravar(true);
     const itens = lista.map(i => {
       const v = vals[i.k] || {};
-      return reag(i) ? { k: i.k, r1: num(v.r1), r2: num(v.r2) } : Object.assign({ k: i.k, q: num(v.q) }, num(v.ref) > 0 ? { ref: num(v.ref) } : {});
+      return reag(i) ? { k: i.k, r1: num(v.r1), r2: num(v.r2), aberto: v.aberto } : Object.assign({ k: i.k, q: num(v.q) }, num(v.ref) > 0 ? { ref: num(v.ref) } : {});
     });
     const r = await cl.rpc('bsp_turno_contar', { p_area: item.area, p_dia: item.dia, p_turno: item.turno, p_momento: item.momento, p_itens: itens, p_frio: num(frio), p_motivo: motivo, p_ficheiros: fichs });
     setAGravar(false);
@@ -8785,7 +8789,7 @@ function TurnoContagemForm({ item, onFeito }) {
   }, rot, React.createElement("input", Object.assign({ type: 'file', style: { display: 'none' }, onChange: e => { subir(e.target.files); e.target.value = ''; } }, props)));
   return React.createElement("div", null,
     React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginBottom: 10, lineHeight: 1.5 } },
-      lab ? 'No BS-200: Estado → Disco de reagentes → toque no teste. Escreva os testes restantes do R1 e do R2 (o número depois da barra) e tire a fotografia do ecrã. Depois conte os testes rápidos e o material e escreva a quantidade de cada um.'
+      lab ? 'No BS-200: Estado → Disco de reagentes → toque no teste. Escreva os testes restantes do R1 e do R2 (o número depois da barra) e a data em que o frasco foi aberto (muda só quando abre um frasco novo), e tire a fotografia do ecrã. Depois conte os testes rápidos e o material e escreva a quantidade de cada um.'
           : 'Conte o material na sala e escreva a quantidade de cada artigo.',
       ' Em «Reforço», escreva o que a Solange entregou desde a última contagem (vazio = nada).',
       ultima ? ' Os números vêm do último ' + (ultima.momento === 'fecho' ? 'fecho' : 'registo') + ' (' + bspQuando(ultima.criado) + '): confirme ou corrija.' : ''),
@@ -8802,6 +8806,18 @@ function TurnoContagemForm({ item, onFeito }) {
         /* Reforço (30-10-2026, Elmar: «ela guarda uma parte e fornece outra às
            áreas e vai reforçando»): o que a Solange entregou desde a última
            contagem. Vazio = nada. */
+        /* Data de abertura do frasco em uso (30-10-2026, Elmar: «acrescente»):
+           vem da contagem anterior; muda-se só ao abrir um frasco novo. Passado
+           o prazo (bula; 28 dias), fica a vermelho e o servidor avisa. */
+        reag(i) && (() => {
+          const ab = (vals[i.k] || {}).aberto || '';
+          const dias = /^\d{4}-\d{2}-\d{2}$/.test(ab) ? Math.floor((new Date(bspHojeLuanda() + 'T12:00:00') - new Date(ab + 'T12:00:00')) / 86400000) : null;
+          const prazo = Number(i.prazo) > 0 ? Number(i.prazo) : 28;
+          const fora = dias != null && dias >= prazo;
+          return React.createElement("label", { key: 'aberto', style: { fontSize: 11, color: fora ? 'var(--perigo)' : 'var(--text-3)', fontWeight: fora ? 700 : 400 } },
+            dias == null ? 'Aberto em' : fora ? 'Fora do prazo · há ' + dias + ' dias' : 'Aberto há ' + dias + (dias === 1 ? ' dia' : ' dias') + ' (prazo ' + prazo + ')',
+            React.createElement("input", { type: 'date', value: ab, max: bspHojeLuanda(), onChange: e => mudar(i.k, 'aberto', e.target.value), style: Object.assign({}, caixa, { display: 'block', marginTop: 2, width: 150, borderColor: fora ? 'var(--perigo)' : 'var(--border)' }) }));
+        })(),
         !reag(i) && React.createElement("label", { key: 'ref', title: 'O que a Solange entregou desde a última contagem', style: { fontSize: 11, color: 'var(--text-3)' } }, 'Reforço',
           React.createElement("input", { type: 'number', min: 0, step: 1, inputMode: 'numeric', placeholder: '0', value: (vals[i.k] || {}).ref || '', onChange: e => mudar(i.k, 'ref', e.target.value), style: Object.assign({}, caixa, { display: 'block', marginTop: 2 }) })))];
     }),
@@ -17433,6 +17449,11 @@ const BSP_CAMPOS_INCIDENTES = [
   { id: 'quase_erros', tipo: 'numero', rotulo: 'Quase-erros (detectados antes de chegar ao utente)' },
   { id: 'incidente_tipo', tipo: 'varias', rotulo: 'Tipo de incidente ou quase-erro', opcoes: ['Nenhum', 'Erro de identificação do utente', 'Erro de medicação', 'Amostra trocada ou perdida', 'Queda', 'Reacção adversa', 'Atraso crítico de resultado', 'Agressão ou conflito', 'Outro (ver observação)'] }
 ];
+/* Desligados a 30-10-2026 (Elmar: «não deve ter a lista, elimine até ter»):
+   ninguém tem a lista de verificação dos protocolos, e a Enfermagem não sabia
+   preencher. Voltam com BSP_PROTOCOLOS_ACTIVOS = true quando a lista estiver
+   em Documentos; os ids ficam iguais aos do servidor (qualidade-clinica.sql). */
+const BSP_PROTOCOLOS_ACTIVOS = false;
 const BSP_CAMPOS_PROTOCOLOS = [
   { id: 'prot_verificados', tipo: 'numero', rotulo: 'Actos verificados com a lista de protocolos' },
   { id: 'prot_conformes', tipo: 'numero', rotulo: 'Desses, cumpriram todos os passos' },
@@ -17453,16 +17474,16 @@ const BSP_CAMPOS_AREA = {
     { id: 'satisf_ok', tipo: 'numero', rotulo: 'Desses, satisfeitos ou muito satisfeitos' },
     { id: 'reclamacoes', tipo: 'numero', rotulo: 'Reclamações registadas (livro ou verbais)' }
   ].concat(BSP_CAMPOS_INCIDENTES),
-  farmacia: BSP_CAMPOS_FRIO.concat(BSP_CAMPOS_INCIDENTES, BSP_CAMPOS_PROTOCOLOS),
+  farmacia: BSP_CAMPOS_FRIO.concat(BSP_CAMPOS_INCIDENTES, BSP_PROTOCOLOS_ACTIVOS ? BSP_CAMPOS_PROTOCOLOS : []),
   laboratorio: [
     { id: 'amostras', tipo: 'numero', rotulo: 'Amostras colhidas' },
     { id: 'amostras_rejeitadas', tipo: 'numero', rotulo: 'Amostras rejeitadas ou a repetir (colheita, hemólise, identificação)' },
     { id: 'resultados_entregues', tipo: 'numero', rotulo: 'Resultados entregues hoje' },
     { id: 'resultados_atraso', tipo: 'numero', rotulo: 'Desses, fora do prazo combinado com o utente' },
     { id: 'tat_horas', tipo: 'numero', opcional: true, rotulo: 'Tempo médio da colheita ao resultado (horas, se souber)' }
-  ].concat(BSP_CAMPOS_FRIO, BSP_CAMPOS_INCIDENTES, BSP_CAMPOS_PROTOCOLOS),
-  imagiologia: BSP_CAMPOS_INCIDENTES.concat(BSP_CAMPOS_PROTOCOLOS),
-  enfermagem: BSP_CAMPOS_FRIO.concat(BSP_CAMPOS_INCIDENTES, BSP_CAMPOS_PROTOCOLOS)
+  ].concat(BSP_CAMPOS_FRIO, BSP_CAMPOS_INCIDENTES, BSP_PROTOCOLOS_ACTIVOS ? BSP_CAMPOS_PROTOCOLOS : []),
+  imagiologia: BSP_CAMPOS_INCIDENTES.concat(BSP_PROTOCOLOS_ACTIVOS ? BSP_CAMPOS_PROTOCOLOS : []),
+  enfermagem: BSP_CAMPOS_FRIO.concat(BSP_CAMPOS_INCIDENTES, BSP_PROTOCOLOS_ACTIVOS ? BSP_CAMPOS_PROTOCOLOS : [])
 };
 BSP_RELATORIOS.forEach(a => {
   const extra = BSP_CAMPOS_AREA[a.id];
