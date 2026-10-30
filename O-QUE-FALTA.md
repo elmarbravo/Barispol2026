@@ -5642,3 +5642,10 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   marcado). Início: atalhos Diagnóstico e Seguros. Sitemap actualizado. Testado a 390 e
   1280 px, sem ligações partidas. Por confirmar com o Elmar: Ortopedia e Cirurgia estão
   em «Outras especialidades» mas não tiveram consultas facturadas no último ano.
+- 30-10-2026, Elmar: «tira cirurgia; coloca nutrição, psicologia; vê mais o que falta».
+  Em `consultas.html`, «Outras especialidades» passa de nomes soltos a lista com texto
+  e «Marcar»: Medicina geral e familiar (nova, 51 consultas facturadas no ano), Medicina
+  interna, Urologia, Ortopedia, Dermatologia, Psicologia e Nutrição; sai a Cirurgia.
+  Enfermagem com os serviços reais do MetaGest (injecções, sinais vitais, curativos,
+  suturas, nebulização, lavagens, sala de observação 1 a 2 h). Por confirmar: Nefrologia
+  (médico registado no MetaGest, sem consultas facturadas).
