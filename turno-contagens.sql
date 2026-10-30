@@ -112,6 +112,9 @@ declare
 begin
   if eu is null or not public.bsp_mfa_ok() then return jsonb_build_object('pendentes', res); end if;
   for r in select * from public.bsp_turno_meus(eu) order by inicio loop
+    -- Em vigor a partir de 31-10-2026 (Elmar: «coloca em vigor amanhã… para não
+    -- ser surpresa»): os turnos de 30-10 não pedem abertura nem fecho.
+    if r.dia < date '2026-10-31' then continue; end if;
     ab := exists (select 1 from turno_contagens c where c.area = r.area and c.dia = r.dia and c.turno = r.turno and c.momento = 'abertura');
     fe := exists (select 1 from turno_contagens c where c.area = r.area and c.dia = r.dia and c.turno = r.turno and c.momento = 'fecho');
     -- Abrir: desde 30 min antes do início até ao fim do turno.

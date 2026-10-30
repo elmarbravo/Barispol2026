@@ -5418,3 +5418,8 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   tarefas correm bem depois). Limpeza dos registos técnicos com mais de 30 dias
   (`limpeza-registos-tecnicos.sql`): whatsapp.sync_log e erp.sync_log apagados;
   o whatsapp.sync_log entrou na limpeza semanal `bsp-limpeza-registos`.
+- 30-10-2026, Elmar: «coloca em vigor amanhã, mas envie um e-mail para cada membro
+  das respectivas áreas». `bsp_turno_pendente` ignora os turnos antes de
+  31-10-2026 (aplicado no servidor): hoje a porta do turno não aparece. E-mail às
+  equipas do Laboratório e da Enfermagem: texto apresentado ao Elmar, à espera
+  da aprovação.
