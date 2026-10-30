@@ -850,6 +850,8 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   (`bsp_fm_votos`), que também regista os de papel; apuramento a 23
   (`bsp_fm_apurar`, empate → «Atitude», depois `bsp_fm_decidir` da Direcção).
   Mudar os dias = mudar `bsp_fm_votar`, `bsp_fm_estado` e os crons `bsp-fm-*`.
+  No Início de todos (30-10-2026): `FuncionarioMesInicio` (último vencedor, convite a
+  votar, empate só para quem apura), sobre o mesmo `bsp_fm_estado`.
 - Integração (03-10-2026, `integracao.sql`, RI-2.2): modelo de passos só no
   servidor (`integracao_modelo`); Equipa → `IntegracaoPainel`. Documentos com
   `revisao_ate` (`documentos-revisao.sql`).

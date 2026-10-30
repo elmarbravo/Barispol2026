@@ -8566,6 +8566,44 @@ function LoginScreen({
 }
 /* Ultimas publicacoes do Feed no Inicio (01-10-2026, pedido do Elmar: «o
    Feed esta longe»). Carregar numa abre-a no Feed, com os comentarios. */
+/* Funcionário do Mês no Início de toda a equipa (30-10-2026, Elmar: «ao iniciar
+   a sessão, no menu inicial, pode ficar o funcionário do mês»). Lê o mesmo
+   bsp_fm_estado do separador da Equipa: o último vencedor e, nos dias de
+   votação, o convite a quem ainda não votou. Sem nada para mostrar, não aparece. */
+function FuncionarioMesInicio({ onAbrir }) {
+  const [est, setEst] = React.useState(null);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    cl.rpc('bsp_fm_estado').then(r => { if (vivo && !r.error) setEst(r.data); });
+    return () => { vivo = false; };
+  }, []);
+  if (!est) return null;
+  const ultimo = (est.historico || []).find(h => h.estado === 'eleito');
+  const votar = est.fase === 'votacao' && est.vota && !est.meu_voto;
+  /* Empate à espera da Direcção: só quem apura vê o aviso (u1, u2). */
+  const empate = est.apurador && (est.historico || []).find(h => h.estado === 'empate');
+  if (!ultimo && !votar && !empate) return null;
+  const abrir = () => { window.__bspEquipaAba = 'funcionario'; onAbrir(); setTimeout(() => { try { window.dispatchEvent(new Event('bsp-equipa-aba')); } catch (e) {} }, 80); };
+  const u = ultimo && (window.userById(ultimo.vencedor) || { id: ultimo.vencedor, name: ultimo.nome || '' });
+  return React.createElement(Card, { style: { marginBottom: 16, borderLeft: '4px solid var(--aviso)' } },
+    ultimo && React.createElement("div", { style: { display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' } },
+      React.createElement(Avatar, { user: u, size: 56 }),
+      React.createElement("div", { style: { flex: '1 1 180px', minWidth: 0 } },
+        React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--text-2)' } },
+          React.createElement(I.Star, { size: 15, style: { color: 'var(--aviso)' } }), 'Funcionário do Mês · ' + ultimo.mes_nome),
+        React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: 'var(--navy-texto)', marginTop: 2 } }, ultimo.nome || u.name),
+        ultimo.funcao ? React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)' } }, ultimo.funcao) : null,
+        React.createElement("div", { style: { fontSize: 13, color: 'var(--text-1)', marginTop: 4 } }, ultimo.vencedor === window.CURRENT_USER_ID ? 'Parabéns! Foi a escolha da equipa este mês.' : 'Parabéns da equipa pelo trabalho do mês.'))),
+    votar && React.createElement("div", { style: { display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginTop: ultimo ? 12 : 0, paddingTop: ultimo ? 12 : 0, borderTop: ultimo ? '1px solid var(--border)' : 'none' } },
+      React.createElement("div", { style: { fontSize: 13.5, color: 'var(--text-1)' } }, React.createElement("b", null, 'Votação aberta: '), 'escolha o Funcionário do Mês de ' + est.mes_nome + ' até às 23h59 de ' + bspDataCurta(est.fecha) + '.'),
+      React.createElement(Button, { size: 'sm', onClick: abrir }, 'Votar')),
+    empate && React.createElement("div", { style: { display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginTop: ultimo ? 12 : 0, paddingTop: ultimo ? 12 : 0, borderTop: ultimo ? '1px solid var(--border)' : 'none' } },
+      React.createElement("div", { style: { fontSize: 13.5, color: 'var(--text-1)' } }, React.createElement("b", null, 'Funcionário do Mês de ' + empate.mes_nome + ': '), 'empate. Falta a decisão da Direcção para divulgar o resultado.'),
+      React.createElement(Button, { size: 'sm', onClick: abrir }, 'Decidir')),
+    !votar && !empate && React.createElement("button", { onClick: abrir, style: { marginTop: 10, border: 'none', background: 'transparent', color: 'var(--accent-d)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', padding: 0 } }, 'Ver o Funcionário do Mês →'));
+}
 function FeedInicioCartao({ onAbrir }) {
   const { state } = useStore();
   const posts = (state.feedPosts || []).slice().sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || String(b.iso || '').localeCompare(String(a.iso || ''))).slice(0, 2);
@@ -9207,6 +9245,7 @@ function DashboardScreen({
         quick.map(([ic, rot, to]) => React.createElement("button", { key: to, onClick: () => ir(to),
           style: { padding: '8px 14px', background: 'rgba(255,255,255,.14)', color: '#fff', border: '1px solid rgba(255,255,255,.28)', borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: 'inherit' }
         }, I[ic] ? React.createElement(I[ic], { size: 15 }) : null, rot))))),
+    React.createElement(FuncionarioMesInicio, { onAbrir: () => ir('directory') }),
     recepcao && React.createElement(MarcLembretesInicio, { onAbrir: () => ir('marcacoes') }),
     React.createElement(TurnoCartao, { currentUser }),
     React.createElement(PedidosFarmaciaCartao, { currentUser }),

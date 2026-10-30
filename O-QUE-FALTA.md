@@ -5616,3 +5616,11 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   os outros 17: não há imagem nos e-mails nem no SharePoint (ADM, DAF, Marketing);
   pedir às seguradoras ou ao Elmar. Faltam fotografias reais da equipa para
   substituir as cinco geradas por IA (as de «FOTOS BARISPOL» são de 2024, salas vazias).
+- 30-10-2026, Elmar: «ao iniciar a sessão, no menu inicial, pode ficar o funcionário do
+  mês». Cartão `FuncionarioMesInicio` no Início de toda a equipa, logo abaixo das
+  boas-vindas: fotografia, nome e função do último vencedor (`bsp_fm_estado`,
+  `historico` com `estado = 'eleito'`); nos dias de votação, a quem ainda não votou,
+  «Votação aberta» com o botão «Votar» (abre Equipa → Funcionário do mês); empate à
+  espera da Direcção só para quem apura (u1, u2), com «Decidir». Sem nada para
+  mostrar, não aparece. O servidor não mudou. Outubro de 2026 está empatado: até a
+  Direcção decidir, a equipa não vê o cartão. Testado no navegador com os quatro casos.
