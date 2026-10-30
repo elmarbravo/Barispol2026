@@ -20,6 +20,8 @@
 -- livres): notas de crédito do dia acima de 30 000 Kz, descontos de 50 000 Kz
 -- ou mais e, às 19h00, os particulares do dia por pagar. Uma vez cada
 -- (financeiro_avisos). Nunca nomes de utentes; os nomes são da equipa.
+-- «Por pagar» só a partir de 100 Kz (30-10-2026): 381 das 515 facturas de
+-- particulares «por pagar» eram restos de arredondamento (118,50 Kz no total).
 -- Limites: BSP_FIN_LIMITE_NC (30 000) e BSP_FIN_LIMITE_DESC (50 000) no ecrã;
 -- mudar os dois lados juntos.
 
@@ -107,12 +109,12 @@ begin
   select count(*), coalesce(sum(outstanding_amount), 0), max(hoje - posting_date)
     into n, v, m
     from erp.sales_invoice
-   where docstatus = 1 and not is_return and outstanding_amount > 0 and posting_date >= hoje - 180
+   where docstatus = 1 and not is_return and outstanding_amount >= 100 and posting_date >= hoje - 180
      and (customer_group = 'Individual' or (customer_group = 'All Customer Groups' and coalesce(btrim(seguradora), '') = ''));
   if n > 0 then
     select string_agg(quem || ' (' || k || ')', ', ' order by k desc) into txt from (
       select public.bsp_fin_pessoa(owner) quem, count(*) k from erp.sales_invoice
-       where docstatus = 1 and not is_return and outstanding_amount > 0 and posting_date >= hoje - 180
+       where docstatus = 1 and not is_return and outstanding_amount >= 100 and posting_date >= hoje - 180
          and (customer_group = 'Individual' or (customer_group = 'All Customer Groups' and coalesce(btrim(seguradora), '') = ''))
        group by owner order by 2 desc limit 5) z;
     al := al || jsonb_build_object('nivel', 'aviso', 'tipo', 'particulares',
@@ -136,7 +138,7 @@ begin
     into txt, v from (
     select public.bsp_fin_seguradora(coalesce(nullif(btrim(seguradora), ''), customer_name, customer)) s, sum(outstanding_amount) t
       from erp.sales_invoice
-     where docstatus = 1 and not is_return and outstanding_amount > 0 and customer_group = 'Seguradora'
+     where docstatus = 1 and not is_return and outstanding_amount >= 100 and customer_group = 'Seguradora'
        and coalesce(nullif(raw->>'due_date', '')::date, posting_date + 30) < hoje - 90
      group by 1 order by 2 desc limit 5) z;
   if v > 0 then
@@ -280,7 +282,7 @@ begin
       from (select owner, count(*) facturas, sum(grand_total) facturado,
                    count(*) filter (where public.bsp_fin_desconto(raw) > 0) desc_n,
                    coalesce(sum(public.bsp_fin_desconto(raw)), 0) desc_valor,
-                   coalesce(sum(outstanding_amount) filter (where customer_group <> 'Seguradora' and outstanding_amount > 0), 0) por_pagar
+                   coalesce(sum(outstanding_amount) filter (where customer_group <> 'Seguradora' and outstanding_amount >= 100), 0) por_pagar
               from sv where not is_return group by owner) p
       full join (select owner, count(*) k, sum(valor) v from nc_orig group by owner) n on n.owner is not distinct from p.owner
      order by coalesce(p.facturado, 0) desc, coalesce(n.v, 0) desc
@@ -319,7 +321,7 @@ begin
      group by 1 order by 1
   ),
   divida as (
-    select coalesce(sum(outstanding_amount), 0) valor, count(*) filter (where outstanding_amount > 0) n
+    select coalesce(sum(outstanding_amount), 0) valor, count(*) filter (where outstanding_amount >= 100) n
       from erp.sales_invoice where docstatus = 1 and posting_date between p_de and p_ate
   ),
   notas as (
@@ -413,14 +415,14 @@ begin
   if hora >= 19 then
     select count(*), coalesce(sum(outstanding_amount), 0) into n, v
       from erp.sales_invoice
-     where docstatus = 1 and not is_return and outstanding_amount > 0 and posting_date = hoje
+     where docstatus = 1 and not is_return and outstanding_amount >= 100 and posting_date = hoje
        and (customer_group = 'Individual' or (customer_group = 'All Customer Groups' and coalesce(btrim(seguradora), '') = ''));
     if n > 0 then
       insert into financeiro_avisos (chave) values ('part-' || hoje) on conflict do nothing;
       if found then
         select string_agg(quem || ' (' || k || ')', ', ' order by k desc) into txt from (
           select public.bsp_fin_pessoa(owner) quem, count(*) k from erp.sales_invoice
-           where docstatus = 1 and not is_return and outstanding_amount > 0 and posting_date = hoje
+           where docstatus = 1 and not is_return and outstanding_amount >= 100 and posting_date = hoje
              and (customer_group = 'Individual' or (customer_group = 'All Customer Groups' and coalesce(btrim(seguradora), '') = ''))
            group by owner) z;
         perform public.bsp_push_post(jsonb_build_object('para', to_jsonb(para), 'titulo', 'Particulares por pagar hoje',

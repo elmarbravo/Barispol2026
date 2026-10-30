@@ -5531,3 +5531,9 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   rolar». Painel → «Notas de crédito»: todas as do período numa caixa de 420 px
   com barra de deslocamento (sem «Ver as N»), total no título; `bsp_painel`
   devolve até 1000 (antes 100; no ano de 2026 há 121).
+- 30-10-2026, Elmar: «isso o que é por pagar?». «Por pagar» = valor em falta no
+  MetaGest nas facturas de particulares e empresas emitidas pela pessoa no
+  período (sem seguradoras). Corrigido: só a partir de 100 Kz em `bsp_painel`,
+  `bsp_fin_alertas` e `bsp_financeiro_alertar` (381 das 515 facturas de
+  particulares eram restos de arredondamento, 118,50 Kz). Ficam 134 facturas,
+  1,61 M Kz em 6 meses (71 emitidas pela Juliana).

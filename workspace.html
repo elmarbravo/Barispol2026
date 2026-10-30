@@ -25204,7 +25204,7 @@ function PainelPessoas({ pessoas, estreito }) {
     React.createElement("span", { style: { color: cor || 'var(--text-1)', fontVariantNumeric: 'tabular-nums', fontWeight: 600 } }, val));
   return React.createElement(Card, { pad: 16 },
     React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 4 } }, 'Por pessoa'),
-    React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginBottom: 12 } }, 'Quem emitiu no MetaGest. As notas de crédito contam a quem emitiu a factura anulada; «por pagar» sem as seguradoras.'),
+    React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginBottom: 12 } }, 'Quem emitiu no MetaGest. As notas de crédito contam a quem emitiu a factura anulada. «Por pagar»: o que o MetaGest ainda dá em falta nas facturas de particulares e empresas emitidas no período (sem seguradoras nem restos abaixo de 100 Kz).'),
     !(pessoas || []).length ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Sem facturas neste período.')
       : estreito ? React.createElement("div", null, pessoas.map((x, k) => React.createElement("div", { key: k, style: { padding: '9px 0', borderTop: k ? '1px solid var(--border)' : 0 } },
           React.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 13.5, fontWeight: 700, color: 'var(--text-1)', marginBottom: 2 } },
