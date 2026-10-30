@@ -118,6 +118,8 @@
     margin-top: 4px; gap: 6px !important; }
   body[data-mobile="true"] .bsp-msg-sel .bsp-msg-acts button { padding: 6px 8px !important; }
   body[data-mobile="true"] .bsp-msg-sel .bsp-msg-bolha { outline: 2px solid var(--accent); outline-offset: 1px; }
+  /* Mensagem encontrada pela pesquisa (30-10-2026): destaque de 2,6 s. */
+  .bsp-msg-achada { background: var(--accent-soft, transparent); outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 10px; }
 
   /* A caixa de escrita ocupava quase metade do ecrã: a barra de formatação
      e a legenda das teclas não fazem sentido num telemóvel. */
@@ -9469,38 +9471,93 @@ function ChatScreen({
     ultimoLidoRef.current[convKey] = topo;
     actions.marcarLido(convKey, topo);
   }, [convKey, messages.length, vistaTick]);
-  /* Pesquisa local nas conversas que a pessoa pode ver. */
+  /* Pesquisa nas conversas que a pessoa pode ver. Desde 30-10-2026 (Elmar: \u00abao
+     pesquisar conversas n\u00e3o me leva directamente \u00e0 mensagem\u00bb) procura tamb\u00e9m no
+     servidor, em todo o hist\u00f3rico (a regra bsp_msg_ler s\u00f3 devolve as conversas
+     que a pessoa v\u00ea), e tocar num resultado salta para a mensagem. */
   const normTxt = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const rotuloConversa = k => {
+    if (k.indexOf('dm-') === 0) {
+      const par = k.slice(3).split('_');
+      if (par.indexOf(currentUser.id) === -1) return null;
+      const outro = window.userById(par.find(x => x !== currentUser.id));
+      return outro ? outro.name : 'Directa';
+    }
+    const cn = CHANNELS.find(c => c.id === k);
+    if (!cn || !bspVeCanal(currentUser, cn)) return null;
+    return '#' + cn.name;
+  };
+  const [buscaSrv, setBuscaSrv] = React.useState({ q: '', lista: [], aProcurar: false });
+  React.useEffect(() => {
+    const q = String(busca || '').trim();
+    const cl = bspGetClient();
+    if (q.length < 2 || !cl) { setBuscaSrv({ q: '', lista: [], aProcurar: false }); return; }
+    let vivo = true;
+    setBuscaSrv(s => ({ ...s, aProcurar: true }));
+    const t = setTimeout(() => {
+      const padrao = '%' + q.replace(/[\\%_]/g, c => '\\' + c) + '%';
+      cl.from('messages').select('*').ilike('text', padrao).order('created_at', { ascending: false }).limit(60).then(r => {
+        if (vivo) setBuscaSrv({ q: q, lista: r.error ? [] : (r.data || []), aProcurar: false, erro: !!r.error });
+      });
+    }, 400);
+    return () => { vivo = false; clearTimeout(t); };
+  }, [busca]);
   let resultados = [];
   if (busca && busca.trim().length >= 2) {
     const q = normTxt(busca);
-    const chaves = Object.keys(messagesByChan);
-    for (const k of chaves) {
-      if (resultados.length >= 30) break;
-      let rotulo = '';
-      if (k.indexOf('dm-') === 0) {
-        const par = k.slice(3).split('_');
-        if (par.indexOf(currentUser.id) === -1) continue;
-        const outro = window.userById(par.find(x => x !== currentUser.id));
-        rotulo = outro ? outro.name : 'Directa';
-      } else if (k.indexOf('th~') === 0) {
-        continue;
-      } else {
-        const cn = CHANNELS.find(c => c.id === k);
-        if (!cn || !bspVeCanal(currentUser, cn)) continue;
-        rotulo = '#' + cn.name;
-      }
-      const lista = messagesByChan[k] || [];
-      for (const mm of lista) {
-        if (resultados.length >= 30) break;
-        if (mm.text && !bspLinhaDeControlo(mm.text) && normTxt(bspTextoVisivel(mm.text)).indexOf(q) !== -1) resultados.push({
-          k: k,
-          rotulo: rotulo,
-          mm: mm
-        });
+    const vistos = new Set();
+    for (const k of Object.keys(messagesByChan)) {
+      const rotulo = rotuloConversa(k);
+      if (!rotulo) continue;
+      for (const mm of messagesByChan[k] || []) {
+        if (mm.text && !bspLinhaDeControlo(mm.text) && normTxt(bspTextoVisivel(mm.text)).indexOf(q) !== -1) {
+          if (mm.sid) vistos.add(mm.sid);
+          resultados.push({ k: k, rotulo: rotulo, mm: mm });
+        }
       }
     }
+    for (const row of buscaSrv.lista) {
+      if (vistos.has(row.id) || !row.text || bspLinhaDeControlo(row.text)) continue;
+      const rotulo = rotuloConversa(row.conv_key);
+      if (!rotulo || normTxt(bspTextoVisivel(row.text)).indexOf(q) === -1) continue;
+      vistos.add(row.id);
+      resultados.push({ k: row.conv_key, rotulo: rotulo, mm: { sid: row.id, userId: row.user_id, text: row.text, iso: row.created_at }, linha: row });
+    }
+    resultados.sort((a, b) => String(b.mm.iso || '').localeCompare(String(a.mm.iso || '')));
+    resultados = resultados.slice(0, 60);
   }
+  /* Ir para a mensagem escolhida na pesquisa: abre a conversa, procura a linha
+     (id bsp-msg-<sid>), centra-a e destaca-a. Se ainda n\u00e3o est\u00e1 carregada,
+     pede ao servidor o tro\u00e7o entre ela e as que j\u00e1 est\u00e3o no aparelho. */
+  const [irPara, setIrPara] = React.useState(null);
+  React.useEffect(() => {
+    if (!irPara || irPara.conv !== convKey) return;
+    let vivo = true;
+    const tentar = () => {
+      const el = document.getElementById('bsp-msg-' + irPara.sid);
+      if (!el) return false;
+      try { el.scrollIntoView({ block: 'center' }); } catch (e) {}
+      el.classList.add('bsp-msg-achada');
+      setTimeout(() => el.classList.remove('bsp-msg-achada'), 2600);
+      setIrPara(null);
+      return true;
+    };
+    const t = setTimeout(() => {
+      if (!vivo || tentar() || irPara.pedido) return;
+      setIrPara(p => p && ({ ...p, pedido: true }));
+      const cl = bspGetClient();
+      if (!cl) return;
+      const carregadas = messages.filter(x => x.iso).map(x => x.iso).sort();
+      const desde = new Date(new Date(irPara.iso).getTime() - 30 * 60000).toISOString();
+      let pedido = cl.from('messages').select('*').eq('conv_key', convKey).gte('created_at', desde);
+      if (carregadas.length) pedido = pedido.lt('created_at', carregadas[0]);
+      pedido.order('created_at', { ascending: false }).limit(1000).then(r => {
+        if (!r.error && window.__bspIngerirAntigas) window.__bspIngerirAntigas(r.data || []);
+        if (irPara.linha && window.__bspIngerirAntigas) window.__bspIngerirAntigas([irPara.linha]);
+      });
+    }, 120);
+    return () => { vivo = false; clearTimeout(t); };
+  }, [irPara, convKey, messages.length]);
   /* Desce ao fim só quando chega uma mensagem nova no fim ou se muda de
      conversa. Mensagens antigas («Ver mensagens anteriores», históricos)
      entram por cima e a vista fica onde estava (30-09-2026: o botão
@@ -9863,13 +9920,13 @@ function ChatScreen({
       maxHeight: 340,
       overflow: 'auto'
     }
-  }, busca && busca.trim().length >= 2 && resultados.length === 0 && React.createElement("div", {
+  }, busca && busca.trim().length >= 2 && (buscaSrv.aProcurar || resultados.length === 0) && React.createElement("div", {
     style: {
       fontSize: 12.5,
       color: 'var(--text-3)',
       padding: '8px 2px'
     }
-  }, "Nada encontrado."), resultados.map((r, ri) => {
+  }, buscaSrv.aProcurar ? "A procurar em todo o histórico…" : buscaSrv.erro ? "Sem ligação ao servidor: só se procurou no que está neste aparelho." : "Nada encontrado."), resultados.map((r, ri) => {
     const autor = window.userById(r.mm.userId);
     return React.createElement("button", {
       key: ri,
@@ -9877,6 +9934,7 @@ function ChatScreen({
       onClick: () => {
         if (r.k.indexOf('dm-') === 0) selectDm(r.k.slice(3));
         else selectChannel(r.k);
+        if (r.mm.sid) setIrPara({ conv: r.k, sid: r.mm.sid, iso: r.mm.iso || new Date().toISOString(), linha: r.linha || null });
         setBusca(null);
       },
       style: {
@@ -9902,7 +9960,7 @@ function ChatScreen({
         fontWeight: 400,
         marginLeft: 6
       }
-    }, autor ? autor.name : '', " \u00b7 ", r.mm.ts || '')), React.createElement("div", {
+    }, autor ? autor.name : '', " \u00b7 ", bspQuandoChat(r.mm.iso, r.mm.ts))), React.createElement("div", {
       style: {
         fontSize: 12.5,
         color: 'var(--text-2)',
@@ -10453,6 +10511,7 @@ function ChatScreen({
       }
     }, React.createElement("span", { style: { flex: 1, height: 1, background: 'var(--border)' } }), dia, React.createElement("span", { style: { flex: 1, height: 1, background: 'var(--border)' } })), React.createElement("div", {
       key: m.id,
+      id: m.sid ? 'bsp-msg-' + m.sid : undefined,
       /* Aspecto de WhatsApp (06-10-2026, Elmar: «eu escrevo e fico do lado
          direito do chat, o resto no esquerdo»): as minhas mensagens à
          direita, em bolha azul-clara, sem fotografia nem nome; as dos

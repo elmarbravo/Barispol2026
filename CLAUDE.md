@@ -296,6 +296,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   canais quem os vê (`push-canais.sql`, mesma regra do `bspVeCanal`). Número no ícone da app: `navigator.setAppBadge` em
   `useChatPorLer`; o `sw.js` põe um ponto quando chega uma mensagem.
 - Abrir uma conversa directa de qualquer ecrã: `bspConversaCom(id)`.
+- Pesquisa do Chat (30-10-2026, Elmar: «não me leva directamente à mensagem»):
+  procura no servidor em todo o histórico e salta para a mensagem (`irPara`,
+  id `bsp-msg-<sid>` na linha, `bsp-msg-achada`). Nunca tirar o id das linhas.
 - Chat aberto (14-10-2026, Elmar: «o chat tem pouco espaço… não tem opção de
   minimizar menus»): menu lateral recolhe para ícones (`bsp-menu-recolhido`),
   lista de conversas esconde-se (`bsp-chat-lista`) e o painel «Sobre» abre só

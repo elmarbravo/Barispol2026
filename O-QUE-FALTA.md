@@ -5396,3 +5396,12 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   ficheiros, só quando todos subiram). `enviarFicheiros` devolve os que falharam;
   esses ficam na janela com «Tentar de novo». Testado no navegador (com falha
   simulada do servidor). A nota de voz não passa pela janela.
+- 30-10-2026, Elmar: «ao pesquisar conversas não me leva directamente à
+  mensagem» (procurava a resposta do Dr. Osvaldo sobre os pacotes de check-up).
+  A lupa do Chat («Pesquisar mensagens») procura também no servidor, em todo o
+  histórico (`ilike` na `messages`, 60 resultados, a regra `bsp_msg_ler` só
+  devolve as conversas que a pessoa vê), sem linhas de controlo, com a data
+  exacta (`bspQuandoChat`). Tocar num resultado abre a conversa e salta para a
+  mensagem (`irPara`, linha com id `bsp-msg-<sid>`, destaque `bsp-msg-achada`
+  de 2,6 s); se é antiga, pede ao servidor o troço entre ela e as já carregadas
+  (até 1000). Testado no navegador.
