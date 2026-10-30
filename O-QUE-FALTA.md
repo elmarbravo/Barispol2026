@@ -5649,3 +5649,11 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   Enfermagem com os serviços reais do MetaGest (injecções, sinais vitais, curativos,
   suturas, nebulização, lavagens, sala de observação 1 a 2 h). Por confirmar: Nefrologia
   (médico registado no MetaGest, sem consultas facturadas).
+- 30-10-2026, Elmar: «análises clínicas vão dentro do diagnóstico». Menu: Consultas,
+  Diagnóstico, Seguros, A clínica, Contactos (sai «Análises»). `diagnostico.html` abre
+  pelas Análises (os 8 grupos em cartões `lab-grupo`, ligados a `analises.html`), depois
+  Ecografia, Raio-X e Coração. `analises.html` fica como subpágina (migalha Início ›
+  Diagnóstico › Análises; menu Diagnóstico marcado). Testado a 390 e 1280 px.
+  Pedidos de contacto do site (pergunta do Elmar): vão para `pedidos_marcacao`
+  (Utentes → Marcações → «Pedidos do site») com aviso no telemóvel da Recepção
+  (`bsp_pedido_site_aviso`); não sai e-mail. Proposto e-mail a rececao@ com geral@ em cópia.

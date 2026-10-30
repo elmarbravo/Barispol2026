@@ -456,3 +456,12 @@ section[id],.chamada[id]{scroll-margin-top:170px}
 .mais a[href^="https://wa.me"]{display:inline-block;padding:8px 16px;background:var(--marinho-2);color:#fff;text-decoration:none;font-weight:700;font-size:14.5px;border-radius:2px}
 .mais a[href^="https://wa.me"]:hover{background:var(--marinho)}
 .chamada .mais a[href^="https://wa.me"],.mosaicos .mais a{background:#fff;color:var(--marinho)}
+
+/* Grupos de análises dentro do Diagnóstico (30-10-2026, Elmar: «análises clínicas vão
+   dentro do diagnóstico»). */
+.lab-grupos{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.lab-grupo{display:block;padding:16px;border:1px solid var(--linha);border-top:3px solid var(--azul);text-decoration:none;color:var(--t1);background:var(--fundo)}
+.lab-grupo b{display:block;color:var(--titulo);font-size:16.5px}
+.lab-grupo span{display:block;font-size:14px;color:var(--t2);margin-top:4px}
+.lab-grupo:hover b{text-decoration:underline;text-underline-offset:3px}
+@media(max-width:900px){.lab-grupos{grid-template-columns:1fr 1fr}}
