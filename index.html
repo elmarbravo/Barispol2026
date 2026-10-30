@@ -6,6 +6,9 @@
 <script>
 /* Modo escuro (25-09-2026): escolhido no botão da lua; fica guardado neste aparelho. */
 (function(){try{var t=localStorage.getItem('bsp-site-tema');if(t==='escuro')document.documentElement.setAttribute('data-tema','escuro');}catch(e){}})();
+/* ws.barispol.com é o endereço do Workspace (30-10-2026, Elmar: «o site do workspace
+   está a dar para o site principal»): a raiz desse endereço abre o Workspace. */
+if(/^ws\./i.test(location.hostname))location.replace('/workspace.html'+location.hash);
 </script>
 <title>Centro Médico Barispol | Análises clínicas e consultas em Camama, Luanda</title>
 <meta name="description" content="Análises clínicas, clínica geral, pediatria, ginecologia, ecografia e raio-X em Camama, Luanda. Abrimos todos os dias das 07:30 às 22:00. Marcação pelo WhatsApp.">

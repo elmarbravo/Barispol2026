@@ -5563,3 +5563,7 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   geradas por IA: nunca na secção «As nossas instalações». Testado: 5 colunas no
   computador (150 px de altura), 2 no tablet, 1 no telemóvel, sem deslizar para
   o lado. Desfazer: repor o `index.html` da pasta «COPIA DO SITE ACTUAL (antes)».
+- 30-10-2026, Elmar: «o site do workspace está a dar para o site principal». A raiz do
+  site (`index.html`) passa a enviar quem chega por `ws.*` para `/workspace.html`.
+  O repositório `barispol-ws` do plano 3-hf não existe nos repositórios acessíveis;
+  confirmar no DNS (Cloudflare) para onde aponta `ws` e nas definições do Pages.
