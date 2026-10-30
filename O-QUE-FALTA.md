@@ -5405,3 +5405,11 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   mensagem (`irPara`, linha com id `bsp-msg-<sid>`, destaque `bsp-msg-achada`
   de 2,6 s); se é antiga, pede ao servidor o troço entre ela e as já carregadas
   (até 1000). Testado no navegador.
+- 30-10-2026, Elmar: «o perfil do Nicolau está a ficar preso na página dos
+  relatórios». O servidor estava bem (u3 na escala, Turno longo 07:00–22:30,
+  abertura por fazer, lista de 12 reagentes): era a porta do turno. Os avisos
+  (`ToastProvider`, zIndex 10000) ficavam por baixo da `TurnoPorta` (99990,
+  ecrã inteiro) e das janelas (100000): tocar em «Abrir o turno» sem a
+  fotografia do BS-200 ou com um número em falta parecia não fazer nada.
+  Avisos passam a zIndex 100001; o `TurnoContagemForm` escreve também o motivo
+  por baixo do botão (`aviso`, role alert). Testado no navegador.

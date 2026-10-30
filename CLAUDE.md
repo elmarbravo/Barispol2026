@@ -233,6 +233,8 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   chat há separador por dia (`bspDiaExtenso`). Meses com maiúscula.
 - O contador do botão Chat vem de `bspTotalPorLer()` e `useChatPorLer()`.
 - `Modal` abre por `ReactDOM.createPortal` no `body`, com zIndex 100000.
+  Os avisos (`ToastProvider`) ficam acima, com 100001 (30-10-2026: por baixo
+  da `TurnoPorta` não se viam e o Nicolau ficou preso). Nunca baixar.
   Abaixo de 640 px ocupa o ecrã inteiro.
 - Departamentos em `DEPARTMENTS` (inclui `radiologia`, `laboratorio` e
   `servicos-gerais`). O departamento

@@ -7836,7 +7836,9 @@ function ToastProvider({
       bottom: 24,
       left: '50%',
       transform: 'translateX(-50%)',
-      zIndex: 10000,
+      /* Acima das janelas (100000) e da porta do turno (99990): por baixo, o
+         aviso não se via e o botão parecia não fazer nada (30-10-2026). */
+      zIndex: 100001,
       display: 'flex',
       flexDirection: 'column',
       gap: 8,
@@ -8734,15 +8736,20 @@ function TurnoContagemForm({ item, onFeito }) {
       setASubir(n => n - 1);
     }
   };
+  /* O motivo fica escrito junto ao botão, além do aviso (30-10-2026: o Nicolau
+     ficou preso na porta do turno sem ver o que faltava). */
+  const [aviso, setAviso] = React.useState('');
   const gravar = async () => {
     if (aGravar || !base) return;
-    if (bspEmVerComo()) { toast('Em «Ver como» não se grava nada.'); return; }
-    if (aSubir > 0) { toast('Espere: ainda há fotografias a subir.'); return; }
-    if (faltam.length) { toast('Falta preencher: ' + faltam.slice(0, 3).map(i => i.nome).join(', ') + (faltam.length > 3 ? '…' : '') + '.'); return; }
-    if (lab && !fichs.length) { toast('Falta a fotografia do ecrã do BS-200.'); return; }
-    if (difs.length && !motivo.trim()) { toast('A contagem não bate com o último fecho: escreva o motivo.'); return; }
+    const falha = m => { setAviso(m); toast(m); };
+    if (bspEmVerComo()) { falha('Em «Ver como» não se grava nada.'); return; }
+    if (aSubir > 0) { falha('Espere: ainda há fotografias a subir.'); return; }
+    if (faltam.length) { falha('Falta preencher: ' + faltam.slice(0, 3).map(i => i.nome).join(', ') + (faltam.length > 3 ? '…' : '') + '.'); return; }
+    if (lab && !fichs.length) { falha('Falta a fotografia do ecrã do BS-200.'); return; }
+    if (difs.length && !motivo.trim()) { falha('A contagem não bate com o último fecho: escreva o motivo.'); return; }
     const cl = bspGetClient();
-    if (!cl) { toast('O servidor não está ligado.'); return; }
+    if (!cl) { falha('O servidor não está ligado.'); return; }
+    setAviso('');
     setAGravar(true);
     const itens = lista.map(i => {
       const v = vals[i.k] || {};
@@ -8750,7 +8757,7 @@ function TurnoContagemForm({ item, onFeito }) {
     });
     const r = await cl.rpc('bsp_turno_contar', { p_area: item.area, p_dia: item.dia, p_turno: item.turno, p_momento: item.momento, p_itens: itens, p_frio: num(frio), p_motivo: motivo, p_ficheiros: fichs });
     setAGravar(false);
-    if (r.error) { toast('Não foi possível gravar: ' + (bspSemRede(r.error) ? 'sem internet. Tente de novo quando a ligação voltar.' : r.error.message || 'erro')); return; }
+    if (r.error) { falha('Não foi possível gravar: ' + (bspSemRede(r.error) ? 'sem internet. Tente de novo quando a ligação voltar.' : r.error.message || 'erro')); return; }
     toast(item.momento === 'abertura' ? 'Turno aberto.' : 'Turno fechado. Entregue também o relatório de turno.');
     try { window.dispatchEvent(new Event('bsp-turno')); } catch (e) {}
     onFeito && onFeito(item.momento);
@@ -8794,6 +8801,7 @@ function TurnoContagemForm({ item, onFeito }) {
     React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginTop: 18 } },
       React.createElement(Button, { variant: 'primary', onClick: gravar, disabled: aGravar }, aGravar ? 'A gravar…' : item.momento === 'abertura' ? 'Abrir o turno' : 'Fechar o turno'),
       faltam.length > 0 && React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, 'Faltam ' + faltam.length + '.'),
+      aviso && React.createElement("div", { role: 'alert', style: { flexBasis: '100%', fontSize: 13, fontWeight: 600, color: 'var(--perigo)' } }, aviso),
       base.pode_lista && React.createElement("button", { type: 'button', onClick: () => setEditarLista(true), style: { marginLeft: 'auto', border: 0, background: 'transparent', color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' } }, 'Corrigir a lista')));
 }
 function useTurnoPendente(area) {
