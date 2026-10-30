@@ -178,12 +178,15 @@ html[data-tema="escuro"] .tema .sol{display:block}
 
 /* áreas */
 .areas{border-bottom:1px solid var(--linha)}
-.areas .caixa{display:grid;grid-template-columns:repeat(4,1fr)}
-.area{padding:34px 26px 36px;border-left:1px solid var(--linha)}
+.areas .caixa{display:grid;grid-template-columns:repeat(5,1fr)}
+.area{padding:34px 22px 36px;border-left:1px solid var(--linha)}
 .area:first-child{border-left:0;padding-left:0}
 .area h2{font-size:19px}
 .area p{font-size:15px;color:var(--t2);margin-top:8px}
 .area .mais{margin-top:14px;font-size:15px}
+/* Fotos dos serviços (30-10-2026) */
+.area-foto{display:block;width:100%;height:150px;object-fit:cover;margin-bottom:18px}
+@media(max-width:900px){.area-foto{height:auto;aspect-ratio:4/3}}
 @media(max-width:900px){
   .areas .caixa{grid-template-columns:1fr 1fr}
   .area{padding:26px 20px 28px}
@@ -370,24 +373,34 @@ html[data-tema="escuro"] .botao-claro{background:#fff;color:#292F58}
 <div class="areas">
   <div class="caixa">
     <div class="area">
+      <img class="area-foto" src="assets/servico-analises.jpg" width="1200" height="900" loading="lazy" alt="Enfermeira explica os resultados das análises a um paciente">
       <h2>Análises clínicas</h2>
       <p>Colhemos e analisamos no nosso laboratório. A maioria dos resultados sai no mesmo dia.</p>
       <p class="mais"><a href="#analises">Saber mais</a></p>
     </div>
     <div class="area">
+      <img class="area-foto" src="assets/servico-consultas.jpg" width="1200" height="900" loading="lazy" alt="Enfermeira mostra os resultados a um casal durante a consulta">
       <h2>Consultas</h2>
       <p>Clínica geral com marcação ou no próprio dia. A farmácia interna tem a medicação.</p>
       <p class="mais"><a href="#servicos">Saber mais</a></p>
     </div>
     <div class="area">
+      <img class="area-foto" src="assets/servico-pediatria-ginecologia.jpg" width="1200" height="900" loading="lazy" alt="Enfermeira cumprimenta uma criança ao colo da mãe na consulta de pediatria">
       <h2>Pediatria e ginecologia</h2>
       <p>Acompanhamos o crescimento das crianças e a gravidez.</p>
       <p class="mais"><a href="#servicos">Saber mais</a></p>
     </div>
     <div class="area">
+      <img class="area-foto" src="assets/servico-ecografia-raio-x.jpg" width="1200" height="900" loading="lazy" alt="Enfermeira acompanha uma paciente na sala de ecografia">
       <h2>Ecografia e raio-X</h2>
       <p>Fazemos ecografias e raio-X com marcação prévia.</p>
       <p class="mais"><a href="ecografia.html">Saber mais</a></p>
+    </div>
+    <div class="area">
+      <img class="area-foto" src="assets/servico-cardiologia.jpg" width="1200" height="900" loading="lazy" alt="Enfermeira prepara um electrocardiograma a um paciente deitado na marquesa">
+      <h2>Cardiologia</h2>
+      <p>Consulta de cardiologia, electrocardiograma (ECG), Holter e MAPA de 24 horas.</p>
+      <p class="mais"><a href="https://wa.me/244946373631?text=Ol%C3%A1%2C%20gostaria%20de%20marcar%20cardiologia%20ou%20um%20electrocardiograma." target="_blank" rel="noopener">Marcar pelo WhatsApp</a></p>
     </div>
   </div>
 </div>

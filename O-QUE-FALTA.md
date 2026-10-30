@@ -5555,3 +5555,11 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   críticos por comunicar, áreas sem registos de segurança em 30 dias (segundas).
   Para u14 e u1 (críticos também ao chefe). Ecrã: quadros de qualidade, listas e
   selector de período no telemóvel. Mês: 0,27 s.
+- 30-10-2026, Elmar (passagem «publicar fotos dos serviços no site»): fotografia em
+  cada bloco de serviços da página inicial e bloco novo «Cardiologia» (marcação pelo
+  WhatsApp). `index.html` (estava igual à versão de base, 51 253 bytes: alterações
+  aplicadas uma a uma) e `assets/servico-*.jpg` (5 fotografias, tiradas da pasta
+  do SharePoint «PARA CARREGAR NO GITHUB», tamanhos conferidos). Fotografias
+  geradas por IA: nunca na secção «As nossas instalações». Testado: 5 colunas no
+  computador (150 px de altura), 2 no tablet, 1 no telemóvel, sem deslizar para
+  o lado. Desfazer: repor o `index.html` da pasta «COPIA DO SITE ACTUAL (antes)».
