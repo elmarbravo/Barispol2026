@@ -5323,3 +5323,12 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   confirmação do código renovam a sessão e repetem o pedido; se a renovação
   falhar, a sessão local termina e o Workspace volta à entrada com a palavra-passe
   («A sessão expirou…»). Testado no navegador (renova / falha).
+- 30-10-2026, Elmar: «Sim» (investigar as sessões perdidas no iPhone da Arlete:
+  3 entradas novas em 24 h, sem código mas com palavra-passe). Causa provável: o
+  Workspace tinha dois clientes do Supabase com a mesma sessão (o do
+  `bspGetClient` e o da sincronização), os dois com renovação automática; ao
+  voltar do segundo plano renovavam ao mesmo tempo, um ficava com o testemunho
+  velho («JWT expired», ecrã do código) e a pessoa saía e voltava a entrar.
+  Agora a sincronização usa o mesmo cliente. Testado no navegador (Início e Chat
+  com e sem rede). Confirmar nos próximos dias, nos registos, se as entradas
+  repetidas no iPhone param.
