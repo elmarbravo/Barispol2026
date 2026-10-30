@@ -322,7 +322,7 @@ html[data-tema="escuro"] .botao-claro{background:#fff;color:#292F58}
 .seguros-logos{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px}
 .seguro{border:1px solid var(--linha);background:var(--fundo);padding:16px 14px 12px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}
 .seguro-logo{display:flex;align-items:center;justify-content:center;width:100%;height:72px;background:#fff}
-.seguro-logo img{max-width:100%;max-height:72px;width:auto;height:auto;object-fit:contain}
+.seguro-logo img{display:block;width:100%;height:100%;max-width:none;object-fit:contain}
 .seguro-logo.sem-logo img{display:none}
 .seguro-logo.sem-logo::before{content:attr(data-ini);display:flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:50%;background:var(--claro);color:var(--titulo);font-weight:700;font-size:20px;letter-spacing:.02em}
 html[data-tema="escuro"] .seguro-logo.sem-logo{background:transparent}
