@@ -5598,11 +5598,18 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   Falta: `contacto.html` no aspecto novo (continua com o antigo e funciona).
 - 30-10-2026, Elmar: «nas seguradoras coloca logotipos»; «a página contacto está fora
   do padrão»; «as imagens podem estar maiores»; «o nosso logotipo está pequeno».
-  EM PREVISÃO, só no ramo claude/amazing-galileo-2j4r55: `seguros.html` em grelha
+  Publicado a 30-10-2026: `seguros.html` em grelha
   com logotipo (ficheiros em `assets/seguros/<nome>.png`, ainda por receber; sem
   ficheiro mostra as iniciais), `contacto.html` no aspecto novo (mesmo formulário
   `entrada-publica`, lista das 22 seguradoras, Cardiologia no serviço), logótipo
-  96 px, imagens maiores. Falta: aplicar a proposta «mais vida» dentro da política
-  do site humanizado (fotografia até à margem, faixa azul, sem barra fixa do
-  WhatsApp), tirar travessões e pontos médios do texto, e publicar depois do
-  «publica» do Elmar.
+  96 px, imagens maiores. «Mais vida» dentro da política do site humanizado
+  (Elmar: «está como se fosse uma morgue»; organização inspirada no Hospital da
+  Luz, «inspiração apenas»): botão «Marcar» no cabeçalho de todas as páginas
+  (`marcar-topo`, para `contacto.html`), fotografia do topo até à margem, atalhos
+  para os quatro serviços no azul da marca (`atalhos`), faixa com horário e
+  telefone (`contacto-faixa`), serviços em mosaicos de fotografia (`mosaicos`),
+  chamada final em azul. Saiu a barra fixa do WhatsApp no telemóvel (a política
+  proíbe botão flutuante). Sem travessões nem pontos médios no texto. Testado a 390
+  e 1280 px em todas as páginas e o formulário do Contacto com o servidor simulado.
+  Falta: logotipos das seguradoras (PNG na pasta do SharePoint «PARA CARREGAR NO
+  GITHUB») e fotografias reais da equipa para substituir as cinco geradas por IA.

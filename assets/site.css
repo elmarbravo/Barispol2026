@@ -197,7 +197,7 @@ html[data-tema="escuro"]{
 html[data-tema="escuro"] .marca img{background:radial-gradient(circle,#fff 70.5%,transparent 71%);padding:6px}
 html[data-tema="escuro"] .campanha.cor h3{color:#F28DB5}
 html[data-tema="escuro"] .botao-claro{background:#fff;color:#292F58}
-/* ── Páginas (31-10-2026) ── */
+/* -- Páginas (31-10-2026) -- */
 .menu a[aria-current="page"]{color:var(--titulo);text-decoration:underline;text-decoration-color:var(--azul);text-decoration-thickness:2px;text-underline-offset:6px}
 @media(min-width:861px) and (max-width:1100px){.menu{gap:18px}.menu a{font-size:14.5px}}
 
@@ -221,7 +221,7 @@ html[data-tema="escuro"] .botao-claro{background:#fff;color:#292F58}
 .cartao h3{font-size:21px}
 .cartao p{color:var(--t2);margin-top:8px;font-size:15.5px}
 .cartao .seta{margin-top:auto;padding-top:16px;font-weight:700;color:var(--ligacao);font-size:15px}
-.cartao .seta::after{content:" →"}
+.cartao .seta::after{content:" ›"}
 .cartao-cta{background:var(--marinho);border-color:var(--marinho);color:#fff;justify-content:center}
 .cartao-cta .cartao-corpo{justify-content:center}
 .cartao-cta h3{color:#fff}
@@ -381,3 +381,61 @@ html[data-tema="escuro"] .seguro-logo.sem-logo{background:transparent}
 .marca span{font-size:21px}
 .formbox{scroll-margin-top:130px}
 @media(max-width:560px){.topo .caixa{height:88px}.marca img{width:70px;height:70px}.marca span{font-size:17px}}
+
+/* Mais vida (30-10-2026, Elmar: «dê mais vida»; política do site humanizado: só as
+   cores da marca em blocos lisos, fotografias reais grandes, sem degradês, sem
+   sombras, sem efeitos ao passar o rato, sem botão flutuante). Organização
+   inspirada nos grandes hospitais: «Marcar» sempre à vista no cabeçalho, atalhos
+   para os serviços logo abaixo do topo, horário e telefone à vista. */
+:root{--azul-suave:#E8F4FB;--azul-texto:#1C7DB3}
+.etiqueta,.passo .num{color:var(--azul-texto)}
+.fundo-claro{background:var(--azul-suave)}
+/* «Marcar» no cabeçalho */
+.marcar-topo{order:3;padding:10px 22px;background:var(--azul);color:#fff}
+.marcar-topo:hover{background:var(--marinho-2)}
+.tema{order:4}
+@media(max-width:860px){.marcar-topo{order:1;margin-left:auto;padding:9px 16px;font-size:15px}.marca{margin-right:0}}
+@media(max-width:380px){.marca span{font-size:15px}.marca small{display:none}}
+/* topo com a fotografia até à margem do ecrã */
+@media(min-width:861px){
+  .abertura,.pagina-topo{position:relative}
+  .abertura .caixa,.pagina-topo:not(.sem-foto) .caixa{grid-template-columns:1fr 1fr;min-height:520px;padding-top:64px;padding-bottom:64px}
+  .foto-abertura,.pagina-topo:not(.sem-foto) img{position:absolute;top:0;right:0;width:50vw;height:100%;aspect-ratio:auto;object-fit:cover}
+}
+/* atalhos para os serviços, no azul da marca */
+.atalhos{background:var(--azul)}
+.atalhos .caixa{display:grid;grid-template-columns:repeat(4,1fr)}
+.atalhos a{display:block;padding:24px 22px 22px;color:#fff;text-decoration:none;border-left:1px solid rgba(255,255,255,.35)}
+.atalhos a:first-child{border-left:0;padding-left:0}
+.atalhos b{display:block;font-size:20px}
+.atalhos b::after{content:" ›"}
+.atalhos span{display:block;font-size:14.5px;color:#EAF5FC;margin-top:4px}
+.atalhos a:hover b{text-decoration:underline;text-underline-offset:4px}
+@media(max-width:860px){.atalhos .caixa{grid-template-columns:1fr 1fr}.atalhos a:nth-child(odd){border-left:0;padding-left:0}.atalhos a:nth-child(n+3){border-top:1px solid rgba(255,255,255,.35)}.atalhos a{padding:18px 14px}}
+/* horário e telefone */
+.contacto-faixa{background:var(--azul-suave);border-bottom:1px solid var(--linha)}
+.contacto-faixa .caixa{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;padding-top:20px;padding-bottom:20px}
+.contacto-faixa p{color:var(--t1)}
+.contacto-faixa b{color:var(--titulo)}
+.contacto-faixa .accoes{display:flex;flex-wrap:wrap;gap:10px}
+.botao-contorno{background:transparent;color:var(--marinho);border:1px solid var(--marinho)}
+.botao-contorno:hover{background:#fff}
+/* serviços em mosaicos de fotografia, com o título sobre a imagem */
+.mosaicos .cartao{position:relative;border:0;min-height:340px;justify-content:flex-end;background:var(--marinho)}
+.mosaicos .cartao-foto{position:absolute;inset:0;aspect-ratio:auto}
+.mosaicos .cartao-foto::after{content:"";position:absolute;inset:0;background:rgba(28,32,51,.58)}
+.mosaicos .cartao:hover .cartao-foto img{transform:none}
+.mosaicos .cartao-corpo{position:relative;padding:26px}
+.mosaicos .cartao h3{color:#fff;font-size:26px}
+.mosaicos .cartao p{color:#fff;max-width:44ch}
+.mosaicos .cartao .seta{display:inline-block;margin-top:14px;padding:9px 18px;border:1px solid #fff;color:#fff;font-weight:700;text-decoration:none}
+.mosaicos .cartao:hover .seta{background:#fff;color:var(--marinho)}
+.mosaicos .cartao-cta{background:var(--azul)}
+@media(min-width:861px){.mosaicos{gap:4px}.mosaicos .cartao{min-height:400px}}
+.cartao.cartao-cta h3,.cartao.cartao-cta p{color:#fff}
+/* chamada final no azul da marca */
+.chamada{background:var(--azul)}
+.chamada p{color:#fff}
+.mosaicos .cartao-corpo{flex:0 0 auto}
+.mosaicos .cartao .seta{margin-top:14px;align-self:flex-start}
+@media(max-width:560px){.marca span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.topo .caixa{gap:10px}}
