@@ -5587,5 +5587,7 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   `analises.html`, `consultas.html`, `cardiologia.html`, `seguros.html`, `clinica.html`
   (com a galeria `media/galeria.json`), `perguntas.html` (com FAQPage para o Google);
   `sitemap.xml` com todas. Testado a 390 e 1280 px: sem deslizar para o lado, sem
-  ligações partidas. Falta: `ecografia.html` e `contacto.html` no aspecto novo
-  (continuam com o antigo e funcionam).
+  ligações partidas. `ecografia.html` (Imagiologia) no aspecto novo a 30-10-2026
+  (Elmar: «não cumpre o padrão das outras páginas»): mesmos 7 exames, preparação,
+  códigos `data-wa` servico_01 a 07, dados estruturados e evento ViewContent.
+  Falta: `contacto.html` no aspecto novo (continua com o antigo e funciona).
