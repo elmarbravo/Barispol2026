@@ -315,3 +315,69 @@ html[data-tema="escuro"] .botao-claro{background:#fff;color:#292F58}
 .exame.exame-cta h3,.exame.exame-cta .desc{color:#fff}
 .exame.exame-cta .desc{opacity:.85}
 @media(min-width:1000px){.exame.exame-cta{grid-column:span 2}}
+
+/* Seguradoras com logotipo (30-10-2026, Elmar: «nas seguradoras coloca logotipos»):
+   ficheiros em assets/seguros/<nome>.png; enquanto não houver ficheiro, mostra as
+   iniciais (site.js marca .sem-logo). */
+.seguros-logos{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px}
+.seguro{border:1px solid var(--linha);background:var(--fundo);padding:16px 14px 12px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}
+.seguro-logo{display:flex;align-items:center;justify-content:center;width:100%;height:72px;background:#fff}
+.seguro-logo img{max-width:100%;max-height:72px;width:auto;height:auto;object-fit:contain}
+.seguro-logo.sem-logo img{display:none}
+.seguro-logo.sem-logo::before{content:attr(data-ini);display:flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:50%;background:var(--claro);color:var(--titulo);font-weight:700;font-size:20px;letter-spacing:.02em}
+html[data-tema="escuro"] .seguro-logo.sem-logo{background:transparent}
+.seguro-nome{font-weight:600;font-size:15px;color:var(--titulo);line-height:1.3}
+@media(max-width:420px){.seguros-logos{grid-template-columns:1fr 1fr;gap:10px}}
+
+/* Página Contacto (30-10-2026, Elmar: «a página contacto está fora do padrão»):
+   formulário de pedido de chamada (entrada-publica) ao lado dos contactos. */
+.contacto-grelha{display:grid;grid-template-columns:1.25fr .75fr;gap:48px;align-items:start}
+@media(max-width:900px){.contacto-grelha{grid-template-columns:1fr;gap:36px}}
+.formbox{border:1px solid var(--linha);border-top:3px solid var(--azul);background:var(--fundo);scroll-margin-top:120px}
+.formpad{padding:28px}
+.formbox h2{font-size:clamp(24px,3vw,30px)}
+.formbox .campo{margin-top:18px}
+.formbox .dois{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
+@media(max-width:560px){.formpad{padding:20px}.formbox .dois{grid-template-columns:1fr}}
+.formbox input[aria-invalid="true"]~.erro{display:block}
+.formbox .enviar{width:100%;margin-top:24px;font-size:17px;padding:15px 24px}
+.formbox .enviar:disabled{opacity:.7;cursor:wait}
+.rodape-form{font-size:14.5px;color:var(--t2);margin-top:12px}
+.formbox .alt{border-top:1px solid var(--linha);margin-top:20px;padding-top:16px;font-size:14px;color:var(--t2)}
+.feito{display:none;padding:40px 24px;text-align:center}
+.feito .tick{width:60px;height:60px;border-radius:50%;background:var(--claro);color:var(--azul);display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+.feito p{color:var(--t2);margin:10px auto 22px;max-width:42ch}
+.formbox.pronto{margin-top:0;font-weight:inherit}
+.formbox.pronto .formpad{display:none}
+.formbox.pronto .feito{display:block}
+.seguinte{margin:0;padding-left:20px;color:var(--t1)}
+.seguinte li{margin-bottom:6px}
+.contacto-wa{background:var(--marinho);color:#fff;padding:22px}
+.contacto-wa h3{color:#fff;font-size:19px}
+.contacto-wa p{color:#D6D9E6;margin:6px 0 16px}
+.contacto-wa .botao{display:block;text-align:center}
+
+/* Imagens maiores (30-10-2026, Elmar: «as imagens podem estar maiores em cada
+   secção»): página mais larga, fotografia do topo com metade da largura, cartões
+   de serviço em duas colunas no computador. */
+:root{--largura:1240px}
+.foto-abertura{aspect-ratio:4/3.4}
+.pagina-topo .caixa{padding-bottom:56px}
+.pagina-topo img{aspect-ratio:4/3.2}
+.cartao-foto{aspect-ratio:16/10}
+.cartao h3{font-size:22px}
+@media(min-width:861px){
+  .abertura .caixa{grid-template-columns:1fr 1.1fr}
+  .pagina-topo .caixa{grid-template-columns:1fr 1fr}
+  .cartoes{grid-template-columns:repeat(2,1fr);gap:32px}
+  .lado{grid-template-columns:1.1fr .9fr}
+  .clinica{grid-template-columns:1.25fr .75fr}
+}
+
+/* Logótipo maior (30-10-2026, Elmar: «o nosso logotipo está pequeno»): 96 px no
+   computador, 70 px no telemóvel. Nunca abaixo disto. */
+.topo .caixa{height:112px}
+.marca img{width:96px;height:96px}
+.marca span{font-size:21px}
+.formbox{scroll-margin-top:130px}
+@media(max-width:560px){.topo .caixa{height:88px}.marca img{width:70px;height:70px}.marca span{font-size:17px}}

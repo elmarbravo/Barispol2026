@@ -73,3 +73,11 @@
     pintar();
   });
 })();
+
+/* Logotipos das seguradoras: sem ficheiro, ficam as iniciais. */
+(function () {
+  document.querySelectorAll('.seguro-logo img').forEach(function (img) {
+    var falhou = function () { img.parentNode.classList.add('sem-logo'); };
+    if (img.complete && !img.naturalWidth) falhou(); else img.addEventListener('error', falhou);
+  });
+})();

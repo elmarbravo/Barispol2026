@@ -5596,3 +5596,13 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   contactos (classes `exames`, `exame`, `prep`, `passos numerados`, `dados` em
   `assets/site.css`, para usar noutras páginas).
   Falta: `contacto.html` no aspecto novo (continua com o antigo e funciona).
+- 30-10-2026, Elmar: «nas seguradoras coloca logotipos»; «a página contacto está fora
+  do padrão»; «as imagens podem estar maiores»; «o nosso logotipo está pequeno».
+  EM PREVISÃO, só no ramo claude/amazing-galileo-2j4r55: `seguros.html` em grelha
+  com logotipo (ficheiros em `assets/seguros/<nome>.png`, ainda por receber; sem
+  ficheiro mostra as iniciais), `contacto.html` no aspecto novo (mesmo formulário
+  `entrada-publica`, lista das 22 seguradoras, Cardiologia no serviço), logótipo
+  96 px, imagens maiores. Falta: aplicar a proposta «mais vida» dentro da política
+  do site humanizado (fotografia até à margem, faixa azul, sem barra fixa do
+  WhatsApp), tirar travessões e pontos médios do texto, e publicar depois do
+  «publica» do Elmar.
