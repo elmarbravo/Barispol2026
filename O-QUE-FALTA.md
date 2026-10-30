@@ -5663,3 +5663,11 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   página), chamado pelo gatilho `bsp_pedido_site_aviso` antes do aviso no telemóvel; um
   erro no e-mail nunca impede gravar o pedido. Enviado também o do pedido n.º 1 (Resend
   aceitou às 23:41 de Luanda).
+- 31-10-2026, Elmar: «não abre o anexo do relatório; vê todos» (captura: página em branco
+  em …supabase.co). Os 30 anexos dos relatórios existem (14 JPG, 13 PDF, 3 Excel de ~7 MB);
+  os JPG e PDF já abriam no visor; os .xlsx caíam no `window.open` do endereço directo,
+  em branco no iPhone e na app. Novo `LeitorExcel` (`bspVerExcel`, `BSP_EXCEL` .xlsx/.xls/.csv,
+  SheetJS de `vendor/sheetjs`, cada folha numa tabela, texto só como texto, até 1000
+  linhas) e «Descarregar para editar». `bspAbrirFicheiro` já não abre endereços directos:
+  um tipo sem leitor vai para `bspGuardarFicheiro` (guardar ou partilhar). Testado com um
+  .xlsx de duas folhas.

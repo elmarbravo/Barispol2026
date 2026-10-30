@@ -5746,6 +5746,51 @@ function bspPptxDiapositivo(d, n, total, cx, cy, largura) {
   });
   return caixa;
 }
+/* Excel dentro do Workspace (31-10-2026, Elmar: «não abre o anexo do relatório»;
+   os .xlsx abriam em branco no iPhone). Lê o ficheiro com o SheetJS que já está em
+   vendor/sheetjs e desenha cada folha numa tabela (só texto, sem fórmulas nem
+   cores). Para editar, «Descarregar para editar». */
+const BSP_EXCEL = /\.(xlsx|xls|csv)([?#]|$)/i;
+function bspVerExcel(url, nome) {
+  try {
+    window.dispatchEvent(new CustomEvent('bsp-ver-imagem', { detail: { url: url, nome: nome || '', excel: true } }));
+  } catch (e) {
+    bspGuardarFicheiro(url, nome);
+  }
+}
+function LeitorExcel({ url }) {
+  const [folhas, setFolhas] = React.useState(null);
+  const [erro, setErro] = React.useState('');
+  const [qual, setQual] = React.useState(0);
+  React.useEffect(() => {
+    let vivo = true;
+    Promise.all([bspCarregarSheetJs(), fetch(url).then(r => { if (!r.ok) throw new Error('O servidor respondeu ' + r.status + '.'); return r.arrayBuffer(); })])
+      .then(([X, buf]) => {
+        const wb = X.read(buf, { type: 'array', cellDates: true });
+        const lista = wb.SheetNames.map(n => ({ nome: n, linhas: X.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: false, defval: '', blankrows: false }) }));
+        if (vivo) setFolhas(lista);
+      })
+      .catch(e => { if (vivo) setErro('Não foi possível abrir a folha de cálculo. ' + (e && e.message || '')); });
+    return () => { vivo = false; };
+  }, [url]);
+  const caixa = { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '0 10px calc(env(safe-area-inset-bottom, 0px) + 10px)' };
+  if (erro || !folhas) return React.createElement("div", { onClick: e => e.stopPropagation(), style: { color: '#fff', textAlign: 'center', padding: 30, fontSize: 14 } }, erro || 'A abrir a folha de cálculo…');
+  const f = folhas[qual] || { linhas: [] };
+  const MAX = 1000;
+  const linhas = f.linhas.slice(0, MAX);
+  const cols = linhas.reduce((m, l) => Math.max(m, l.length), 0);
+  const td = { border: '1px solid #D6D9E6', padding: '4px 8px', fontSize: 13, color: '#1C2033', whiteSpace: 'pre-wrap', verticalAlign: 'top', minWidth: 60 };
+  return React.createElement("div", { onClick: e => e.stopPropagation(), style: caixa },
+    folhas.length > 1 && React.createElement("div", { style: { display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8 } },
+      folhas.map((x, i) => React.createElement("button", { key: i, type: 'button', onClick: () => setQual(i),
+        style: { flex: 'none', height: 30, padding: '0 12px', borderRadius: 15, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, background: i === qual ? '#fff' : 'rgba(255,255,255,.16)', color: i === qual ? '#1C2033' : '#fff' } }, x.nome))),
+    React.createElement("div", { style: { flex: 1, minHeight: 0, overflow: 'auto', background: '#fff', borderRadius: 6, WebkitOverflowScrolling: 'touch' } },
+      !linhas.length ? React.createElement("div", { style: { padding: 20, fontSize: 14, color: '#4E5366' } }, 'Esta folha está vazia.') :
+      React.createElement("table", { style: { borderCollapse: 'collapse', fontFamily: 'inherit' } },
+        React.createElement("tbody", null, linhas.map((l, i) => React.createElement("tr", { key: i, style: i === 0 ? { background: '#EEF1F8', fontWeight: 700 } : null },
+          Array.from({ length: cols }, (_, j) => React.createElement("td", { key: j, style: td }, l[j] == null ? '' : String(l[j])))))))),
+    f.linhas.length > MAX && React.createElement("div", { style: { color: '#fff', fontSize: 12.5, paddingTop: 6 } }, 'Mostram-se as primeiras ' + MAX + ' linhas. Para ver tudo, descarregue o ficheiro.'));
+}
 function LeitorPptx({ url }) {
   const caixa = React.useRef(null);
   const [estado, setEstado] = React.useState('A abrir a apresentação…');
@@ -5895,7 +5940,7 @@ function VisorImagem() {
   return ReactDOM.createPortal(React.createElement("div", {
     onClick: fechar,
     style: {
-      position: 'fixed', inset: 0, zIndex: 100001, background: img.pdf || img.word || img.pptx ? 'rgb(6,10,20)' : 'rgba(6,10,20,.92)',
+      position: 'fixed', inset: 0, zIndex: 100001, background: img.pdf || img.word || img.pptx || img.excel ? 'rgb(6,10,20)' : 'rgba(6,10,20,.92)',
       display: 'flex', flexDirection: 'column'
     }
   }, React.createElement("div", {
@@ -5908,10 +5953,10 @@ function VisorImagem() {
     style: { flex: 1, minWidth: 0, color: '#fff', fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
   }, img.nome), React.createElement("button", {
     onClick: () => bspGuardarFicheiro(img.url, img.nome || 'imagem'), style: botao,
-    title: img.word || img.pptx ? 'O visor só mostra. Descarregue para abrir e editar no Word ou no PowerPoint.' : 'Guardar o ficheiro no aparelho'
-  }, img.word || img.pptx ? "Descarregar para editar" : "Guardar"), React.createElement("button", {
+    title: img.word || img.pptx || img.excel ? 'O visor só mostra. Descarregue para abrir e editar no Word, no PowerPoint ou no Excel.' : 'Guardar o ficheiro no aparelho'
+  }, img.word || img.pptx || img.excel ? "Descarregar para editar" : "Guardar"), React.createElement("button", {
     onClick: fechar, style: botao, "aria-label": "Fechar"
-  }, "✕ Fechar")), img.pptx ? React.createElement(LeitorPptx, { url: img.url }) : img.word ? React.createElement(LeitorWord, { url: img.url }) : img.pdf ? React.createElement(LeitorPdf, { url: img.url }) : React.createElement("div", {
+  }, "✕ Fechar")), img.excel ? React.createElement(LeitorExcel, { url: img.url }) : img.pptx ? React.createElement(LeitorPptx, { url: img.url }) : img.word ? React.createElement(LeitorWord, { url: img.url }) : img.pdf ? React.createElement(LeitorPdf, { url: img.url }) : React.createElement("div", {
     style: {
       flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: '0 10px calc(env(safe-area-inset-bottom, 0px) + 14px)'
@@ -5943,8 +5988,14 @@ async function bspAbrirFicheiro(f, aoFalhar) {
       bspVerPptx(url, f.name);
       return true;
     }
+    if (url && BSP_EXCEL.test(f.name || f.path || '')) {
+      bspVerExcel(url, f.name);
+      return true;
+    }
     if (url) {
-      window.open(url, '_blank', 'noopener');
+      /* Sem leitor no Workspace (31-10-2026): guarda ou partilha o ficheiro, em vez
+         de abrir o endereço directo, que no iPhone e na app ficava em branco. */
+      bspGuardarFicheiro(url, f.name || 'ficheiro');
       return true;
     }
   }
