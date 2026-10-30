@@ -5373,3 +5373,6 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   de hora a hora (era 15 min); lote de mensagens de 25 conversas (era 75).
   Confirmar nos próximos dias os tempos do `whatsapp-sync` em
   `cron.job_run_details` e se os congestionamentos param.
+- 30-10-2026, Elmar: «analise este documento criado por Arlete» (PDF no grupo
+  DAF). Edge Function `anexo-ler` versão 2: também lê o texto de PDF (unpdf,
+  sem OCR). Só leitura; mesmo código de agendamento.

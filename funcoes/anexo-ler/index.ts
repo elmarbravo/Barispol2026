@@ -3,6 +3,7 @@
 // Pedido do Elmar: «localize os pacotes que o Dr. Osvaldo mandou… num dos
 // grupos». Lê um anexo de conversa/ (contentor drive) e devolve o texto:
 //   · .docx: o texto de word/document.xml;
+//   · .pdf: o texto das páginas (unpdf), sem OCR (30-10-2026, termo da DAF);
 //   · imagem (.jpg/.jpeg/.png/.webp): transcrição pelo Claude (ANTHROPIC_API_KEY).
 // Corpo: {"caminho": "conversa/…"}. Só lê; não grava nada.
 // SEGURANÇA: só o código do agendamento (x-bsp-agendamento, conferido pela
@@ -10,6 +11,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { unzipSync, strFromU8 } from "https://esm.sh/fflate@0.8.2";
+import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@0.12.1";
 
 const PREFIXO = /^(sb_secret_|eyJ)/;
 const valoresDe = (nome: string): string[] => {
@@ -76,6 +78,11 @@ Deno.serve(async (req) => {
   const ext = (caminho.split(".").pop() || "").toLowerCase();
   try {
     if (ext === "docx") return json({ caminho, texto: textoDocx(bytes) });
+    if (ext === "pdf") {
+      const pdf = await getDocumentProxy(bytes);
+      const { totalPages, text } = await extractText(pdf, { mergePages: false });
+      return json({ caminho, paginas: totalPages, texto: (text as string[]).map((t, i) => "[página " + (i + 1) + "]\n" + t).join("\n\n") });
+    }
     const tipos: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp" };
     if (tipos[ext]) {
       const chave = (Deno.env.get("ANTHROPIC_API_KEY") || "").trim();
