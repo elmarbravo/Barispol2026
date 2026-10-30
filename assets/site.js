@@ -37,6 +37,7 @@
 /* Página activa no menu. */
 (function () {
   var aqui = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
+  if (aqui === 'ecografia.html') aqui = 'diagnostico.html';
   document.querySelectorAll('#menu a').forEach(function (a) {
     if ((a.getAttribute('href') || '').toLowerCase() === aqui) a.setAttribute('aria-current', 'page');
   });

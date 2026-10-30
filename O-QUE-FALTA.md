@@ -5632,3 +5632,13 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   «Marcar» das listas (ligações `wa.me` em `.mais`) passam a botão marinho igual em
   todo o site. Testado a 390 e 1280 px. Nota: os geradores do scratchpad não têm estas
   mudanças; mexer agora nos `.html` directamente.
+- 30-10-2026, Elmar: «cardiologia ia na página das consultas e os exames numa página
+  nova de diagnóstico com todos os que fazemos». `diagnostico.html` (Ecografia, Raio-X,
+  Exames do coração, Laboratório, com separadores), lista tirada do MetaGest (grupos
+  ECOGRAFIA, RAIO - X e CARDIOLOGIA facturados no último ano; sem preços).
+  Cardiologia passa a secção de `consultas.html` (`#cardiologia`); `cardiologia.html`
+  reencaminha para lá (noindex). Menu: «Imagiologia» e «Cardiologia» → «Diagnóstico»
+  (a `ecografia.html` fica como página de tipos e preparação, com o menu Diagnóstico
+  marcado). Início: atalhos Diagnóstico e Seguros. Sitemap actualizado. Testado a 390 e
+  1280 px, sem ligações partidas. Por confirmar com o Elmar: Ortopedia e Cirurgia estão
+  em «Outras especialidades» mas não tiveram consultas facturadas no último ano.
