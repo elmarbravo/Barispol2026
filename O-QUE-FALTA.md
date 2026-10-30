@@ -5437,3 +5437,12 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   entregou desde a última contagem (`ref` no item). A abertura compara-se com o
   fecho + reforço, no ecrã (`TurnoContagemForm`) e no servidor
   (`bsp_turno_contar`, a diferença leva `reforco`). Testado no navegador.
+- 30-10-2026, Elmar: «mínimos não podem ser 0, vê uma média consoante as vendas
+  dos últimos 3 meses»; «tiras são de laboratório». Lista do Laboratório
+  carregada no servidor (fim de `turno-contagens.sql`): 12 reagentes do BS-200
+  com mínimo novo e 41 artigos `material` (testes rápidos, reagentes do
+  hematológico e da grupagem, tubos, seringas, lâminas, lamelas, frascos,
+  pipetas, luvas…). Mínimo = consumo de 14 dias pelas vendas de 90 dias (ou
+  colheitas facturadas; ou ritmo de compras da Solange, Jun–Out), nunca abaixo
+  de 1. Lista tirada das proformas da Solange (Almiro, Farwell, Soneca, Aarnext,
+  MND, OMR, Global). A Enfermagem ainda tem mínimos 0.

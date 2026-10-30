@@ -239,3 +239,39 @@ grant execute on function public.bsp_turno_pendente() to authenticated;
 grant execute on function public.bsp_turno_base(text) to authenticated;
 grant execute on function public.bsp_turno_contar(text, date, text, text, jsonb, numeric, text, jsonb) to authenticated;
 
+
+-- Lista do Laboratório (30-10-2026, Elmar: «mínimos não podem ser 0, vê uma
+-- média consoante as vendas dos últimos 3 meses»; «tiras são de laboratório»).
+-- Mínimo = consumo médio de 14 dias (tempo de reposição pela Solange), pelas
+-- vendas de 90 dias no MetaGest; tubos, seringas, lâminas, lamelas e luvas pelas
+-- colheitas facturadas; reagentes do hematológico, pipetas e ponteiras pelo
+-- ritmo das compras (Junho a Outubro). Nunca abaixo de 1. Artigos novos com
+-- tipo 'material' (contados por quantidade, com «Reforço»).
+update public.turno_listas l set itens = (
+  select jsonb_agg(case when m.minimo is null then x else jsonb_set(x, '{minimo}', to_jsonb(m.minimo)) end order by o)
+    from jsonb_array_elements(l.itens) with ordinality t(x, o)
+    left join (values ('ALT-TGP', 7), ('AST-TGO', 8), ('Ácido úrico', 4), ('Bilirrubina D', 1), ('Bilirrubina T', 2),
+      ('Colesterol total', 4), ('Creatinina', 7), ('Glicemia', 20), ('HDL-Col', 2), ('LDL-Col', 2),
+      ('Triglicéridos', 3), ('Ureia', 7)) m(k, minimo) on m.k = x->>'k')
+  || (select jsonb_agg(jsonb_build_object('k', k, 'nome', k, 'minimo', mn, 'tipo', 'material') order by o)
+    from (values
+      ('Teste rápido Dengue (testes)', 61, 1), ('Teste rápido H. pylori sangue (testes)', 19, 2),
+      ('Teste rápido H. pylori fezes (testes)', 9, 3), ('Teste rápido Malária (testes)', 8, 4),
+      ('Teste rápido HIV 1/2 (testes)', 9, 5), ('Teste rápido HBsAg (testes)', 13, 6),
+      ('Teste rápido HCV (testes)', 7, 7), ('Teste rápido Chikungunya (testes)', 6, 8),
+      ('Teste de gravidez sangue (testes)', 11, 9), ('Teste VDRL / Sífilis (testes)', 5, 10),
+      ('Sangue oculto nas fezes (testes)', 1, 11), ('Widal S. typhi H (frascos)', 1, 12),
+      ('Widal S. typhi O (frascos)', 1, 13), ('PCR látex (frascos)', 1, 14),
+      ('Tiras de urina (tiras)', 47, 15),
+      ('Lyse M-52 LH (frascos)', 1, 16), ('Lyse M-52 DIFF (frascos)', 1, 17), ('Diluente M-52D (bidões)', 1, 18),
+      ('Probe Cleanser M-68 (frascos)', 1, 19), ('Anti-A (frascos)', 1, 20), ('Anti-B (frascos)', 1, 21),
+      ('Anti-D (frascos)', 1, 22), ('Giemsa (frascos)', 1, 23),
+      ('Tubos EDTA lilás', 81, 24), ('Tubos secos com gel', 66, 25), ('Tubos de citrato', 1, 26),
+      ('Seringas 2 ml', 39, 27), ('Seringas 5 ml', 78, 28), ('Agulhas borboleta 23G', 19, 29),
+      ('Lâminas', 54, 30), ('Lamelas', 49, 31), ('Frascos de urina', 47, 32), ('Frascos de fezes', 12, 33),
+      ('Sacos de urina pediátricos', 10, 34), ('Pipetas de Pasteur', 75, 35), ('Zaragatoas', 10, 36),
+      ('Microtubos (embalagens)', 1, 37), ('Ponteiras azuis 1000 µl', 47, 38), ('Luvas (caixas)', 3, 39),
+      ('Álcool 70% (frascos)', 2, 40), ('Algodão (embalagens)', 1, 41)) v(k, mn, o)
+    where not exists (select 1 from jsonb_array_elements(l.itens) y where y->>'k' = v.k)),
+  alterado_em = now()
+where area = 'laboratorio';
