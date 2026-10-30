@@ -4622,7 +4622,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_turno_pendente', 'bsp_turno_base', 'bsp_enquete_resultados','bsp_alertas_por_ler', 'bsp_fm_estado', 'bsp_fm_votos', 'bsp_relatorio_metagest', 'bsp_pagamento_banco', 'bsp_pagamento_etapas', 'bsp_segmento', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
+const BSP_RPC_LEITURA = ['bsp_turno_pendente', 'bsp_turno_base', 'bsp_turno_reforco', 'bsp_enquete_resultados','bsp_alertas_por_ler', 'bsp_fm_estado', 'bsp_fm_votos', 'bsp_relatorio_metagest', 'bsp_pagamento_banco', 'bsp_pagamento_etapas', 'bsp_segmento', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -8712,13 +8712,23 @@ function TurnoContagemForm({ item, onFeito }) {
       setVals(v => {
         const n = Object.assign({}, v);
         (b.lista || []).forEach(i => {
-          if (n[i.k]) return;
+          if (n[i.k] && Object.keys(n[i.k]).some(c => c !== 'ref')) return;
           const u = ult[i.k] || {};
-          n[i.k] = reag(i) ? { r1: u.r1 == null ? '' : String(u.r1), r2: u.r2 == null ? '' : String(u.r2), aberto: u.aberto || '' } : { q: u.q == null ? '' : String(u.q) };
+          n[i.k] = Object.assign({}, n[i.k], reag(i) ? { r1: u.r1 == null ? '' : String(u.r1), r2: u.r2 == null ? '' : String(u.r2), aberto: u.aberto || '' } : { q: u.q == null ? '' : String(u.q) });
         });
         return n;
       });
     }, () => setBase({ lista: [] }));
+    /* Reforço recebido pelos pedidos à Farmácia desde a última contagem
+       (30-10-2026, pedidos-farmacia.sql): entra sozinho, e pode corrigir-se. */
+    cl.rpc('bsp_turno_reforco', { p_area: item.area }).then(r => {
+      if (!vivo || r.error || !r.data) return;
+      setVals(v => {
+        const n = Object.assign({}, v);
+        Object.keys(r.data).forEach(k => { if (!(n[k] && n[k].ref)) n[k] = Object.assign({}, n[k], { ref: String(r.data[k]) }); });
+        return n;
+      });
+    }, () => {});
     return () => { vivo = false; };
   }, [item.area, vez]);
   const lista = (base && base.lista) || [];
@@ -8791,7 +8801,7 @@ function TurnoContagemForm({ item, onFeito }) {
     React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginBottom: 10, lineHeight: 1.5 } },
       lab ? 'No BS-200: Estado → Disco de reagentes → toque no teste. Escreva os testes restantes do R1 e do R2 (o número depois da barra) e a data em que o frasco foi aberto (muda só quando abre um frasco novo), e tire a fotografia do ecrã. Depois conte os testes rápidos e o material e escreva a quantidade de cada um.'
           : 'Conte o material na sala e escreva a quantidade de cada artigo.',
-      ' Em «Reforço», escreva o que a Solange entregou desde a última contagem (vazio = nada).',
+      ' Em «Reforço» entra sozinho o que recebeu pelos pedidos à Farmácia desde a última contagem; acrescente o que chegou por outra via (vazio = nada).',
       ultima ? ' Os números vêm do último ' + (ultima.momento === 'fecho' ? 'fecho' : 'registo') + ' (' + bspQuando(ultima.criado) + '): confirme ou corrija.' : ''),
     lista.map((i, ix) => {
       const a = antDe(i.k);
@@ -8901,6 +8911,199 @@ function TurnoCartao({ currentUser }) {
     React.createElement(Modal, { open: !!form, onClose: () => setForm(null), title: form ? (form.momento === 'abertura' ? 'Abrir o turno' : 'Fechar o turno') + ' · ' + BSP_TURNO_AREAS[area] : '' },
       form && React.createElement(TurnoContagemForm, { item: form, onFeito: fechar })));
 }
+/* Pedido de material à Farmácia e recepção de produtos (30-10-2026,
+   pedidos-farmacia.sql; Elmar: «sim»). A área pede → a Farmácia entrega com lote
+   e validade → a área confere quantidade, embalagem, frio e validade. Problemas
+   avisam a Farmácia, a gestão e a Direcção Clínica. O recebido entra no
+   «Reforço» da contagem do turno (bsp_turno_reforco). */
+const BSP_PEDIDO_AREAS = { laboratorio: 'Laboratório', enfermagem: 'Enfermagem' };
+const BSP_RECEPCAO_OPCOES = {
+  embalagem: ['Íntegra', 'Danificada'],
+  frio: ['Não se aplica', 'Adequado', 'Fora de 2–8 °C'],
+  validade: ['Conferida', 'Curta (menos de 3 meses)', 'Caducada']
+};
+function PedidoFarmaciaNovo({ area, onFeito }) {
+  const toast = useToast();
+  const [lista, setLista] = React.useState(null);
+  const [q, setQ] = React.useState({});
+  const [extra, setExtra] = React.useState([]);
+  const [nota, setNota] = React.useState('');
+  const [urgente, setUrgente] = React.useState(false);
+  const [busca, setBusca] = React.useState('');
+  const [aGravar, setAGravar] = React.useState(false);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    cl.rpc('bsp_turno_base', { p_area: area }).then(r => setLista((!r.error && r.data && r.data.lista) || []), () => setLista([]));
+  }, [area]);
+  const sem = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const caixa = Object.assign({}, bspTranspCampo, { height: 38, fontSize: 16 });
+  const gravar = async () => {
+    if (aGravar) return;
+    if (bspEmVerComo()) { toast(BSP_VER_COMO_ERRO); return; }
+    const itens = (lista || []).filter(i => Number(q[i.k]) > 0).map(i => ({ k: i.k, nome: i.nome, q: Number(q[i.k]) }))
+      .concat(extra.filter(x => String(x.nome || '').trim() && Number(x.q) > 0).map(x => ({ nome: x.nome.trim(), q: Number(x.q) })));
+    if (!itens.length) { toast('Escreva a quantidade de pelo menos um artigo.'); return; }
+    setAGravar(true);
+    const r = await bspGetClient().rpc('bsp_pedido_area_criar', { p_area: area, p_itens: itens, p_nota: nota, p_urgente: urgente });
+    setAGravar(false);
+    if (r.error) { toast('Não foi possível enviar: ' + (bspSemRede(r.error) ? 'sem internet.' : r.error.message)); return; }
+    toast('Pedido enviado à Farmácia.');
+    onFeito && onFeito();
+  };
+  if (!lista) return React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, 'A carregar…');
+  const ver = lista.filter(i => !busca.trim() || sem(i.nome).indexOf(sem(busca.trim())) !== -1);
+  return React.createElement("div", null,
+    React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginBottom: 10, lineHeight: 1.5 } }, 'Escreva a quantidade só no que precisa. A Farmácia recebe o aviso no telemóvel.'),
+    React.createElement("input", { value: busca, onChange: e => setBusca(e.target.value), placeholder: 'Procurar artigo…', style: Object.assign({}, caixa, { marginBottom: 8 }) }),
+    ver.map(i => React.createElement("div", { key: i.k, style: { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--border)' } },
+      React.createElement("span", { style: { flex: 1, minWidth: 0, fontSize: 13.5, color: 'var(--text-1)' } }, i.nome),
+      React.createElement("input", { type: 'number', min: 0, inputMode: 'numeric', placeholder: '0', 'aria-label': 'Quantidade de ' + i.nome, value: q[i.k] || '', onChange: e => setQ(a => Object.assign({}, a, { [i.k]: e.target.value })), style: Object.assign({}, caixa, { width: 84 }) }))),
+    extra.map((x, j) => React.createElement("div", { key: 'x' + j, style: { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0' } },
+      React.createElement("input", { value: x.nome, maxLength: 60, placeholder: 'Outro artigo', onChange: e => setExtra(a => a.map((y, k) => k === j ? Object.assign({}, y, { nome: e.target.value }) : y)), style: Object.assign({}, caixa, { flex: 1, minWidth: 0 }) }),
+      React.createElement("input", { type: 'number', min: 0, inputMode: 'numeric', placeholder: '0', value: x.q, onChange: e => setExtra(a => a.map((y, k) => k === j ? Object.assign({}, y, { q: e.target.value }) : y)), style: Object.assign({}, caixa, { width: 84 }) }))),
+    React.createElement("button", { type: 'button', onClick: () => setExtra(a => a.concat({ nome: '', q: '' })), style: { marginTop: 8, border: 0, background: 'transparent', color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 } }, '+ Artigo fora da lista'),
+    React.createElement("textarea", { rows: 2, maxLength: 1000, value: nota, onChange: e => setNota(e.target.value), placeholder: 'Nota para a Farmácia (opcional)', style: Object.assign({}, bspTranspCampo, { height: 'auto', padding: '8px 12px', marginTop: 12, fontSize: 16 }) }),
+    React.createElement("label", { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 13.5, color: 'var(--text-1)' } },
+      React.createElement("input", { type: 'checkbox', checked: urgente, onChange: e => setUrgente(e.target.checked) }), 'Urgente'),
+    React.createElement("div", { style: { marginTop: 14 } }, React.createElement(Button, { variant: 'primary', onClick: gravar, disabled: aGravar }, aGravar ? 'A enviar…' : 'Enviar o pedido')));
+}
+function PedidoFarmaciaEntrega({ pedido, onFeito }) {
+  const toast = useToast();
+  const [l, setL] = React.useState(() => (pedido.itens || []).map(i => ({ k: i.k, nome: i.nome, pedido: i.q, q: String(i.q), lote: '', validade: '' })));
+  const [nota, setNota] = React.useState('');
+  const [aGravar, setAGravar] = React.useState(false);
+  const caixa = Object.assign({}, bspTranspCampo, { height: 38, fontSize: 16 });
+  const mudar = (j, c, v) => setL(a => a.map((y, k) => k === j ? Object.assign({}, y, { [c]: v }) : y));
+  const gravar = async () => {
+    if (aGravar) return;
+    if (bspEmVerComo()) { toast(BSP_VER_COMO_ERRO); return; }
+    if (!l.some(x => Number(x.q) > 0)) { toast('Escreva o que entrega.'); return; }
+    setAGravar(true);
+    const r = await bspGetClient().rpc('bsp_pedido_area_entregar', { p_id: pedido.id, p_entrega: l.map(x => ({ k: x.k, nome: x.nome, q: Number(x.q) || 0, lote: x.lote, validade: x.validade })), p_nota: nota });
+    setAGravar(false);
+    if (r.error) { toast('Não foi possível gravar: ' + (bspSemRede(r.error) ? 'sem internet.' : r.error.message)); return; }
+    toast('Entrega registada. A área confere a recepção.');
+    onFeito && onFeito();
+  };
+  return React.createElement("div", null,
+    React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginBottom: 10, lineHeight: 1.5 } }, 'Escreva o que entrega de facto, com o lote e a validade de cada artigo.' + (pedido.nota ? ' Nota do pedido: «' + pedido.nota + '».' : '')),
+    l.map((x, j) => React.createElement("div", { key: j, style: { padding: '8px 0', borderBottom: '1px solid var(--border)' } },
+      React.createElement("div", { style: { fontSize: 13.5, fontWeight: 600, color: 'var(--text-1)', marginBottom: 4 } }, x.nome, React.createElement("span", { style: { fontWeight: 400, color: 'var(--text-3)' } }, ' · pedido ' + x.pedido)),
+      React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 8 } },
+        React.createElement("label", { style: { fontSize: 11, color: 'var(--text-3)' } }, 'Entrega', React.createElement("input", { type: 'number', min: 0, inputMode: 'numeric', value: x.q, onChange: e => mudar(j, 'q', e.target.value), style: Object.assign({}, caixa, { display: 'block', width: 84, marginTop: 2 }) })),
+        React.createElement("label", { style: { fontSize: 11, color: 'var(--text-3)' } }, 'Lote', React.createElement("input", { value: x.lote, maxLength: 40, onChange: e => mudar(j, 'lote', e.target.value), style: Object.assign({}, caixa, { display: 'block', width: 120, marginTop: 2 }) })),
+        React.createElement("label", { style: { fontSize: 11, color: 'var(--text-3)' } }, 'Validade', React.createElement("input", { type: 'date', value: x.validade, onChange: e => mudar(j, 'validade', e.target.value), style: Object.assign({}, caixa, { display: 'block', width: 160, marginTop: 2 }) }))))),
+    React.createElement("textarea", { rows: 2, maxLength: 1000, value: nota, onChange: e => setNota(e.target.value), placeholder: 'Nota (opcional): o que falta e quando chega', style: Object.assign({}, bspTranspCampo, { height: 'auto', padding: '8px 12px', marginTop: 12, fontSize: 16 }) }),
+    React.createElement("div", { style: { marginTop: 14 } }, React.createElement(Button, { variant: 'primary', onClick: gravar, disabled: aGravar }, aGravar ? 'A gravar…' : 'Registar a entrega')));
+}
+function PedidoFarmaciaRecepcao({ pedido, onFeito }) {
+  const toast = useToast();
+  const [q, setQ] = React.useState(() => { const o = {}; (pedido.entrega || []).forEach(i => { o[i.k] = String(i.q); }); return o; });
+  const [resp, setResp] = React.useState({ embalagem: '', frio: '', validade: '' });
+  const [recusar, setRecusar] = React.useState(false);
+  const [nota, setNota] = React.useState('');
+  const [aGravar, setAGravar] = React.useState(false);
+  const [aviso, setAviso] = React.useState('');
+  const caixa = Object.assign({}, bspTranspCampo, { height: 38, fontSize: 16 });
+  const hoje = bspHojeLuanda();
+  const gravar = async () => {
+    if (aGravar) return;
+    const falha = m => { setAviso(m); toast(m); };
+    if (bspEmVerComo()) { falha(BSP_VER_COMO_ERRO); return; }
+    if (!resp.embalagem || !resp.frio || !resp.validade) { falha('Responda à embalagem, ao frio e à validade.'); return; }
+    if (recusar && !nota.trim()) { falha('Escreva o motivo da recusa.'); return; }
+    setAviso('');
+    setAGravar(true);
+    const r = await bspGetClient().rpc('bsp_pedido_area_receber', { p_id: pedido.id, p_recepcao: Object.assign({}, resp, { recusar, nota, itens: (pedido.entrega || []).map(i => ({ k: i.k, q: Number(q[i.k]) || 0 })) }) });
+    setAGravar(false);
+    if (r.error) { falha('Não foi possível gravar: ' + (bspSemRede(r.error) ? 'sem internet.' : r.error.message)); return; }
+    const pr = (r.data && r.data.problemas) || [];
+    toast(pr.length ? 'Recepção gravada. A Farmácia e a gestão foram avisadas: ' + pr.join('; ') + '.' : 'Recepção gravada. Entra no «Reforço» da próxima contagem.');
+    onFeito && onFeito();
+  };
+  const escolha = (c, rot) => React.createElement("label", { key: c, style: { display: 'block', marginTop: 10, fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)' } }, rot,
+    React.createElement("select", { value: resp[c], onChange: e => setResp(a => Object.assign({}, a, { [c]: e.target.value })), style: Object.assign({}, caixa, { display: 'block', marginTop: 4 }) },
+      React.createElement("option", { value: '' }, 'Escolher…'),
+      BSP_RECEPCAO_OPCOES[c].map(o => React.createElement("option", { key: o, value: o }, o))));
+  return React.createElement("div", null,
+    React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginBottom: 10, lineHeight: 1.5 } }, 'Conte o que chegou e confira a embalagem, o frio e a validade antes de arrumar.' + (pedido.nota_entrega ? ' Nota da Farmácia: «' + pedido.nota_entrega + '».' : '')),
+    (pedido.entrega || []).map(i => {
+      const curta = i.validade && i.validade < bspSomarDias(hoje, 90);
+      return React.createElement("div", { key: i.k, style: { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border)' } },
+        React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+          React.createElement("div", { style: { fontSize: 13.5, fontWeight: 600, color: 'var(--text-1)' } }, i.nome),
+          React.createElement("div", { style: { fontSize: 11.5, color: curta ? 'var(--perigo)' : 'var(--text-3)', fontWeight: curta ? 700 : 400 } },
+            'Entregue ' + i.q + (i.lote ? ' · lote ' + i.lote : '') + (i.validade ? ' · validade ' + bspMarcDataPt(i.validade) : ' · sem validade escrita'))),
+        React.createElement("label", { style: { fontSize: 11, color: 'var(--text-3)' } }, 'Chegou', React.createElement("input", { type: 'number', min: 0, inputMode: 'numeric', disabled: recusar, value: q[i.k] || '', onChange: e => setQ(a => Object.assign({}, a, { [i.k]: e.target.value })), style: Object.assign({}, caixa, { display: 'block', width: 84, marginTop: 2 }) })));
+    }),
+    escolha('embalagem', 'Embalagem'), escolha('frio', 'Frio (produtos de frigorífico)'), escolha('validade', 'Validade'),
+    React.createElement("label", { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, fontSize: 13.5, color: 'var(--perigo)', fontWeight: 600 } },
+      React.createElement("input", { type: 'checkbox', checked: recusar, onChange: e => setRecusar(e.target.checked) }), 'Recusar a entrega toda'),
+    React.createElement("textarea", { rows: 2, maxLength: 1000, value: nota, onChange: e => setNota(e.target.value), placeholder: recusar ? 'Motivo da recusa (obrigatório)' : 'Observação (opcional)', style: Object.assign({}, bspTranspCampo, { height: 'auto', padding: '8px 12px', marginTop: 10, fontSize: 16 }) }),
+    React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginTop: 14 } },
+      React.createElement(Button, { variant: 'primary', onClick: gravar, disabled: aGravar }, aGravar ? 'A gravar…' : recusar ? 'Recusar' : 'Confirmar a recepção'),
+      aviso && React.createElement("div", { role: 'alert', style: { flexBasis: '100%', fontSize: 13, fontWeight: 600, color: 'var(--perigo)' } }, aviso)));
+}
+function PedidosFarmaciaCartao({ currentUser }) {
+  const toast = useToast();
+  const area = bspAreaChave(currentUser && currentUser.dept);
+  const pede = !!BSP_PEDIDO_AREAS[area];
+  const farmacia = area === 'farmacia';
+  const [l, setL] = React.useState(null);
+  const [vez, setVez] = React.useState(0);
+  const [janela, setJanela] = React.useState(null);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl || !(pede || farmacia)) return;
+    let vivo = true;
+    const ler = () => cl.from('pedidos_area').select('*').order('criado', { ascending: false }).limit(30).then(r => { if (vivo && !r.error) setL(r.data || []); }, () => {});
+    ler();
+    const iv = setInterval(() => { if (!document.hidden) ler(); }, 2 * 60000);
+    return () => { vivo = false; clearInterval(iv); };
+  }, [pede, farmacia, vez]);
+  if (!(pede || farmacia) || !l) return null;
+  const minhas = pede ? l.filter(p => p.area === area) : l;
+  const porEntregar = minhas.filter(p => p.estado === 'Pedido');
+  const porReceber = minhas.filter(p => p.estado === 'Entregue');
+  const acabar = () => { setJanela(null); setVez(v => v + 1); try { window.dispatchEvent(new Event('bsp-turno')); } catch (e) {} };
+  const resumo = p => (p.itens || []).slice(0, 3).map(i => i.nome + ' × ' + i.q).join(', ') + ((p.itens || []).length > 3 ? '…' : '');
+  const cancelar = async p => {
+    if (!window.confirm('Cancelar o pedido n.º ' + p.id + '?')) return;
+    const r = await bspGetClient().rpc('bsp_pedido_area_cancelar', { p_id: p.id });
+    if (r.error) toast(r.error.message); else { toast('Pedido cancelado.'); setVez(v => v + 1); }
+  };
+  const pendente = farmacia ? porEntregar.length : porReceber.length;
+  const titulo = (farmacia ? 'Pedidos das áreas' : 'Pedidos à Farmácia') + (pendente ? ' (' + pendente + (farmacia ? ' por entregar)' : ' por conferir)') : '');
+  const linha = p => {
+    const acc = farmacia && p.estado === 'Pedido' ? () => setJanela({ tipo: 'entregar', p })
+      : pede && p.estado === 'Entregue' ? () => setJanela({ tipo: 'receber', p }) : () => setJanela({ tipo: 'ver', p });
+    const urg = p.urgente && p.estado === 'Pedido';
+    return bspInicioLinha('p' + p.id, (farmacia ? BSP_PEDIDO_AREAS[p.area] + ' · ' : '') + resumo(p),
+      (urg ? 'URGENTE · ' : '') + (p.estado === 'Pedido' ? (farmacia ? 'Entregar' : 'À espera') : p.estado === 'Entregue' ? (pede ? 'Conferir' : 'Entregue') : p.estado + (p.problema ? ' · com problema' : '')) + ' · ' + bspDataCurta(p.criado),
+      acc, urg || (p.problema && p.estado !== 'Pedido') || (pede && p.estado === 'Entregue'));
+  };
+  const ver = p => React.createElement("div", { style: { fontSize: 13, color: 'var(--text-1)', lineHeight: 1.6 } },
+    React.createElement("div", null, 'Pedido por ' + bspNomeCurto(p.criado_por) + ' a ' + bspQuando(p.criado) + (p.urgente ? ' · urgente' : '')),
+    (p.itens || []).map(i => React.createElement("div", { key: i.k }, '· ' + i.nome + ' × ' + i.q)),
+    p.nota && React.createElement("div", { style: { color: 'var(--text-3)' } }, 'Nota: ' + p.nota),
+    p.entregue_em && React.createElement("div", { style: { marginTop: 8 } }, 'Entregue por ' + bspNomeCurto(p.entregue_por) + ' a ' + bspQuando(p.entregue_em)),
+    (p.entrega || []).map(i => React.createElement("div", { key: 'e' + i.k }, '· ' + i.nome + ' × ' + i.q + (i.lote ? ' · lote ' + i.lote : '') + (i.validade ? ' · val. ' + bspMarcDataPt(i.validade) : ''))),
+    p.recebido_em && React.createElement("div", { style: { marginTop: 8 } }, (p.estado === 'Recusado' ? 'Recusado' : 'Recebido') + ' por ' + bspNomeCurto(p.recebido_por) + ' a ' + bspQuando(p.recebido_em)),
+    p.recepcao && React.createElement("div", { style: { color: 'var(--text-3)' } }, 'Embalagem ' + String(p.recepcao.embalagem || '').toLowerCase() + ' · frio: ' + String(p.recepcao.frio || '').toLowerCase() + ' · validade ' + String(p.recepcao.validade || '').toLowerCase()),
+    p.recepcao && (p.recepcao.problemas || []).length > 0 && React.createElement("div", { style: { color: 'var(--perigo)', fontWeight: 600 } }, p.recepcao.problemas.join('; ')),
+    p.estado === 'Pedido' && (farmacia || p.criado_por === (currentUser && currentUser.id)) && React.createElement("div", { style: { marginTop: 12 } }, React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: () => { setJanela(null); cancelar(p); } }, 'Cancelar o pedido')));
+  const abertos = minhas.filter(p => p.estado === 'Pedido' || p.estado === 'Entregue');
+  const recentes = minhas.filter(p => abertos.indexOf(p) === -1).slice(0, 3);
+  return React.createElement(InicioCartao, { titulo, icone: 'Box', cor: pendente ? 'var(--perigo)' : null, accao: pede ? '+ Pedir' : null, onAccao: () => setJanela({ tipo: 'novo' }) },
+    !abertos.length && !recentes.length && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)' } }, pede ? 'Sem pedidos. Peça o material aqui em vez de enviar e-mail.' : 'Sem pedidos das áreas.'),
+    abertos.map(linha), recentes.map(linha),
+    React.createElement(Modal, { open: !!janela, onClose: () => setJanela(null), title: !janela ? '' : janela.tipo === 'novo' ? 'Pedir à Farmácia · ' + BSP_PEDIDO_AREAS[area] : janela.tipo === 'entregar' ? 'Registar a entrega · pedido n.º ' + janela.p.id : janela.tipo === 'receber' ? 'Conferir a recepção · pedido n.º ' + janela.p.id : 'Pedido n.º ' + janela.p.id },
+      janela && janela.tipo === 'novo' && React.createElement(PedidoFarmaciaNovo, { area, onFeito: acabar }),
+      janela && janela.tipo === 'entregar' && React.createElement(PedidoFarmaciaEntrega, { pedido: janela.p, onFeito: acabar }),
+      janela && janela.tipo === 'receber' && React.createElement(PedidoFarmaciaRecepcao, { pedido: janela.p, onFeito: acabar }),
+      janela && janela.tipo === 'ver' && ver(janela.p)));
+}
 function DashboardScreen({
   currentUser,
   onSwitch
@@ -8940,6 +9143,7 @@ function DashboardScreen({
         }, I[ic] ? React.createElement(I[ic], { size: 15 }) : null, rot))))),
     recepcao && React.createElement(MarcLembretesInicio, { onAbrir: () => ir('marcacoes') }),
     React.createElement(TurnoCartao, { currentUser }),
+    React.createElement(PedidosFarmaciaCartao, { currentUser }),
     React.createElement(InicioRelatorioPorEntregar, { onAbrir: () => ir('relatorios') }),
     React.createElement(InicioPorDecidir, { currentUser }),
     React.createElement(DocsPorLerCartao, { currentUser, onAbrir: () => ir('documentos') }),

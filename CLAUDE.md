@@ -755,6 +755,11 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `Toners` de `pedidos_compra`, aberto a `bsp_ve_toners` (não a
   `bsp_ve_stock`); no ecrã, «Pedir toners» em `TonersPainel` usa o
   `PedidosCompraPainel` com `armazem: 'Toners'`.
+- Pedido à Farmácia (30-10-2026, `pedidos-farmacia.sql`): `pedidos_area` só pelas
+  funções `bsp_pedido_area_*` (área pede → Farmácia entrega com lote e validade →
+  área confere quantidade, embalagem, frio e validade); `PedidosFarmaciaCartao` no
+  Início; o recebido entra no «Reforço» do turno (`bsp_turno_reforco`). Uma área
+  nova que peça entra em `BSP_PEDIDO_AREAS` e na regra de `bsp_pedido_area_criar`.
 - Logística (06-10-2026, `logistica-compras.sql`): Logística e stock → «Compras
   correntes» (`LogisticaPainel`), compras de alimentação, consumíveis de escritório,
   limpeza, água e gás (`logistica_compras`, `BSP_LOGISTICA_CATS`), só o Elmar e

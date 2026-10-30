@@ -5508,3 +5508,22 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   crédito, todas emitidas na conta da Juliana e sem motivo escrito; 6 dias acima
   de 30 000 Kz; 515 facturas de particulares por pagar em 6 meses (1,61 M Kz):
   confirmar no MetaGest se estão mesmo por pagar.
+- 30-10-2026, Elmar: «avance com a farmácia em simultâneo» (pedido aprovado com
+  «sim»). `pedidos-farmacia.sql` (aplicado): `pedidos_area` (Pedido → Entregue →
+  Recebido/Recusado/Cancelado), só pelas funções `bsp_pedido_area_criar`,
+  `_entregar` (Farmácia ou gestão, com lote e validade), `_receber` (a área:
+  quantidade que chegou, embalagem, frio, validade, recusa com motivo) e
+  `_cancelar`; lêem a área, a Farmácia, a gestão e u14. Recepção com problema →
+  novidade e telemóvel à Farmácia, u1, u2 e u14. `bsp_turno_reforco(area)`: o que
+  a área recebeu desde a última contagem entra sozinho no «Reforço» do
+  `TurnoContagemForm`. Ecrã: `PedidosFarmaciaCartao` no Início (Laboratório e
+  Enfermagem pedem e conferem; a Farmácia entrega). Testado no servidor (fluxo
+  completo desfeito no fim) e no ecrã. Por fazer: o Elmar aprova o texto do aviso
+  à Solange, à Gizela e às áreas antes de sair; os pedidos por e-mail continuam
+  uma semana em paralelo.
+- 30-10-2026, Elmar: «o que o Dr. Pinheiro recebe? envie para ele os acessos de
+  sócios». Recebe só o resumo diário da Direcção (06h50, com valores; enviado
+  todos os dias, ver `relatorios_enviados`). Conta criada a 02-10, nunca entrou,
+  sem 2FA. E-mail «Acesso de sócio ao Workspace Barispol» (pedido 267, Elmar em
+  cópia): o que vê (Painel), entrar pelo «Esqueceu-se?» e activar os dois passos.
+  Nenhuma palavra-passe no e-mail.
