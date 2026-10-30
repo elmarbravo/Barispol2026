@@ -8728,7 +8728,9 @@ function TurnoContagemForm({ item, onFeito }) {
   const comparaFecho = item.momento === 'abertura' && ultima && ultima.momento === 'fecho';
   const difs = comparaFecho ? lista.filter(i => {
     const a = antDe(i.k);
-    return a && camposDe(i).some(c => num(a[c]) != null && num((vals[i.k] || {})[c]) != null && num(a[c]) !== num((vals[i.k] || {})[c]));
+    /* Material: o fecho mais o reforço recebido da Solange (30-10-2026). */
+    const ref = c => c === 'q' ? (num((vals[i.k] || {}).ref) || 0) : 0;
+    return a && camposDe(i).some(c => num(a[c]) != null && num((vals[i.k] || {})[c]) != null && num(a[c]) + ref(c) !== num((vals[i.k] || {})[c]));
   }) : [];
   const subir = async lst => {
     const fs = Array.from(lst || []);
@@ -8763,7 +8765,7 @@ function TurnoContagemForm({ item, onFeito }) {
     setAGravar(true);
     const itens = lista.map(i => {
       const v = vals[i.k] || {};
-      return reag(i) ? { k: i.k, r1: num(v.r1), r2: num(v.r2) } : { k: i.k, q: num(v.q) };
+      return reag(i) ? { k: i.k, r1: num(v.r1), r2: num(v.r2) } : Object.assign({ k: i.k, q: num(v.q) }, num(v.ref) > 0 ? { ref: num(v.ref) } : {});
     });
     const r = await cl.rpc('bsp_turno_contar', { p_area: item.area, p_dia: item.dia, p_turno: item.turno, p_momento: item.momento, p_itens: itens, p_frio: num(frio), p_motivo: motivo, p_ficheiros: fichs });
     setAGravar(false);
@@ -8785,6 +8787,7 @@ function TurnoContagemForm({ item, onFeito }) {
     React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)', marginBottom: 10, lineHeight: 1.5 } },
       lab ? 'No BS-200: Estado → Disco de reagentes → toque no teste. Escreva os testes restantes do R1 e do R2 (o número depois da barra) e tire a fotografia do ecrã. Depois conte os testes rápidos e o material e escreva a quantidade de cada um.'
           : 'Conte o material na sala e escreva a quantidade de cada artigo.',
+      ' Em «Reforço», escreva o que a Solange entregou desde a última contagem (vazio = nada).',
       ultima ? ' Os números vêm do último ' + (ultima.momento === 'fecho' ? 'fecho' : 'registo') + ' (' + bspQuando(ultima.criado) + '): confirme ou corrija.' : ''),
     lista.map((i, ix) => {
       const a = antDe(i.k);
@@ -8793,9 +8796,14 @@ function TurnoContagemForm({ item, onFeito }) {
       const titulo = lab && (ix === 0 || reag(lista[ix - 1]) !== reag(i)) && React.createElement("div", { key: 't-' + i.k, style: { marginTop: ix ? 16 : 0, fontSize: 11.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent-d)' } }, reag(i) ? 'Reagentes do BS-200' : 'Testes rápidos e material');
       return [titulo, React.createElement("div", { key: i.k, style: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: '1px solid var(--border)' } },
         React.createElement("div", { style: { flex: '1 1 140px', minWidth: 0, fontSize: 13.5, color: 'var(--text-1)', fontWeight: 600 } }, i.nome,
-          dif && React.createElement("div", { style: { fontSize: 11.5, fontWeight: 600, color: 'var(--perigo)' } }, 'Último fecho: ' + campos.map(c => (c !== 'q' ? c.toUpperCase() + ' ' : '') + (a[c] == null ? '—' : a[c])).join(' · '))),
+          dif && React.createElement("div", { style: { fontSize: 11.5, fontWeight: 600, color: 'var(--perigo)' } }, 'Último fecho: ' + campos.map(c => (c !== 'q' ? c.toUpperCase() + ' ' : '') + (a[c] == null ? '—' : a[c])).join(' · ') + (!reag(i) && num((vals[i.k] || {}).ref) > 0 ? ' + reforço ' + num(vals[i.k].ref) : ''))),
         campos.map(c => React.createElement("label", { key: c, style: { fontSize: 11, color: 'var(--text-3)' } }, c !== 'q' ? c.toUpperCase() : 'Quantidade',
-          React.createElement("input", { type: 'number', min: 0, step: 1, inputMode: 'numeric', value: (vals[i.k] || {})[c] || '', onChange: e => mudar(i.k, c, e.target.value), style: Object.assign({}, caixa, { display: 'block', marginTop: 2, borderColor: dif ? 'var(--perigo)' : 'var(--border)' }) }))))];
+          React.createElement("input", { type: 'number', min: 0, step: 1, inputMode: 'numeric', value: (vals[i.k] || {})[c] || '', onChange: e => mudar(i.k, c, e.target.value), style: Object.assign({}, caixa, { display: 'block', marginTop: 2, borderColor: dif ? 'var(--perigo)' : 'var(--border)' }) }))),
+        /* Reforço (30-10-2026, Elmar: «ela guarda uma parte e fornece outra às
+           áreas e vai reforçando»): o que a Solange entregou desde a última
+           contagem. Vazio = nada. */
+        !reag(i) && React.createElement("label", { key: 'ref', title: 'O que a Solange entregou desde a última contagem', style: { fontSize: 11, color: 'var(--text-3)' } }, 'Reforço',
+          React.createElement("input", { type: 'number', min: 0, step: 1, inputMode: 'numeric', placeholder: '0', value: (vals[i.k] || {}).ref || '', onChange: e => mudar(i.k, 'ref', e.target.value), style: Object.assign({}, caixa, { display: 'block', marginTop: 2 }) })))];
     }),
     !lista.length && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)', padding: '8px 0' } }, 'A lista desta área ainda está vazia.'),
     React.createElement("label", { style: { display: 'block', marginTop: 12, fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)' } }, 'Frigorífico agora (°C)',

@@ -5431,3 +5431,9 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   escolhe o tipo; `bsp_turno_lista_gravar` guarda-o. Testado no navegador. A
   lista de material sai das entregas da Solange (e-mails e facturas da
   Almiro/Farwell; o Laboratório não usa o MetaGest): por carregar.
+- 30-10-2026, Elmar: «ela guarda uma parte e fornece outra às áreas e vai
+  reforçando» → «sim, cria essa coluna». Coluna «Reforço» em cada artigo contado
+  por quantidade (material do Laboratório e toda a Enfermagem): o que a Solange
+  entregou desde a última contagem (`ref` no item). A abertura compara-se com o
+  fecho + reforço, no ecrã (`TurnoContagemForm`) e no servidor
+  (`bsp_turno_contar`, a diferença leva `reforco`). Testado no navegador.

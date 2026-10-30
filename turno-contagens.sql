@@ -173,8 +173,13 @@ begin
         if a is null then continue; end if;
         foreach txt in array array['q', 'r1', 'r2'] loop
           v := public.bsp_num(it->>txt); va := public.bsp_num(a->>txt);
+          -- Reforço recebido da Solange desde o último fecho (30-10-2026, Elmar:
+          -- «ela guarda uma parte e fornece outra às áreas e vai reforçando»):
+          -- a abertura compara-se com o fecho mais o reforço.
+          if txt = 'q' and va is not null then va := va + greatest(0, coalesce(public.bsp_num(it->>'ref'), 0)); end if;
           if v is not null and va is not null and v <> va then
-            dif := dif || jsonb_build_array(jsonb_build_object('k', it->>'k', 'campo', txt, 'fecho', va, 'abertura', v));
+            dif := dif || jsonb_build_array(jsonb_build_object('k', it->>'k', 'campo', txt, 'fecho', public.bsp_num(a->>txt), 'abertura', v)
+              || case when txt = 'q' and coalesce(public.bsp_num(it->>'ref'), 0) > 0 then jsonb_build_object('reforco', public.bsp_num(it->>'ref')) else '{}'::jsonb end);
           end if;
         end loop;
       end loop;
@@ -204,7 +209,8 @@ begin
   if jsonb_array_length(dif) > 0 then
     txt := nome_area || ', ' || to_char(p_dia, 'DD-MM') || ' (' || p_turno || '): a abertura não bate com o último fecho em '
         || jsonb_array_length(dif) || ' linha(s): '
-        || (select string_agg((d->>'k') || ' ' || upper(d->>'campo') || ' ' || (d->>'fecho') || ' → ' || (d->>'abertura'), '; ')
+        || (select string_agg((d->>'k') || ' ' || case when d->>'campo' = 'q' then '' else upper(d->>'campo') || ' ' end
+              || (d->>'fecho') || coalesce(' + reforço ' || (d->>'reforco'), '') || ' → ' || (d->>'abertura'), '; ')
               from jsonb_array_elements(dif) d) || '.' || coalesce(' Motivo: ' || nullif(trim(p_motivo), ''), '');
     insert into novidades (titulo, texto, grupos, destino) values ('Passagem de turno com diferenças', txt, array['gestao', 'direccao-clinica', p_area], null);
     perform public.bsp_push_post(jsonb_build_object('para', to_jsonb(para), 'exceto', eu, 'titulo', 'Passagem de turno com diferenças',
