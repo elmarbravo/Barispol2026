@@ -5657,3 +5657,9 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   Pedidos de contacto do site (pergunta do Elmar): vão para `pedidos_marcacao`
   (Utentes → Marcações → «Pedidos do site») com aviso no telemóvel da Recepção
   (`bsp_pedido_site_aviso`); não sai e-mail. Proposto e-mail a rececao@ com geral@ em cópia.
+- 30-10-2026, Elmar: «fiz pedido e não chegou email». `pedidos-site-email.sql` (aplicado):
+  `bsp_pedido_site_email` manda cada pedido do site a rececao@barispol.com com
+  geral@barispol.com em cópia (nome, telemóvel, serviço, seguro, melhor altura, hora,
+  página), chamado pelo gatilho `bsp_pedido_site_aviso` antes do aviso no telemóvel; um
+  erro no e-mail nunca impede gravar o pedido. Enviado também o do pedido n.º 1 (Resend
+  aceitou às 23:41 de Luanda).
