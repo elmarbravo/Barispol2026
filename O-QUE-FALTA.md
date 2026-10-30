@@ -5567,3 +5567,14 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   site (`index.html`) passa a enviar quem chega por `ws.*` para `/workspace.html`.
   O repositório `barispol-ws` do plano 3-hf não existe nos repositórios acessíveis;
   confirmar no DNS (Cloudflare) para onde aponta `ws` e nas definições do Pages.
+- 30-10-2026, Elmar: «podemos passar a receber o formato HEIC?»; «o Nicolau quer
+  enviar o relatório mas isso o atrasa». As fotografias HEIC do iPhone passam a
+  JPEG antes de subir, no relatório de turno (anexos), na abertura e fecho do
+  turno e no Chat (`bspConverterHeic`, `bspEHeic`; `bspReduzirImagem` também
+  converte). Primeiro pelo próprio navegador (o Safari abre HEIC); senão pelo
+  `vendor/heic/conversor.html` (heic2any 0.0.4, licença MIT em
+  `vendor/heic/LICENSE.md`), num iframe `sandbox="allow-scripts"` sem mesma
+  origem: precisa de 'unsafe-eval', que só ele tem; a CSP do Workspace não muda.
+  O conversor (1,3 MB) só se carrega quando aparece um HEIC. Se a conversão
+  falhar, o aviso diz «Não foi possível anexar» e nada sobe. Testado no Chromium
+  com a CSP do Workspace: HEIC de 1201×900 → JPEG legível em 1,4 s.

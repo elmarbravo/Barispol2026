@@ -4883,11 +4883,78 @@ function bspSlugFicheiro(nome) {
      sem prefixo                  a equipa, como sempre foi
 
    Os ficheiros que ja la estao nao tem prefixo e continuam da equipa. */
+/* HEIC (30-10-2026, Elmar: «podemos passar a receber o formato HEIC?»): as
+   fotografias do iPhone em HEIC passam a JPEG antes de subir. Primeiro pelo
+   próprio navegador (o Safari abre HEIC); se não der, pelo conversor em
+   vendor/heic/conversor.html, num iframe isolado (sandbox sem mesma origem),
+   porque precisa de 'unsafe-eval', que o Workspace não tem. Falha → erro. */
+function bspEHeic(f) {
+  return !!f && (/\.(heic|heif)$/i.test(f.name || '') || /hei[cf]/i.test(f.type || ''));
+}
+let __bspHeicFrame = null;
+function bspHeicConversor() {
+  if (__bspHeicFrame) return __bspHeicFrame;
+  __bspHeicFrame = new Promise((ok, falha) => {
+    const fr = document.createElement('iframe');
+    fr.setAttribute('sandbox', 'allow-scripts');
+    fr.setAttribute('aria-hidden', 'true');
+    fr.style.cssText = 'position:absolute;width:1px;height:1px;border:0;left:-9999px;top:0';
+    const pronto = e => {
+      if (e.source !== fr.contentWindow || !e.data || e.data.tipo !== 'heic-pronto') return;
+      window.removeEventListener('message', pronto);
+      clearTimeout(t);
+      ok(fr);
+    };
+    const t = setTimeout(() => { window.removeEventListener('message', pronto); fr.remove(); __bspHeicFrame = null; falha(new Error('conversor sem resposta')); }, 30000);
+    window.addEventListener('message', pronto);
+    fr.src = 'vendor/heic/conversor.html';
+    document.body.appendChild(fr);
+  });
+  return __bspHeicFrame;
+}
+async function bspHeicNativo(f) {
+  const url = URL.createObjectURL(f);
+  try {
+    const img = await new Promise((ok, falha) => { const i = new Image(); i.onload = () => ok(i); i.onerror = falha; i.src = url; });
+    if (!img.naturalWidth) throw new Error('vazia');
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    c.getContext('2d').drawImage(img, 0, 0);
+    const blob = await new Promise(ok => c.toBlob(ok, 'image/jpeg', 0.86));
+    if (!blob) throw new Error('sem jpeg');
+    return blob;
+  } finally { URL.revokeObjectURL(url); }
+}
+async function bspConverterHeic(f) {
+  if (!bspEHeic(f)) return f;
+  const nome = String(f.name || 'fotografia').replace(/\.[^.]*$/, '') + '.jpg';
+  let blob = null;
+  try { blob = await bspHeicNativo(f); } catch (e) { blob = null; }
+  if (!blob) {
+    const fr = await bspHeicConversor();
+    const bytes = await f.arrayBuffer();
+    const id = 'h' + Date.now() + Math.random().toString(36).slice(2);
+    blob = await new Promise((ok, falha) => {
+      const resp = e => {
+        if (e.source !== fr.contentWindow || !e.data || e.data.id !== id) return;
+        window.removeEventListener('message', resp);
+        clearTimeout(t);
+        if (e.data.tipo === 'heic-ok') ok(new Blob([e.data.bytes], { type: 'image/jpeg' }));
+        else falha(new Error(e.data.erro || 'conversão falhou'));
+      };
+      const t = setTimeout(() => { window.removeEventListener('message', resp); falha(new Error('conversão demorou demais')); }, 60000);
+      window.addEventListener('message', resp);
+      fr.contentWindow.postMessage({ tipo: 'heic', id, bytes }, '*', [bytes]);
+    });
+  }
+  return new File([blob], nome, { type: 'image/jpeg' });
+}
 /* Reduz uma fotografia para o Chat (30-09-2026): lado maior ate 1600 px,
    JPEG a 82 %. So JPEG, PNG e WebP acima de 400 KB; GIF e o resto seguem
    como estao. Se alguma coisa falhar, envia-se o original. */
 async function bspReduzirImagem(f) {
   try {
+    if (bspEHeic(f)) f = await bspConverterHeic(f);
     if (!f || !/^image\/(jpeg|png|webp)$/i.test(f.type || '') || f.size < 400 * 1024) return f;
     const url = URL.createObjectURL(f);
     const img = await new Promise((ok, falha) => {
@@ -8746,12 +8813,11 @@ function TurnoContagemForm({ item, onFeito }) {
   }) : [];
   const subir = async lst => {
     const fs = Array.from(lst || []);
-    const heic = fs.filter(f => /\.(heic|heif)$/i.test(f.name || '') || /hei[cf]/i.test(f.type || ''));
-    if (heic.length) toast('Fotografia em HEIC não abre noutros aparelhos. Use «Tirar fotografia» ou mude a câmara para JPEG.');
-    for (const f0 of fs.filter(f => heic.indexOf(f) === -1)) {
+    if (fs.some(bspEHeic)) toast('A converter a fotografia HEIC para JPEG…');
+    for (const f0 of fs) {
       setASubir(n => n + 1);
       try {
-        const f = await bspReduzirImagem(f0);
+        const f = await bspReduzirImagem(await bspConverterHeic(f0));
         const caminho = await bspUploadToStorage(f, 'relatorio/' + item.area + '/' + window.CURRENT_USER_ID);
         setFichs(a => a.concat({ path: caminho, name: f.name || f0.name, size: f.size }));
       } catch (e) {
@@ -18062,20 +18128,18 @@ function RelatoriosScreen() {
       React.createElement("div", { style: { marginTop: 8 } }, React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: novaLinha }, '+ Acrescentar teste')));
   };
   /* Anexos (30-10-2026): cada ficheiro sobe logo ao ser escolhido; o
-     relatório só guarda o caminho. HEIC recusado: não abre fora do iPhone. */
+     relatório só guarda o caminho. HEIC convertido para JPEG antes de subir
+     (bspConverterHeic): o HEIC não abre fora do iPhone. */
   const [aSubir, setASubir] = React.useState(0);
   const subirAnexos = async (c, lista) => {
     const fs = Array.from(lista || []);
     if (!fs.length || !def) return;
     if (bspEmVerComo()) { toast('Em «Ver como» não se grava nada.'); return; }
-    const heic = fs.filter(f => /\.(heic|heif)$/i.test(f.name || '') || /hei[cf]/i.test(f.type || ''));
-    if (heic.length) toast('Fotografia em HEIC não abre noutros aparelhos. Use «Tirar fotografia» ou mude a câmara para JPEG.');
-    const bons = fs.filter(f => heic.indexOf(f) === -1);
-    if (!bons.length) return;
-    setASubir(n => n + bons.length);
-    for (const f0 of bons) {
+    if (fs.some(bspEHeic)) toast('A converter a fotografia HEIC para JPEG…');
+    setASubir(n => n + fs.length);
+    for (const f0 of fs) {
       try {
-        const f = await bspReduzirImagem(f0);
+        const f = await bspReduzirImagem(await bspConverterHeic(f0));
         const caminho = await bspUploadToStorage(f, 'relatorio/' + def.id + '/' + window.CURRENT_USER_ID);
         setResp(r => Object.assign({}, r, { [c.id]: (Array.isArray(r[c.id]) ? r[c.id] : []).concat({ path: caminho, name: f.name || f0.name, size: f.size }) }));
       } catch (e) {

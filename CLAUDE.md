@@ -394,8 +394,11 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   Anexos do relatório (30-10-2026, `relatorios-anexos.sql`, Elmar: «parem de enviar
   no chat e mandem só no relatório»): campo tipo `anexos` (`bspCampoFicheiros`,
   id `ficheiros`), ficheiros em `drive` → `relatorio/<área>/<id>/…`, lidos só por
-  quem lê o relatório; nunca voltar a aceitar HEIC nem a mandar os ficheiros
-  por e-mail. Obrigatório no Laboratório e na Enfermagem.
+  quem lê o relatório; nunca guardar HEIC (30-10-2026: `bspConverterHeic` passa-o a
+  JPEG antes de subir, pelo navegador ou pelo `vendor/heic/conversor.html` num
+  iframe `sandbox` sem mesma origem, o único sítio com 'unsafe-eval'; nunca pôr
+  'unsafe-eval' na CSP do Workspace) nem mandar os ficheiros por e-mail.
+  Obrigatório no Laboratório e na Enfermagem.
   Abertura e fecho do turno (30-10-2026, `turno-contagens.sql`, Elmar: «ao abrir o
   dia lançam as quantidades e ao fechar também», «obrigatório»): Laboratório e
   Enfermagem; `TurnoPorta` tapa o Workspace (abertura e fecho em atraso) pela

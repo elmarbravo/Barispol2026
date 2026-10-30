@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-PT"><head><meta charset="utf-8">
+<!-- Conversor de fotografias HEIC para JPEG (30-10-2026, Elmar: «podemos passar a
+     receber o formato HEIC?»). Corre numa moldura isolada (iframe sandbox, sem
+     allow-same-origin): não vê a sessão nem os dados do Workspace, só recebe os
+     bytes da fotografia e devolve o JPEG. A biblioteca (heic2any, MIT) precisa de
+     'unsafe-eval', que fica só aqui e nunca na página do Workspace. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; worker-src blob:; connect-src blob: data:; img-src blob: data:">
+<title>Conversor HEIC</title>
+<script src="heic2any.min.js"></script>
+</head><body>
+<script>
+window.addEventListener('message', function (e) {
+  var d = e.data || {};
+  if (!d || d.tipo !== 'heic' || !d.bytes) return;
+  var responder = function (m) { try { e.source.postMessage(m, '*'); } catch (x) {} };
+  try {
+    heic2any({ blob: new Blob([d.bytes], { type: 'image/heic' }), toType: 'image/jpeg', quality: 0.86 })
+      .then(function (r) { return (Array.isArray(r) ? r[0] : r).arrayBuffer(); })
+      .then(function (ab) { responder({ tipo: 'heic-ok', id: d.id, bytes: ab }); })
+      .catch(function (x) { responder({ tipo: 'heic-erro', id: d.id, erro: String(x && (x.message || x.code) || x) }); });
+  } catch (x) { responder({ tipo: 'heic-erro', id: d.id, erro: String(x && x.message || x) }); }
+});
+parent.postMessage({ tipo: 'heic-pronto' }, '*');
+</script>
+</body></html>
