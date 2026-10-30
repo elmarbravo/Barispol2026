@@ -984,6 +984,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   ficheiros das conversas antigas»): botão «Ficheiros» no cabeçalho do Chat,
   `GaleriaConversa` lê do servidor todos os anexos da conversa (não só as 300
   carregadas). Um tipo novo de anexo tem de manter a marca `\u200bf`.
+- Ver antes de enviar (30-10-2026, Elmar: «faz como o WhatsApp»): o clipe e o
+  arrastar abrem `PreEnvioFicheiros` (rodar, nome, tirar, legenda); nada sobe
+  antes de «Enviar»; os que falham ficam para «Tentar de novo».
 - Anexos no chat: `enviarFicheiros(lista, opc)` no `ChatScreen` serve o
   clipe (vários ficheiros), o arrastar com o rato e as notas de voz
   (27-09-2026: `comecarGravacao`, `bspMensagemNotaVoz`, `bspEAudio`,

@@ -5387,3 +5387,12 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   `GaleriaConversa`: os endereços http(s) escritos nas mensagens da conversa
   (até 2000 mensagens, sem linhas de controlo nem anexos), abrem num separador
   novo. Testado no navegador.
+- 30-10-2026, Elmar: «ao carregar ficheiros, faz como o WhatsApp, opção de ver
+  antes de enviar e editar» (e erro «Não foi possível carregar um dos
+  ficheiros» no DAF, 14h46: o servidor respondeu 544, base de dados sem resposta;
+  as regras dos ficheiros estavam bem). O clipe e o arrastar no Chat abrem a
+  `PreEnvioFicheiros`: pré-visualização, rodar fotografias (`bspRodarImagem`),
+  mudar o nome, tirar, «Juntar mais» e legenda (segue como mensagem depois dos
+  ficheiros, só quando todos subiram). `enviarFicheiros` devolve os que falharam;
+  esses ficam na janela com «Tentar de novo». Testado no navegador (com falha
+  simulada do servidor). A nota de voz não passa pela janela.

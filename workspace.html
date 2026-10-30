@@ -9589,6 +9589,7 @@ function ChatScreen({
     if (fs.length - grandes.length > 10) window.alert('Enviam-se no máximo 10 ficheiros de cada vez. Seguem os primeiros 10.');
     const conv = opc && opc.conv || convKey;
     let falhas = 0;
+    const falhados = [];
     setACarregar(n => n + bons.length);
     for (const f of bons) {
       try {
@@ -9605,11 +9606,22 @@ function ChatScreen({
         });
       } catch (err) {
         falhas++;
+        falhados.push(f);
       }
       setACarregar(n => Math.max(0, n - 1));
     }
-    if (falhas) window.alert(falhas === 1 ? 'Não foi possível carregar um dos ficheiros.' : 'Não foi possível carregar ' + falhas + ' ficheiros.');
+    if (falhas && !(opc && opc.semAlerta)) window.alert(falhas === 1 ? 'Não foi possível carregar um dos ficheiros.' : 'Não foi possível carregar ' + falhas + ' ficheiros.');
+    return falhados;
   }
+  /* Ver antes de enviar (30-10-2026, Elmar: «ao carregar ficheiros, faz como o
+     WhatsApp, opção de ver antes de enviar e editar»): o clipe e o arrastar
+     abrem a PreEnvioFicheiros; nada sobe antes de «Enviar». */
+  const [preEnvio, setPreEnvio] = React.useState(null);
+  const prepararFicheiros = lista => {
+    const fs = Array.from(lista || []).filter(Boolean);
+    if (!fs.length) return;
+    setPreEnvio(p => ({ conv: (p && p.conv) || convKey, ficheiros: (p ? p.ficheiros : []).concat(fs) }));
+  };
   /* Nota de voz (27-09-2026): grava com o microfone, ate 5 minutos, e
      envia como anexo da conversa onde comecou. Formato WAV desde
      28-09-2026 (ver comecarGravacao). */
@@ -9739,7 +9751,7 @@ function ChatScreen({
   function onAttach(e) {
     const lista = Array.from(e.target.files || []);
     e.target.value = '';
-    enviarFicheiros(lista);
+    prepararFicheiros(lista);
   }
   const temFicheiros = ev => {
     try { return Array.from(ev.dataTransfer && ev.dataTransfer.types || []).indexOf('Files') !== -1; } catch (x) { return false; }
@@ -9790,7 +9802,7 @@ function ChatScreen({
       if (!temFicheiros(e)) return;
       e.preventDefault();
       setArrastar(false);
-      enviarFicheiros(e.dataTransfer.files);
+      prepararFicheiros(e.dataTransfer.files);
     },
     style: {
       position: 'relative',
@@ -10337,7 +10349,20 @@ function ChatScreen({
     style: { width: 32, height: 32, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: 'none', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer' }
   }, React.createElement(I.Image, {
     size: 17
-  })), galeria && React.createElement(GaleriaConversa, { conv: convKey, titulo: isDM ? (dmUser ? dmUser.name : 'conversa') : (activeChannel && activeChannel.name), onFechar: () => setGaleria(false) }), cabeInfo && React.createElement("button", {
+  })), preEnvio && React.createElement(PreEnvioFicheiros, {
+    ficheiros: preEnvio.ficheiros,
+    destino: isDM ? (dmUser ? dmUser.name.split(' ')[0] : '') : (activeChannel ? '#' + activeChannel.name : ''),
+    onMais: l => prepararFicheiros(l),
+    onFechar: () => setPreEnvio(null),
+    onEnviar: async (fs, legenda) => {
+      const conv = preEnvio.conv;
+      const falhados = await enviarFicheiros(fs, { conv, semAlerta: true });
+      /* A legenda só segue quando todos os ficheiros subiram (senão ficava
+         repetida a cada «Tentar de novo»). */
+      if (legenda && !falhados.length) actions.sendMessage(conv, { userId: currentUser.id, text: legenda });
+      return falhados;
+    }
+  }), galeria && React.createElement(GaleriaConversa, { conv: convKey, titulo: isDM ? (dmUser ? dmUser.name : 'conversa') : (activeChannel && activeChannel.name), onFechar: () => setGaleria(false) }), cabeInfo && React.createElement("button", {
     onClick: () => setInfoAberto(!infoAberto),
     title: infoAberto ? "Fechar o painel de informação" : "Ver membros e ficheiros desta conversa",
     "aria-label": "Informação da conversa",
@@ -11244,6 +11269,97 @@ function ChannelInfo({
     key: f.id,
     f: f
   })))));
+}
+/* Ver antes de enviar (30-10-2026, Elmar: «faz como o WhatsApp, opção de ver
+   antes de enviar e editar»). Mostra os ficheiros escolhidos; deixa rodar as
+   fotografias, mudar o nome, tirar ficheiros, juntar mais e escrever uma
+   legenda (vai como mensagem a seguir aos ficheiros). Os que falharem ficam na
+   janela para «Tentar de novo». */
+async function bspRodarImagem(f, graus) {
+  const r = ((graus % 360) + 360) % 360;
+  if (!r || !/^image\/(jpeg|png|webp)$/i.test(f.type || '')) return f;
+  const url = URL.createObjectURL(f);
+  try {
+    const img = await new Promise((ok, falha) => { const i = new Image(); i.onload = () => ok(i); i.onerror = falha; i.src = url; });
+    const c = document.createElement('canvas');
+    const deitada = r === 90 || r === 270;
+    c.width = deitada ? img.naturalHeight : img.naturalWidth;
+    c.height = deitada ? img.naturalWidth : img.naturalHeight;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.translate(c.width / 2, c.height / 2);
+    ctx.rotate(r * Math.PI / 180);
+    ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+    const blob = await new Promise(ok => c.toBlob(ok, 'image/jpeg', 0.9));
+    return blob ? new File([blob], String(f.name || 'imagem').replace(/\.[^.]*$/, '') + '.jpg', { type: 'image/jpeg' }) : f;
+  } catch (e) {
+    return f;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+function PreEnvioFicheiros({ ficheiros, destino, onEnviar, onFechar, onMais }) {
+  const [itens, setItens] = React.useState([]);
+  const [legenda, setLegenda] = React.useState('');
+  const [aEnviar, setAEnviar] = React.useState(false);
+  const [aviso, setAviso] = React.useState('');
+  const vistos = React.useRef(new Set());
+  React.useEffect(() => {
+    const novos = ficheiros.filter(f => !vistos.current.has(f));
+    if (!novos.length) return;
+    novos.forEach(f => vistos.current.add(f));
+    setItens(a => a.concat(novos.map((f, i) => {
+      const nome = String(f.name || 'ficheiro');
+      const p = nome.lastIndexOf('.');
+      return { id: Date.now() + '-' + i + '-' + Math.random().toString(36).slice(2, 6), file: f, base: p > 0 ? nome.slice(0, p) : nome, ext: p > 0 ? nome.slice(p) : '',
+        url: /^image\//.test(f.type || '') ? URL.createObjectURL(f) : null, rot: 0 };
+    })));
+  }, [ficheiros]);
+  React.useEffect(() => () => itens.forEach(x => x.url && URL.revokeObjectURL(x.url)), []);
+  const mudar = (id, k, v) => setItens(a => a.map(x => x.id === id ? Object.assign({}, x, { [k]: v }) : x));
+  const tam = b => b >= 1048576 ? (b / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB';
+  const enviar = async () => {
+    if (aEnviar || !itens.length) return;
+    setAEnviar(true); setAviso('');
+    const prontos = [];
+    for (const x of itens) {
+      let f = await bspRodarImagem(x.file, x.rot);
+      const ext = f === x.file ? x.ext : '.jpg';
+      const nome = (String(x.base || '').trim() || 'ficheiro') + ext;
+      if (nome !== f.name) f = new File([f], nome, { type: f.type });
+      prontos.push({ x, f });
+    }
+    const falhados = await onEnviar(prontos.map(p => p.f), legenda.trim());
+    setAEnviar(false);
+    if (!falhados || !falhados.length) { onFechar(); return; }
+    setItens(a => a.filter(x => prontos.some(p => p.x === x && falhados.indexOf(p.f) !== -1)));
+    setAviso(falhados.length === 1 ? 'Um ficheiro não subiu (o servidor não respondeu). Tente de novo.' : falhados.length + ' ficheiros não subiram (o servidor não respondeu). Tente de novo.');
+  };
+  const btn = { height: 32, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5 };
+  return React.createElement(Modal, { open: true, onClose: () => !aEnviar && onFechar(), title: 'Enviar ' + (itens.length === 1 ? '1 ficheiro' : itens.length + ' ficheiros') + (destino ? ' para ' + destino : ''), width: 640 },
+    itens.map(x => React.createElement("div", { key: x.id, style: { display: 'flex', gap: 12, alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)' } },
+      x.url ? React.createElement("div", { style: { width: 120, height: 120, flex: '0 0 120px', borderRadius: 8, overflow: 'hidden', background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' } },
+          React.createElement("img", { src: x.url, alt: x.base, style: { maxWidth: '100%', maxHeight: '100%', transform: 'rotate(' + x.rot + 'deg)', transition: 'transform .15s' } }))
+        : React.createElement("div", { style: { width: 56, height: 56, flex: '0 0 56px', borderRadius: 8, background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' } }, React.createElement(I.File, { size: 22, stroke: 'var(--accent-d)' })),
+      React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+        React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 4 } },
+          React.createElement("input", { value: x.base, maxLength: 120, 'aria-label': 'Nome do ficheiro', onChange: e => mudar(x.id, 'base', e.target.value),
+            style: { flex: 1, minWidth: 0, height: 34, padding: '0 8px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 16, fontFamily: 'inherit' } }),
+          React.createElement("span", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, x.rot % 360 && x.url ? '.jpg' : x.ext)),
+        React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)', marginTop: 4 } }, tam(x.file.size)),
+        React.createElement("div", { style: { display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' } },
+          x.url && React.createElement("button", { type: 'button', style: btn, onClick: () => mudar(x.id, 'rot', x.rot + 90) }, '↻ Rodar'),
+          React.createElement("button", { type: 'button', style: btn, onClick: () => setItens(a => a.filter(y => y.id !== x.id)) }, 'Tirar'))))),
+    !itens.length && React.createElement("div", { style: { fontSize: 13, color: 'var(--text-3)', padding: '8px 0' } }, 'Sem ficheiros escolhidos.'),
+    React.createElement("label", { style: { display: 'inline-flex', alignItems: 'center', marginTop: 10, ...btn, lineHeight: '30px' } }, '+ Juntar mais',
+      React.createElement("input", { type: 'file', multiple: true, style: { display: 'none' }, onChange: e => { onMais(e.target.files); e.target.value = ''; } })),
+    React.createElement("textarea", { rows: 2, maxLength: 2000, value: legenda, onChange: e => setLegenda(e.target.value), placeholder: 'Legenda (opcional)',
+      style: { display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 12, padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 16, fontFamily: 'inherit', resize: 'vertical' } }),
+    aviso && React.createElement("div", { style: { marginTop: 10, fontSize: 12.5, fontWeight: 600, color: 'var(--perigo)' } }, aviso),
+    React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14 } },
+      React.createElement(Button, { variant: 'secondary', onClick: onFechar, disabled: aEnviar }, 'Cancelar'),
+      React.createElement(Button, { variant: 'primary', onClick: enviar, disabled: aEnviar || !itens.length }, aEnviar ? 'A enviar…' : aviso ? 'Tentar de novo' : 'Enviar')));
 }
 /* Galeria da conversa (30-10-2026, Elmar: «Precisamos de uma galeria nos
    canais, está muito difícil o acesso aos ficheiros das conversas antigas»).
