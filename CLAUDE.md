@@ -494,6 +494,8 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   inicial todos os dias»): `ConvocatoriasInicio` / `bspConvocatoriaActiva` mostram a reunião da
   agenda com 5 ou mais convidados e data nos próximos 21 dias, até ao fim dela, a convidados,
   anfitrião e gestão; resposta Vou/Talvez/Não vou ali mesmo e confirmações por pessoa.
+  Sem hora de fim: `agenda_eventos.sem_fim` (`semFim` no ecrã; sem DTEND no convite). Um
+  evento numa data grava `dia` vazio: com `dia` preenchido o convite sai semanal.
   Lembretes (02-10-2026, `agenda-lembretes.sql`): `lembretes` do evento e
   `lembretes_pessoa` por pessoa (`bsp_evento_lembretes`, `BSP_LEMBRETES`,
   `bspLembretesDevidos`); e-mail pela Edge Function `agenda-avisos`

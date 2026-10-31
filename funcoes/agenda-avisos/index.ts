@@ -307,7 +307,8 @@ Deno.serve(comCors(async (req) => {
       "SEQUENCE:" + (Number(e.ics_seq) || 0),
       "DTSTAMP:" + carimbo(new Date()),
       "DTSTART;TZID=Africa/Luanda:" + local(ini),
-      "DTEND;TZID=Africa/Luanda:" + local(fim),
+      /* Sem hora de fim (31-10-2026, Elmar: «não coloca hora de término»): sem DTEND. */
+      ...(e.sem_fim ? [] : ["DTEND;TZID=Africa/Luanda:" + local(fim)]),
       ...(e.dia_mes ? ["RRULE:FREQ=MONTHLY;BYMONTHDAY=" + Number(e.dia_mes)] : e.dia != null ? ["RRULE:FREQ=WEEKLY;BYDAY=" + DIAS_ICS[Number(e.dia)]] : []),
       "SUMMARY:" + icsTexto(e.titulo),
       ...(e.local ? ["LOCATION:" + icsTexto(e.local)] : []),
@@ -329,7 +330,7 @@ Deno.serve(comCors(async (req) => {
   const dadosEvento = (e: any) => tabela(
     linhaDado("Evento", escapar(e.titulo)) +
     linhaDado("Quando", escapar(quandoTexto(e))) +
-    (e.duracao ? linhaDado("Duração", escapar(duracaoTxt(Number(e.duracao)))) : "") +
+    (e.duracao && !e.sem_fim ? linhaDado("Duração", escapar(duracaoTxt(Number(e.duracao)))) : "") +
     (e.local ? linhaDado("Local", escapar(e.local)) : "") +
     (e.descricao ? linhaDado("Notas", escapar(e.descricao).replace(/\n/g, "<br>")) : "") +
     linhaDado("Agenda", e.privado ? "Privada (só quem está no evento a vê)" : "De toda a equipa"));

@@ -13847,7 +13847,7 @@ function bspAgendaParaEvento(a) {
     cat: CAT_COLORS[a.categoria] ? a.categoria : 'reuniao', time: a.hora || '09:00', dur: Number(a.duracao) || 60,
     day: a.data ? (bspDataDe(a.data).getDay() + 6) % 7 : Number(a.dia), privado: !!a.privado, dono: a.dono,
     criadoPor: a.criado_por || a.dono, convidados: Array.isArray(a.convidados) ? a.convidados : [], respostas: a.respostas || {},
-    criadoEm: a.criado_em,
+    criadoEm: a.criado_em, semFim: !!a.sem_fim,
     lembretes: Array.isArray(a.lembretes) ? a.lembretes : [], lembretesPessoa: a.lembretes_pessoa || {}
   };
   if (a.dia_mes) { ev.diaMes = Number(a.dia_mes); ev.desde = a.data || ''; ev.day = null; }
@@ -14026,7 +14026,8 @@ function bspQuandoEvento(e) {
   const [hh, mm] = String(e.time || '09:00').split(':').map(Number);
   const fim = hh * 60 + (mm || 0) + (Number(e.dur) || 60);
   const ate = String(Math.floor(fim / 60) % 24).padStart(2, '0') + ':' + String(fim % 60).padStart(2, '0');
-  return (e.diaMes ? 'Todos os meses, no dia ' + e.diaMes : e.data ? bspDiaExtenso(e.data + 'T12:00:00') : 'Todas as ' + SEM[e.day == null ? 0 : e.day]) + ', ' + (e.time || '') + '–' + ate;
+  /* Sem hora de fim (31-10-2026, Elmar: «não coloca hora de término»): só o início. */
+  return (e.diaMes ? 'Todos os meses, no dia ' + e.diaMes : e.data ? bspDiaExtenso(e.data + 'T12:00:00') : 'Todas as ' + SEM[e.day == null ? 0 : e.day]) + ', ' + (e.time || '') + (e.semFim ? '' : '–' + ate);
 }
 function EventoDetalhe({ evento, onClose, onEditar, onApagar, onResponder, onLembretes }) {
   const e = evento;
@@ -14658,7 +14659,7 @@ function AgendaDia({ events, iso, todayIdx, onOpen, onAdd }) {
       style: { display: 'flex', gap: 14, padding: '14px 18px', borderBottom: '1px solid var(--border)', alignItems: 'flex-start', cursor: 'pointer', opacity: resp === 'nao' ? 0.55 : 1 }
     }, React.createElement("div", {
       style: { width: 92, flex: 'none', fontSize: 13, fontWeight: 700, color: c.c }
-    }, (e.time || '') + '–' + ate), React.createElement("div", {
+    }, (e.time || '') + (e.semFim ? '' : '–' + ate)), React.createElement("div", {
       style: { flex: 1, minWidth: 0, borderLeft: '3px solid ' + c.c, paddingLeft: 12 }
     }, React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: 'var(--text-1)', display: 'flex', alignItems: 'center', gap: 6 } },
       e.origem === 'agenda' && e.privado && React.createElement(I.Lock, { size: 12, stroke: 'var(--text-3)' }), e.title), React.createElement("div", {

@@ -5879,4 +5879,12 @@ cada membro, e fica no menu inicial todos os dias… use as palavras dele».
       Convites `.ics` por e-mail a 14 pessoas e aviso no telemóvel.
 - [x] Cartão `ConvocatoriasInicio` no Início: todos os dias até ao fim da reunião; quem foi
       convocado confirma (Vou / Talvez / Não vou); o Dr. Osvaldo e a gestão vêem cada pessoa.
-- [ ] A duração não vinha na convocatória: ficou 1 hora (10h00–11h00). Mudar se for outra.
+- [x] Sem hora de fim (Elmar: «Não coloca hora de término»): coluna `sem_fim` em
+      `agenda_eventos` (o ecrã mostra só o início; a `agenda-avisos` tira o DTEND e a
+      duração). Corrigido o dia da semana gravado por engano (o convite saía como «todas
+      as sextas»): `dia` vazio, convite actualizado (versão 1) a todos.
+- [x] Elmar: «Convoque todos os colaboradores, excepto médicos»: 16 convocados (gestão,
+      Recepção, Enfermagem, Laboratório, Farmácia, Raio-X, Serviços Gerais). A Dra.
+      Elizabeth (médica) saiu e recebeu o aviso. Sócio e contas inactivas de fora.
+- [ ] Hora de fim: perguntada ao Dr. Osvaldo no Chat (conversa com o Elmar, 31-10-2026).
+      Quando responder: `duracao` = minutos e `sem_fim = false` no evento 19.
