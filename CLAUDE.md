@@ -403,6 +403,9 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   (u14) nas áreas médicas, o superior nas outras (`bsp_relatorio_autoriza`). Nunca voltar
   a deixar o autor mudar o relatório sem autorização. Motivo de quem pede e resposta de
   quem decide são obrigatórios (10 letras, `BSP_REL_ALT_MIN`, iguais no servidor).
+  Versões (Elmar: «o novo não anula o antigo»): `relatorios_versoes` guarda todas (1 =
+  entregue), `bsp_relatorio_versoes` / `VersoesRelatorio`; nunca apagar nem sobrepor uma
+  versão.
   Anexos do relatório (30-10-2026, `relatorios-anexos.sql`, Elmar: «parem de enviar
   no chat e mandem só no relatório»): campo tipo `anexos` (`bspCampoFicheiros`,
   id `ficheiros`), ficheiros em `drive` → `relatorio/<área>/<id>/…`, lidos só por

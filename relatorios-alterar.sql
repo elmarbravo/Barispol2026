@@ -21,8 +21,9 @@
 --    O pedido leva uma observação obrigatória (motivo, mensagem para quem
 --    autoriza); a decisão leva uma resposta obrigatória (nota), que segue para
 --    quem pediu. Mínimo de 10 letras nas duas (BSP_REL_ALT_MIN no ecrã).
---    Ao autorizar, as respostas novas entram no relatório; as antigas ficam
---    guardadas no pedido (respostas_antes). Nada se apaga.
+--    Ao autorizar, nasce uma versão nova em relatorios_versoes (a 1 é a
+--    entregue) e o relatório passa a mostrar a última; todas as versões ficam
+--    à vista (bsp_relatorio_versoes). Nada se apaga.
 -- 3. Avisos: no telemóvel de quem autoriza ao pedir; no de quem pediu ao decidir.
 --
 -- Sem a palavra que apaga objectos: só create or replace e alter policy.
@@ -52,15 +53,25 @@ $$;
 revoke all on function public.bsp_rel_area_de(text) from public, anon;
 grant execute on function public.bsp_rel_area_de(text) to authenticated;
 
--- 1. Ler: colegas da área e chefe de quem entregou.
+-- 1. Ler: colegas da área e chefe de quem entregou. A mesma regra serve a
+-- tabela e as versões (bsp_relatorio_versoes).
+create or replace function public.bsp_rel_pode_ler(p_area text, p_user text)
+returns boolean
+language sql
+stable security definer
+set search_path to 'public'
+as $$
+  select p_user = bsp_meu_id()
+      or bsp_e_gestor()
+      or (p_area in ('laboratorio', 'imagiologia', 'enfermagem') and bsp_le_areas_medicas())
+      or p_area = bsp_rel_area_de(bsp_meu_id())
+      or bsp_chefe_de(p_user)
+$$;
+revoke all on function public.bsp_rel_pode_ler(text, text) from public, anon;
+grant execute on function public.bsp_rel_pode_ler(text, text) to authenticated;
+
 alter policy "bsp_rel_ler" on relatorios_area
-  using (
-    user_id = bsp_meu_id()
-    or bsp_e_gestor()
-    or (area in ('laboratorio', 'imagiologia', 'enfermagem') and bsp_le_areas_medicas())
-    or area = bsp_rel_area_de(bsp_meu_id())
-    or bsp_chefe_de(user_id)
-  );
+  using (bsp_rel_pode_ler(area, user_id));
 
 -- Anexos dos relatórios (relatorio/<área>/<autor>/…): a mesma regra.
 alter policy bsp_drive_ler on storage.objects using (
@@ -107,6 +118,25 @@ create index if not exists relatorios_alteracoes_rel on public.relatorios_altera
 alter table public.relatorios_alteracoes enable row level security;
 -- Só se lê pelas funções; ninguém escreve na tabela directamente.
 revoke all on public.relatorios_alteracoes from anon, authenticated;
+
+-- Todas as versões (31-10-2026, Elmar: «o novo não anula o antigo; tem que ter
+-- as versões todas»). Versão 1 = o relatório como foi entregue; cada alteração
+-- autorizada acrescenta a seguinte. Nada se apaga nem se sobrepõe aqui; o
+-- relatorios_area guarda a versão em vigor (a última), que os totais usam.
+alter table public.relatorios_area add column if not exists versao int not null default 1;
+create table if not exists public.relatorios_versoes (
+  id            bigint generated always as identity primary key,
+  relatorio_id  bigint not null references public.relatorios_area(id) on delete cascade,
+  versao        int not null,
+  respostas     jsonb not null,
+  resumo        jsonb,
+  feita_por     text not null,
+  feita_em      timestamptz not null,
+  alteracao_id  bigint references public.relatorios_alteracoes(id),
+  unique (relatorio_id, versao)
+);
+alter table public.relatorios_versoes enable row level security;
+revoke all on public.relatorios_versoes from anon, authenticated;
 
 -- Quem autoriza a alteração de um relatório.
 create or replace function public.bsp_relatorio_autoriza(p_area text, p_user text)
@@ -196,8 +226,17 @@ begin
          nota = nullif(left(btrim(coalesce(p_nota, '')), 1000), '')
    where id = a.id;
   if est = 'Autorizada' then
+    -- A versão 1 (a entregue) fica guardada antes da primeira alteração.
+    insert into relatorios_versoes (relatorio_id, versao, respostas, resumo, feita_por, feita_em)
+    select r.id, 1, a.respostas_antes, r.resumo, r.user_id, r.created_at
+      from relatorios_area r where r.id = a.relatorio_id
+    on conflict (relatorio_id, versao) do nothing;
+    insert into relatorios_versoes (relatorio_id, versao, respostas, resumo, feita_por, feita_em, alteracao_id)
+    select a.relatorio_id, coalesce(max(v.versao), 1) + 1, a.respostas_novas, a.resumo_novo, a.user_id, now(), a.id
+      from relatorios_versoes v where v.relatorio_id = a.relatorio_id;
     update relatorios_area set respostas = a.respostas_novas,
            resumo = coalesce(a.resumo_novo, resumo),
+           versao = (select max(versao) from relatorios_versoes where relatorio_id = a.relatorio_id),
            alterado_em = now(), alterado_autorizou = eu
      where id = a.relatorio_id;
   end if;
@@ -231,6 +270,32 @@ as $$
 $$;
 revoke all on function public.bsp_relatorio_alteracoes() from public, anon;
 grant execute on function public.bsp_relatorio_alteracoes() to authenticated;
+
+-- As versões de um relatório, para quem o pode ler: cada uma com quem a fez,
+-- quando, e (das alterações) o motivo, quem autorizou e a resposta.
+create or replace function public.bsp_relatorio_versoes(p_relatorio bigint)
+returns table (versao int, respostas jsonb, feita_por text, feita_em timestamptz,
+               motivo text, autorizou text, autorizada_em timestamptz, resposta text)
+language plpgsql
+stable security definer
+set search_path to 'public'
+as $$
+declare r relatorios_area;
+begin
+  select * into r from relatorios_area where id = p_relatorio;
+  if not found or not bsp_rel_pode_ler(r.area, r.user_id) then return; end if;
+  if not exists (select 1 from relatorios_versoes x where x.relatorio_id = r.id) then
+    return query select 1, r.respostas, r.user_id, r.created_at, null::text, null::text, null::timestamptz, null::text;
+    return;
+  end if;
+  return query
+    select v.versao, v.respostas, v.feita_por, v.feita_em, a.motivo, a.decidido_por, a.decidido_em, a.nota
+      from relatorios_versoes v left join relatorios_alteracoes a on a.id = v.alteracao_id
+     where v.relatorio_id = r.id
+     order by v.versao;
+end $$;
+revoke all on function public.bsp_relatorio_versoes(bigint) from public, anon;
+grant execute on function public.bsp_relatorio_versoes(bigint) to authenticated;
 
 notify pgrst, 'reload schema';
 

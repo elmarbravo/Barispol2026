@@ -4649,7 +4649,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_relatorio_alteracoes', 'bsp_turno_pendente', 'bsp_turno_base', 'bsp_turno_reforco', 'bsp_enquete_resultados','bsp_alertas_por_ler', 'bsp_fm_estado', 'bsp_fm_votos', 'bsp_relatorio_metagest', 'bsp_pagamento_banco', 'bsp_pagamento_etapas', 'bsp_segmento', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
+const BSP_RPC_LEITURA = ['bsp_relatorio_alteracoes', 'bsp_relatorio_versoes', 'bsp_turno_pendente', 'bsp_turno_base', 'bsp_turno_reforco', 'bsp_enquete_resultados','bsp_alertas_por_ler', 'bsp_fm_estado', 'bsp_fm_votos', 'bsp_relatorio_metagest', 'bsp_pagamento_banco', 'bsp_pagamento_etapas', 'bsp_segmento', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -18019,7 +18019,7 @@ function RelatorioResumo({ rel, onApagar, onAlterar, pendente }) {
       }, f.name || 'ficheiro')))
     : React.createElement("span", { style: { color: 'var(--text-1)', whiteSpace: 'pre-wrap' } }, t)))), rel.alterado_em && React.createElement("div", {
     style: { marginTop: 8, fontSize: 11.5, color: 'var(--text-3)' }
-  }, 'Alterado a ' + bspQuando(rel.alterado_em) + (quemAut ? ' · autorizado por ' + quemAut.name.split(' ').slice(0, 2).join(' ') : '') + '.'), (podeApagar || podeAlterar) && React.createElement("div", {
+  }, 'Versão ' + (rel.versao || 2) + ', em vigor desde ' + bspQuando(rel.alterado_em) + (quemAut ? ' · autorizada por ' + quemAut.name.split(' ').slice(0, 2).join(' ') : '') + '.'), rel.alterado_em && React.createElement(VersoesRelatorio, { rel }), (podeApagar || podeAlterar) && React.createElement("div", {
     style: { display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 10 }
   }, podeAlterar && (pendente
     ? React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, 'Alteração à espera de autorização.')
@@ -18034,6 +18034,59 @@ function RelatorioResumo({ rel, onApagar, onAlterar, pendente }) {
       fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer'
     }
   }, React.createElement(I.Trash, { size: 13 }), "Eliminar")));
+}
+/* Todas as versões de um relatório (31-10-2026, Elmar: «o novo não anula o
+   antigo; tem que ter as versões todas»). A 1 é a entregue; cada alteração
+   autorizada acrescenta outra, com o motivo, quem autorizou e a resposta.
+   Lê bsp_relatorio_versoes (só quem pode ler o relatório). */
+function VersoesRelatorio({ rel }) {
+  const [aberto, setAberto] = React.useState(false);
+  const [vs, setVs] = React.useState(null);
+  const [verN, setVerN] = React.useState(null);
+  const def = BSP_RELATORIOS.find(a => a.id === rel.area);
+  const campos = def ? def.campos : [];
+  const nome = id => { const u = id && window.userById && window.userById(id); return u ? u.name.split(' ').slice(0, 2).join(' ') : (id || ''); };
+  React.useEffect(() => {
+    if (!aberto || vs) return;
+    const cl = bspGetClient();
+    if (!cl) { setVs([]); return; }
+    cl.rpc('bsp_relatorio_versoes', { p_relatorio: rel.id }).then(r => setVs(r.error ? [] : (r.data || [])));
+  }, [aberto]);
+  const txt = (c, v) => { const t = bspRespostaTexto(c, v); return t == null ? '—' : t; };
+  const linhas = (resp, ant) => campos.filter(c => c.tipo !== 'anexos').map(c => {
+    const v = (resp || {})[c.id];
+    const mudou = ant && JSON.stringify(v) !== JSON.stringify((ant || {})[c.id]);
+    return [c, txt(c, v), mudou, ant ? txt(c, (ant || {})[c.id]) : null];
+  }).filter(x => x[1] !== '—' || x[2]);
+  const botaoTexto = { border: 'none', background: 'transparent', padding: 0, color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, cursor: 'pointer' };
+  return React.createElement("div", { style: { marginTop: 6 } },
+    React.createElement("button", { type: 'button', onClick: () => setAberto(!aberto), style: botaoTexto }, aberto ? 'Esconder as versões' : 'Ver todas as versões (' + (rel.versao || 2) + ')'),
+    aberto && React.createElement("div", { style: { marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 } },
+      vs == null ? React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, 'A carregar…')
+        : !vs.length ? React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)' } }, 'Não foi possível ler as versões.')
+        : vs.slice().reverse().map(v => {
+          const ant = v.versao > 1 ? (vs.find(x => x.versao === v.versao - 1) || {}).respostas : null;
+          const emVigor = v.versao === vs[vs.length - 1].versao;
+          const ls = linhas(v.respostas, ant);
+          const mudadas = ls.filter(x => x[2]);
+          const completo = verN === v.versao;
+          return React.createElement("div", { key: v.versao, style: { border: '1px solid var(--border)', borderLeft: '3px solid ' + (emVigor ? 'var(--accent)' : 'var(--border)'), borderRadius: 8, padding: '8px 10px', fontSize: 12, background: 'var(--surface-2)' } },
+            React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 6 } },
+              React.createElement("b", { style: { color: 'var(--text-1)' } }, 'Versão ' + v.versao + (v.versao === 1 ? ' (entregue)' : '') + (emVigor ? ' · em vigor' : '')),
+              React.createElement("span", { style: { color: 'var(--text-3)' } }, nome(v.feita_por) + ' · ' + bspQuando(v.feita_em))),
+            v.motivo && React.createElement("div", { style: { marginTop: 4 } }, React.createElement("b", null, 'Motivo: '), v.motivo),
+            v.autorizou && React.createElement("div", { style: { marginTop: 2 } }, React.createElement("b", null, 'Autorizada por ' + nome(v.autorizou) + (v.autorizada_em ? ' (' + bspQuando(v.autorizada_em) + ')' : '') + ': '), v.resposta || ''),
+            v.versao > 1 && mudadas.length > 0 && !completo && React.createElement("div", { style: { marginTop: 6, display: 'grid', gridTemplateColumns: 'minmax(100px, 36%) 1fr 1fr', gap: '2px 8px' } },
+              mudadas.map(([c, de, , an]) => React.createElement(React.Fragment, { key: c.id },
+                React.createElement("span", { style: { color: 'var(--text-3)' } }, c.rotulo),
+                React.createElement("span", { style: { color: 'var(--text-2)', textDecoration: 'line-through', whiteSpace: 'pre-wrap' } }, an),
+                React.createElement("span", { style: { color: 'var(--text-1)', fontWeight: 600, whiteSpace: 'pre-wrap' } }, de)))),
+            completo && React.createElement("div", { style: { marginTop: 6, display: 'grid', gridTemplateColumns: 'minmax(100px, 42%) 1fr', gap: '2px 10px' } },
+              ls.map(([c, t, mudou]) => React.createElement(React.Fragment, { key: c.id },
+                React.createElement("span", { style: { color: 'var(--text-3)' } }, c.rotulo),
+                React.createElement("span", { style: { color: 'var(--text-1)', whiteSpace: 'pre-wrap', fontWeight: mudou ? 700 : 400 } }, t)))),
+            React.createElement("button", { type: 'button', onClick: () => setVerN(completo ? null : v.versao), style: Object.assign({}, botaoTexto, { marginTop: 6 }) }, completo ? 'Esconder esta versão' : 'Ver esta versão completa'));
+        })));
 }
 function RelatorioMetaGest({ mg, dia }) {
   const hoje = !dia || dia === bspDiaRelatorio();

@@ -5715,3 +5715,13 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   a resposta vai no aviso do telemóvel a quem pediu. O `Button` passa a respeitar
   `disabled` (cinzento, sem clique) e a ter a variante `secondary` (= `ghost`): eram
   pedidos em 11 e 17 sítios e ignorados.
+- 31-10-2026, Elmar: «o novo não anula o antigo; tem que ter duas versões; tem que ter as
+  versões todas». `relatorios-alterar.sql` (ainda por aplicar): tabela
+  `relatorios_versoes` (relatório, versão, respostas, quem, quando, pedido de alteração);
+  ao autorizar, guarda a versão 1 (a entregue) se ainda não existir e acrescenta a
+  seguinte; `relatorios_area.versao` diz a versão em vigor (a última autorizada), que os
+  totais usam. `bsp_relatorio_versoes(id)` devolve todas, com motivo, quem autorizou e a
+  resposta, só a quem pode ler o relatório (`bsp_rel_pode_ler`, a mesma regra da
+  `bsp_rel_ler`). Ecrã: «Versão N, em vigor desde …» e «Ver todas as versões»
+  (`VersoesRelatorio`): da mais recente à entregue, o que mudou em cada uma (antes e
+  depois) e «Ver esta versão completa». Testado com um relatório fictício de 3 versões.
