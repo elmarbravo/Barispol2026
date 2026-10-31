@@ -406,6 +406,11 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   Versões (Elmar: «o novo não anula o antigo»): `relatorios_versoes` guarda todas (1 =
   entregue), `bsp_relatorio_versoes` / `VersoesRelatorio`; nunca apagar nem sobrepor uma
   versão.
+  Semana para imprimir (31-10-2026, `relatorios-semana.sql`, Edge Function
+  `relatorios-semana`, Elmar: «impressos todas as semanas nas segundas-feiras»):
+  segunda 07h38, PDF da semana anterior a cada chefe (`relatorios_destinos.para`) e
+  à Direcção Clínica (todas as áreas); a `bright-worker` aceita PDF só do servidor.
+  O número REL-<sigla>-AAAAMMDD-<id> é igual no ecrã (`bspRelatorioNumero`) e no PDF.
   Anexos do relatório (30-10-2026, `relatorios-anexos.sql`, Elmar: «parem de enviar
   no chat e mandem só no relatório»): campo tipo `anexos` (`bspCampoFicheiros`,
   id `ficheiros`), ficheiros em `drive` → `relatorio/<área>/<id>/…`, lidos só por

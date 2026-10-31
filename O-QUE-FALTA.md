@@ -5751,3 +5751,19 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   linha por relatório, números como números, filtro. Tudo regista o acesso
   (`bspRegistarAcesso`). Os relatórios não têm nomes de utentes. Testado com 2
   relatórios fictícios: cartão, PDF A4 e Excel (Resumo + Enfermagem).
+- 31-10-2026, Elmar: «os relatórios todos quero que sejam impressos todas as semanas
+  nas segundas-feiras, um lembrete com anexo para cada chefe de área e director
+  clínico». Edge Function nova `relatorios-semana` (`funcoes/relatorios-semana`) e
+  `relatorios-semana.sql` (cron `bsp-relatorios-semana`, segunda 07h38 de Luanda):
+  junta os relatórios de turno da semana anterior (segunda a domingo) e manda um
+  e-mail-lembrete com PDF anexado (pdf-lib, Titillium Web, um relatório por página
+  com número REL-…, quem entregou, versão em vigor, perguntas e respostas da coluna
+  `resumo`, assinaturas e visto, páginas numeradas) a cada chefe de área
+  (`relatorios_destinos.para`: Recepção, Farmácia, Enfermagem) e à Direcção Clínica
+  (DireccaoClinica@, todas as áreas num PDF). O e-mail traz a tabela de relatórios por
+  área e os dias em falta. Um envio por semana e destino (`relatorios_enviados`, tipo
+  `semana`); `{"previa": true}` mostra sem enviar. A `bright-worker` passa a aceitar
+  anexos PDF em conteúdo, só do servidor e até ~5 MB. PDF testado localmente com 4
+  relatórios fictícios (5 páginas, continuação de página certa). **Por publicar**:
+  a `bright-worker` nova, a `relatorios-semana` (JWT desligado) e o SQL — o conector do
+  Supabase não vê o projecto Barispol. Depois: ensaio com `{"previa": true}`.

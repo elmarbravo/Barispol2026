@@ -189,9 +189,9 @@ Deno.serve(comCors(async (req) => {
     }
   }
 
-  /* Anexos: so do servidor, so do proprio site. A excepcao e o convite de
-     calendario (.ics, 02-10-2026): vem escrito pela agenda-avisos, em
-     base64, e so pode ser text/calendar. */
+  /* Anexos: so do servidor, so do proprio site. As excepcoes sao o convite de
+     calendario (.ics, 02-10-2026, agenda-avisos) e o PDF dos relatorios da
+     semana (31-10-2026, relatorios-semana), em base64. */
   let anexos: Record<string, string>[] | undefined;
   if (Array.isArray(pedido && pedido.attachments) && pedido.attachments.length) {
     if (!doServidor) return recusar("Só o servidor envia anexos.", 403);
@@ -199,8 +199,12 @@ Deno.serve(comCors(async (req) => {
     for (const a of pedido.attachments.slice(0, 3)) {
       const nome = String(a && a.filename || "anexo").slice(0, 120);
       if (a && typeof a.content === "string") {
-        if (!/\.ics$/i.test(nome) || !/^text\/calendar/i.test(String(a.content_type || "")) || a.content.length > 300000) {
-          return recusar("Só convites de calendário (.ics) podem ir sem endereço.", 403);
+        /* PDF dos relatórios da semana (31-10-2026, relatorios-semana): só do
+           servidor (já verificado acima), só application/pdf, até ~5 MB. */
+        const ehIcs = /\.ics$/i.test(nome) && /^text\/calendar/i.test(String(a.content_type || "")) && a.content.length <= 300000;
+        const ehPdf = /\.pdf$/i.test(nome) && /^application\/pdf$/i.test(String(a.content_type || "")) && a.content.length <= 7000000;
+        if (!ehIcs && !ehPdf) {
+          return recusar("Só convites de calendário (.ics) e PDF do servidor podem ir sem endereço.", 403);
         }
         anexos.push({ filename: nome, content: a.content, content_type: String(a.content_type) });
         continue;
