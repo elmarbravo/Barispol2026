@@ -348,6 +348,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   no site, 72 px no cabeçalho (60 no telemóvel). Nunca voltar a tamanhos
   menores (pedido do Elmar). Círculo branco sempre com 13% de margem
   (`--bsp-logo-pad`) e nunca `border-radius` na própria imagem: cortava as letras.
+- Telemóvel deitado (31-10-2026, Elmar: «na horizontal não se vê quase nada»):
+  `bspTelemovelDeitado` conta como telemóvel; regra `@media (orientation: landscape) and
+  (max-height: 500px)` encolhe `bsp-mtop`, `bsp-mnav` (só ícones), `bsp-chat-cab` e põe
+  `bsp-escrever` numa linha. Um ecrã novo com cabeçalho ou barra fixa entra nessa regra.
 - Sem zoom no telemóvel (30-09-2026): `viewport` com `maximum-scale=1,
   user-scalable=no`, `gesturestart` bloqueado e caixas de escrita com 16 px
   (abaixo disso o iPhone amplia). Nada pode passar da largura do ecrã.

@@ -5671,3 +5671,18 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   linhas) e «Descarregar para editar». `bspAbrirFicheiro` já não abre endereços directos:
   um tipo sem leitor vai para `bspGuardarFicheiro` (guardar ou partilhar). Testado com um
   .xlsx de duas folhas.
+- 31-10-2026, Elmar: «na horizontal, nos telefones, não conseguimos ver quase nada».
+  O telemóvel deitado (até 500 px de altura, ecrã táctil) passa a contar como telemóvel
+  (`bspTelemovelDeitado` no `useIsMobile`), mesmo com mais de 760 px de largura. Regra
+  `@media (orientation: landscape) and (max-height: 500px)` no `bsp-responsive`:
+  barra de cima com 44 px (`bsp-mtop`; o logotipo mantém os 38 px), barra de baixo só com
+  ícones e o número por ler, cabeçalho da conversa com 40 px (`bsp-chat-cab`), caixa de
+  escrever numa linha com os botões ao lado (`bsp-escrever`, `bsp-escrever-ta`,
+  `bsp-escrever-barra`, até 72 px), menos margem no `main` e espaço para o recorte do
+  ecrã. Testado a 844 × 390 (táctil), 390 × 844 e 1280 × 800: só o primeiro muda.
+  Pergunta da Gizela («como vejo os relatórios das colegas?»): hoje a regra
+  `bsp_rel_ler` (`relatorios-area.sql`) só deixa ler os próprios, a gestão e a Direcção
+  Clínica (áreas médicas); colegas e chefe da área não lêem. Proposta ao Elmar: colegas
+  da mesma área lêem os relatórios da área (só leitura) e o chefe da área também; por
+  decidir. O conector do Supabase deixou de ver o projecto Barispol (só mostra o antigo):
+  nada aplicado no servidor.
