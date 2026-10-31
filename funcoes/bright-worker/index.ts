@@ -25,7 +25,8 @@
 // mandar "to" como lista e usar "cc"/"bcc" (relatorios de area e avisos
 // do atendimento do WhatsApp).
 //
-// Este ficheiro e a copia da versao publicada (versao 8, 12-10-2026). O
+// Este ficheiro e a copia da versao publicada (versao 9, 31-10-2026: PDF e
+// .xlsx em base64, so do servidor). O
 // lembrete da marcacao ao paciente usa o "cc" para rececao@barispol.com.
 // RESPONDER PARA (versao 4, 30-09-2026): so o servidor pode mandar
 // "reply_to" (relatorio semanal da viatura -> Administracao).
@@ -203,8 +204,11 @@ Deno.serve(comCors(async (req) => {
            servidor (já verificado acima), só application/pdf, até ~5 MB. */
         const ehIcs = /\.ics$/i.test(nome) && /^text\/calendar/i.test(String(a.content_type || "")) && a.content.length <= 300000;
         const ehPdf = /\.pdf$/i.test(nome) && /^application\/pdf$/i.test(String(a.content_type || "")) && a.content.length <= 7000000;
-        if (!ehIcs && !ehPdf) {
-          return recusar("Só convites de calendário (.ics) e PDF do servidor podem ir sem endereço.", 403);
+        /* Modelos em Excel (31-10-2026, Elmar: «envia com a planilha nova»): só
+           do servidor, só .xlsx, até ~1 MB. */
+        const ehXlsx = /\.xlsx$/i.test(nome) && /^application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet$/i.test(String(a.content_type || "")) && a.content.length <= 1400000;
+        if (!ehIcs && !ehPdf && !ehXlsx) {
+          return recusar("Só convites de calendário (.ics), PDF e Excel do servidor podem ir sem endereço.", 403);
         }
         anexos.push({ filename: nome, content: a.content, content_type: String(a.content_type) });
         continue;

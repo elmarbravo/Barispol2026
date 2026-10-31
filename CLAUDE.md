@@ -413,7 +413,7 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   Clínico (`relatorios_semana_folhas`, `FolhasSemanais`, lembretes quarta e sexta);
   parecer do Workspace (HTML e PDF, regras ou IA) ao Elmar e à Direcção Clínica. Nunca
   pedir impressão diária (Elmar: «muitas despesas»). Termos: «Item» e «Registo».
-  A `bright-worker` aceita PDF só do servidor; logotipo embutido em `logo.ts`.
+  A `bright-worker` aceita PDF e .xlsx só do servidor; o logotipo do PDF vem do site (`assets/logo-barispol.png`).
   Itens de 31-10-2026 (`BSP_CAMPOS_FIM_TURNO`, `BSP_CAMPOS_AUDITORIA_31`) lidos pelo
   parecer (`avaliarArea`): mudar ids dos dois lados.
   O número REL-<sigla>-AAAAMMDD-<id> é igual no ecrã (`bspRelatorioNumero`) e no PDF.
@@ -738,6 +738,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   copiado do MetaGest todos os dias; validades em `credenciais` (gestão e
   u14 registam, cada médico lê as suas); avisos por `bsp_credenciais_alertar`
   nas novidades. Ecrã Equipa → `MedicosCredenciaisPainel`.
+- Médicos novos do MetaGest (31-10-2026, `medicos-metagest.sql`, Elmar: «devem vir também
+  para aqui»): `bsp_medicos_novos_sincronizar` (cron `bsp-medicos-novos`, 07h53) põe em
+  `prestadores` quem facturou em 30 dias e não está no cadastro (sem NIF, IBAN, regime
+  nem taxas) e avisa u1 e u2; nunca decidir taxas por eles.
 - Equipa médica (21-10-2026, Elmar: «criar um módulo "Equipa Médica"»): a rota
   `actividade` chama-se «Equipa médica» (`MedicosScreen`): credenciais,
   presenças, actividade, registo clínico, avaliação só dos médicos

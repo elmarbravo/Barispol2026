@@ -5688,7 +5688,7 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   nada aplicado no servidor.
 - 31-10-2026, Elmar: «com isso também» (colegas da área e chefe lêem os relatórios da
   área) e «cada um editar o seu relatório, mas com permissão … o director clínico é que
-  autoriza». `relatorios-alterar.sql` (**por aplicar**: o conector do Supabase não vê o
+  autoriza». `relatorios-alterar.sql` (aplicado a 31-10-2026; antes o conector do Supabase não via o
   projecto Barispol): `bsp_rel_ler` passa a deixar ler os colegas da mesma área
   (`bsp_rel_area_de`, igual ao `bspAreaDe`) e o chefe de quem entregou (`bsp_chefe_de`),
   e os anexos `relatorio/` seguem a mesma regra; `bsp_rel_mudar` só a gestão.
@@ -5711,12 +5711,12 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   ou mais (`BSP_REL_ALT_MIN`). No cartão de quem autoriza (`RelatorioAltCartao`):
   «Mensagem de <nome>» e «A sua resposta (obrigatória)»; «Autorizar» e «Recusar» só com
   a resposta escrita. Quem pediu vê «Resposta de <nome> (data)». No servidor
-  (`relatorios-alterar.sql`, ainda por aplicar): motivo e resposta com 10 letras ou mais;
+  (`relatorios-alterar.sql`, aplicado a 31-10-2026): motivo e resposta com 10 letras ou mais;
   a resposta vai no aviso do telemóvel a quem pediu. O `Button` passa a respeitar
   `disabled` (cinzento, sem clique) e a ter a variante `secondary` (= `ghost`): eram
   pedidos em 11 e 17 sítios e ignorados.
 - 31-10-2026, Elmar: «o novo não anula o antigo; tem que ter duas versões; tem que ter as
-  versões todas». `relatorios-alterar.sql` (ainda por aplicar): tabela
+  versões todas». `relatorios-alterar.sql` (aplicado a 31-10-2026): tabela
   `relatorios_versoes` (relatório, versão, respostas, quem, quando, pedido de alteração);
   ao autorizar, guarda a versão 1 (a entregue) se ainda não existir e acrescenta a
   seguinte; `relatorios_area.versao` diz a versão em vigor (a última autorizada), que os
@@ -5764,7 +5764,7 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   área e os dias em falta. Um envio por semana e destino (`relatorios_enviados`, tipo
   `semana`); `{"previa": true}` mostra sem enviar. A `bright-worker` passa a aceitar
   anexos PDF em conteúdo, só do servidor e até ~5 MB. PDF testado localmente com 4
-  relatórios fictícios (5 páginas, continuação de página certa). **Por publicar**:
+  relatórios fictícios (5 páginas, continuação de página certa). **Publicado a 31-10-2026** (antes por publicar):
   a `bright-worker` nova, a `relatorios-semana` (JWT desligado) e o SQL — o conector do
   Supabase não vê o projecto Barispol. Depois: ensaio com `{"previa": true}`.
 - 31-10-2026, Elmar: «não quero que imprimam todos os dias… muitas despesas… o
@@ -5795,7 +5795,7 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
     Enfermagem: outros procedimentos, sala de observação no fim do turno,
     esterilização. Lidos pelo parecer.
   Testado localmente: PDF de área (1 página, 2 relatórios, logotipo), parecer em PDF
-  (2 páginas) e HTML. **Por publicar no Supabase** (bright-worker, relatorios-semana,
+  (2 páginas) e HTML. **Publicado no Supabase a 31-10-2026** (bright-worker, relatorios-semana,
   relatorios-semana.sql).
 - 31-10-2026, Elmar: «no cabeçalho… tem que constar o nome do técnico que fez… a chefe
   da área… vai lá embaixo no visto, e o director clínico também». Cada relatório da
@@ -5821,3 +5821,41 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   «Outros anexos (opcional)»; na Enfermagem «Folha de registo do turno (anexo)» continua
   obrigatória. O `resumo` (e-mail, PDF semanal) leva «anexo: <nomes>». Extrair: «PDF» e
   «Excel» do período. Testado no formulário da Farmácia.
+
+## 3-if. Servidor de volta: relatórios, aviso da Direcção Geral, médicos do MetaGest (31-10-2026)
+
+O conector do Supabase voltou a ver o projecto Barispol (Elmar: «Vê agora»).
+
+- [x] `relatorios-alterar.sql` aplicado: colegas da área e chefe lêem; alterar só por
+      pedido com motivo e autorização (u14 nas áreas médicas, superior nas outras);
+      versões em `relatorios_versoes`. A política `bsp_rel_mudar` passou a só gestão.
+- [x] `relatorios-semana.sql` aplicado: `relatorios_semana_folhas`, crons
+      `bsp-relatorios-semana` (segunda 07h38), `bsp-folhas-assinar` (quarta) e
+      `bsp-folhas-receber` (sexta).
+- [x] Edge Function `relatorios-semana` publicada (versão 1, JWT desligado). O logotipo
+      do PDF passa a vir do site (`assets/logo-barispol.png`); `logo.ts` retirado (o
+      PDF sai sem logotipo se o site falhar, nunca falha por isso). Ensaio
+      `{"previa": true, "semana": "2026-10-26"}`: 21 relatórios, 5 PDF de área
+      (50–63 KB) e o parecer; Imagiologia e Laboratório (sem chefe) vão à
+      Direcção Clínica.
+- [x] `bright-worker` publicada (versão 9 do ficheiro; 10 no painel): aceita também
+      `.xlsx` em base64, só do servidor, até ~1 MB.
+- [x] Aviso da Direcção Geral «Trabalhar só com o Workspace» no Feed (comunicado,
+      `cid` `dg-aviso-workspace-20261031`) e nos 9 canais (`c-geral`, `c-avisos`,
+      `c-clinica`, `c-enfermagem`, `c-rececao`, `c-escalas`, `c-farmacia`,
+      `c-laboratorio`, `c-radiologia`).
+- [x] E-mail à Enfermagem (enfermagem@, cc DireccaoClinica@) com o novo modelo da
+      planilha em anexo, pela `bright-worker` (geral@), assinado «Sistema ·
+      Workspace Barispol». O SharePoint não aceitou o ficheiro: o conector da
+      Microsoft só tem permissões de leitura (falta «Files.ReadWrite.All» e envio
+      de correio). O ficheiro antigo está no computador da Enfermagem, não na nuvem.
+- [x] `medicos-metagest.sql` aplicado: `bsp_medicos_novos_sincronizar()` (cron
+      `bsp-medicos-novos`, 07h53) acrescenta a `prestadores` quem facturou nos
+      últimos 30 dias e não está no cadastro, e avisa u1 e u2. Primeira corrida: 1
+      médico novo (código HLC-PRAC-2026-00012).
+- [ ] Gestão: completar NIF, IBAN, regime e taxas dos médicos sem eles (lista dada
+      ao Elmar na conversa) e decidir quem precisa de conta no Workspace.
+- [ ] Microsoft 365: dar ao conector consentimento de escrita (ficheiros e correio)
+      se se quiser que o assistente ponha ficheiros no SharePoint.
+- [ ] Importar os relatórios de Setembro e Outubro dos e-mails (453 mensagens,
+      inventário feito; só 21 lidas por inteiro).

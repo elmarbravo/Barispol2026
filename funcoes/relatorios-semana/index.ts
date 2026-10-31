@@ -19,7 +19,7 @@
 //     é redigido pela IA a partir dos números (sem nomes de utentes); sem ela,
 //     sai das regras.
 // Termos: «Item» e «Registo» (Elmar: «o termo certo é pergunta e resposta, não
-// será outra coisa?»). Logotipo embutido (logo.ts). Os relatórios não têm nomes
+// será outra coisa?»). Logotipo lido do site (assets/logo-barispol.png). Os relatórios não têm nomes
 // de utentes; os ficheiros anexados aos relatórios nunca vão por e-mail.
 // Um envio por semana e destino (relatorios_enviados, tipo «semana», dia = a
 // segunda-feira da semana). {"previa": true} devolve os e-mails sem enviar
@@ -31,7 +31,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 import fontkit from "npm:@pdf-lib/fontkit@1.1.1";
-import { LOGO_PNG_B64 } from "./logo.ts";
 
 const cabecalhos = {
   "Access-Control-Allow-Origin": "*",
@@ -193,7 +192,6 @@ const base64 = (b: Uint8Array) => {
   for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000));
   return btoa(s);
 };
-const deBase64 = (t: string) => Uint8Array.from(atob(t), (c) => c.charCodeAt(0));
 
 /* ── Escritor de PDF: A4, cabeçalho com logotipo, texto partido em linhas,
    quebra de página automática, rodapé numerado. ─────────────────────────── */
@@ -215,10 +213,16 @@ async function novoPdf(titulo: string) {
     forte = await pdf.embedFont(StandardFonts.HelveticaBold);
     unicode = false;
   }
-  const logo = await pdf.embedPng(deBase64(LOGO_PNG_B64));
+  /* Logotipo do próprio site (assets/logo-barispol.png, 180 px). Se o site não
+     responder, o PDF sai sem ele (nunca falha por isso). */
+  let logo: any = null;
+  try {
+    const r = await fetch(LOGOTIPO);
+    if (r.ok) logo = await pdf.embedPng(new Uint8Array(await r.arrayBuffer()));
+  } catch { logo = null; }
   const limpo = (t: unknown) => {
     let s = String(t ?? "").replace(/\r/g, "");
-    if (!unicode) s = s.replace(/[→]/g, "->").replace(/[–—]/g, "-").replace(/✓/g, "").replace(/[^\x09\x0A\x20-\x7E -ÿ·°]/g, "");
+    if (!unicode) s = s.replace(/[→]/g, "->").replace(/[–—]/g, "-").replace(/✓/g, "").replace(/[^\x09\x0A\x20-\x7E\u00A0-\u00FF\u00B7\u00B0]/g, "");
     else s = s.replace(/✓/g, "");
     return s;
   };
@@ -260,7 +264,7 @@ async function novoPdf(titulo: string) {
     const pg = pdf.addPage([W, H]);
     paginas.push(pg);
     const y = H - M;
-    pg.drawImage(logo, { x: M, y: y - 38, width: 38, height: 38 * 183 / 180 });
+    if (logo) pg.drawImage(logo, { x: M, y: y - 38, width: 38, height: 38 * 183 / 180 });
     pg.drawText("Centro Médico Barispol", { x: M + 46, y: y - 15, size: 12.5, font: forte, color: C.mar });
     pg.drawText(limpo("Clínica Barispol, Lda. · NIF 5000999687"), { x: M + 46, y: y - 29, size: 8, font: fonte, color: C.sua });
     const et = limpo(etiqueta.toUpperCase());
@@ -552,7 +556,7 @@ Deno.serve(comCors(async (req) => {
     envios.push({ chave, para: p, ok, ...(nota ? { nota: nota.slice(0, 200) } : {}) });
     return ok;
   };
-  const semAcentos = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const semAcentos = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
   // 1. Folha de cada área: ao chefe, ou ao Director Clínico se a área não tem chefe.
   const semChefe: string[] = [];
