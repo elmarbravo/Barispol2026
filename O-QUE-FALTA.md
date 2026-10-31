@@ -5738,3 +5738,16 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   (`[data-slides]` no `index.html`, `site.js`: 6 fotografias, 5 s, pontos, legenda,
   pára com o rato, com a página escondida e com «menos movimento»). Testado a 1280 e
   390 px nas 9 páginas, sem passar da largura do ecrã.
+- 31-10-2026, Elmar: «não tem opção de extrair relatórios, como fizemos com a escala…
+  está tudo muito básico, pouco corporativo». Relatórios como documentos: número próprio
+  (`bspRelatorioNumero`, REL-<sigla>-AAAAMMDD-<id>), estado («Entregue», «Versão N»,
+  «Alteração pendente», `bspRelatorioEstado`), cartão novo (`RelatorioResumo`: cabeçalho
+  com número, autor e data, respostas em grelha, anexos em botões, rodapé com acções).
+  «Imprimir / PDF» em cada relatório e «Imprimir os do dia» (`bspRelatorioDocHtml`,
+  `bspImprimirRelatorios`): A4 com logotipo, Clínica Barispol, Lda. e NIF, quem
+  entregou, versão em vigor, perguntas e respostas em tabela, linhas de assinatura (quem
+  entregou; visto da Direcção Clínica / chefe da área), um relatório por página. «Excel
+  de … a …» (`bspRelatoriosExcel`, SheetJS): folha «Resumo» e uma folha por área, uma
+  linha por relatório, números como números, filtro. Tudo regista o acesso
+  (`bspRegistarAcesso`). Os relatórios não têm nomes de utentes. Testado com 2
+  relatórios fictícios: cartão, PDF A4 e Excel (Resumo + Enfermagem).

@@ -17991,6 +17991,89 @@ function bspReagentesSeguintes(v) {
   const extra = bspReagentesLimpos(v).map(x => bspReagenteNome(x.r)).filter(r => BSP_REAGENTES_BS200.indexOf(r) === -1);
   return BSP_REAGENTES_BS200.concat(extra.filter((r, i) => extra.indexOf(r) === i)).map(r => ({ r, r1: '', r2: '', proc: '' }));
 }
+/* Relatórios como documentos da clínica (31-10-2026, Elmar: «não tem opção de
+   extrair relatórios, como fizemos com a escala… está pouco corporativo»).
+   Número próprio, cabeçalho com logotipo e entidade, respostas em tabela, versão
+   em vigor e linha de visto; imprime-se por bspImprimirHtml (PDF no iPhone) e o
+   período sai em Excel (uma folha por área). Sem nomes de utentes: os
+   relatórios não os têm. */
+const BSP_REL_SIGLA = { laboratorio: 'LAB', enfermagem: 'ENF', farmacia: 'FAR', imagiologia: 'IMG', rececao: 'REC' };
+function bspRelatorioNumero(rel) {
+  const s = BSP_REL_SIGLA[rel.area] || String(rel.area || 'REL').slice(0, 3).toUpperCase();
+  return 'REL-' + s + '-' + String(rel.dia || '').replace(/-/g, '') + '-' + rel.id;
+}
+function bspRelatorioEstado(rel, pendente) {
+  if (pendente) return { t: 'Alteração pendente', cor: 'var(--serie-4)' };
+  if (rel.alterado_em) return { t: 'Versão ' + (rel.versao || 2), cor: 'var(--accent-d)' };
+  return { t: 'Entregue', cor: 'var(--sucesso)' };
+}
+function bspRelatorioDocCorpo(rel) {
+  const E = bspEscHtml;
+  const def = BSP_RELATORIOS.find(a => a.id === rel.area);
+  const nome = id => { const u = id && window.userById && window.userById(id); return u ? u.name : (id || ''); };
+  const dia = String(rel.dia || '').split('-').reverse().join('-');
+  const linhas = (def ? def.campos : []).map(c => [c.rotulo, bspRespostaTexto(c, (rel.respostas || {})[c.id])]).filter(x => x[1] != null);
+  const versao = rel.alterado_em ? 'Versão ' + (rel.versao || 2) + ', em vigor desde ' + bspQuando(rel.alterado_em) + (rel.alterado_autorizou ? ', autorizada por ' + nome(rel.alterado_autorizou) : '') : 'Versão 1 (como foi entregue)';
+  return '<section class="doc">' +
+    '<div class="cab"><img src="' + BSP_EMAIL_LOGO + '" alt=""><div><div class="m">Centro Médico Barispol</div><div class="s">Clínica Barispol, Lda. · NIF 5000999687</div></div>' +
+    '<div class="tt"><div class="e">Relatório de turno · ' + E(def ? def.nome : rel.area) + '</div><h1>' + E(dia) + (rel.turno ? ' · ' + E(rel.turno) : '') + '</h1><div class="nr">' + E(bspRelatorioNumero(rel)) + '</div></div></div>' +
+    '<table class="id"><tr><th>Entregue por</th><td>' + E(nome(rel.user_id)) + '</td><th>Entregue a</th><td>' + E(bspQuando(rel.created_at)) + '</td></tr>' +
+    '<tr><th>Estado</th><td colspan="3">' + E(versao) + '</td></tr></table>' +
+    '<table class="r"><thead><tr><th style="width:42%">Pergunta</th><th>Resposta</th></tr></thead><tbody>' +
+    (linhas.length ? linhas.map(l => '<tr><td>' + E(l[0]) + '</td><td>' + E(l[1]).replace(/\n/g, '<br>') + '</td></tr>').join('') : '<tr><td colspan="2">Sem respostas.</td></tr>') +
+    '</tbody></table>' +
+    '<div class="ass"><div><span>' + E(nome(rel.user_id)) + '</span>Quem entregou</div><div><span>&nbsp;</span>Visto da Direcção Clínica / Chefe da área</div></div>' +
+    '<div class="rod"><span>' + E(bspRelatorioNumero(rel)) + ' · documento interno, sem dados de utentes</span><span>Workspace Barispol · impresso a ' + E(bspDataExacta(new Date())) + '</span></div>' +
+    '</section>';
+}
+function bspRelatorioDocHtml(rels, titulo) {
+  return '<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><title>' + bspEscHtml(titulo) + '</title><style>' +
+    '@page{size:A4 portrait;margin:12mm}*{box-sizing:border-box}body{margin:0;font-family:"Titillium Web","Segoe UI",Arial,sans-serif;color:#1C2033;background:#fff;font-size:11.5px}' +
+    '.doc{page-break-after:always;break-after:page}.doc:last-child{page-break-after:auto;break-after:auto}' +
+    '.cab{display:flex;align-items:center;gap:12px;border-bottom:2px solid #2291CE;padding-bottom:8px;margin-bottom:12px}.cab img{width:46px;height:46px}' +
+    '.cab .m{font-size:15px;font-weight:700;color:#292F58}.cab .s{font-size:10.5px;color:#4E5366}.cab .tt{margin-left:auto;text-align:right}' +
+    '.cab .tt .e{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#2291CE}.cab .tt h1{margin:2px 0 0;font-size:19px;color:#292F58}.cab .nr{font-size:10px;color:#4E5366;letter-spacing:.04em}' +
+    'table{width:100%;border-collapse:collapse}table.id{margin-bottom:12px}table.id th{text-align:left;font-weight:600;color:#4E5366;width:16%;padding:5px 6px;background:#EAF5FC;border:1px solid #D6E8F4}table.id td{padding:5px 6px;border:1px solid #D6E8F4}' +
+    'table.r th{background:#2291CE;color:#fff;text-align:left;font-size:10.5px;padding:6px;letter-spacing:.03em}table.r td{padding:5px 6px;border-bottom:1px solid #DDDBD6;vertical-align:top;overflow-wrap:anywhere}' +
+    'table.r tbody tr:nth-child(even) td{background:#F7FAFC}table.r tr{page-break-inside:avoid;break-inside:avoid}table.r td:first-child{color:#4E5366}' +
+    '.ass{display:flex;gap:40px;margin-top:34px;page-break-inside:avoid}.ass div{flex:1;border-top:1px solid #1C2033;padding-top:4px;font-size:10px;color:#4E5366;text-align:center}.ass span{display:block;font-size:11px;color:#1C2033;font-weight:600}' +
+    '.rod{margin-top:14px;font-size:9px;color:#4E5366;display:flex;justify-content:space-between;gap:12px}' +
+    '</style></head><body>' + rels.map(bspRelatorioDocCorpo).join('') + '</body></html>';
+}
+function bspImprimirRelatorios(rels, titulo) {
+  if (!rels || !rels.length) return;
+  bspRegistarAcesso && bspRegistarAcesso('relatorios', 'imprimir ' + rels.length);
+  bspImprimirHtml(bspRelatorioDocHtml(rels, titulo));
+}
+async function bspRelatoriosExcel(rels, de, ate) {
+  const XLSX = await bspCarregarSheetJs();
+  const wb = XLSX.utils.book_new();
+  const nome = id => { const u = id && window.userById && window.userById(id); return u ? u.name : (id || ''); };
+  const porArea = {};
+  rels.forEach(r => { (porArea[r.area] = porArea[r.area] || []).push(r); });
+  const resumo = [['Centro Médico Barispol · Clínica Barispol, Lda.'], ['Relatórios de turno de ' + de.split('-').reverse().join('-') + ' a ' + ate.split('-').reverse().join('-')], [], ['Área', 'Relatórios', 'Alterados']];
+  Object.keys(porArea).sort().forEach(a => {
+    const def = BSP_RELATORIOS.find(d => d.id === a);
+    const campos = (def ? def.campos : []).filter(c => c.tipo !== 'anexos' && c.id !== 'turno');
+    const lista = porArea[a].slice().sort((x, y) => String(x.dia).localeCompare(String(y.dia)) || String(x.created_at).localeCompare(String(y.created_at)));
+    const cab = ['Número', 'Dia', 'Turno', 'Entregue por', 'Entregue a', 'Versão'].concat(campos.map(c => c.rotulo));
+    const linhas = lista.map(r => [bspRelatorioNumero(r), r.dia, r.turno || '', nome(r.user_id), bspQuando(r.created_at), r.versao || 1]
+      .concat(campos.map(c => { const v = (r.respostas || {})[c.id]; return c.tipo === 'numero' && v !== '' && v != null && !isNaN(Number(v)) ? Number(v) : (bspRespostaTexto(c, v) || ''); })));
+    const ws = XLSX.utils.aoa_to_sheet([cab].concat(linhas));
+    ws['!cols'] = cab.map((t, i) => ({ wch: i < 6 ? [22, 11, 10, 22, 20, 7][i] : Math.min(40, Math.max(12, String(t).length)) }));
+    ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: linhas.length, c: cab.length - 1 } }) };
+    ws['!freeze'] = { xSplit: 2, ySplit: 1 };
+    XLSX.utils.book_append_sheet(wb, ws, String(def ? def.nome : a).slice(0, 31));
+    resumo.push([def ? def.nome : a, lista.length, lista.filter(r => r.alterado_em).length]);
+  });
+  const wr = XLSX.utils.aoa_to_sheet(resumo);
+  wr['!cols'] = [{ wch: 28 }, { wch: 12 }, { wch: 12 }];
+  XLSX.utils.book_append_sheet(wb, wr, 'Resumo');
+  wb.SheetNames.unshift(wb.SheetNames.pop());
+  const dados = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  bspRegistarAcesso && bspRegistarAcesso('relatorios', 'excel ' + rels.length);
+  bspDescarregarBlob('Relatorios de turno ' + de + ' a ' + ate + '.xlsx', new Blob([dados], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+}
 function RelatorioResumo({ rel, onApagar, onAlterar, pendente }) {
   const def = BSP_RELATORIOS.find(a => a.id === rel.area);
   /* Eliminar (24-09-2026). As mesmas regras do servidor (bsp_rel_apagar):
@@ -18003,37 +18086,41 @@ function RelatorioResumo({ rel, onApagar, onAlterar, pendente }) {
      entregou pede; a Direcção Clínica ou o superior autoriza. */
   const podeAlterar = !!onAlterar && rel.user_id === window.CURRENT_USER_ID;
   const quemAut = rel.alterado_autorizou && window.userById && window.userById(rel.alterado_autorizou);
+  const est = bspRelatorioEstado(rel, pendente);
   const linhas = (def ? def.campos : []).map(c => [c, bspRespostaTexto(c, (rel.respostas || {})[c.id])]).filter(x => x[1] != null);
-  return React.createElement("div", {
-    style: { border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', background: 'var(--surface)' }
-  }, React.createElement("div", {
-    style: { display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 6, marginBottom: 8 }
-  }, React.createElement("strong", { style: { fontSize: 13.5, color: 'var(--text-1)' } }, def ? def.nome : rel.area, rel.turno ? ' · ' + rel.turno : ''), React.createElement("span", {
-    style: { fontSize: 11.5, color: 'var(--text-3)', whiteSpace: 'nowrap' }
-  }, (u ? u.name.split(' ').slice(0, 2).join(' ') + ' · ' : '') + bspQuando(rel.created_at))), React.createElement("div", {
-    style: { display: 'grid', gridTemplateColumns: 'minmax(120px, 42%) 1fr', gap: '4px 12px', fontSize: 12.5 }
-  }, linhas.map(([c, t]) => React.createElement(React.Fragment, { key: c.id }, React.createElement("span", { style: { color: 'var(--text-3)' } }, c.rotulo), c.tipo === 'anexos'
-    ? React.createElement("span", { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 } }, (rel.respostas[c.id] || []).filter(f => f && f.path).map(f => React.createElement("button", {
-        key: f.path, type: 'button', onClick: () => bspAbrirFicheiro({ path: f.path, name: f.name }, m => window.alert(m)),
-        style: { border: 'none', background: 'transparent', padding: 0, color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 12.5, cursor: 'pointer', textAlign: 'left', textDecoration: 'underline' }
-      }, f.name || 'ficheiro')))
-    : React.createElement("span", { style: { color: 'var(--text-1)', whiteSpace: 'pre-wrap' } }, t)))), rel.alterado_em && React.createElement("div", {
-    style: { marginTop: 8, fontSize: 11.5, color: 'var(--text-3)' }
-  }, 'Versão ' + (rel.versao || 2) + ', em vigor desde ' + bspQuando(rel.alterado_em) + (quemAut ? ' · autorizada por ' + quemAut.name.split(' ').slice(0, 2).join(' ') : '') + '.'), rel.alterado_em && React.createElement(VersoesRelatorio, { rel }), (podeApagar || podeAlterar) && React.createElement("div", {
-    style: { display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 10 }
-  }, podeAlterar && (pendente
-    ? React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, 'Alteração à espera de autorização.')
-    : React.createElement("button", {
-      onClick: () => onAlterar(rel),
-      style: { padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--accent-d)', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }
-    }, 'Pedir alteração')), podeApagar && React.createElement("button", {
-    onClick: () => onApagar(rel),
-    style: {
-      display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8,
-      border: '1px solid rgba(220,38,38,.35)', background: 'transparent', color: '#DC2626',
-      fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer'
-    }
-  }, React.createElement(I.Trash, { size: 13 }), "Eliminar")));
+  const botao = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 999, border: '1px solid var(--border)', background: 'transparent', color: 'var(--accent-d)', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' };
+  return React.createElement("article", {
+    style: { border: '1px solid var(--border)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden', boxShadow: '0 1px 2px rgba(16,42,67,.05)' }
+  }, React.createElement("header", {
+    style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', padding: '12px 14px', borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }
+  }, React.createElement("div", { style: { minWidth: 0 } },
+    React.createElement("div", { style: { fontSize: 14.5, fontWeight: 700, color: 'var(--text-1)' } }, (def ? def.nome : rel.area) + (rel.turno ? ' · ' + rel.turno : '')),
+    React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)', marginTop: 2, letterSpacing: '.02em' } }, bspRelatorioNumero(rel) + ' · ' + (u ? u.name.split(' ').slice(0, 2).join(' ') + ' · ' : '') + bspQuando(rel.created_at))),
+    React.createElement("span", { style: { fontSize: 11.5, fontWeight: 700, color: est.cor, border: '1px solid currentColor', borderRadius: 999, padding: '2px 10px', whiteSpace: 'nowrap' } }, est.t)),
+  React.createElement("div", { style: { padding: '12px 14px' } },
+    React.createElement("div", {
+      style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px 18px', fontSize: 12.5 }
+    }, linhas.map(([c, t]) => React.createElement("div", { key: c.id, style: { minWidth: 0, gridColumn: c.livre || c.tipo === 'reagentes' || String(t).length > 80 ? '1 / -1' : undefined } },
+      React.createElement("div", { style: { fontSize: 11.5, color: 'var(--text-3)', marginBottom: 2 } }, c.rotulo),
+      c.tipo === 'anexos'
+        ? React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } }, (rel.respostas[c.id] || []).filter(f => f && f.path).map(f => React.createElement("button", {
+            key: f.path, type: 'button', onClick: () => bspAbrirFicheiro({ path: f.path, name: f.name }, m => window.alert(m)),
+            style: { border: '1px solid var(--border)', borderRadius: 999, background: 'var(--surface-2)', padding: '3px 10px', color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 12, cursor: 'pointer' }
+          }, f.name || 'ficheiro')))
+        : React.createElement("div", { style: { color: 'var(--text-1)', fontWeight: 600, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } }, t)))),
+    rel.alterado_em && React.createElement("div", {
+      style: { marginTop: 10, fontSize: 11.5, color: 'var(--text-3)' }
+    }, 'Versão ' + (rel.versao || 2) + ', em vigor desde ' + bspQuando(rel.alterado_em) + (quemAut ? ' · autorizada por ' + quemAut.name.split(' ').slice(0, 2).join(' ') : '') + '.'),
+    rel.alterado_em && React.createElement(VersoesRelatorio, { rel })),
+  React.createElement("footer", {
+    style: { display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: 8, padding: '10px 14px', borderTop: '1px solid var(--border)' }
+  }, podeAlterar && pendente && React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)', marginRight: 'auto' } }, 'Alteração à espera de autorização.'),
+    React.createElement("button", { type: 'button', onClick: () => bspImprimirRelatorios([rel], bspRelatorioNumero(rel)), style: botao }, React.createElement(I.File, { size: 13 }), 'Imprimir / PDF'),
+    podeAlterar && !pendente && React.createElement("button", { type: 'button', onClick: () => onAlterar(rel), style: botao }, 'Pedir alteração'),
+    podeApagar && React.createElement("button", {
+      type: 'button', onClick: () => onApagar(rel),
+      style: Object.assign({}, botao, { border: '1px solid rgba(220,38,38,.35)', color: 'var(--perigo)' })
+    }, React.createElement(I.Trash, { size: 13 }), "Eliminar")));
 }
 /* Todas as versões de um relatório (31-10-2026, Elmar: «o novo não anula o
    antigo; tem que ter as versões todas»). A 1 é a entregue; cada alteração
@@ -18136,6 +18223,26 @@ function RelatoriosScreen() {
   editarRef.current = editar;
   const [alts, setAlts] = React.useState([]);
   const [altsOk, setAltsOk] = React.useState(false);
+  /* Extrair (31-10-2026): período para o Excel; por omissão, o mês corrente. */
+  const [expDe, setExpDe] = React.useState(bspHojeLuanda().slice(0, 8) + '01');
+  const [expAte, setExpAte] = React.useState(bspHojeLuanda());
+  const [aExportar, setAExportar] = React.useState(false);
+  const exportarExcel = async () => {
+    if (aExportar) return;
+    if (expDe > expAte) { toast('A data «De» tem de ser antes da data «Até».'); return; }
+    const cl = bspGetClient();
+    if (!cl) { toast('O servidor não está ligado.'); return; }
+    setAExportar(true);
+    try {
+      const r = await cl.from('relatorios_area').select('*').gte('dia', expDe).lte('dia', expAte).order('dia', { ascending: true }).limit(5000);
+      if (r.error) throw r.error;
+      if (!r.data || !r.data.length) { toast('Sem relatórios nesse período.'); return; }
+      await bspRelatoriosExcel(r.data, expDe, expAte);
+      toast(r.data.length + (r.data.length === 1 ? ' relatório exportado.' : ' relatórios exportados.'));
+    } catch (e) {
+      toast('Não foi possível exportar: ' + ((e && e.message) || 'erro'));
+    } finally { setAExportar(false); }
+  };
   const areasForm = editar ? BSP_RELATORIOS.filter(a => a.id === editar.area) : areasMinhas;
   const def = areasForm.find(a => a.id === area) || areasForm[0] || null;
   /* Números do MetaGest (14-10-2026, relatorios-turno.sql): o formulário vem
@@ -18472,7 +18579,16 @@ function RelatoriosScreen() {
     type: "date", value: dia, max: bspHojeLuanda(), onChange: e => e.target.value && setDia(e.target.value),
     "aria-label": "Dia",
     style: { height: 34, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit' }
-  })), areasQueLe.length > 0 && estado === 'pronto' && React.createElement("div", {
+  })), React.createElement("div", {
+    style: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, margin: '0 0 12px', padding: '10px 12px', borderRadius: 12, background: 'var(--surface-2)', fontSize: 12.5, color: 'var(--text-2)' }
+  }, React.createElement("b", { style: { color: 'var(--text-1)', marginRight: 4 } }, 'Extrair'),
+    React.createElement(Button, { variant: 'secondary', size: 'sm', disabled: !lista.length, onClick: () => bspImprimirRelatorios(lista, 'Relatórios de turno ' + dia) }, 'Imprimir os do dia' + (lista.length ? ' (' + lista.length + ')' : '')),
+    React.createElement("span", { style: { marginLeft: 6 } }, 'Excel de'),
+    React.createElement("input", { type: 'date', value: expDe, max: bspHojeLuanda(), onChange: e => e.target.value && setExpDe(e.target.value), 'aria-label': 'De', style: { height: 32, padding: '0 8px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 16 } }),
+    'a',
+    React.createElement("input", { type: 'date', value: expAte, max: bspHojeLuanda(), onChange: e => e.target.value && setExpAte(e.target.value), 'aria-label': 'Até', style: { height: 32, padding: '0 8px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 16 } }),
+    React.createElement(Button, { variant: 'primary', size: 'sm', disabled: aExportar, onClick: exportarExcel }, aExportar ? 'A preparar…' : 'Descarregar Excel')),
+  areasQueLe.length > 0 && estado === 'pronto' && React.createElement("div", {
     style: { fontSize: 12.5, marginBottom: 12, color: emFalta.length ? '#B45309' : 'var(--text-2)' }
   }, emFalta.length ? 'Em falta: ' + emFalta.map(a => a.nome).join(', ') + '.' : (gestor ? 'Todas as áreas entregaram.' : 'Todas as áreas médicas entregaram.')), estado === 'a-carregar' ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'A carregar…') : estado === 'sem-servidor' ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'O servidor não está ligado neste aparelho.') : estado !== 'pronto' ? React.createElement("div", { style: { fontSize: 12.5, color: '#B91C1C' } }, 'Não foi possível ler os relatórios.') : !lista.length ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Sem relatórios neste dia.') : React.createElement("div", {
     style: { display: 'flex', flexDirection: 'column', gap: 10 }
