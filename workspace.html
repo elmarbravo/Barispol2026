@@ -17745,12 +17745,12 @@ const BSP_RELATORIOS = [{
     { id: 'turno', tipo: 'escolha', rotulo: 'Fecho', opcoes: ['Turno das 08h às 17h', 'Dia completo (07h às 22h)', 'Turno da noite'] },
     { id: 'utentes', tipo: 'numero', rotulo: 'Utentes atendidos' },
     { id: 'novos', tipo: 'numero', rotulo: 'Dos quais, novos utentes' },
-    { id: 'fecho_caixa', tipo: 'escolha', rotulo: 'Fecho de caixa', opcoes: ['Enviado', 'Por enviar'] },
-    { id: 'tpa', tipo: 'escolha', rotulo: 'Fecho do TPA', opcoes: ['Enviado', 'Por enviar', 'Sem movimento no TPA'] },
-    { id: 'mapas', tipo: 'escolha', rotulo: 'Mapas dos médicos em serviço', opcoes: ['Todos entregues', 'Alguns em falta', 'Nenhum entregue'] },
+    { id: 'fecho_caixa', tipo: 'escolha', rotulo: 'Fecho de caixa', opcoes: ['Enviado', 'Por enviar'], anexo: { rotulo: 'Fecho de caixa', obriga: ['Enviado'] } },
+    { id: 'tpa', tipo: 'escolha', rotulo: 'Fecho do TPA', opcoes: ['Enviado', 'Por enviar', 'Sem movimento no TPA'], anexo: { rotulo: 'Fecho do TPA', obriga: ['Enviado'] } },
+    { id: 'mapas', tipo: 'escolha', rotulo: 'Mapas dos médicos em serviço', opcoes: ['Todos entregues', 'Alguns em falta', 'Nenhum entregue'], anexo: { rotulo: 'Mapas dos médicos', obriga: ['Todos entregues', 'Alguns em falta'] } },
     { id: 'marcacoes', tipo: 'escolha', rotulo: 'Estado das marcações do dia (compareceu, faltou, cancelou, remarcado)', opcoes: ['Todas actualizadas', 'Algumas por actualizar', 'Nenhuma actualizada'] },
     { id: 'documentos', tipo: 'varias', rotulo: 'Documentos por regularizar no MetaGest', opcoes: ['Nenhum', 'Anulação / nota de crédito por emitir', 'Factura a crédito por emitir', 'Rascunho por eliminar ou submeter', 'Documento em duplicado'] },
-    bspCampoFicheiros('Anexos (fecho de caixa, TPA, mapas)', 'Fotografia ou PDF. Não é preciso mandá-los por e-mail.', false),
+    bspCampoFicheiros('Outros anexos (opcional)', 'Só o que não tem item próprio acima.', false),
     { id: 'ocorrencias', tipo: 'varias', rotulo: 'Ocorrências', opcoes: BSP_OCORRENCIAS },
     { id: 'obs', tipo: 'texto', livre: true, rotulo: 'Relato do turno (escrita livre: o que antes ia no e-mail; sem nomes de utentes)', dica: 'Ex.: pedidos do dia (WhatsApp e presencial) e quantos ficaram marcados; marcações de amanhã; o que fica pendente para o turno seguinte; pedidos à Direcção.' }
   ]
@@ -17759,13 +17759,16 @@ const BSP_RELATORIOS = [{
   nome: 'Farmácia',
   campos: [
     { id: 'turno', tipo: 'escolha', rotulo: 'Fecho', opcoes: ['1.º fecho (turno da manhã)', '2.º fecho (fecho do dia)'] },
-    { id: 'anexos', tipo: 'varias', rotulo: 'Enviado com este fecho', opcoes: ['Fecho de caixa', 'Fecho do TPA', 'Relatório diário', 'Receitas internas'] },
-    { id: 'receitas', tipo: 'numero', rotulo: 'Receitas internas' },
+    { id: 'anexos', tipo: 'varias', rotulo: 'Enviado com este fecho', opcoes: ['Fecho de caixa', 'Fecho do TPA', 'Relatório diário', 'Receitas internas'], antigo: true, opcional: true },
+    { id: 'fecho_caixa', tipo: 'escolha', rotulo: 'Fecho de caixa', opcoes: ['Enviado', 'Por enviar'], anexo: { rotulo: 'Fecho de caixa', obriga: ['Enviado'] } },
+    { id: 'tpa', tipo: 'escolha', rotulo: 'Fecho do TPA', opcoes: ['Enviado', 'Por enviar', 'Sem movimento no TPA'], anexo: { rotulo: 'Fecho do TPA', obriga: ['Enviado'] } },
+    { id: 'relatorio_diario', tipo: 'escolha', rotulo: 'Relatório diário da Farmácia', opcoes: ['Enviado', 'Por enviar'], anexo: { rotulo: 'Relatório diário (Excel ou PDF)', obriga: ['Enviado'] } },
+    { id: 'receitas', tipo: 'numero', rotulo: 'Receitas internas', anexo: { rotulo: 'Receitas internas', obriga: '>0' } },
     { id: 'supridas', tipo: 'escolha', rotulo: 'Receitas internas supridas', opcoes: ['Todas', 'Parcialmente', 'Nenhuma', 'Não houve receitas'] },
     { id: 'rupturas', tipo: 'escolha', rotulo: 'Rupturas de stock', opcoes: ['Nenhuma', 'Sim, de medicamentos', 'Sim, de material', 'Sim, de ambos'] },
     { id: 'avarias', tipo: 'varias', rotulo: 'Avarias', opcoes: ['Nenhuma', 'Computador ou periféricos', 'TPA', 'Frigorífico / conservação', 'Outra (ver observação)'] },
-    { id: 'inventario', tipo: 'escolha', rotulo: 'Inventário semanal', opcoes: ['Não se aplica hoje', 'Enviado', 'Por enviar'] },
-    bspCampoFicheiros('Anexos (relatório diário, fecho de caixa, TPA, inventário)', 'Fotografia, PDF ou Excel. Não é preciso mandá-los por e-mail.', false),
+    { id: 'inventario', tipo: 'escolha', rotulo: 'Inventário semanal', opcoes: ['Não se aplica hoje', 'Enviado', 'Por enviar'], anexo: { rotulo: 'Inventário semanal', obriga: ['Enviado'] } },
+    bspCampoFicheiros('Outros anexos (opcional)', 'Só o que não tem item próprio acima.', false),
     { id: 'ocorrencias', tipo: 'varias', rotulo: 'Ocorrências', opcoes: BSP_OCORRENCIAS },
     { id: 'obs', tipo: 'texto', livre: true, rotulo: 'Relato do turno (escrita livre: o que antes ia no e-mail; sem nomes de utentes)', dica: 'Ex.: receitas por suprir, medicamentos ou material em falta, pedidos aos fornecedores, o que fica pendente para o colega.' }
   ]
@@ -17776,17 +17779,17 @@ const BSP_RELATORIOS = [{
     { id: 'turno', tipo: 'escolha', rotulo: 'Turno', opcoes: ['Manhã', 'Tarde', 'Noite', 'Dia completo'] },
     { id: 'pacientes', tipo: 'numero', rotulo: 'Pacientes atendidos' },
     { id: 'exames', tipo: 'numero', rotulo: 'Exames realizados' },
-    { id: 'requisicoes', tipo: 'escolha', rotulo: 'Requisições do dia', opcoes: ['Todas pagas e processadas', 'Algumas por pagar', 'Algumas por processar', 'Sem requisições'] },
+    { id: 'requisicoes', tipo: 'escolha', rotulo: 'Requisições do dia', opcoes: ['Todas pagas e processadas', 'Algumas por pagar', 'Algumas por processar', 'Sem requisições'], anexo: { rotulo: 'Requisições do dia', obriga: ['Todas pagas e processadas', 'Algumas por pagar', 'Algumas por processar'] } },
     { id: 'resultados', tipo: 'escolha', rotulo: 'Resultados', opcoes: ['Todos entregues', 'Alguns pendentes', 'Todos pendentes'] },
     { id: 'equipamentos', tipo: 'escolha', rotulo: 'Equipamentos', opcoes: ['Todos operacionais', 'Algum com avaria', 'Algum em manutenção'] },
     { id: 'reagentes', tipo: 'escolha', rotulo: 'Reagentes e consumíveis', opcoes: ['Suficientes', 'Stock baixo', 'Em ruptura'] },
     /* 16-10-2026, Elmar: «inserir a quantidade de exames que os reagentes
        permitem processar e as quantidades de exames processados no dia».
        Uma linha por reagente: { r, cap, proc }; ficam = cap − proc. */
-    { id: 'reagentes_exames', tipo: 'reagentes', rotulo: 'Reagentes do analisador de bioquímica (BS-200): testes restantes e processados no dia' },
+    { id: 'reagentes_exames', tipo: 'reagentes', rotulo: 'Reagentes do analisador de bioquímica (BS-200): testes restantes e processados no dia', anexo: { rotulo: 'Fotografia do ecrã do BS-200 (Estado → Disco de reagentes)', obriga: true } },
     /* 30-10-2026, Elmar: «além da fotografia, escrever os números». A fotografia
        do ecrã e as requisições vão aqui, e não no canal do Laboratório. */
-    bspCampoFicheiros('Anexos: fotografia do ecrã do BS-200 (Disco de reagentes) e requisições do dia', 'Obrigatório. Os números do BS-200 escrevem-se na mesma, acima. Não envie estas fotografias no Chat nem por e-mail.', true),
+    bspCampoFicheiros('Outros anexos (opcional)', 'Só o que não tem item próprio acima. Não envie fotografias no Chat nem por e-mail.', false),
     { id: 'ocorrencias', tipo: 'varias', rotulo: 'Ocorrências', opcoes: BSP_OCORRENCIAS },
     { id: 'obs', tipo: 'texto', livre: true, rotulo: 'Relato do turno (escrita livre: o que antes ia no e-mail; sem nomes de utentes)', dica: 'Ex.: pacientes e exames por médico, amostras ou resultados pendentes, reagentes a pedir, avarias.' }
   ]
@@ -17797,8 +17800,8 @@ const BSP_RELATORIOS = [{
     { id: 'turno', tipo: 'escolha', rotulo: 'Turno', opcoes: ['Manhã', 'Tarde', 'Noite', 'Dia completo'] },
     { id: 'movimento', tipo: 'escolha', rotulo: 'Como decorreu o turno', opcoes: ['Calmo', 'Normal', 'Muito movimentado'] },
     { id: 'pacientes', tipo: 'numero', rotulo: 'Pacientes atendidos' },
-    { id: 'raiox', tipo: 'numero', rotulo: 'Exames de Raio-X' },
-    { id: 'ecografias', tipo: 'numero', rotulo: 'Ecografias' },
+    { id: 'raiox', tipo: 'numero', rotulo: 'Exames de Raio-X', anexo: { rotulo: 'Folha diária do Raio-X', obriga: '>0' } },
+    { id: 'ecografias', tipo: 'numero', rotulo: 'Ecografias', anexo: { rotulo: 'Folha diária da Ecografia', obriga: '>0' } },
     /* 18-10-2026, Neusa Chimi: «hoje não realizei nenhum exame… não tem opção»;
        «membros superiores e inferiores»; «dupla incidência… não constam».
        «Nenhum exame no turno» é a primeira opção (exclui as outras). */
@@ -17806,7 +17809,7 @@ const BSP_RELATORIOS = [{
     { id: 'dupla_incidencia', tipo: 'numero', opcional: true, rotulo: 'Exames de Raio-X com dupla incidência (duas projecções)' },
     { id: 'aparelhos', tipo: 'escolha', rotulo: 'Aparelhos', opcoes: ['Todos operacionais', 'Algum com avaria', 'Algum em manutenção'] },
     { id: 'consumiveis', tipo: 'escolha', rotulo: 'Películas e consumíveis', opcoes: ['Suficientes', 'Stock baixo', 'Em ruptura'] },
-    bspCampoFicheiros('Anexos (folha diária do Raio-X e da Ecografia)', 'Fotografia, PDF ou Excel. Não é preciso mandá-los por e-mail.', false),
+    bspCampoFicheiros('Outros anexos (opcional)', 'Só o que não tem item próprio acima.', false),
     { id: 'ocorrencias', tipo: 'varias', rotulo: 'Ocorrências', opcoes: BSP_OCORRENCIAS },
     { id: 'obs', tipo: 'texto', livre: true, rotulo: 'Relato do turno (escrita livre: o que antes ia no e-mail; sem nomes de utentes)', dica: 'Ex.: exames feitos e repetidos, películas, avarias, o que fica pendente.' }
   ]
@@ -17828,7 +17831,7 @@ const BSP_RELATORIOS = [{
     { id: 'sinais_vitais', tipo: 'numero', rotulo: 'Sinais vitais', opcional: true },
     { id: 'medicacao_oral', tipo: 'numero', rotulo: 'Medicação oral', opcional: true },
     { id: 'material', tipo: 'varias', rotulo: 'Material em falta', opcoes: ['Nenhum', 'Máscaras de nebulização', 'Seringas e agulhas', 'Luvas', 'Soros', 'Material de penso', 'Outro (ver observação)'] },
-    bspCampoFicheiros('Anexos: folha de registo do turno', 'Obrigatório. Fotografia ou PDF da folha. Não é preciso mandá-la por e-mail.', true),
+    bspCampoFicheiros('Folha de registo do turno (anexo)', 'Obrigatório. Fotografia ou PDF da folha. Não é preciso mandá-la por e-mail.', true),
     { id: 'obs', tipo: 'texto', livre: true, rotulo: 'Relato do turno (escrita livre: o que antes ia no e-mail; sem nomes de utentes)', dica: 'Ex.: como correu o turno, consultas e procedimentos fora da lista, material em falta, o que fica pendente.' }
   ]
 }];
@@ -17981,6 +17984,29 @@ const BSP_REL_MG_CAMPOS = {
   farmacia: {}
 };
 const BSP_REL_MG_ROTULOS = { utentes: 'utentes', novos: 'novos utentes', consultas: 'consultas', pacientes: 'doentes', exames: 'exames', externos: 'enviados para fora', raiox: 'Raio-X', ecografias: 'ecografias', actos: 'actos de enfermagem', unidades: 'unidades vendidas', produtos: 'produtos' };
+/* Anexo de cada item (31-10-2026, Elmar: «quanto aos anexos, cria um anexo a cada
+   item… fecho do TPA, um anexo isolado; relatório ou receitas, um anexo
+   isolado»). Campo com `anexo: { rotulo, obriga }`; os ficheiros ficam em
+   respostas[<id>__f]. `obriga`: true, lista de respostas (ex.: ['Enviado']) ou
+   '>0' (quantidade maior que zero). */
+function bspAnexosDe(c, resp) {
+  const v = (resp || {})[c.id + '__f'];
+  return (Array.isArray(v) ? v : []).filter(f => f && f.path);
+}
+function bspAnexoObrigatorio(c, resp) {
+  const a = c && c.anexo;
+  if (!a) return false;
+  const v = (resp || {})[c.id];
+  if (a.obriga === true) return true;
+  if (a.obriga === '>0') return (parseFloat(String(v == null ? '' : v).replace(',', '.')) || 0) > 0;
+  return Array.isArray(a.obriga) && a.obriga.indexOf(v) !== -1;
+}
+function bspRespostaComAnexos(c, resp) {
+  const t = bspRespostaTexto(c, (resp || {})[c.id]);
+  const fs = c && c.anexo ? bspAnexosDe(c, resp) : [];
+  if (!fs.length) return t;
+  return (t == null ? '' : t + ' · ') + 'anexo: ' + fs.map(f => f.name || 'ficheiro').join(', ');
+}
 function bspRespostaTexto(campo, v) {
   if (v == null || v === '' || (Array.isArray(v) && !v.length)) return null;
   if (campo && campo.tipo === 'anexos') {
@@ -18051,7 +18077,7 @@ function bspRelatorioDocBloco(rel) {
   const E = bspEscHtml;
   const def = BSP_RELATORIOS.find(a => a.id === rel.area);
   const nome = id => { const u = id && window.userById && window.userById(id); return u ? u.name : (id || ''); };
-  const linhas = (def ? def.campos : []).filter(c => c.id !== 'turno').map(c => [c.rotulo, bspRespostaTexto(c, (rel.respostas || {})[c.id]), !!c.livre]).filter(x => x[1] != null);
+  const linhas = (def ? def.campos : []).filter(c => c.id !== 'turno').map(c => [c.rotulo, bspRespostaComAnexos(c, rel.respostas), !!c.livre]).filter(x => x[1] != null);
   const curtas = linhas.filter(l => !l[2] && String(l[1]).length <= 70), longas = linhas.filter(l => l[2] || String(l[1]).length > 70);
   const pares = [];
   for (let i = 0; i < curtas.length; i += 2) pares.push([curtas[i], curtas[i + 1]]);
@@ -18147,7 +18173,7 @@ function RelatorioResumo({ rel, onApagar, onAlterar, pendente }) {
   const podeAlterar = !!onAlterar && rel.user_id === window.CURRENT_USER_ID;
   const quemAut = rel.alterado_autorizou && window.userById && window.userById(rel.alterado_autorizou);
   const est = bspRelatorioEstado(rel, pendente);
-  const linhas = (def ? def.campos : []).map(c => [c, bspRespostaTexto(c, (rel.respostas || {})[c.id])]).filter(x => x[1] != null);
+  const linhas = (def ? def.campos : []).map(c => [c, bspRespostaTexto(c, (rel.respostas || {})[c.id])]).filter(x => x[1] != null || (x[0].anexo && bspAnexosDe(x[0], rel.respostas).length));
   const botao = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 999, border: '1px solid var(--border)', background: 'transparent', color: 'var(--accent-d)', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' };
   return React.createElement("article", {
     style: { border: '1px solid var(--border)', borderRadius: 14, background: 'var(--surface)', overflow: 'hidden', boxShadow: '0 1px 2px rgba(16,42,67,.05)' }
@@ -18167,7 +18193,12 @@ function RelatorioResumo({ rel, onApagar, onAlterar, pendente }) {
             key: f.path, type: 'button', onClick: () => bspAbrirFicheiro({ path: f.path, name: f.name }, m => window.alert(m)),
             style: { border: '1px solid var(--border)', borderRadius: 999, background: 'var(--surface-2)', padding: '3px 10px', color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 12, cursor: 'pointer' }
           }, f.name || 'ficheiro')))
-        : React.createElement("div", { style: { color: 'var(--text-1)', fontWeight: 600, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } }, t)))),
+        : React.createElement("div", null,
+          t != null && React.createElement("div", { style: { color: 'var(--text-1)', fontWeight: 600, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } }, t),
+          c.anexo && bspAnexosDe(c, rel.respostas).length > 0 && React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 } }, bspAnexosDe(c, rel.respostas).map(f => React.createElement("button", {
+            key: f.path, type: 'button', onClick: () => bspAbrirFicheiro({ path: f.path, name: f.name }, m => window.alert(m)),
+            style: { border: '1px solid var(--border)', borderRadius: 999, background: 'var(--surface-2)', padding: '3px 10px', color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 12, cursor: 'pointer' }
+          }, '📎 ' + (f.name || 'ficheiro')))))))),
     rel.alterado_em && React.createElement("div", {
       style: { marginTop: 10, fontSize: 11.5, color: 'var(--text-3)' }
     }, 'Versão ' + (rel.versao || 2) + ', em vigor desde ' + bspQuando(rel.alterado_em) + (quemAut ? ' · autorizada por ' + quemAut.name.split(' ').slice(0, 2).join(' ') : '') + '.'),
@@ -18287,7 +18318,7 @@ function RelatoriosScreen() {
   const [expDe, setExpDe] = React.useState(bspHojeLuanda().slice(0, 8) + '01');
   const [expAte, setExpAte] = React.useState(bspHojeLuanda());
   const [aExportar, setAExportar] = React.useState(false);
-  const exportarExcel = async () => {
+  const exportarExcel = async (comoPdf) => {
     if (aExportar) return;
     if (expDe > expAte) { toast('A data «De» tem de ser antes da data «Até».'); return; }
     const cl = bspGetClient();
@@ -18297,8 +18328,9 @@ function RelatoriosScreen() {
       const r = await cl.from('relatorios_area').select('*').gte('dia', expDe).lte('dia', expAte).order('dia', { ascending: true }).limit(5000);
       if (r.error) throw r.error;
       if (!r.data || !r.data.length) { toast('Sem relatórios nesse período.'); return; }
-      await bspRelatoriosExcel(r.data, expDe, expAte);
-      toast(r.data.length + (r.data.length === 1 ? ' relatório exportado.' : ' relatórios exportados.'));
+      if (comoPdf === true) bspImprimirRelatorios(r.data, 'Relatórios de turno ' + expDe + ' a ' + expAte);
+      else await bspRelatoriosExcel(r.data, expDe, expAte);
+      toast(r.data.length + (r.data.length === 1 ? ' relatório' : ' relatórios') + (comoPdf === true ? ' prontos para imprimir.' : ' exportados.'));
     } catch (e) {
       toast('Não foi possível exportar: ' + ((e && e.message) || 'erro'));
     } finally { setAExportar(false); }
@@ -18418,14 +18450,14 @@ function RelatoriosScreen() {
     if (/^Nenhu/.test(nada)) nov = op === nada ? (nov.indexOf(nada) !== -1 ? [nada] : []) : nov.filter(x => x !== nada);
     return Object.assign({}, r, { [campo.id]: nov });
   });
-  const obrigatorios = def ? def.campos.filter(c => c.tipo !== 'texto' && !c.opcional) : [];
+  const obrigatorios = def ? def.campos.filter(c => c.tipo !== 'texto' && !c.opcional && !c.antigo) : [];
   const precisaAvaria = ['Algum com avaria'].indexOf(resp.equipamentos || resp.aparelhos) !== -1 ||
     (Array.isArray(resp.avarias) && resp.avarias.some(x => x !== 'Nenhuma'));
   const faltam = obrigatorios.filter(c => {
     const v = resp[c.id];
     if (c.tipo === 'reagentes') return !bspReagentesLimpos(v).length;
     return v == null || v === '' || (Array.isArray(v) && !v.length);
-  });
+  }).concat(def ? def.campos.filter(c => !c.antigo && bspAnexoObrigatorio(c, resp) && !bspAnexosDe(c, resp).length).map(c => ({ id: c.id + '__f', rotulo: 'Anexo: ' + c.anexo.rotulo })) : []);
   const enviar = async () => {
     if (aEnviar || !def) return;
     if (aSubir > 0) { toast('Espere: ainda há anexos a subir.'); return; }
@@ -18452,6 +18484,7 @@ function RelatoriosScreen() {
       else if (c.tipo === 'texto') { if (String(v || '').trim()) limpo[c.id] = String(v).trim().slice(0, c.livre ? 4000 : 1000); }
       else if (c.tipo === 'reagentes') limpo[c.id] = bspReagentesLimpos(v);
       else limpo[c.id] = v;
+      if (c.anexo) { const fs = bspAnexosDe(c, resp); if (fs.length) limpo[c.id + '__f'] = fs; }
     });
     const linha = {
       area: def.id,
@@ -18460,7 +18493,7 @@ function RelatoriosScreen() {
       user_id: window.CURRENT_USER_ID,
       respostas: limpo,
       /* As perguntas por extenso, para o e-mail do servidor. */
-      resumo: def.campos.map(c => [c.rotulo, bspRespostaTexto(c, limpo[c.id])]).filter(x => x[1] != null)
+      resumo: def.campos.map(c => [c.rotulo, bspRespostaComAnexos(c, limpo)]).filter(x => x[1] != null)
     };
     if (editar) {
       if (motivo.trim().length < BSP_REL_ALT_MIN) { setAEnviar(false); toast('Escreva o motivo da alteração para quem autoriza (pelo menos ' + BSP_REL_ALT_MIN + ' letras).'); return; }
@@ -18578,7 +18611,26 @@ function RelatoriosScreen() {
         botao('Escolher ficheiros', { accept: 'image/jpeg,image/png,image/webp,application/pdf,.xlsx,.xls,.docx,.csv', multiple: true }),
         aSubir > 0 && React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, 'A anexar ' + aSubir + '…')));
   };
-  const campo = c => c.tipo === 'reagentes' ? campoReagentes(c) : c.tipo === 'anexos' ? campoAnexos(c) : React.createElement("div", { key: c.id, style: { marginBottom: 16 } }, React.createElement("div", {
+  const campoAnexoItem = c => {
+    const ch = { id: c.id + '__f' };
+    const fs = bspAnexosDe(c, resp);
+    const obrig = bspAnexoObrigatorio(c, resp);
+    const botao = (rot, props) => React.createElement("label", {
+      style: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 999, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--accent-d)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }
+    }, rot, React.createElement("input", Object.assign({ type: 'file', style: { display: 'none' }, onChange: e => { subirAnexos(ch, e.target.files); e.target.value = ''; } }, props)));
+    return React.createElement("div", { style: { margin: '-8px 0 16px', padding: '8px 10px', borderRadius: 10, border: '1px dashed ' + (obrig && !fs.length ? 'var(--perigo)' : 'var(--border)'), background: 'var(--surface-2)' } },
+      React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 } }, '📎 Anexo: ' + c.anexo.rotulo, obrig
+        ? React.createElement("span", { style: { color: fs.length ? 'var(--sucesso)' : 'var(--perigo)', fontWeight: 600 } }, fs.length ? ' · anexado' : ' · obrigatório')
+        : React.createElement("span", { style: { color: 'var(--text-3)', fontWeight: 400 } }, ' · opcional')),
+      fs.map(f => React.createElement("div", { key: f.path, style: { display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 12.5 } },
+        React.createElement("button", { type: 'button', onClick: () => bspAbrirFicheiro({ path: f.path, name: f.name }, m => toast(m)), style: { flex: 1, minWidth: 0, textAlign: 'left', border: 'none', background: 'transparent', padding: 0, color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 12.5, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, f.name),
+        React.createElement("button", { type: 'button', onClick: () => tirarAnexo(ch, f), 'aria-label': 'Tirar este anexo', style: { height: 26, padding: '0 9px', border: '1px solid var(--border)', borderRadius: 8, background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', fontFamily: 'inherit' } }, '×'))),
+      React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } },
+        botao('Tirar fotografia', { accept: 'image/*', capture: 'environment' }),
+        botao('Escolher ficheiro', { accept: 'image/jpeg,image/png,image/webp,application/pdf,.xlsx,.xls,.docx,.csv', multiple: true })));
+  };
+  const campo = c => c.antigo ? null : c.anexo ? React.createElement("div", { key: c.id }, campoBase(c), campoAnexoItem(c)) : campoBase(c);
+  const campoBase = c => c.tipo === 'reagentes' ? campoReagentes(c) : c.tipo === 'anexos' ? campoAnexos(c) : React.createElement("div", { key: c.id, style: { marginBottom: 16 } }, React.createElement("div", {
     style: { fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)', marginBottom: 7 }
   }, c.rotulo, c.tipo === 'varias' ? React.createElement("span", { style: { fontWeight: 400, color: 'var(--text-3)' } }, ' · pode escolher várias') : null), c.tipo === 'escolha' ? React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } }, c.opcoes.map(op => chip(resp[c.id] === op, op, () => definir(c.id, op)))) : c.tipo === 'varias' ? React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } }, c.opcoes.map(op => chip(Array.isArray(resp[c.id]) && resp[c.id].indexOf(op) !== -1, op, () => alternar(c, op)))) : c.tipo === 'numero' ? React.createElement("input", {
     type: "number", min: 0, step: c.opcional ? 'any' : 1, inputMode: c.opcional ? "decimal" : "numeric", value: resp[c.id] == null ? '' : resp[c.id],
@@ -18643,11 +18695,12 @@ function RelatoriosScreen() {
     style: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, margin: '0 0 12px', padding: '10px 12px', borderRadius: 12, background: 'var(--surface-2)', fontSize: 12.5, color: 'var(--text-2)' }
   }, React.createElement("b", { style: { color: 'var(--text-1)', marginRight: 4 } }, 'Extrair'),
     React.createElement(Button, { variant: 'secondary', size: 'sm', disabled: !lista.length, onClick: () => bspImprimirRelatorios(lista, 'Relatórios de turno ' + dia) }, 'Imprimir os do dia' + (lista.length ? ' (' + lista.length + ')' : '')),
-    React.createElement("span", { style: { marginLeft: 6 } }, 'Excel de'),
+    React.createElement("span", { style: { marginLeft: 6 } }, 'Período de'),
     React.createElement("input", { type: 'date', value: expDe, max: bspHojeLuanda(), onChange: e => e.target.value && setExpDe(e.target.value), 'aria-label': 'De', style: { height: 32, padding: '0 8px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 16 } }),
     'a',
     React.createElement("input", { type: 'date', value: expAte, max: bspHojeLuanda(), onChange: e => e.target.value && setExpAte(e.target.value), 'aria-label': 'Até', style: { height: 32, padding: '0 8px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 16 } }),
-    React.createElement(Button, { variant: 'primary', size: 'sm', disabled: aExportar, onClick: exportarExcel }, aExportar ? 'A preparar…' : 'Descarregar Excel')),
+    React.createElement(Button, { variant: 'secondary', size: 'sm', disabled: aExportar, onClick: () => exportarExcel(true) }, 'PDF'),
+    React.createElement(Button, { variant: 'primary', size: 'sm', disabled: aExportar, onClick: () => exportarExcel(false) }, aExportar ? 'A preparar…' : 'Excel')),
   areasQueLe.length > 0 && estado === 'pronto' && React.createElement("div", {
     style: { fontSize: 12.5, marginBottom: 12, color: emFalta.length ? '#B45309' : 'var(--text-2)' }
   }, emFalta.length ? 'Em falta: ' + emFalta.map(a => a.nome).join(', ') + '.' : (gestor ? 'Todas as áreas entregaram.' : 'Todas as áreas médicas entregaram.')), estado === 'a-carregar' ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'A carregar…') : estado === 'sem-servidor' ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'O servidor não está ligado neste aparelho.') : estado !== 'pronto' ? React.createElement("div", { style: { fontSize: 12.5, color: '#B91C1C' } }, 'Não foi possível ler os relatórios.') : !lista.length ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Sem relatórios neste dia.') : React.createElement("div", {

@@ -5808,3 +5808,16 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   das folhas do Excel dos relatórios passam a trocar esses sinais por hífen, até 31
   letras e sem repetidos. Testado com as 5 áreas: Resumo, Enfermagem, Farmácia,
   Imagiologia, Laboratório, «Recepção - Caixa».
+- 31-10-2026, Elmar: «quanto aos anexos, cria um anexo a cada item… fecho do TPA, um
+  anexo isolado; relatório ou receitas, um anexo isolado» e «extraí relatórios antigos,
+  só estava a aparecer em Excel». Anexo por item: campo com `anexo: { rotulo, obriga }`
+  (ficheiros em `respostas[<id>__f]`; `bspAnexosDe`, `bspAnexoObrigatorio`,
+  `bspRespostaComAnexos`; no formulário `campoAnexoItem`). Obrigatório quando a resposta
+  diz «Enviado» (ou a lista dada) ou a quantidade passa de zero. Recepção: fecho de
+  caixa, TPA, mapas. Farmácia: fecho de caixa, TPA, relatório diário, receitas internas,
+  inventário (o antigo «Enviado com este fecho» fica `antigo: true`: fora do formulário,
+  visível nos relatórios antigos). Laboratório: requisições, fotografia do BS-200 (sempre
+  obrigatória). Imagiologia: folha do Raio-X e da Ecografia. O campo geral passa a
+  «Outros anexos (opcional)»; na Enfermagem «Folha de registo do turno (anexo)» continua
+  obrigatória. O `resumo` (e-mail, PDF semanal) leva «anexo: <nomes>». Extrair: «PDF» e
+  «Excel» do período. Testado no formulário da Farmácia.
