@@ -490,6 +490,10 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   antigos (`state.todayEvents`) têm `origem: 'equipa'`. Qualquer consumidor
   novo da agenda junta os dois e filtra com `bspEventoNaAgenda`.
   Mensais: `dia_mes` (início em `data`), no ecrã `e.diaMes`/`e.desde`.
+  Convocatórias no Início (31-10-2026, Elmar: «verificação de cada membro, e fica no menu
+  inicial todos os dias»): `ConvocatoriasInicio` / `bspConvocatoriaActiva` mostram a reunião da
+  agenda com 5 ou mais convidados e data nos próximos 21 dias, até ao fim dela, a convidados,
+  anfitrião e gestão; resposta Vou/Talvez/Não vou ali mesmo e confirmações por pessoa.
   Lembretes (02-10-2026, `agenda-lembretes.sql`): `lembretes` do evento e
   `lembretes_pessoa` por pessoa (`bsp_evento_lembretes`, `BSP_LEMBRETES`,
   `bspLembretesDevidos`); e-mail pela Edge Function `agenda-avisos`

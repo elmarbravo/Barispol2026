@@ -5865,3 +5865,18 @@ O conector do Supabase voltou a ver o projecto Barispol (Elmar: «Vê agora»).
       servidor pode pedir com o código do agendamento, mas só convites (apagar,
       desactivar ou mudar palavra-passe pelo servidor: recusado, testado).
 - [ ] Contas dos 17 médicos com facturas e sem conta: à espera dos e-mails.
+
+## 3-ig. Convocatória da reunião de 06-11-2026 (31-10-2026)
+
+Elmar: «Cria evento com o Dr. Osvaldo como anfitrião a convocar todos… verificação de
+cada membro, e fica no menu inicial todos os dias… use as palavras dele».
+
+- [x] Evento n.º 19 na agenda (`agenda_eventos`): dono u14, 06-11-2026 às 10h00, sala de
+      reuniões, descrição = texto da convocatória sem mudanças, lembretes 1 dia e 1 hora antes.
+      Convocados conforme o texto: Elmar (u1), Arlete (u2), Enfermagem (u9, u10, u11),
+      Laboratório (u3, u19), Raio-X/Radiologia (Joana Tati, Neusa Chimi, Elizabeth Holoca),
+      Farmácia (u17, u16, u18). Afonso e Rosa Queirós ficaram de fora (contas inactivas).
+      Convites `.ics` por e-mail a 14 pessoas e aviso no telemóvel.
+- [x] Cartão `ConvocatoriasInicio` no Início: todos os dias até ao fim da reunião; quem foi
+      convocado confirma (Vou / Talvez / Não vou); o Dr. Osvaldo e a gestão vêem cada pessoa.
+- [ ] A duração não vinha na convocatória: ficou 1 hora (10h00–11h00). Mudar se for outra.

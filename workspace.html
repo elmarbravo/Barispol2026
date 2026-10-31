@@ -8648,6 +8648,65 @@ function LoginScreen({
    a sessão, no menu inicial, pode ficar o funcionário do mês»). Lê o mesmo
    bsp_fm_estado do separador da Equipa: o último vencedor e, nos dias de
    votação, o convite a quem ainda não votou. Sem nada para mostrar, não aparece. */
+/* Convocatórias no Início (31-10-2026, Elmar: «evento com o Dr. Osvaldo como
+   anfitrião a convocar todos… verificação de cada membro, e fica no menu
+   inicial todos os dias»). Uma reunião da agenda com 5 ou mais convidados e
+   data nos próximos 21 dias aparece no Início, todos os dias até ao fim da
+   reunião, a quem foi convocado, ao anfitrião e à gestão. Quem foi convocado
+   responde aqui (Vou / Talvez / Não vou, bsp_evento_responder); o anfitrião e
+   a gestão vêem as confirmações de cada pessoa. O texto da convocatória é o
+   da descrição do evento, sem mudanças. */
+function bspConvocatoriaActiva(e, agora) {
+  if (!e || e.origem !== 'agenda' || !e.data || e.diaMes || (e.convidados || []).length < 5) return false;
+  const [hh, mm] = String(e.time || '09:00').split(':').map(Number);
+  const fim = new Date(e.data + 'T00:00:00');
+  fim.setHours(hh || 0, (mm || 0) + (Number(e.dur) || 60), 0, 0);
+  const ate = new Date(agora.getTime() + 21 * 86400000);
+  return fim > agora && new Date(e.data + 'T00:00:00') <= ate;
+}
+function ConvocatoriasInicio() {
+  const agenda = useAgendaEventos();
+  const toast = useToast();
+  const eu = window.CURRENT_USER_ID;
+  const [aberta, setAberta] = React.useState({});
+  const [texto, setTexto] = React.useState({});
+  const agora = new Date();
+  const lista = agenda.eventos.filter(e => bspConvocatoriaActiva(e, agora) &&
+    (e.convidados.indexOf(eu) !== -1 || e.dono === eu || bspVeTodasAgendas()))
+    .sort((a, b) => (a.data + a.time).localeCompare(b.data + b.time));
+  if (!lista.length) return null;
+  const nome = id => id === eu ? 'Eu' : ((window.userById(id) || {}).name || 'Antigo colaborador');
+  const corResp = r => r === 'sim' ? 'var(--sucesso)' : r === 'nao' ? 'var(--perigo)' : 'var(--text-3)';
+  const responder = (e, r) => agenda.responder(e.idReal, r).then(err => toast(err || 'Resposta enviada: ' + BSP_RESPOSTAS_EVENTO[r] + '.'));
+  return React.createElement(React.Fragment, null, lista.map(e => {
+    const convidado = e.convidados.indexOf(eu) !== -1;
+    const minha = e.respostas[eu];
+    const veTodos = e.dono === eu || e.criadoPor === eu || bspVeTodasAgendas();
+    const conta = { sim: 0, talvez: 0, nao: 0, falta: 0 };
+    e.convidados.forEach(id => { const r = e.respostas[id]; if (conta[r] != null) conta[r]++; else conta.falta++; });
+    const resumo = conta.sim + (conta.sim === 1 ? ' vai' : ' vão') + ' · ' + conta.talvez + ' talvez · ' + conta.nao + (conta.nao === 1 ? ' não vai' : ' não vão') + ' · ' + conta.falta + ' por responder';
+    return React.createElement(Card, { key: e.id, style: { marginBottom: 16, borderLeft: '4px solid var(--accent)' } },
+      React.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--text-2)' } },
+        React.createElement(I.Cal, { size: 15, style: { color: 'var(--accent)' } }), 'Convocatória · anfitrião: ' + ((window.userById(e.dono) || {}).name || '')),
+      React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: 'var(--navy-texto)', marginTop: 2 } }, e.title),
+      React.createElement("div", { style: { fontSize: 13.5, color: 'var(--text-1)', marginTop: 4 } }, bspQuandoEvento(e) + (e.local ? ' · ' + e.local : '')),
+      e.descricao && React.createElement("div", { style: { marginTop: 8 } },
+        texto[e.id] && React.createElement("div", { style: { fontSize: 13.5, lineHeight: 1.6, color: 'var(--text-1)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface-2)', marginBottom: 6 } }, e.descricao),
+        React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: () => setTexto(Object.assign({}, texto, { [e.id]: !texto[e.id] })) }, texto[e.id] ? 'Esconder a convocatória' : 'Ler a convocatória')),
+      convidado && React.createElement("div", { style: { marginTop: 10, padding: 12, border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface-2)' } },
+        React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 8 } }, minha ? 'A sua resposta: ' + BSP_RESPOSTAS_EVENTO[minha] + '. Pode mudar:' : 'Foi convocado. Confirme a sua presença:'),
+        React.createElement("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+          ['sim', 'talvez', 'nao'].map(r => React.createElement(Button, { key: r, variant: minha === r ? 'primary' : 'secondary', size: 'sm', onClick: () => responder(e, r) }, BSP_RESPOSTAS_EVENTO[r])))),
+      veTodos && React.createElement("div", { style: { marginTop: 10 } },
+        React.createElement("div", { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' } },
+          React.createElement("div", { style: { fontSize: 13, color: 'var(--text-2)' } }, React.createElement("b", null, 'Confirmações: '), resumo),
+          React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: () => setAberta(Object.assign({}, aberta, { [e.id]: !aberta[e.id] })) }, aberta[e.id] ? 'Esconder' : 'Ver cada pessoa')),
+        aberta[e.id] && e.convidados.slice().sort((a, b) => bspCompararTexto(nome(a), nome(b))).map(id => React.createElement("div", { key: id, style: { display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 13.5, borderTop: '1px solid var(--border)' } },
+          React.createElement(Avatar, { user: window.userById(id) || { id: id, name: '?' }, size: 22 }),
+          React.createElement("span", { style: { flex: 1, minWidth: 0, color: 'var(--text-1)' } }, nome(id)),
+          React.createElement("span", { style: { fontSize: 12.5, fontWeight: 600, color: corResp(e.respostas[id]) } }, BSP_RESPOSTAS_EVENTO[e.respostas[id]] || 'Por responder')))));
+  }));
+}
 function FuncionarioMesInicio({ onAbrir }) {
   const [est, setEst] = React.useState(null);
   React.useEffect(() => {
@@ -9323,8 +9382,9 @@ function DashboardScreen({
         quick.map(([ic, rot, to]) => React.createElement("button", { key: to, onClick: () => ir(to),
           style: { padding: '8px 14px', background: 'rgba(255,255,255,.14)', color: '#fff', border: '1px solid rgba(255,255,255,.28)', borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: 'inherit' }
         }, I[ic] ? React.createElement(I[ic], { size: 15 }) : null, rot))))),
+    React.createElement(ConvocatoriasInicio, null),
     React.createElement(FuncionarioMesInicio, { onAbrir: () => ir('directory') }),
-    recepcao && React.createElement(MarcLembretesInicio, { onAbrir: () => ir('marcacoes') }),
+    recepcao &&React.createElement(MarcLembretesInicio, { onAbrir: () => ir('marcacoes') }),
     React.createElement(TurnoCartao, { currentUser }),
     React.createElement(PedidosFarmaciaCartao, { currentUser }),
     React.createElement(InicioRelatorioPorEntregar, { onAbrir: () => ir('relatorios') }),
