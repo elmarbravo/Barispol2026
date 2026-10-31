@@ -344,6 +344,7 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   leitor próprio sobre o JSZip, 02-10-2026). Excel .xlsx/.xls/.csv em `bspVerExcel` (`LeitorExcel`, SheetJS, 31-10-2026). `bspAbrirFicheiro` escolhe sozinho e, sem leitor, guarda ou partilha (`bspGuardarFicheiro`): nunca abrir o endereço directo, que fica em branco no iPhone e na app.
   O «Guardar» do visor é `bspGuardarFicheiro` (blob com o nome certo, partilha no
   telemóvel; nos Word «Descarregar para editar», 06-10-2026): nunca um link directo.
+- `Button` (31-10-2026): respeita `disabled` e tem `secondary` (= `ghost`).
 - Logotipo (02-10-2026): `BarispolLogo` com `sm` 38, `md` 64, `lg` 104 px;
   no site, 72 px no cabeçalho (60 no telemóvel). Nunca voltar a tamanhos
   menores (pedido do Elmar). Círculo branco sempre com 13% de margem
@@ -400,7 +401,8 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   `bsp_chefe_de`); ninguém muda directamente além da gestão; quem entregou pede com motivo
   (`bsp_relatorio_alteracao_pedir`, `relatorios_alteracoes`) e autoriza a Direcção Clínica
   (u14) nas áreas médicas, o superior nas outras (`bsp_relatorio_autoriza`). Nunca voltar
-  a deixar o autor mudar o relatório sem autorização.
+  a deixar o autor mudar o relatório sem autorização. Motivo de quem pede e resposta de
+  quem decide são obrigatórios (10 letras, `BSP_REL_ALT_MIN`, iguais no servidor).
   Anexos do relatório (30-10-2026, `relatorios-anexos.sql`, Elmar: «parem de enviar
   no chat e mandem só no relatório»): campo tipo `anexos` (`bspCampoFicheiros`,
   id `ficheiros`), ficheiros em `drive` → `relatorio/<área>/<id>/…`, lidos só por

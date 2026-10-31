@@ -5704,3 +5704,14 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   minha área». O botão e o painel só aparecem quando `bsp_relatorio_alteracoes` responde
   (sem o SQL, nada muda no ecrã). Falta: aplicar o SQL, confirmar com um pedido real e
   responder à Gizela no Chat.
+- 31-10-2026, Elmar: «na alteração tem que vir um campo de observação com motivo
+  obrigatório … como se fosse uma mensagem para quem autoriza. E quem autoriza é também
+  um campo para responder, se autorizou ou se negou». «Observação: motivo da alteração
+  (obrigatório)», com a indicação de para quem vai; «Pedir autorização» só com 10 letras
+  ou mais (`BSP_REL_ALT_MIN`). No cartão de quem autoriza (`RelatorioAltCartao`):
+  «Mensagem de <nome>» e «A sua resposta (obrigatória)»; «Autorizar» e «Recusar» só com
+  a resposta escrita. Quem pediu vê «Resposta de <nome> (data)». No servidor
+  (`relatorios-alterar.sql`, ainda por aplicar): motivo e resposta com 10 letras ou mais;
+  a resposta vai no aviso do telemóvel a quem pediu. O `Button` passa a respeitar
+  `disabled` (cinzento, sem clique) e a ter a variante `secondary` (= `ghost`): eram
+  pedidos em 11 e 17 sítios e ignorados.

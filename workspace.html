@@ -2602,8 +2602,11 @@ function Button({
   icon,
   onClick,
   style,
-  full
+  full,
+  disabled
 }) {
+  /* «disabled» e «secondary» (31-10-2026): eram passados em vários ecrãs e
+     ignorados; o botão parecia activo e o «secondary» saía marinho. */
   const variants = {
     primary: {
       /* Marinho (25-09-2026): o branco sobre o azul claro lia-se mal. */
@@ -2637,6 +2640,7 @@ function Button({
       hover: '#FEE2E2'
     }
   };
+  variants.secondary = variants.ghost;
   const v = variants[variant] || variants.primary;
   const sz = size === 'sm' ? {
     pad: '7px 12px',
@@ -2653,8 +2657,10 @@ function Button({
   };
   return React.createElement("button", {
     onClick: onClick,
+    disabled: !!disabled,
     className: "bsp-btn",
     style: {
+      opacity: disabled ? 0.5 : undefined,
       background: v.bg,
       color: v.fg,
       border: v.border === 'transparent' ? 'none' : `1px solid ${v.border === 'var(--border)' ? 'var(--border)' : v.border}`,
@@ -2662,7 +2668,7 @@ function Button({
       borderRadius: 3,
       fontWeight: 600,
       fontSize: sz.fs,
-      cursor: 'pointer',
+      cursor: disabled ? 'not-allowed' : 'pointer',
       display: 'inline-flex',
       alignItems: 'center',
       gap: sz.gap,
@@ -18104,18 +18110,21 @@ function RelatoriosScreen() {
     if (main) main.scrollTop = 0;
   };
   const pararAlterar = () => { setEditar(null); setMotivo(''); setResp({}); setDiaForm(bspDiaRelatorio()); setArea(minhaArea || (areasMinhas[0] && areasMinhas[0].id) || null); };
-  const decidirAlt = async (a, aprovar) => {
+  const decidirAlt = async (a, aprovar, nota) => {
     const cl = bspGetClient();
-    if (!cl) { toast('O servidor não está ligado.'); return; }
-    if (bspEmVerComo()) { toast('Em «Ver como» não se grava nada.'); return; }
-    let nota = '';
-    if (aprovar === false) { nota = window.prompt('Motivo da recusa (segue para quem pediu):', '') || ''; }
-    else if (aprovar === true && !window.confirm('Autorizar a alteração? As respostas novas substituem as do relatório.')) return;
-    else if (aprovar === null && !window.confirm('Cancelar o seu pedido de alteração?')) return;
+    if (!cl) { toast('O servidor não está ligado.'); return false; }
+    if (bspEmVerComo()) { toast('Em «Ver como» não se grava nada.'); return false; }
+    nota = String(nota || '').trim();
+    /* Resposta obrigatória de quem autoriza (31-10-2026, Elmar: «quem autoriza
+       é também um campo para responder, se autorizou ou se negou»). */
+    if (aprovar !== null && nota.length < BSP_REL_ALT_MIN) { toast('Escreva a resposta para quem pediu (pelo menos ' + BSP_REL_ALT_MIN + ' letras).'); return false; }
+    if (aprovar === true && !window.confirm('Autorizar a alteração? As respostas novas substituem as do relatório.')) return false;
+    if (aprovar === null && !window.confirm('Cancelar o seu pedido de alteração?')) return false;
     const r = await cl.rpc('bsp_relatorio_alteracao_decidir', { p_id: a.id, p_aprovar: aprovar, p_nota: nota || null });
-    if (r.error) { toast('Não foi possível: ' + (r.error.message || 'erro')); return; }
-    toast(r.data === 'Autorizada' ? 'Alteração autorizada.' : r.data === 'Recusada' ? 'Alteração recusada.' : 'Pedido cancelado.');
+    if (r.error) { toast('Não foi possível: ' + (r.error.message || 'erro')); return false; }
+    toast(r.data === 'Autorizada' ? 'Alteração autorizada. A resposta seguiu para quem pediu.' : r.data === 'Recusada' ? 'Alteração recusada. A resposta seguiu para quem pediu.' : 'Pedido cancelado.');
     setTick(t => t + 1);
+    return true;
   };
   React.useEffect(() => {
     const cl = bspGetClient();
@@ -18234,7 +18243,7 @@ function RelatoriosScreen() {
       resumo: def.campos.map(c => [c.rotulo, bspRespostaTexto(c, limpo[c.id])]).filter(x => x[1] != null)
     };
     if (editar) {
-      if (!motivo.trim()) { setAEnviar(false); toast('Escreva o motivo da alteração.'); return; }
+      if (motivo.trim().length < BSP_REL_ALT_MIN) { setAEnviar(false); toast('Escreva o motivo da alteração para quem autoriza (pelo menos ' + BSP_REL_ALT_MIN + ' letras).'); return; }
       const ra = await cl.rpc('bsp_relatorio_alteracao_pedir', { p_relatorio: editar.id, p_respostas: limpo, p_resumo: linha.resumo, p_motivo: motivo.trim() });
       setAEnviar(false);
       if (ra.error) { toast('Não foi possível pedir: ' + (ra.error.message || 'erro')); return; }
@@ -18386,7 +18395,8 @@ function RelatoriosScreen() {
   }, areasMinhas.map(a => chip(area === a.id, a.nome, () => setArea(a.id)))), def && React.createElement(RelatorioMetaGest, { mg, dia: diaForm }), def && def.campos.map(campo), def && precisaAvaria && React.createElement("div", {
     style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', margin: '-4px 0 16px', padding: '10px 12px', borderRadius: 10, background: 'var(--surface-2)', fontSize: 12.5, color: 'var(--text-2)' }
   }, 'Equipamento avariado? Reporte-o também em Serviços gerais, para ter seguimento e quem o trate.', React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: () => window.bspIrParaEcra && window.bspIrParaEcra('avarias') }, 'Reportar avaria')), def && editar && React.createElement("div", { style: { marginBottom: 14 } },
-    React.createElement("div", { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)', marginBottom: 7 } }, 'Motivo da alteração'),
+    React.createElement("div", { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)', marginBottom: 3 } }, 'Observação: motivo da alteração ', React.createElement("span", { style: { color: 'var(--perigo)' } }, '(obrigatório)')),
+    React.createElement("div", { style: { fontSize: 12, color: 'var(--text-3)', marginBottom: 7 } }, 'É a mensagem para ' + (BSP_RELATORIOS_MEDICOS.indexOf(editar.area) !== -1 ? 'a Direcção Clínica' : 'o seu superior') + ': diga o que estava errado e porquê.'),
     React.createElement("textarea", {
       rows: 3, value: motivo, maxLength: 1000, placeholder: 'Ex.: troquei o número de colheitas; eram 18 e não 13.',
       onChange: e => setMotivo(e.target.value),
@@ -18394,7 +18404,7 @@ function RelatoriosScreen() {
     })), def && React.createElement(Button, {
     variant: "primary",
     onClick: enviar,
-    disabled: aEnviar
+    disabled: aEnviar || (!!editar && motivo.trim().length < BSP_REL_ALT_MIN)
   }, aEnviar ? 'A enviar…' : editar ? 'Pedir autorização' : 'Enviar relatório'), editar && React.createElement(Button, {
     variant: "secondary",
     onClick: pararAlterar,
@@ -18419,6 +18429,51 @@ function RelatoriosScreen() {
 /* Pedidos de alteração de relatórios (31-10-2026, relatorios-alterar.sql):
    quem autoriza vê o antes e o depois de cada resposta mudada e o motivo;
    quem pediu vê o estado dos seus. */
+/* Um pedido de alteração: motivo de quem pede (mensagem obrigatória) e, para
+   quem autoriza, a resposta obrigatória com «Autorizar» ou «Recusar»
+   (31-10-2026, Elmar). */
+function RelatorioAltCartao({ a, decidir, nome, mudancas, onDecidir }) {
+  const [resposta, setResposta] = React.useState('');
+  const [aGravar, setAGravar] = React.useState(false);
+  const def = BSP_RELATORIOS.find(d => d.id === a.area);
+  const ms = mudancas(a);
+  const cor = a.estado === 'Autorizada' ? 'var(--sucesso)' : a.estado === 'Recusada' ? 'var(--perigo)' : 'var(--text-3)';
+  const curta = resposta.trim().length < BSP_REL_ALT_MIN;
+  const decidir2 = async v => { setAGravar(true); const ok = await onDecidir(a, v, resposta); setAGravar(false); if (ok) setResposta(''); };
+  return React.createElement("div", { style: { border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', background: 'var(--surface)', fontSize: 12.5 } },
+    React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 6, marginBottom: 6 } },
+      React.createElement("strong", { style: { color: 'var(--text-1)' } }, (def ? def.nome : a.area) + ' · ' + a.dia.split('-').reverse().join('-')),
+      React.createElement("span", { style: { color: cor, fontWeight: 600 } }, a.estado)),
+    React.createElement("div", { style: { color: 'var(--text-3)', marginBottom: 8 } }, (decidir ? 'Pedido de ' + nome(a.user_id) + ' · ' : 'Autoriza: ' + nome(a.aprovador_id) + ' · ') + bspQuando(a.criado_em)),
+    React.createElement("div", { style: { marginBottom: 8, padding: '8px 10px', borderLeft: '3px solid var(--accent)', background: 'var(--surface-2)', whiteSpace: 'pre-wrap' } },
+      React.createElement("b", null, (decidir ? 'Mensagem de ' + nome(a.user_id) : 'A sua observação') + ': '), a.motivo),
+    ms.length ? React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'minmax(110px, 34%) 1fr 1fr', gap: '4px 10px', marginBottom: 8 } },
+      React.createElement("span", { style: { color: 'var(--text-3)', fontWeight: 600 } }, 'Pergunta'),
+      React.createElement("span", { style: { color: 'var(--text-3)', fontWeight: 600 } }, 'Antes'),
+      React.createElement("span", { style: { color: 'var(--text-3)', fontWeight: 600 } }, 'Depois'),
+      ms.map(([rot, an, de], i) => React.createElement(React.Fragment, { key: i },
+        React.createElement("span", { style: { color: 'var(--text-3)' } }, rot),
+        React.createElement("span", { style: { color: 'var(--text-2)', whiteSpace: 'pre-wrap', textDecoration: 'line-through' } }, an),
+        React.createElement("span", { style: { color: 'var(--text-1)', whiteSpace: 'pre-wrap', fontWeight: 600 } }, de)))) : React.createElement("div", { style: { color: 'var(--text-3)', marginBottom: 8 } }, 'Só mudaram anexos ou campos sem texto.'),
+    a.nota && a.estado !== 'Pendente' && React.createElement("div", { style: { marginBottom: 8, padding: '8px 10px', borderLeft: '3px solid ' + cor, background: 'var(--surface-2)', whiteSpace: 'pre-wrap' } },
+      React.createElement("b", null, 'Resposta de ' + nome(a.decidido_por || a.aprovador_id) + (a.decidido_em ? ' (' + bspQuando(a.decidido_em) + ')' : '') + ': '), a.nota),
+    a.estado === 'Pendente' && decidir && React.createElement("div", null,
+      React.createElement("div", { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)', marginBottom: 5 } }, 'A sua resposta ', React.createElement("span", { style: { color: 'var(--perigo)' } }, '(obrigatória)')),
+      React.createElement("textarea", {
+        rows: 2, value: resposta, maxLength: 1000, placeholder: 'Ex.: confirmado com o livro de registo; pode alterar.',
+        onChange: e => setResposta(e.target.value),
+        style: { width: '100%', boxSizing: 'border-box', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 13.5, fontFamily: 'inherit', resize: 'vertical', marginBottom: 8 }
+      }),
+      React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, flexWrap: 'wrap' } },
+        curta && React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)', marginRight: 'auto' } }, 'Escreva a resposta para poder decidir.'),
+        React.createElement(Button, { variant: 'secondary', size: 'sm', disabled: curta || aGravar, onClick: () => decidir2(false) }, 'Recusar'),
+        React.createElement(Button, { variant: 'primary', size: 'sm', disabled: curta || aGravar, onClick: () => decidir2(true) }, 'Autorizar'))),
+    a.estado === 'Pendente' && !decidir && React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, flexWrap: 'wrap' } },
+      React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)', marginRight: 'auto' } }, 'À espera da resposta de ' + nome(a.aprovador_id) + '.'),
+      React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: () => onDecidir(a, null, '') }, 'Cancelar pedido')));
+}
+/* Mínimo de letras do motivo e da resposta (igual a bsp_relatorio_alteracao_*). */
+const BSP_REL_ALT_MIN = 10;
 function RelatorioAlteracoes({ alts, onDecidir }) {
   const eu = window.CURRENT_USER_ID;
   const porDecidir = alts.filter(a => a.estado === 'Pendente' && a.user_id !== eu);
@@ -18434,31 +18489,7 @@ function RelatorioAlteracoes({ alts, onDecidir }) {
       return JSON.stringify((a.respostas_antes || {})[c.id]) === JSON.stringify((a.respostas_novas || {})[c.id]) ? null : [c.rotulo, antes == null ? '—' : antes, depois == null ? '—' : depois];
     }).filter(Boolean);
   };
-  const cartao = (a, decidir) => {
-    const def = BSP_RELATORIOS.find(d => d.id === a.area);
-    const ms = mudancas(a);
-    const cor = a.estado === 'Autorizada' ? 'var(--sucesso)' : a.estado === 'Recusada' ? 'var(--perigo)' : 'var(--text-3)';
-    return React.createElement("div", { key: a.id, style: { border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', background: 'var(--surface)', fontSize: 12.5 } },
-      React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 6, marginBottom: 6 } },
-        React.createElement("strong", { style: { color: 'var(--text-1)' } }, (def ? def.nome : a.area) + ' · ' + a.dia.split('-').reverse().join('-')),
-        React.createElement("span", { style: { color: cor, fontWeight: 600 } }, a.estado)),
-      React.createElement("div", { style: { color: 'var(--text-3)', marginBottom: 8 } }, (decidir ? 'Pedido de ' + nome(a.user_id) + ' · ' : 'Autoriza: ' + nome(a.aprovador_id) + ' · ') + bspQuando(a.criado_em)),
-      React.createElement("div", { style: { marginBottom: 8 } }, React.createElement("b", null, 'Motivo: '), a.motivo),
-      ms.length ? React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'minmax(110px, 34%) 1fr 1fr', gap: '4px 10px', marginBottom: 8 } },
-        React.createElement("span", { style: { color: 'var(--text-3)', fontWeight: 600 } }, 'Pergunta'),
-        React.createElement("span", { style: { color: 'var(--text-3)', fontWeight: 600 } }, 'Antes'),
-        React.createElement("span", { style: { color: 'var(--text-3)', fontWeight: 600 } }, 'Depois'),
-        ms.map(([rot, an, de], i) => React.createElement(React.Fragment, { key: i },
-          React.createElement("span", { style: { color: 'var(--text-3)' } }, rot),
-          React.createElement("span", { style: { color: 'var(--text-2)', whiteSpace: 'pre-wrap', textDecoration: 'line-through' } }, an),
-          React.createElement("span", { style: { color: 'var(--text-1)', whiteSpace: 'pre-wrap', fontWeight: 600 } }, de)))) : React.createElement("div", { style: { color: 'var(--text-3)', marginBottom: 8 } }, 'Só mudaram anexos ou campos sem texto.'),
-      a.nota && React.createElement("div", { style: { marginBottom: 8, color: 'var(--text-2)' } }, React.createElement("b", null, 'Nota: '), a.nota),
-      a.estado === 'Pendente' && React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' } },
-        decidir ? [
-          React.createElement(Button, { key: 'n', variant: 'secondary', size: 'sm', onClick: () => onDecidir(a, false) }, 'Recusar'),
-          React.createElement(Button, { key: 's', variant: 'primary', size: 'sm', onClick: () => onDecidir(a, true) }, 'Autorizar')
-        ] : React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: () => onDecidir(a, null) }, 'Cancelar pedido')));
-  };
+  const cartao = (a, decidir) => React.createElement(RelatorioAltCartao, { key: a.id, a, decidir, nome, mudancas, onDecidir });
   return React.createElement(Card, null,
     porDecidir.length > 0 && React.createElement(React.Fragment, null,
       React.createElement("h3", { style: { fontSize: 15, fontWeight: 700, margin: '0 0 4px', color: 'var(--text-1)' } }, 'Alterações por autorizar (' + porDecidir.length + ')'),

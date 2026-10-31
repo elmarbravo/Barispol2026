@@ -18,6 +18,9 @@
 --      · Laboratório, Imagiologia e Enfermagem: a Direcção Clínica (u14);
 --      · as outras áreas: o superior de quem entregou (bsp_aprovador_de);
 --      · a gestão (bsp_e_gestor) pode sempre.
+--    O pedido leva uma observação obrigatória (motivo, mensagem para quem
+--    autoriza); a decisão leva uma resposta obrigatória (nota), que segue para
+--    quem pediu. Mínimo de 10 letras nas duas (BSP_REL_ALT_MIN no ecrã).
 --    Ao autorizar, as respostas novas entram no relatório; as antigas ficam
 --    guardadas no pedido (respostas_antes). Nada se apaga.
 -- 3. Avisos: no telemóvel de quem autoriza ao pedir; no de quem pediu ao decidir.
@@ -137,7 +140,9 @@ begin
   select * into r from relatorios_area where id = p_relatorio;
   if not found then raise exception 'Relatório não encontrado.'; end if;
   if r.user_id <> eu then raise exception 'Só quem entregou o relatório pode pedir a alteração.'; end if;
-  if coalesce(btrim(p_motivo), '') = '' then raise exception 'Escreva o motivo da alteração.'; end if;
+  -- Observação obrigatória (31-10-2026, Elmar: «campo de observação com motivo
+  -- obrigatório … como se fosse uma mensagem para quem autoriza»).
+  if length(coalesce(btrim(p_motivo), '')) < 10 then raise exception 'Escreva o motivo da alteração para quem autoriza (pelo menos 10 letras).'; end if;
   if p_respostas is null or jsonb_typeof(p_respostas) <> 'object' then raise exception 'Respostas inválidas.'; end if;
   if p_respostas = r.respostas then raise exception 'Não mudou nenhuma resposta.'; end if;
   quem := bsp_relatorio_autoriza(r.area, r.user_id);
@@ -182,6 +187,9 @@ begin
   else
     if not (a.aprovador_id = eu or bsp_e_gestor()) then raise exception 'Não pode decidir este pedido.'; end if;
     if a.user_id = eu and not bsp_e_gestor() then raise exception 'Não pode autorizar o seu próprio pedido.'; end if;
+    -- Resposta obrigatória de quem autoriza, ao autorizar e ao recusar
+    -- (31-10-2026, Elmar: «quem autoriza é também um campo para responder»).
+    if length(coalesce(btrim(p_nota), '')) < 10 then raise exception 'Escreva a resposta para quem pediu (pelo menos 10 letras).'; end if;
     est := case when p_aprovar then 'Autorizada' else 'Recusada' end;
   end if;
   update relatorios_alteracoes set estado = est, decidido_por = eu, decidido_em = now(),
@@ -197,7 +205,7 @@ begin
     begin
       perform bsp_push_post(jsonb_build_object('para', jsonb_build_array(a.user_id),
         'titulo', case when est = 'Autorizada' then 'Alteração do relatório autorizada' else 'Alteração do relatório recusada' end,
-        'corpo', 'Relatório de ' || to_char(a.dia, 'DD-MM') || coalesce('. ' || nullif(btrim(coalesce(p_nota, '')), ''), ''),
+        'corpo', 'Relatório de ' || to_char(a.dia, 'DD-MM') || '. Resposta: ' || left(btrim(p_nota), 140),
         'url', '#/relatorios', 'tag', 'relatorio-alt-' || a.id));
     exception when others then raise warning 'bsp_relatorio_alteracao_decidir push: %', sqlerrm;
     end;
