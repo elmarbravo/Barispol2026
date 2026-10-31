@@ -18120,7 +18120,10 @@ async function bspRelatoriosExcel(rels, de, ate) {
     ws['!cols'] = cab.map((t, i) => ({ wch: i < 6 ? [22, 11, 10, 22, 20, 7][i] : Math.min(40, Math.max(12, String(t).length)) }));
     ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: linhas.length, c: cab.length - 1 } }) };
     ws['!freeze'] = { xSplit: 2, ySplit: 1 };
-    XLSX.utils.book_append_sheet(wb, ws, String(def ? def.nome : a).slice(0, 31));
+    /* O Excel não aceita : \\ / ? * [ ] nos nomes das folhas (31-10-2026: «Recepção / Caixa» falhava). */
+    let nomeFolha = String(def ? def.nome : a).replace(/[:\\\/?*\[\]]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 31) || 'Area';
+    while (wb.SheetNames.indexOf(nomeFolha) !== -1) nomeFolha = nomeFolha.slice(0, 28) + ' ' + (wb.SheetNames.length + 1);
+    XLSX.utils.book_append_sheet(wb, ws, nomeFolha);
     resumo.push([def ? def.nome : a, lista.length, lista.filter(r => r.alterado_em).length]);
   });
   const wr = XLSX.utils.aoa_to_sheet(resumo);

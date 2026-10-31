@@ -5803,3 +5803,8 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   no fim, «Vistos»: «Visto do chefe da área: <nome>» e «Visto do Director Clínico:
   <nome>», com assinatura e data (o nome do chefe sai de `relatorios_destinos.para`
   pela equipa; o do Director Clínico é u14).
+- 31-10-2026, Elmar (captura no iPhone): «Não foi possível exportar: Sheet name cannot
+  contain : \ / ? * [ ]». O nome da folha «Recepção / Caixa» tinha uma barra. Os nomes
+  das folhas do Excel dos relatórios passam a trocar esses sinais por hífen, até 31
+  letras e sem repetidos. Testado com as 5 áreas: Resumo, Enfermagem, Farmácia,
+  Imagiologia, Laboratório, «Recepção - Caixa».
