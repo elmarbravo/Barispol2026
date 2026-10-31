@@ -5864,7 +5864,17 @@ O conector do Supabase voltou a ver o projecto Barispol (Elmar: «Vê agora»).
       (aleatória, ninguém a vê); a pessoa escolhe a sua pelo «Esqueceu-se?». O
       servidor pode pedir com o código do agendamento, mas só convites (apagar,
       desactivar ou mudar palavra-passe pelo servidor: recusado, testado).
-- [ ] Contas dos 17 médicos com facturas e sem conta: à espera dos e-mails.
+- [x] Contas de 13 médicos (31-10-2026, Elmar: «Para todos» e «Continua»): criadas por
+      `criar-utilizador` com `convidar`, na equipa (`shared_state.team`, área Clínica,
+      camada Clínica, cargo = especialidade, `metagest` com os códigos; ids
+      u1793460000001…013; registo em `equipa_auditoria`), ligadas a `prestadores.user_id`
+      e com e-mail de boas-vindas («Esqueceu-se?» para escolher a palavra-passe, depois a
+      2FA). E-mails tirados dos mapas de Setembro e da lista de 15-09-2026.
+- [ ] Sem conta ainda: Albano Lussati (desactivado no MetaGest desde 27-10: saiu?),
+      Conceição Calunga (e-mail duvidoso, com «ç»), César Marques e Maria Ester Ramiro
+      (sem e-mail). Confirmar com a gestão.
+- [ ] NIF ainda em falta: Mário Camuanda e César Marques; IBAN: César e Maria Ester. O
+      IBAN da ficha do MetaGest do César e do Mário é o da própria clínica: não usar.
 
 ## 3-ig. Convocatória da reunião de 06-11-2026 (31-10-2026)
 
