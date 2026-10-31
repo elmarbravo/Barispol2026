@@ -1,5 +1,8 @@
 // Barispol Workspace · criar, actualizar, desactivar e apagar logins
 // Versão 2 (05-10-2026): «desactivar» bloqueia a entrada sem apagar a conta.
+// Versão 3 (31-10-2026): «convidar» cria a conta sem palavra-passe conhecida (a
+// pessoa escolhe-a pelo «Esqueceu-se?»); o servidor pode pedir com o código do
+// agendamento (x-bsp-agendamento).
 //
 // PORQUE EXISTE: o ecrã Admin → Utilizadores tem um campo de palavra-passe
 // e prometia "já pode entrar com o e-mail e palavra-passe definidos". Não
@@ -26,7 +29,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const cabecalhos = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, content-type",
+  "Access-Control-Allow-Headers": "authorization, content-type, x-bsp-agendamento",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Content-Type": "application/json",
 };
@@ -114,46 +117,61 @@ Deno.serve(comCors(async (req) => {
     return responder({ erro: "A função não tem as chaves do projecto." }, 500);
   }
 
-  // 1. Quem está a pedir? O testemunho vem do navegador de quem clicou.
-  const auth = req.headers.get("Authorization") || "";
-  const testemunho = auth.replace(/^Bearer\s+/i, "");
-  if (!testemunho) return responder({ erro: "Sem sessão." }, 401);
-
-  const comoUtilizador = createClient(URL_SB, ANON, {
-    global: { headers: { Authorization: `Bearer ${testemunho}` } },
-  });
-  const { data: sessao, error: erroSessao } = await comoUtilizador.auth.getUser();
-  const emailPedinte = sessao?.user?.email?.toLowerCase();
-  if (erroSessao || !emailPedinte) return responder({ erro: "Sessão inválida." }, 401);
-
+  // 0. O próprio servidor (31-10-2026): o código do agendamento (cofre,
+  //    bsp_resumo_agendamento) conta como gestor, para criar as contas dos
+  //    médicos do MetaGest a pedido do Elmar («Para todos»).
   const admin = createClient(URL_SB, SERVICE);
+  const codigoAgendamento = (req.headers.get("x-bsp-agendamento") || "").trim();
+  let emailPedinte = "";
+  if (codigoAgendamento) {
+    const { data: confere } = await admin.rpc("bsp_resumo_codigo_confere", { codigo: codigoAgendamento });
+    if (confere !== true) return responder({ erro: "Código do agendamento inválido." }, 403);
+    emailPedinte = "servidor";
+  } else {
+    // 1. Quem está a pedir? O testemunho vem do navegador de quem clicou.
+    const auth = req.headers.get("Authorization") || "";
+    const testemunho = auth.replace(/^Bearer\s+/i, "");
+    if (!testemunho) return responder({ erro: "Sem sessão." }, 401);
 
-  // 2. É gestor? A resposta está nas camadas gravadas, tal como a aplicação
-  //    as vê — não numa lista de nomes escrita aqui, que ficaria desalinhada
-  //    assim que alguém criasse ou renomeasse uma camada.
-  const { data: estado } = await admin
-    .from("shared_state").select("team, camadas").eq("id", 1).maybeSingle();
+    const comoUtilizador = createClient(URL_SB, ANON, {
+      global: { headers: { Authorization: `Bearer ${testemunho}` } },
+    });
+    const { data: sessao, error: erroSessao } = await comoUtilizador.auth.getUser();
+    emailPedinte = sessao?.user?.email?.toLowerCase() || "";
+    if (erroSessao || !emailPedinte) return responder({ erro: "Sessão inválida." }, 401);
 
-  const equipa = (estado?.team ?? []) as Array<Record<string, unknown>>;
-  const camadas = (estado?.camadas ?? {}) as Record<string, Record<string, unknown>>;
-  const pedinte = equipa.find(
-    (p) => String(p.email ?? "").toLowerCase() === emailPedinte,
-  );
-  const nivel = String(pedinte?.accessLevel ?? "");
-  const eGestor = camadas[nivel]
-    ? camadas[nivel].podeGerirUtilizadores === true
-    : nivel === "Direcção" || nivel === "Coordenação"; // instalação ainda sem camadas gravadas
+    // 2. É gestor? A resposta está nas camadas gravadas, tal como a aplicação
+    //    as vê — não numa lista de nomes escrita aqui, que ficaria desalinhada
+    //    assim que alguém criasse ou renomeasse uma camada.
+    const { data: estado } = await admin
+      .from("shared_state").select("team, camadas").eq("id", 1).maybeSingle();
 
-  if (!eGestor) {
-    return responder({ erro: "Só quem pode gerir utilizadores cria contas." }, 403);
+    const equipa = (estado?.team ?? []) as Array<Record<string, unknown>>;
+    const camadas = (estado?.camadas ?? {}) as Record<string, Record<string, unknown>>;
+    const pedinte = equipa.find(
+      (p) => String(p.email ?? "").toLowerCase() === emailPedinte,
+    );
+    const nivel = String(pedinte?.accessLevel ?? "");
+    const eGestor = camadas[nivel]
+      ? camadas[nivel].podeGerirUtilizadores === true
+      : nivel === "Direcção" || nivel === "Coordenação"; // instalação ainda sem camadas gravadas
+
+    if (!eGestor) {
+      return responder({ erro: "Só quem pode gerir utilizadores cria contas." }, 403);
+    }
   }
 
   // 3. Fazer o trabalho.
-  let corpo: { email?: string; password?: string; apagar?: boolean; desactivar?: boolean };
+  let corpo: { email?: string; password?: string; apagar?: boolean; desactivar?: boolean; convidar?: boolean };
   try {
     corpo = await req.json();
   } catch {
     return responder({ erro: "Pedido mal formado." }, 400);
+  }
+
+  /* Pelo servidor, só convites: nunca apagar, desactivar nem mudar palavras-passe. */
+  if (emailPedinte === "servidor" && (!corpo.convidar || corpo.password || corpo.apagar || typeof corpo.desactivar === "boolean")) {
+    return responder({ erro: "Pelo servidor só se criam convites." }, 403);
   }
 
   const email = String(corpo.email ?? "").trim().toLowerCase();
@@ -204,15 +222,23 @@ Deno.serve(comCors(async (req) => {
     return responder({ ok: true, accao: "senha-alterada" });
   }
 
-  if (!password) {
+  /* Convite (31-10-2026): conta sem palavra-passe escolhida por outra pessoa.
+     Fica uma aleatória que ninguém vê nem guarda; a pessoa escolhe a sua pelo
+     «Esqueceu-se?» (recuperar-acesso) e depois inscreve a 2FA. */
+  const aleatoria = () => {
+    const b = new Uint8Array(32);
+    crypto.getRandomValues(b);
+    return btoa(String.fromCharCode(...b));
+  };
+  if (!password && !corpo.convidar) {
     return responder({ erro: "Defina uma palavra-passe para criar a conta." }, 400);
   }
 
   const { error } = await admin.auth.admin.createUser({
     email,
-    password,
+    password: password || aleatoria(),
     email_confirm: true, // sem isto a pessoa fica à espera de um e-mail de confirmação
   });
   if (error) return responder({ erro: error.message }, 400);
-  return responder({ ok: true, accao: "criada" });
+  return responder({ ok: true, accao: corpo.convidar && !password ? "convidada" : "criada" });
 }));

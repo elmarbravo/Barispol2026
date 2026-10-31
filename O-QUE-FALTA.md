@@ -5859,3 +5859,9 @@ O conector do Supabase voltou a ver o projecto Barispol (Elmar: «Vê agora»).
       se se quiser que o assistente ponha ficheiros no SharePoint.
 - [ ] Importar os relatórios de Setembro e Outubro dos e-mails (453 mensagens,
       inventário feito; só 21 lidas por inteiro).
+- [x] `criar-utilizador` versão 3 (31-10-2026, Elmar: «Para todos», contas para os
+      médicos do MetaGest): `convidar: true` cria a conta sem palavra-passe conhecida
+      (aleatória, ninguém a vê); a pessoa escolhe a sua pelo «Esqueceu-se?». O
+      servidor pode pedir com o código do agendamento, mas só convites (apagar,
+      desactivar ou mudar palavra-passe pelo servidor: recusado, testado).
+- [ ] Contas dos 17 médicos com facturas e sem conta: à espera dos e-mails.
