@@ -18055,7 +18055,7 @@ function bspRelatorioDocBloco(rel) {
   const curtas = linhas.filter(l => !l[2] && String(l[1]).length <= 70), longas = linhas.filter(l => l[2] || String(l[1]).length > 70);
   const pares = [];
   for (let i = 0; i < curtas.length; i += 2) pares.push([curtas[i], curtas[i + 1]]);
-  const selo = 'Entregue por ' + nome(rel.user_id) + ' a ' + bspQuando(rel.created_at) + (rel.alterado_em ? ' · versão ' + (rel.versao || 2) + ', autorizada' + (rel.alterado_autorizou ? ' por ' + nome(rel.alterado_autorizou) : '') + ' a ' + bspQuando(rel.alterado_em) : ' · versão 1');
+  const selo = 'Técnico: ' + nome(rel.user_id) + ' · entregue a ' + bspQuando(rel.created_at) + (rel.alterado_em ? ' · versão ' + (rel.versao || 2) + ', autorizada' + (rel.alterado_autorizou ? ' por ' + nome(rel.alterado_autorizou) : '') + ' a ' + bspQuando(rel.alterado_em) : ' · versão 1');
   return '<div class="bloco"><div class="bt"><b>' + E(String(rel.dia || '').split('-').reverse().join('-')) + (rel.turno ? ' · ' + E(rel.turno) : '') + '</b><span>' + E(bspRelatorioNumero(rel)) + '</span></div>' +
     '<div class="selo">✓ ' + E(selo) + '</div>' +
     '<table class="r"><tbody>' + pares.map(p => '<tr>' + p.map(x => x ? '<td class="i">' + E(x[0]) + '</td><td class="v">' + E(x[1]) + '</td>' : '<td class="i"></td><td class="v"></td>').join('') + '</tr>').join('') +
@@ -18072,8 +18072,8 @@ function bspRelatorioDocArea(area, rels, comDeclaracao) {
     '<div class="cab"><img src="' + BSP_EMAIL_LOGO + '" alt=""><div><div class="m">Centro Médico Barispol</div><div class="s">Clínica Barispol, Lda. · NIF 5000999687</div></div>' +
     '<div class="tt"><div class="e">Relatórios de turno · ' + E(def ? def.nome : area) + '</div><h1>' + E(periodo) + '</h1><div class="nr">' + rels.length + (rels.length === 1 ? ' relatório' : ' relatórios') + '</div></div></div>' +
     rels.map(bspRelatorioDocBloco).join('') +
-    (comDeclaracao ? '<div class="decl"><b>Declaração do chefe da área</b><br>Revi os ' + rels.length + ' relatórios acima e remeto-os ao Director Clínico.' +
-      '<div class="ass"><div>Chefe da área (nome e assinatura)</div><div>Data</div><div>Recebido pelo Director Clínico (assinatura e data)</div></div></div>' : '') +
+    (comDeclaracao ? '<div class="decl"><b>Vistos</b><br>O chefe da área revê os ' + rels.length + ' relatórios acima, assina e remete ao Director Clínico, que dá o seu visto.' +
+      '<div class="ass"><div>Visto do chefe da área (nome, assinatura e data)</div><div>Visto do Director Clínico' + (window.userById && window.userById('u14') ? ': ' + E(window.userById('u14').name) : '') + ' (assinatura e data)</div></div></div>' : '') +
     '<div class="rod"><span>Documento interno, sem dados de utentes. Cada relatório tem o selo do sistema (quem entregou e quando).</span><span>Workspace Barispol · impresso a ' + E(bspDataExacta(new Date())) + '</span></div>' +
     '</section>';
 }

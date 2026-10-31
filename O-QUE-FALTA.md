@@ -5797,3 +5797,9 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   Testado localmente: PDF de área (1 página, 2 relatórios, logotipo), parecer em PDF
   (2 páginas) e HTML. **Por publicar no Supabase** (bright-worker, relatorios-semana,
   relatorios-semana.sql).
+- 31-10-2026, Elmar: «no cabeçalho… tem que constar o nome do técnico que fez… a chefe
+  da área… vai lá embaixo no visto, e o director clínico também». Cada relatório da
+  folha semanal (Workspace e PDF) abre com «Técnico: <quem fez> · entregue a <data>»;
+  no fim, «Vistos»: «Visto do chefe da área: <nome>» e «Visto do Director Clínico:
+  <nome>», com assinatura e data (o nome do chefe sai de `relatorios_destinos.para`
+  pela equipa; o do Director Clínico é u14).

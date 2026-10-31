@@ -336,10 +336,10 @@ async function novoPdf(titulo: string) {
 }
 
 /* PDF compacto de uma área (a folha semanal do chefe). */
-async function pdfArea(area: string, lista: any[], periodo: string, nomeDe: (id: string) => string) {
+async function pdfArea(area: string, lista: any[], periodo: string, nomeDe: (id: string) => string, chefeNome: string, dcNome: string) {
   const w = await novoPdf("Relatórios de turno " + nomeArea(area) + " " + periodo);
   w.pagina("Relatórios de turno · " + nomeArea(area), periodo);
-  w.texto(lista.length + (lista.length === 1 ? " relatório" : " relatórios") + ". Cada um leva o selo do sistema (quem entregou e quando).", { cor: w.C.sua, tam: 8.5, depois: 6 });
+  w.texto(lista.length + (lista.length === 1 ? " relatório" : " relatórios") + ". Cada um leva o selo do sistema: o técnico que o fez e quando o entregou.", { cor: w.C.sua, tam: 8.5, depois: 6 });
   for (const r of lista) {
     const linhas: [string, string][] = (Array.isArray(r.resumo) ? r.resumo : []).filter((x: any) => Array.isArray(x) && x[1] != null && x[1] !== "" && !/^(turno|fecho)$/i.test(String(x[0])));
     w.espaco(40);
@@ -349,7 +349,7 @@ async function pdfArea(area: string, lista: any[], periodo: string, nomeDe: (id:
     const nr = numero(r);
     w.st.pg.drawText(nr, { x: w.M + w.larg - 5 - w.fonte.widthOfTextAtSize(nr, 7.5), y: w.st.y - 10.5, size: 7.5, font: w.fonte, color: w.C.sua });
     w.st.y -= 15;
-    const selo = "Entregue por " + nomeDe(r.user_id) + " a " + quando(r.created_at) +
+    const selo = "Técnico: " + nomeDe(r.user_id) + " · entregue a " + quando(r.created_at) +
       (r.alterado_em ? " · versão " + (r.versao || 2) + ", autorizada" + (r.alterado_autorizou ? " por " + nomeDe(r.alterado_autorizou) : "") + " a " + quando(r.alterado_em) : " · versão 1");
     w.texto(selo, { tam: 7.5, cor: w.C.azul2, depois: 1 });
     const curtas = linhas.filter((l) => String(l[1]).length <= 60 && !/^relato/i.test(l[0]));
@@ -368,13 +368,14 @@ async function pdfArea(area: string, lista: any[], periodo: string, nomeDe: (id:
   w.st.y -= 6;
   const y0 = w.st.y;
   w.st.pg.drawRectangle({ x: w.M, y: y0 - 80, width: w.larg, height: 80, borderColor: w.C.mar, borderWidth: 1.2 });
-  w.st.pg.drawText("Declaração do chefe da área", { x: w.M + 8, y: y0 - 14, size: 9.5, font: w.forte, color: w.C.mar });
-  w.st.pg.drawText(w.limpo("Revi os " + lista.length + " relatórios acima e remeto-os ao Director Clínico."), { x: w.M + 8, y: y0 - 27, size: 8.5, font: w.fonte, color: w.C.txt });
-  const col = (w.larg - 40) / 3;
-  ["Chefe da área (nome e assinatura)", "Data", "Recebido pelo Director Clínico"].forEach((t, i) => {
+  w.st.pg.drawText("Vistos", { x: w.M + 8, y: y0 - 14, size: 9.5, font: w.forte, color: w.C.mar });
+  w.st.pg.drawText(w.limpo("O chefe da área revê os " + lista.length + " relatórios acima, assina e remete ao Director Clínico, que dá o seu visto."), { x: w.M + 8, y: y0 - 27, size: 8.5, font: w.fonte, color: w.C.txt });
+  const col = (w.larg - 30) / 2;
+  [["Visto do chefe da área" + (chefeNome ? ": " + chefeNome : ""), "Assinatura e data"], ["Visto do Director Clínico" + (dcNome ? ": " + dcNome : ""), "Assinatura e data"]].forEach(([t, s2], i) => {
     const x = w.M + 10 + i * (col + 10);
-    w.st.pg.drawLine({ start: { x, y: y0 - 62 }, end: { x: x + col, y: y0 - 62 }, thickness: 0.6, color: w.C.txt });
-    w.st.pg.drawText(w.limpo(t), { x, y: y0 - 72, size: 7.5, font: w.fonte, color: w.C.sua });
+    w.st.pg.drawLine({ start: { x, y: y0 - 58 }, end: { x: x + col, y: y0 - 58 }, thickness: 0.6, color: w.C.txt });
+    w.st.pg.drawText(w.limpo(t), { x, y: y0 - 68, size: 8, font: w.forte, color: w.C.txt });
+    w.st.pg.drawText(w.limpo(s2), { x, y: y0 - 77, size: 7, font: w.fonte, color: w.C.sua });
   });
   w.st.y = y0 - 86;
   return await w.fechar("Documento interno, sem dados de utentes · imprimir uma vez por semana");
@@ -560,7 +561,8 @@ Deno.serve(comCors(async (req) => {
     if (!lista.length) continue;
     const para = chefes[area] || ["DireccaoClinica@barispol.com"];
     if (!chefes[area]) semChefe.push(area);
-    const bytes = await pdfArea(area, lista, periodo, nomeDe);
+    const chefeNome = (chefes[area] || []).map((e) => { const u = equipa.find((x) => x && String(x.email || "").toLowerCase() === String(e).toLowerCase()); return u ? String(u.name) : ""; }).filter(Boolean).join(", ");
+    const bytes = await pdfArea(area, lista, periodo, nomeDe, chefeNome, nomeDe("u14"));
     const corpoHtml = paragrafo("Bom dia. Em anexo segue a folha semanal da <b>" + escapar(nomeArea(area)) + "</b>, de " + periodo + ": " + lista.length + (lista.length === 1 ? " relatório" : " relatórios") + ", em formato compacto.") +
       paragrafo("<b>O que fazer:</b> imprimir uma vez, rever, assinar a declaração no fim e entregar ao Director Clínico. Depois, no Workspace (Relatórios → Folhas semanais), carregar em «Assinei e remeti».") +
       paragrafo("Não é preciso imprimir os relatórios todos os dias: cada relatório já tem o selo do sistema (quem entregou e quando).", true);
