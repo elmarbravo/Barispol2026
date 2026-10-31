@@ -395,6 +395,12 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   adm e superiores de cada área»): para o chefe da área (`relatorios_destinos`)
   e DireccaoClinica@, cc adm@ e o superior de quem entrega (campo `superior`),
   por `bsp_relatorio_destinatarios(area, user)`; nunca para quem entrega.
+  Ler e alterar (31-10-2026, `relatorios-alterar.sql`, Elmar: «cada um editar o seu
+  relatório, mas com permissão»): colegas da mesma área e o chefe lêem (`bsp_rel_area_de`,
+  `bsp_chefe_de`); ninguém muda directamente além da gestão; quem entregou pede com motivo
+  (`bsp_relatorio_alteracao_pedir`, `relatorios_alteracoes`) e autoriza a Direcção Clínica
+  (u14) nas áreas médicas, o superior nas outras (`bsp_relatorio_autoriza`). Nunca voltar
+  a deixar o autor mudar o relatório sem autorização.
   Anexos do relatório (30-10-2026, `relatorios-anexos.sql`, Elmar: «parem de enviar
   no chat e mandem só no relatório»): campo tipo `anexos` (`bspCampoFicheiros`,
   id `ficheiros`), ficheiros em `drive` → `relatorio/<área>/<id>/…`, lidos só por

@@ -5686,3 +5686,21 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   da mesma área lêem os relatórios da área (só leitura) e o chefe da área também; por
   decidir. O conector do Supabase deixou de ver o projecto Barispol (só mostra o antigo):
   nada aplicado no servidor.
+- 31-10-2026, Elmar: «com isso também» (colegas da área e chefe lêem os relatórios da
+  área) e «cada um editar o seu relatório, mas com permissão … o director clínico é que
+  autoriza». `relatorios-alterar.sql` (**por aplicar**: o conector do Supabase não vê o
+  projecto Barispol): `bsp_rel_ler` passa a deixar ler os colegas da mesma área
+  (`bsp_rel_area_de`, igual ao `bspAreaDe`) e o chefe de quem entregou (`bsp_chefe_de`),
+  e os anexos `relatorio/` seguem a mesma regra; `bsp_rel_mudar` só a gestão.
+  Quem entregou pede a alteração com motivo (`bsp_relatorio_alteracao_pedir`): fica
+  «Pendente» em `relatorios_alteracoes` (antes e depois guardados). Autoriza
+  (`bsp_relatorio_alteracao_decidir`, `bsp_relatorio_autoriza`): a Direcção Clínica
+  (u14) no Laboratório, Imagiologia e Enfermagem; o superior (`bsp_aprovador_de`, senão
+  u1) nas outras áreas; a gestão sempre. Ao autorizar, as respostas entram no relatório
+  com `alterado_em` e `alterado_autorizou`. Aviso no telemóvel a quem autoriza e depois a
+  quem pediu. Ecrã: «Pedir alteração» em `RelatorioResumo` (abre o formulário com as
+  respostas, campo «Motivo da alteração», «Pedir autorização»), `RelatorioAlteracoes`
+  (por autorizar, com antes e depois; os meus pedidos com o estado), lista «Relatórios da
+  minha área». O botão e o painel só aparecem quando `bsp_relatorio_alteracoes` responde
+  (sem o SQL, nada muda no ecrã). Falta: aplicar o SQL, confirmar com um pedido real e
+  responder à Gizela no Chat.

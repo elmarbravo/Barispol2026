@@ -4643,7 +4643,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_turno_pendente', 'bsp_turno_base', 'bsp_turno_reforco', 'bsp_enquete_resultados','bsp_alertas_por_ler', 'bsp_fm_estado', 'bsp_fm_votos', 'bsp_relatorio_metagest', 'bsp_pagamento_banco', 'bsp_pagamento_etapas', 'bsp_segmento', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
+const BSP_RPC_LEITURA = ['bsp_relatorio_alteracoes', 'bsp_turno_pendente', 'bsp_turno_base', 'bsp_turno_reforco', 'bsp_enquete_resultados','bsp_alertas_por_ler', 'bsp_fm_estado', 'bsp_fm_votos', 'bsp_relatorio_metagest', 'bsp_pagamento_banco', 'bsp_pagamento_etapas', 'bsp_segmento', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -17985,7 +17985,7 @@ function bspReagentesSeguintes(v) {
   const extra = bspReagentesLimpos(v).map(x => bspReagenteNome(x.r)).filter(r => BSP_REAGENTES_BS200.indexOf(r) === -1);
   return BSP_REAGENTES_BS200.concat(extra.filter((r, i) => extra.indexOf(r) === i)).map(r => ({ r, r1: '', r2: '', proc: '' }));
 }
-function RelatorioResumo({ rel, onApagar }) {
+function RelatorioResumo({ rel, onApagar, onAlterar, pendente }) {
   const def = BSP_RELATORIOS.find(a => a.id === rel.area);
   /* Eliminar (24-09-2026). As mesmas regras do servidor (bsp_rel_apagar):
      o autor, no proprio dia; a Direccao e a Coordenacao, sempre. */
@@ -17993,6 +17993,10 @@ function RelatorioResumo({ rel, onApagar }) {
   const podeApagar = !!onApagar && (!!(euR && bspCamada(euR).podeGerirUtilizadores) ||
     (rel.user_id === window.CURRENT_USER_ID && rel.dia === bspHojeLuanda()));
   const u = window.userById && window.userById(rel.user_id);
+  /* Alterar com autorização (31-10-2026, relatorios-alterar.sql): só quem
+     entregou pede; a Direcção Clínica ou o superior autoriza. */
+  const podeAlterar = !!onAlterar && rel.user_id === window.CURRENT_USER_ID;
+  const quemAut = rel.alterado_autorizou && window.userById && window.userById(rel.alterado_autorizou);
   const linhas = (def ? def.campos : []).map(c => [c, bspRespostaTexto(c, (rel.respostas || {})[c.id])]).filter(x => x[1] != null);
   return React.createElement("div", {
     style: { border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', background: 'var(--surface)' }
@@ -18007,9 +18011,16 @@ function RelatorioResumo({ rel, onApagar }) {
         key: f.path, type: 'button', onClick: () => bspAbrirFicheiro({ path: f.path, name: f.name }, m => window.alert(m)),
         style: { border: 'none', background: 'transparent', padding: 0, color: 'var(--accent-d)', fontFamily: 'inherit', fontSize: 12.5, cursor: 'pointer', textAlign: 'left', textDecoration: 'underline' }
       }, f.name || 'ficheiro')))
-    : React.createElement("span", { style: { color: 'var(--text-1)', whiteSpace: 'pre-wrap' } }, t)))), podeApagar && React.createElement("div", {
-    style: { display: 'flex', justifyContent: 'flex-end', marginTop: 10 }
-  }, React.createElement("button", {
+    : React.createElement("span", { style: { color: 'var(--text-1)', whiteSpace: 'pre-wrap' } }, t)))), rel.alterado_em && React.createElement("div", {
+    style: { marginTop: 8, fontSize: 11.5, color: 'var(--text-3)' }
+  }, 'Alterado a ' + bspQuando(rel.alterado_em) + (quemAut ? ' · autorizado por ' + quemAut.name.split(' ').slice(0, 2).join(' ') : '') + '.'), (podeApagar || podeAlterar) && React.createElement("div", {
+    style: { display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 10 }
+  }, podeAlterar && (pendente
+    ? React.createElement("span", { style: { fontSize: 12, color: 'var(--text-3)' } }, 'Alteração à espera de autorização.')
+    : React.createElement("button", {
+      onClick: () => onAlterar(rel),
+      style: { padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--accent-d)', fontSize: 12.5, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }
+    }, 'Pedir alteração')), podeApagar && React.createElement("button", {
     onClick: () => onApagar(rel),
     style: {
       display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8,
@@ -18058,18 +18069,60 @@ function RelatoriosScreen() {
      a conferência com o facturado passam a ser desse dia. */
   const [diaForm, setDiaForm] = React.useState(bspDiaRelatorio());
   const [tick, setTick] = React.useState(0);
-  const def = areasMinhas.find(a => a.id === area) || areasMinhas[0] || null;
+  /* Pedir alteração de um relatório entregue (31-10-2026): o formulário abre
+     com as respostas desse relatório; ao enviar, fica à espera de autorização. */
+  const [editar, setEditar] = React.useState(null);
+  const [motivo, setMotivo] = React.useState('');
+  const editarRef = React.useRef(null);
+  editarRef.current = editar;
+  const [alts, setAlts] = React.useState([]);
+  const [altsOk, setAltsOk] = React.useState(false);
+  const areasForm = editar ? BSP_RELATORIOS.filter(a => a.id === editar.area) : areasMinhas;
+  const def = areasForm.find(a => a.id === area) || areasForm[0] || null;
   /* Números do MetaGest (14-10-2026, relatorios-turno.sql): o formulário vem
      preenchido com o que já está facturado e com o stock em falta; a pessoa
      confirma e acrescenta o que só a área sabe. */
   const [mg, setMg] = React.useState(null);
   React.useEffect(() => { setResp({}); setMg(null); }, [area]);
   React.useEffect(() => {
+    if (editar) setResp(JSON.parse(JSON.stringify(editar.respostas || {})));
+  }, [editar && editar.id, area]);
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    let vivo = true;
+    cl.rpc('bsp_relatorio_alteracoes').then(r => { if (!vivo) return; setAltsOk(!r.error); if (!r.error) setAlts(r.data || []); });
+    return () => { vivo = false; };
+  }, [tick]);
+  const comecarAlterar = rel => {
+    setEditar(rel);
+    setMotivo('');
+    setArea(rel.area);
+    setDiaForm(rel.dia);
+    try { window.scrollTo(0, 0); } catch (e) {}
+    const main = document.querySelector('main');
+    if (main) main.scrollTop = 0;
+  };
+  const pararAlterar = () => { setEditar(null); setMotivo(''); setResp({}); setDiaForm(bspDiaRelatorio()); setArea(minhaArea || (areasMinhas[0] && areasMinhas[0].id) || null); };
+  const decidirAlt = async (a, aprovar) => {
+    const cl = bspGetClient();
+    if (!cl) { toast('O servidor não está ligado.'); return; }
+    if (bspEmVerComo()) { toast('Em «Ver como» não se grava nada.'); return; }
+    let nota = '';
+    if (aprovar === false) { nota = window.prompt('Motivo da recusa (segue para quem pediu):', '') || ''; }
+    else if (aprovar === true && !window.confirm('Autorizar a alteração? As respostas novas substituem as do relatório.')) return;
+    else if (aprovar === null && !window.confirm('Cancelar o seu pedido de alteração?')) return;
+    const r = await cl.rpc('bsp_relatorio_alteracao_decidir', { p_id: a.id, p_aprovar: aprovar, p_nota: nota || null });
+    if (r.error) { toast('Não foi possível: ' + (r.error.message || 'erro')); return; }
+    toast(r.data === 'Autorizada' ? 'Alteração autorizada.' : r.data === 'Recusada' ? 'Alteração recusada.' : 'Pedido cancelado.');
+    setTick(t => t + 1);
+  };
+  React.useEffect(() => {
     const cl = bspGetClient();
     if (!cl || !def || !def.campos.some(c => c.tipo === 'reagentes')) return;
     let vivo = true;
     cl.from('relatorios_area').select('respostas').eq('area', def.id).lte('dia', diaForm).order('dia', { ascending: false }).order('created_at', { ascending: false }).limit(1).then(r => {
-      if (!vivo) return;
+      if (!vivo || editarRef.current) return;
       const ant = (!r.error && r.data && r.data[0] && r.data[0].respostas) || {};
       setResp(act => {
         const n = Object.assign({}, act);
@@ -18087,6 +18140,7 @@ function RelatoriosScreen() {
     cl.rpc('bsp_relatorio_metagest', { p_area: def.id, p_dia: diaForm }).then(r => {
       if (!vivo || r.error || !r.data) return;
       setMg(r.data);
+      if (editarRef.current) return;
       /* Só corre quando muda a área ou o dia: os números passam a ser os
          desse dia. */
       const mapa = BSP_REL_MG_CAMPOS[def.id] || {};
@@ -18179,6 +18233,17 @@ function RelatoriosScreen() {
       /* As perguntas por extenso, para o e-mail do servidor. */
       resumo: def.campos.map(c => [c.rotulo, bspRespostaTexto(c, limpo[c.id])]).filter(x => x[1] != null)
     };
+    if (editar) {
+      if (!motivo.trim()) { setAEnviar(false); toast('Escreva o motivo da alteração.'); return; }
+      const ra = await cl.rpc('bsp_relatorio_alteracao_pedir', { p_relatorio: editar.id, p_respostas: limpo, p_resumo: linha.resumo, p_motivo: motivo.trim() });
+      setAEnviar(false);
+      if (ra.error) { toast('Não foi possível pedir: ' + (ra.error.message || 'erro')); return; }
+      toast(editar.area && BSP_RELATORIOS_MEDICOS.indexOf(editar.area) !== -1 ? 'Pedido enviado à Direcção Clínica. A alteração entra quando for autorizada.' : 'Pedido enviado ao seu superior. A alteração entra quando for autorizada.');
+      setDia(editar.dia);
+      pararAlterar();
+      setTick(t => t + 1);
+      return;
+    }
     /* Copia por e-mail para quem a Direccao escolheu (a Arlete). */
     const copia = { nome: def.nome, autor: eu ? eu.name : '', quando: new Date().toISOString(), user_id: window.CURRENT_USER_ID, linhas: linha.resumo };
     /* Sem internet (26-10-2026): o relatório fica na fila e segue sozinho. */
@@ -18306,11 +18371,13 @@ function RelatoriosScreen() {
     style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, alignItems: 'start', maxWidth: 1200 }
   }, React.createElement(Card, null, React.createElement("h3", {
     style: { fontSize: 15, fontWeight: 700, margin: '0 0 4px', color: 'var(--text-1)' }
-  }, "Relatório do dia"), React.createElement("p", {
+  }, editar ? 'Pedir alteração do relatório' : "Relatório do dia"), editar && React.createElement("div", {
+    style: { margin: '0 0 14px', padding: '10px 12px', borderRadius: 10, background: 'var(--accent-soft)', color: 'var(--text-1)', fontSize: 12.5, lineHeight: 1.5 }
+  }, 'Está a corrigir o relatório que entregou a ' + bspQuando(editar.created_at) + '. Mude só o que estiver errado. A alteração fica em rascunho até ' + (BSP_RELATORIOS_MEDICOS.indexOf(editar.area) !== -1 ? 'a Direcção Clínica' : 'o seu superior') + ' autorizar; até lá, vale o relatório original.'), React.createElement("p", {
     style: { fontSize: 12.5, color: 'var(--text-3)', margin: '0 0 14px' }
   }, bspDiaExtenso(diaForm + 'T12:00:00'), ". " + (def ? (areasMinhas.length > 1 ? 'Escolha a área e responda.' : 'Relatório de ' + def.nome + '.') : 'O seu perfil não tem relatório de área.') + " Os números do MetaGest já vêm preenchidos: confirme-os e diga o que só a sua área sabe. Este relatório substitui o e-mail de fim de turno. Não escreva nomes de utentes."), def && React.createElement("label", {
     style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', margin: '0 0 14px', fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)' }
-  }, 'Dia do relatório', React.createElement("input", {
+  }, 'Dia do relatório', editar ? React.createElement("span", { style: { fontWeight: 400 } }, editar.dia.split('-').reverse().join('-')) : React.createElement("input", {
     type: "date", value: diaForm, min: bspSomarDias(bspDiaRelatorio(), -7), max: bspDiaRelatorio(),
     onChange: e => e.target.value && setDiaForm(e.target.value),
     style: { height: 34, padding: '0 10px', border: '1px solid ' + (diaForm !== bspDiaRelatorio() ? 'var(--accent-d)' : 'var(--border)'), borderRadius: 8, background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit', fontSize: 16 }
@@ -18318,17 +18385,27 @@ function RelatoriosScreen() {
     style: { display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 18 }
   }, areasMinhas.map(a => chip(area === a.id, a.nome, () => setArea(a.id)))), def && React.createElement(RelatorioMetaGest, { mg, dia: diaForm }), def && def.campos.map(campo), def && precisaAvaria && React.createElement("div", {
     style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', margin: '-4px 0 16px', padding: '10px 12px', borderRadius: 10, background: 'var(--surface-2)', fontSize: 12.5, color: 'var(--text-2)' }
-  }, 'Equipamento avariado? Reporte-o também em Serviços gerais, para ter seguimento e quem o trate.', React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: () => window.bspIrParaEcra && window.bspIrParaEcra('avarias') }, 'Reportar avaria')), def && React.createElement(Button, {
+  }, 'Equipamento avariado? Reporte-o também em Serviços gerais, para ter seguimento e quem o trate.', React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: () => window.bspIrParaEcra && window.bspIrParaEcra('avarias') }, 'Reportar avaria')), def && editar && React.createElement("div", { style: { marginBottom: 14 } },
+    React.createElement("div", { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--text-2)', marginBottom: 7 } }, 'Motivo da alteração'),
+    React.createElement("textarea", {
+      rows: 3, value: motivo, maxLength: 1000, placeholder: 'Ex.: troquei o número de colheitas; eram 18 e não 13.',
+      onChange: e => setMotivo(e.target.value),
+      style: { width: '100%', boxSizing: 'border-box', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', color: 'var(--text-1)', fontSize: 13.5, fontFamily: 'inherit', resize: 'vertical' }
+    })), def && React.createElement(Button, {
     variant: "primary",
     onClick: enviar,
     disabled: aEnviar
-  }, aEnviar ? 'A enviar…' : 'Enviar relatório'), faltam.length ? React.createElement("span", {
+  }, aEnviar ? 'A enviar…' : editar ? 'Pedir autorização' : 'Enviar relatório'), editar && React.createElement(Button, {
+    variant: "secondary",
+    onClick: pararAlterar,
+    style: { marginLeft: 8 }
+  }, 'Cancelar'), faltam.length ? React.createElement("span", {
     style: { marginLeft: 10, fontSize: 12, color: 'var(--text-3)' }
   }, 'Faltam ' + faltam.length + ' resposta' + (faltam.length === 1 ? '' : 's') + '.') : null), React.createElement(Card, null, React.createElement("div", {
     style: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }
   }, React.createElement("h3", {
     style: { fontSize: 15, fontWeight: 700, margin: 0, color: 'var(--text-1)' }
-  }, gestor ? 'Relatórios recebidos' : clinico ? 'Relatórios das áreas médicas' : 'Os meus relatórios'), React.createElement("input", {
+  }, gestor ? 'Relatórios recebidos' : clinico ? 'Relatórios das áreas médicas' : altsOk ? 'Relatórios da minha área' : 'Os meus relatórios'), React.createElement("input", {
     type: "date", value: dia, max: bspHojeLuanda(), onChange: e => e.target.value && setDia(e.target.value),
     "aria-label": "Dia",
     style: { height: 34, padding: '0 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text-1)', fontFamily: 'inherit' }
@@ -18336,7 +18413,60 @@ function RelatoriosScreen() {
     style: { fontSize: 12.5, marginBottom: 12, color: emFalta.length ? '#B45309' : 'var(--text-2)' }
   }, emFalta.length ? 'Em falta: ' + emFalta.map(a => a.nome).join(', ') + '.' : (gestor ? 'Todas as áreas entregaram.' : 'Todas as áreas médicas entregaram.')), estado === 'a-carregar' ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'A carregar…') : estado === 'sem-servidor' ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'O servidor não está ligado neste aparelho.') : estado !== 'pronto' ? React.createElement("div", { style: { fontSize: 12.5, color: '#B91C1C' } }, 'Não foi possível ler os relatórios.') : !lista.length ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Sem relatórios neste dia.') : React.createElement("div", {
     style: { display: 'flex', flexDirection: 'column', gap: 10 }
-  }, lista.map(r => React.createElement(RelatorioResumo, { key: r.id, rel: r, onApagar: apagar }))))));
+  }, lista.map(r => React.createElement(RelatorioResumo, { key: r.id, rel: r, onApagar: apagar, onAlterar: altsOk && !bspEmVerComo() ? comecarAlterar : null, pendente: alts.some(a => a.relatorio_id === r.id && a.estado === 'Pendente') })))),
+  React.createElement(RelatorioAlteracoes, { alts, onDecidir: decidirAlt })));
+}
+/* Pedidos de alteração de relatórios (31-10-2026, relatorios-alterar.sql):
+   quem autoriza vê o antes e o depois de cada resposta mudada e o motivo;
+   quem pediu vê o estado dos seus. */
+function RelatorioAlteracoes({ alts, onDecidir }) {
+  const eu = window.CURRENT_USER_ID;
+  const porDecidir = alts.filter(a => a.estado === 'Pendente' && a.user_id !== eu);
+  const meus = alts.filter(a => a.user_id === eu);
+  if (!porDecidir.length && !meus.length) return null;
+  const nome = id => { const u = window.userById && window.userById(id); return u ? u.name.split(' ').slice(0, 2).join(' ') : id; };
+  const mudancas = a => {
+    const def = BSP_RELATORIOS.find(d => d.id === a.area);
+    const campos = def ? def.campos : Object.keys(Object.assign({}, a.respostas_antes, a.respostas_novas)).map(id => ({ id, rotulo: id, tipo: 'texto' }));
+    return campos.map(c => {
+      const antes = bspRespostaTexto(c, (a.respostas_antes || {})[c.id]);
+      const depois = bspRespostaTexto(c, (a.respostas_novas || {})[c.id]);
+      return JSON.stringify((a.respostas_antes || {})[c.id]) === JSON.stringify((a.respostas_novas || {})[c.id]) ? null : [c.rotulo, antes == null ? '—' : antes, depois == null ? '—' : depois];
+    }).filter(Boolean);
+  };
+  const cartao = (a, decidir) => {
+    const def = BSP_RELATORIOS.find(d => d.id === a.area);
+    const ms = mudancas(a);
+    const cor = a.estado === 'Autorizada' ? 'var(--sucesso)' : a.estado === 'Recusada' ? 'var(--perigo)' : 'var(--text-3)';
+    return React.createElement("div", { key: a.id, style: { border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', background: 'var(--surface)', fontSize: 12.5 } },
+      React.createElement("div", { style: { display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 6, marginBottom: 6 } },
+        React.createElement("strong", { style: { color: 'var(--text-1)' } }, (def ? def.nome : a.area) + ' · ' + a.dia.split('-').reverse().join('-')),
+        React.createElement("span", { style: { color: cor, fontWeight: 600 } }, a.estado)),
+      React.createElement("div", { style: { color: 'var(--text-3)', marginBottom: 8 } }, (decidir ? 'Pedido de ' + nome(a.user_id) + ' · ' : 'Autoriza: ' + nome(a.aprovador_id) + ' · ') + bspQuando(a.criado_em)),
+      React.createElement("div", { style: { marginBottom: 8 } }, React.createElement("b", null, 'Motivo: '), a.motivo),
+      ms.length ? React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'minmax(110px, 34%) 1fr 1fr', gap: '4px 10px', marginBottom: 8 } },
+        React.createElement("span", { style: { color: 'var(--text-3)', fontWeight: 600 } }, 'Pergunta'),
+        React.createElement("span", { style: { color: 'var(--text-3)', fontWeight: 600 } }, 'Antes'),
+        React.createElement("span", { style: { color: 'var(--text-3)', fontWeight: 600 } }, 'Depois'),
+        ms.map(([rot, an, de], i) => React.createElement(React.Fragment, { key: i },
+          React.createElement("span", { style: { color: 'var(--text-3)' } }, rot),
+          React.createElement("span", { style: { color: 'var(--text-2)', whiteSpace: 'pre-wrap', textDecoration: 'line-through' } }, an),
+          React.createElement("span", { style: { color: 'var(--text-1)', whiteSpace: 'pre-wrap', fontWeight: 600 } }, de)))) : React.createElement("div", { style: { color: 'var(--text-3)', marginBottom: 8 } }, 'Só mudaram anexos ou campos sem texto.'),
+      a.nota && React.createElement("div", { style: { marginBottom: 8, color: 'var(--text-2)' } }, React.createElement("b", null, 'Nota: '), a.nota),
+      a.estado === 'Pendente' && React.createElement("div", { style: { display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' } },
+        decidir ? [
+          React.createElement(Button, { key: 'n', variant: 'secondary', size: 'sm', onClick: () => onDecidir(a, false) }, 'Recusar'),
+          React.createElement(Button, { key: 's', variant: 'primary', size: 'sm', onClick: () => onDecidir(a, true) }, 'Autorizar')
+        ] : React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: () => onDecidir(a, null) }, 'Cancelar pedido')));
+  };
+  return React.createElement(Card, null,
+    porDecidir.length > 0 && React.createElement(React.Fragment, null,
+      React.createElement("h3", { style: { fontSize: 15, fontWeight: 700, margin: '0 0 4px', color: 'var(--text-1)' } }, 'Alterações por autorizar (' + porDecidir.length + ')'),
+      React.createElement("p", { style: { fontSize: 12.5, color: 'var(--text-3)', margin: '0 0 12px' } }, 'Confira o antes e o depois. Ao autorizar, as respostas novas substituem as do relatório; as antigas ficam guardadas no servidor.'),
+      React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 10, marginBottom: meus.length ? 18 : 0 } }, porDecidir.map(a => cartao(a, true)))),
+    meus.length > 0 && React.createElement(React.Fragment, null,
+      React.createElement("h3", { style: { fontSize: 15, fontWeight: 700, margin: '0 0 12px', color: 'var(--text-1)' } }, 'Os meus pedidos de alteração'),
+      React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 10 } }, meus.map(a => cartao(a, false)))));
 }
 function DirectoryScreen() {
   /* Os botoes de mensagem, chamada e video de cada pessoa nao faziam
@@ -28531,9 +28661,10 @@ const BSP_GUIA_FICHAS = [
       ['Escolha a área e o turno', 'e responda às perguntas.'],
       ['Registe ocorrências, faltas de material', 'e equipamentos avariados.'],
       ['Conte os incidentes e quase-erros,', 'a espera, a satisfação, os resultados do laboratório e os protocolos cumpridos.'],
-      ['Veja os relatórios recebidos', 'de cada dia.']
+      ['Veja os relatórios da sua área', 'de cada dia, também os dos colegas dos outros turnos.'],
+      ['Precisa de corrigir um relatório já entregue?', 'Toque em «Pedir alteração», mude o que for preciso e diga o motivo. A alteração só entra depois de autorizada.']
     ],
-    quem: 'Todos preenchem. Lêem: Direcção e Coordenação (tudo) e Direcção Clínica (áreas médicas).',
+    quem: 'Todos preenchem. Lêem: os colegas da mesma área, o chefe, a Direcção e Coordenação (tudo) e a Direcção Clínica (áreas médicas). Autoriza alterações: a Direcção Clínica no Laboratório, Imagiologia e Enfermagem; o superior nas outras áreas.',
     dica: 'Nunca escreva nomes de utentes no relatório. Cada relatório segue por e-mail para a Arlete.' },
   { icone: 'TrendUp', nome: 'Equipa médica',
     serve: 'Tudo o que diz respeito aos médicos num só sítio: credenciais, presenças, actividade, registo clínico, avaliação e pagamentos. Cada médico vê só o que é seu.',
