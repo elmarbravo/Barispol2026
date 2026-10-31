@@ -4649,7 +4649,7 @@ function bspUtilizadorVista(v) {
   }
   return null;
 }
-const BSP_RPC_LEITURA = ['bsp_relatorio_alteracoes', 'bsp_relatorio_versoes', 'bsp_turno_pendente', 'bsp_turno_base', 'bsp_turno_reforco', 'bsp_enquete_resultados','bsp_alertas_por_ler', 'bsp_fm_estado', 'bsp_fm_votos', 'bsp_relatorio_metagest', 'bsp_pagamento_banco', 'bsp_pagamento_etapas', 'bsp_segmento', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
+const BSP_RPC_LEITURA = ['bsp_rel_semana_lista', 'bsp_relatorio_alteracoes', 'bsp_relatorio_versoes', 'bsp_turno_pendente', 'bsp_turno_base', 'bsp_turno_reforco', 'bsp_enquete_resultados','bsp_alertas_por_ler', 'bsp_fm_estado', 'bsp_fm_votos', 'bsp_relatorio_metagest', 'bsp_pagamento_banco', 'bsp_pagamento_etapas', 'bsp_segmento', 'bsp_ferias_aprovadores', 'bsp_produtividade_valores', 'bsp_pagamento_calcular', 'bsp_pagamento_permanencias_mes', 'bsp_pagamento_detalhe', 'bsp_qualidade_inqueritos', 'bsp_minha_espera', 'bsp_avaliacao_apoio', 'bsp_auditorias_estado', 'bsp_qualidade_espera', 'bsp_saude_sistema', 'bsp_acessos_resumo', 'bsp_medicos_credenciais', 'bsp_qualidade_resumo', 'bsp_mapa_ferias', 'bsp_stock', 'bsp_stock_resumo', 'bsp_assistente_quota', 'bsp_escalas_responsaveis', 'bsp_minha_actividade', 'bsp_metagest_medicos', 'bsp_transporte_saidas', 'bsp_painel', 'bsp_marc_sugerir', 'bsp_marc_valores', 'crm_pedidos', 'crm_ficha', 'crm_conversa', 'crm_procurar', 'crm_resultados', 'crm_funil', 'bsp_marc_funil', 'bsp_e_gestor', 'bsp_cobrancas', 'bsp_stock_lotes', 'bsp_tamanho_ficheiros', 'bsp_painel_clinico', 'bsp_vapid_publica', 'bsp_notif_estado_lista', 'bsp_toners_estado', 'bsp_gerador_estado', 'bsp_registo_clinico_dia', 'bsp_registo_clinico_lista', 'bsp_pagamento_conferir', 'bsp_pagamento_actos', 'bsp_presencas_dia'];
 const BSP_VER_COMO_ERRO = 'Está em «Ver como»: só leitura. Volte a si para gravar.';
 function bspBloqueado() {
   const r = { data: null, error: { message: BSP_VER_COMO_ERRO } };
@@ -17773,6 +17773,7 @@ const BSP_RELATORIOS = [{
   id: 'laboratorio',
   nome: 'Laboratório',
   campos: [
+    { id: 'turno', tipo: 'escolha', rotulo: 'Turno', opcoes: ['Manhã', 'Tarde', 'Noite', 'Dia completo'] },
     { id: 'pacientes', tipo: 'numero', rotulo: 'Pacientes atendidos' },
     { id: 'exames', tipo: 'numero', rotulo: 'Exames realizados' },
     { id: 'requisicoes', tipo: 'escolha', rotulo: 'Requisições do dia', opcoes: ['Todas pagas e processadas', 'Algumas por pagar', 'Algumas por processar', 'Sem requisições'] },
@@ -17793,6 +17794,7 @@ const BSP_RELATORIOS = [{
   id: 'imagiologia',
   nome: 'Imagiologia (Raio-X e Ecografia)',
   campos: [
+    { id: 'turno', tipo: 'escolha', rotulo: 'Turno', opcoes: ['Manhã', 'Tarde', 'Noite', 'Dia completo'] },
     { id: 'movimento', tipo: 'escolha', rotulo: 'Como decorreu o turno', opcoes: ['Calmo', 'Normal', 'Muito movimentado'] },
     { id: 'pacientes', tipo: 'numero', rotulo: 'Pacientes atendidos' },
     { id: 'raiox', tipo: 'numero', rotulo: 'Exames de Raio-X' },
@@ -17895,9 +17897,42 @@ const BSP_CAMPOS_AREA = {
   imagiologia: BSP_CAMPOS_RX_REPETIDOS.concat(BSP_CAMPOS_INCIDENTES, BSP_PROTOCOLOS_ACTIVOS ? BSP_CAMPOS_PROTOCOLOS : []),
   enfermagem: BSP_CAMPOS_CARRO.concat(BSP_CAMPOS_FRIO, BSP_CAMPOS_INCIDENTES, BSP_PROTOCOLOS_ACTIVOS ? BSP_CAMPOS_PROTOCOLOS : [])
 };
+/* Auditoria dos relatórios (31-10-2026, Elmar: «audita… vê se falta alguma
+   pergunta… estou a sentir que está fraco»). Em todas as áreas: passagem de
+   turno e limpeza/resíduos (JCI PCI e continuidade de cuidados). Por área: a
+   Recepção confirma as marcações de amanhã e conta os pedidos sem resposta; a
+   Farmácia confere psicotrópicos e validades; o Laboratório regista a
+   manutenção diária dos aparelhos; a Imagiologia a protecção radiológica; a
+   Enfermagem a esterilização, a sala de observação e os outros procedimentos.
+   Lidos pelo parecer semanal (funcoes/relatorios-semana); mudar os ids lá também. */
+const BSP_CAMPOS_FIM_TURNO = [
+  { id: 'passagem', tipo: 'escolha', rotulo: 'Passagem de turno', opcoes: ['Feita ao colega do turno seguinte', 'Feita por escrito (sem colega presente)', 'Último turno do dia (sem passagem)'] },
+  { id: 'limpeza', tipo: 'escolha', rotulo: 'Limpeza da área e resíduos (contentores de cortantes e lixo hospitalar)', opcoes: ['Área limpa; resíduos e cortantes recolhidos', 'Com falhas (ver relato)'] }
+];
+const BSP_CAMPOS_AUDITORIA_31 = {
+  rececao: [
+    { id: 'marc_amanha', tipo: 'escolha', rotulo: 'Marcações de amanhã', opcoes: ['Todas confirmadas (telefone ou WhatsApp)', 'Algumas por confirmar', 'Sem marcações para amanhã'] },
+    { id: 'pedidos_sem_resposta', tipo: 'numero', opcional: true, rotulo: 'Pedidos de utentes (WhatsApp ou telefone) que ficaram sem resposta' }
+  ],
+  farmacia: [
+    { id: 'psicotropicos', tipo: 'escolha', rotulo: 'Psicotrópicos e estupefacientes: contagem conferida', opcoes: ['Conferidos, sem diferenças', 'Conferidos, com diferença (ver relato)', 'Sem movimento no turno'] },
+    { id: 'validades', tipo: 'escolha', rotulo: 'Validades nas prateleiras', opcoes: ['Verificadas: nada caduca em 30 dias', 'Há produtos a caducar em 30 dias (ver relato)', 'Não verificadas neste turno'] }
+  ],
+  laboratorio: [
+    { id: 'manutencao', tipo: 'escolha', rotulo: 'Manutenção diária dos aparelhos (BS-200, hematologia)', opcoes: ['Feita em todos', 'Feita em parte (ver relato)', 'Não feita'] }
+  ],
+  imagiologia: [
+    { id: 'protecao', tipo: 'escolha', rotulo: 'Protecção radiológica (dosímetro, avental de chumbo, gravidez perguntada antes do Raio-X)', opcoes: ['Cumprida em todos os exames', 'Com falhas (ver relato)', 'Sem exames de Raio-X'] }
+  ],
+  enfermagem: [
+    { id: 'outros_proc', tipo: 'numero', opcional: true, rotulo: 'Outros procedimentos (suturas, algaliações, glicemias capilares, ECG)' },
+    { id: 'obs_fim', tipo: 'numero', opcional: true, rotulo: 'Utentes na sala de observação no fim do turno' },
+    { id: 'esterilizacao', tipo: 'escolha', rotulo: 'Material esterilizado', opcoes: ['Dentro do prazo', 'Fora do prazo, retirado (ver relato)', 'Não verificado'] }
+  ]
+};
 BSP_RELATORIOS.forEach(a => {
-  const extra = BSP_CAMPOS_AREA[a.id];
-  if (!extra) return;
+  const extra = (BSP_CAMPOS_AREA[a.id] || []).concat(BSP_CAMPOS_AUDITORIA_31[a.id] || [], BSP_CAMPOS_FIM_TURNO);
+  if (!extra.length) return;
   let i = a.campos.findIndex(c => c.id === 'ficheiros');
   if (i === -1) i = a.campos.findIndex(c => c.id === 'ocorrencias');
   if (i === -1) i = a.campos.findIndex(c => c.id === 'obs');
@@ -18007,38 +18042,60 @@ function bspRelatorioEstado(rel, pendente) {
   if (rel.alterado_em) return { t: 'Versão ' + (rel.versao || 2), cor: 'var(--accent-d)' };
   return { t: 'Entregue', cor: 'var(--sucesso)' };
 }
-function bspRelatorioDocCorpo(rel) {
+/* Impressão compacta (31-10-2026, Elmar: «não quero que imprimam todos os dias…
+   muitas despesas… o sistema já tem assinatura»): um cabeçalho por área, os
+   relatórios em bloco (sem uma página cada), itens em duas colunas e uma só
+   declaração do chefe da área no fim, para assinar e remeter ao Director Clínico.
+   Cada relatório leva o selo do sistema (quem entregou, quando, versão). */
+function bspRelatorioDocBloco(rel) {
   const E = bspEscHtml;
   const def = BSP_RELATORIOS.find(a => a.id === rel.area);
   const nome = id => { const u = id && window.userById && window.userById(id); return u ? u.name : (id || ''); };
-  const dia = String(rel.dia || '').split('-').reverse().join('-');
-  const linhas = (def ? def.campos : []).map(c => [c.rotulo, bspRespostaTexto(c, (rel.respostas || {})[c.id])]).filter(x => x[1] != null);
-  const versao = rel.alterado_em ? 'Versão ' + (rel.versao || 2) + ', em vigor desde ' + bspQuando(rel.alterado_em) + (rel.alterado_autorizou ? ', autorizada por ' + nome(rel.alterado_autorizou) : '') : 'Versão 1 (como foi entregue)';
+  const linhas = (def ? def.campos : []).filter(c => c.id !== 'turno').map(c => [c.rotulo, bspRespostaTexto(c, (rel.respostas || {})[c.id]), !!c.livre]).filter(x => x[1] != null);
+  const curtas = linhas.filter(l => !l[2] && String(l[1]).length <= 70), longas = linhas.filter(l => l[2] || String(l[1]).length > 70);
+  const pares = [];
+  for (let i = 0; i < curtas.length; i += 2) pares.push([curtas[i], curtas[i + 1]]);
+  const selo = 'Entregue por ' + nome(rel.user_id) + ' a ' + bspQuando(rel.created_at) + (rel.alterado_em ? ' · versão ' + (rel.versao || 2) + ', autorizada' + (rel.alterado_autorizou ? ' por ' + nome(rel.alterado_autorizou) : '') + ' a ' + bspQuando(rel.alterado_em) : ' · versão 1');
+  return '<div class="bloco"><div class="bt"><b>' + E(String(rel.dia || '').split('-').reverse().join('-')) + (rel.turno ? ' · ' + E(rel.turno) : '') + '</b><span>' + E(bspRelatorioNumero(rel)) + '</span></div>' +
+    '<div class="selo">✓ ' + E(selo) + '</div>' +
+    '<table class="r"><tbody>' + pares.map(p => '<tr>' + p.map(x => x ? '<td class="i">' + E(x[0]) + '</td><td class="v">' + E(x[1]) + '</td>' : '<td class="i"></td><td class="v"></td>').join('') + '</tr>').join('') +
+    longas.map(l => '<tr><td class="i">' + E(l[0]) + '</td><td class="v" colspan="3">' + E(l[1]).replace(/\n/g, '<br>') + '</td></tr>').join('') +
+    '</tbody></table></div>';
+}
+function bspRelatorioDocCorpo(rel) { return bspRelatorioDocArea(rel.area, [rel], false); }
+function bspRelatorioDocArea(area, rels, comDeclaracao) {
+  const E = bspEscHtml;
+  const def = BSP_RELATORIOS.find(a => a.id === area);
+  const dias = rels.map(r => r.dia).filter(Boolean).sort();
+  const periodo = dias.length ? (dias[0] === dias[dias.length - 1] ? dias[0].split('-').reverse().join('-') : dias[0].split('-').reverse().join('-') + ' a ' + dias[dias.length - 1].split('-').reverse().join('-')) : '';
   return '<section class="doc">' +
     '<div class="cab"><img src="' + BSP_EMAIL_LOGO + '" alt=""><div><div class="m">Centro Médico Barispol</div><div class="s">Clínica Barispol, Lda. · NIF 5000999687</div></div>' +
-    '<div class="tt"><div class="e">Relatório de turno · ' + E(def ? def.nome : rel.area) + '</div><h1>' + E(dia) + (rel.turno ? ' · ' + E(rel.turno) : '') + '</h1><div class="nr">' + E(bspRelatorioNumero(rel)) + '</div></div></div>' +
-    '<table class="id"><tr><th>Entregue por</th><td>' + E(nome(rel.user_id)) + '</td><th>Entregue a</th><td>' + E(bspQuando(rel.created_at)) + '</td></tr>' +
-    '<tr><th>Estado</th><td colspan="3">' + E(versao) + '</td></tr></table>' +
-    '<table class="r"><thead><tr><th style="width:42%">Pergunta</th><th>Resposta</th></tr></thead><tbody>' +
-    (linhas.length ? linhas.map(l => '<tr><td>' + E(l[0]) + '</td><td>' + E(l[1]).replace(/\n/g, '<br>') + '</td></tr>').join('') : '<tr><td colspan="2">Sem respostas.</td></tr>') +
-    '</tbody></table>' +
-    '<div class="ass"><div><span>' + E(nome(rel.user_id)) + '</span>Quem entregou</div><div><span>&nbsp;</span>Visto da Direcção Clínica / Chefe da área</div></div>' +
-    '<div class="rod"><span>' + E(bspRelatorioNumero(rel)) + ' · documento interno, sem dados de utentes</span><span>Workspace Barispol · impresso a ' + E(bspDataExacta(new Date())) + '</span></div>' +
+    '<div class="tt"><div class="e">Relatórios de turno · ' + E(def ? def.nome : area) + '</div><h1>' + E(periodo) + '</h1><div class="nr">' + rels.length + (rels.length === 1 ? ' relatório' : ' relatórios') + '</div></div></div>' +
+    rels.map(bspRelatorioDocBloco).join('') +
+    (comDeclaracao ? '<div class="decl"><b>Declaração do chefe da área</b><br>Revi os ' + rels.length + ' relatórios acima e remeto-os ao Director Clínico.' +
+      '<div class="ass"><div>Chefe da área (nome e assinatura)</div><div>Data</div><div>Recebido pelo Director Clínico (assinatura e data)</div></div></div>' : '') +
+    '<div class="rod"><span>Documento interno, sem dados de utentes. Cada relatório tem o selo do sistema (quem entregou e quando).</span><span>Workspace Barispol · impresso a ' + E(bspDataExacta(new Date())) + '</span></div>' +
     '</section>';
 }
 function bspRelatorioDocHtml(rels, titulo) {
+  const porArea = {};
+  rels.forEach(r => { (porArea[r.area] = porArea[r.area] || []).push(r); });
+  const corpo = Object.keys(porArea).sort().map(a => bspRelatorioDocArea(a, porArea[a].slice().sort((x, y) => String(x.dia).localeCompare(String(y.dia)) || String(x.created_at).localeCompare(String(y.created_at))), rels.length > 1)).join('');
   return '<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><title>' + bspEscHtml(titulo) + '</title><style>' +
-    '@page{size:A4 portrait;margin:12mm}*{box-sizing:border-box}body{margin:0;font-family:"Titillium Web","Segoe UI",Arial,sans-serif;color:#1C2033;background:#fff;font-size:11.5px}' +
+    '@page{size:A4 portrait;margin:10mm}*{box-sizing:border-box}body{margin:0;font-family:"Titillium Web","Segoe UI",Arial,sans-serif;color:#1C2033;background:#fff;font-size:9.5px;line-height:1.3}' +
     '.doc{page-break-after:always;break-after:page}.doc:last-child{page-break-after:auto;break-after:auto}' +
-    '.cab{display:flex;align-items:center;gap:12px;border-bottom:2px solid #2291CE;padding-bottom:8px;margin-bottom:12px}.cab img{width:46px;height:46px}' +
-    '.cab .m{font-size:15px;font-weight:700;color:#292F58}.cab .s{font-size:10.5px;color:#4E5366}.cab .tt{margin-left:auto;text-align:right}' +
-    '.cab .tt .e{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#2291CE}.cab .tt h1{margin:2px 0 0;font-size:19px;color:#292F58}.cab .nr{font-size:10px;color:#4E5366;letter-spacing:.04em}' +
-    'table{width:100%;border-collapse:collapse}table.id{margin-bottom:12px}table.id th{text-align:left;font-weight:600;color:#4E5366;width:16%;padding:5px 6px;background:#EAF5FC;border:1px solid #D6E8F4}table.id td{padding:5px 6px;border:1px solid #D6E8F4}' +
-    'table.r th{background:#2291CE;color:#fff;text-align:left;font-size:10.5px;padding:6px;letter-spacing:.03em}table.r td{padding:5px 6px;border-bottom:1px solid #DDDBD6;vertical-align:top;overflow-wrap:anywhere}' +
-    'table.r tbody tr:nth-child(even) td{background:#F7FAFC}table.r tr{page-break-inside:avoid;break-inside:avoid}table.r td:first-child{color:#4E5366}' +
-    '.ass{display:flex;gap:40px;margin-top:34px;page-break-inside:avoid}.ass div{flex:1;border-top:1px solid #1C2033;padding-top:4px;font-size:10px;color:#4E5366;text-align:center}.ass span{display:block;font-size:11px;color:#1C2033;font-weight:600}' +
-    '.rod{margin-top:14px;font-size:9px;color:#4E5366;display:flex;justify-content:space-between;gap:12px}' +
-    '</style></head><body>' + rels.map(bspRelatorioDocCorpo).join('') + '</body></html>';
+    '.cab{display:flex;align-items:center;gap:10px;border-bottom:2px solid #2291CE;padding-bottom:6px;margin-bottom:8px}.cab img{width:40px;height:40px}' +
+    '.cab .m{font-size:13px;font-weight:700;color:#292F58}.cab .s{font-size:9px;color:#4E5366}.cab .tt{margin-left:auto;text-align:right}' +
+    '.cab .tt .e{font-size:8.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#2291CE}.cab .tt h1{margin:1px 0 0;font-size:15px;color:#292F58}.cab .nr{font-size:8.5px;color:#4E5366}' +
+    '.bloco{border:1px solid #D6E8F4;border-radius:4px;margin-bottom:6px;page-break-inside:avoid;break-inside:avoid}' +
+    '.bt{display:flex;justify-content:space-between;background:#EAF5FC;padding:3px 6px;font-size:10px;color:#292F58}.bt span{font-size:8.5px;color:#4E5366}' +
+    '.selo{padding:2px 6px;font-size:8.5px;color:#1C7DB3;border-bottom:1px solid #E5EEF5}' +
+    'table.r{width:100%;border-collapse:collapse;table-layout:fixed}table.r td{padding:2px 6px;border-bottom:1px solid #F0F0EE;vertical-align:top;overflow-wrap:anywhere}' +
+    'table.r td.i{color:#4E5366;width:28%}table.r td.v{font-weight:600;width:22%}table.r tr:last-child td{border-bottom:0}' +
+    '.decl{margin-top:10px;border:1.5px solid #292F58;border-radius:4px;padding:8px 10px;font-size:10px;page-break-inside:avoid}' +
+    '.ass{display:flex;gap:18px;margin-top:26px}.ass div{flex:1;border-top:1px solid #1C2033;padding-top:3px;font-size:8.5px;color:#4E5366;text-align:center}' +
+    '.rod{margin-top:8px;font-size:8px;color:#4E5366;display:flex;justify-content:space-between;gap:10px}' +
+    '</style></head><body>' + corpo + '</body></html>';
 }
 function bspImprimirRelatorios(rels, titulo) {
   if (!rels || !rels.length) return;
@@ -18593,7 +18650,59 @@ function RelatoriosScreen() {
   }, emFalta.length ? 'Em falta: ' + emFalta.map(a => a.nome).join(', ') + '.' : (gestor ? 'Todas as áreas entregaram.' : 'Todas as áreas médicas entregaram.')), estado === 'a-carregar' ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'A carregar…') : estado === 'sem-servidor' ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'O servidor não está ligado neste aparelho.') : estado !== 'pronto' ? React.createElement("div", { style: { fontSize: 12.5, color: '#B91C1C' } }, 'Não foi possível ler os relatórios.') : !lista.length ? React.createElement("div", { style: { fontSize: 12.5, color: 'var(--text-3)' } }, 'Sem relatórios neste dia.') : React.createElement("div", {
     style: { display: 'flex', flexDirection: 'column', gap: 10 }
   }, lista.map(r => React.createElement(RelatorioResumo, { key: r.id, rel: r, onApagar: apagar, onAlterar: altsOk && !bspEmVerComo() ? comecarAlterar : null, pendente: alts.some(a => a.relatorio_id === r.id && a.estado === 'Pendente') })))),
-  React.createElement(RelatorioAlteracoes, { alts, onDecidir: decidirAlt })));
+  React.createElement(RelatorioAlteracoes, { alts, onDecidir: decidirAlt }),
+  React.createElement(FolhasSemanais, null)));
+}
+/* Folhas semanais (31-10-2026, relatorios-semana.sql, Elmar: «a obrigatoriedade
+   do chefe da área assinar e remeter ao director clínico»). À segunda-feira o
+   chefe recebe o PDF da sua área; imprime, assina e entrega ao Director
+   Clínico, e marca aqui. O Director Clínico confirma a recepção. «Imprimir de
+   novo» refaz o mesmo documento a partir do Workspace. */
+function FolhasSemanais() {
+  const toast = useToast();
+  const [lista, setLista] = React.useState(null);
+  const [tick, setTick] = React.useState(0);
+  const eu = window.CURRENT_USER_ID;
+  React.useEffect(() => {
+    const cl = bspGetClient();
+    if (!cl) return;
+    cl.rpc('bsp_rel_semana_lista', { p_semanas: 8 }).then(r => setLista(r.error ? null : (r.data || [])));
+  }, [tick]);
+  if (!lista || !lista.length) return null;
+  const nome = id => { const u = id && window.userById && window.userById(id); return u ? u.name.split(' ').slice(0, 2).join(' ') : (id || ''); };
+  const dPt = iso => String(iso || '').split('-').reverse().join('-');
+  const marcar = async (f, accao) => {
+    if (bspEmVerComo()) { toast('Em «Ver como» não se grava nada.'); return; }
+    if (accao === 'assinado' && !window.confirm('Confirma que imprimiu, assinou e entregou a folha da semana ao Director Clínico?')) return;
+    const r = await bspGetClient().rpc('bsp_rel_semana_marcar', { p_semana: f.semana, p_area: f.area, p_accao: accao });
+    if (r.error) { toast('Não foi possível: ' + (r.error.message || 'erro')); return; }
+    toast(accao === 'assinado' ? 'Registado. O Director Clínico foi avisado.' : 'Recepção confirmada.');
+    setTick(t => t + 1);
+  };
+  const reimprimir = async f => {
+    const fim = new Date(f.semana + 'T12:00:00Z'); fim.setUTCDate(fim.getUTCDate() + 6);
+    const r = await bspGetClient().from('relatorios_area').select('*').eq('area', f.area).gte('dia', f.semana).lte('dia', fim.toISOString().slice(0, 10)).order('dia');
+    if (r.error || !r.data || !r.data.length) { toast('Sem relatórios dessa semana.'); return; }
+    bspImprimirRelatorios(r.data, 'Relatórios ' + f.area + ' ' + f.semana);
+  };
+  const souDC = eu === 'u14';
+  return React.createElement(Card, null,
+    React.createElement("h3", { style: { fontSize: 15, fontWeight: 700, margin: '0 0 4px', color: 'var(--text-1)' } }, 'Folhas semanais'),
+    React.createElement("p", { style: { fontSize: 12.5, color: 'var(--text-3)', margin: '0 0 12px' } }, 'À segunda-feira chega o PDF da semana anterior. O chefe da área imprime uma vez, assina e entrega ao Director Clínico, e marca aqui.'),
+    React.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: 8 } }, lista.map(f => {
+      const def = BSP_RELATORIOS.find(a => a.id === f.area);
+      const estado = f.recebido_em ? ['Recebida pelo Director Clínico', 'var(--sucesso)'] : f.assinado_em ? ['Assinada, por receber', 'var(--accent-d)'] : ['Por assinar', 'var(--perigo)'];
+      return React.createElement("div", { key: f.semana + f.area, style: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, border: '1px solid var(--border)', borderRadius: 12, padding: '10px 12px', fontSize: 12.5 } },
+        React.createElement("div", { style: { flex: '1 1 220px', minWidth: 0 } },
+          React.createElement("b", { style: { color: 'var(--text-1)' } }, (def ? def.nome : f.area) + ' · semana de ' + dPt(f.semana)),
+          React.createElement("div", { style: { color: 'var(--text-3)', marginTop: 2 } }, f.relatorios + (f.relatorios === 1 ? ' relatório' : ' relatórios') +
+            (f.assinado_em ? ' · assinada por ' + nome(f.assinado_por) + ' a ' + bspQuando(f.assinado_em) : '') +
+            (f.recebido_em ? ' · recebida a ' + bspQuando(f.recebido_em) : ''))),
+        React.createElement("span", { style: { fontSize: 11.5, fontWeight: 700, color: estado[1], border: '1px solid currentColor', borderRadius: 999, padding: '2px 10px' } }, estado[0]),
+        React.createElement(Button, { variant: 'secondary', size: 'sm', onClick: () => reimprimir(f) }, 'Imprimir'),
+        !f.assinado_em && React.createElement(Button, { variant: 'primary', size: 'sm', onClick: () => marcar(f, 'assinado') }, 'Assinei e remeti'),
+        f.assinado_em && !f.recebido_em && souDC && React.createElement(Button, { variant: 'primary', size: 'sm', onClick: () => marcar(f, 'recebido') }, 'Recebido'));
+    })));
 }
 /* Pedidos de alteração de relatórios (31-10-2026, relatorios-alterar.sql):
    quem autoriza vê o antes e o depois de cada resposta mudada e o motivo;
@@ -18617,7 +18726,7 @@ function RelatorioAltCartao({ a, decidir, nome, mudancas, onDecidir }) {
     React.createElement("div", { style: { marginBottom: 8, padding: '8px 10px', borderLeft: '3px solid var(--accent)', background: 'var(--surface-2)', whiteSpace: 'pre-wrap' } },
       React.createElement("b", null, (decidir ? 'Mensagem de ' + nome(a.user_id) : 'A sua observação') + ': '), a.motivo),
     ms.length ? React.createElement("div", { style: { display: 'grid', gridTemplateColumns: 'minmax(110px, 34%) 1fr 1fr', gap: '4px 10px', marginBottom: 8 } },
-      React.createElement("span", { style: { color: 'var(--text-3)', fontWeight: 600 } }, 'Pergunta'),
+      React.createElement("span", { style: { color: 'var(--text-3)', fontWeight: 600 } }, 'Item'),
       React.createElement("span", { style: { color: 'var(--text-3)', fontWeight: 600 } }, 'Antes'),
       React.createElement("span", { style: { color: 'var(--text-3)', fontWeight: 600 } }, 'Depois'),
       ms.map(([rot, an, de], i) => React.createElement(React.Fragment, { key: i },

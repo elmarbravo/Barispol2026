@@ -5767,3 +5767,33 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   relatórios fictícios (5 páginas, continuação de página certa). **Por publicar**:
   a `bright-worker` nova, a `relatorios-semana` (JWT desligado) e o SQL — o conector do
   Supabase não vê o projecto Barispol. Depois: ensaio com `{"previa": true}`.
+- 31-10-2026, Elmar: «não quero que imprimam todos os dias… muitas despesas… o
+  sistema já tem assinatura… impressão semanal de todos e a obrigatoriedade do chefe
+  da área assinar e remeter ao director clínico… um relatório do Workspace automático
+  a fazer a avaliação… e dar o seu parecer… PDF, HTML… no relatório não está o
+  logotipo… audita… o termo certo é pergunta e resposta?».
+  · Termos: «Item» e «Registo» (impressão, PDF, pedidos de alteração).
+  · Impressão compacta (`bspRelatorioDocHtml`/`bspRelatorioDocArea`/`bspRelatorioDocBloco`
+    e `pdfArea` na Edge Function): relatórios em bloco, itens em duas colunas, selo do
+    sistema em cada um, uma só declaração do chefe por área (assinatura, data,
+    recebido pelo Director Clínico). Cerca de 2 relatórios por meia página: 3 a 4
+    folhas por área e semana, em vez de uma por relatório.
+  · Logotipo embutido no PDF (`funcoes/relatorios-semana/logo.ts`, 180 px).
+  · Folhas semanais (`relatorios_semana_folhas`, `bsp_rel_semana_lista`/`_marcar`/
+    `_lembrar`, `bsp_rel_e_chefe`, `bsp_rel_assina_folha`; crons `bsp-folhas-assinar`
+    quarta 09h43 e `bsp-folhas-receber` sexta 09h43): o chefe marca «Assinei e
+    remeti», o Director Clínico «Recebido»; áreas sem chefe assina o Director
+    Clínico. Ecrã `FolhasSemanais` em Relatórios.
+  · Parecer do Workspace (Edge Function `relatorios-semana`): ao Elmar e à Direcção
+    Clínica, HTML no corpo e PDF, com classificação Conforme/Atenção/Crítico por área,
+    produção, achados com recomendação, folhas em atraso e critérios; redigido pela
+    IA (Claude Haiku 4.5) se houver `ANTHROPIC_API_KEY`, senão pelas regras.
+  · Auditoria dos itens (`BSP_CAMPOS_FIM_TURNO`, `BSP_CAMPOS_AUDITORIA_31`): Turno no
+    Laboratório e na Imagiologia; em todas, passagem de turno e limpeza/resíduos;
+    Recepção: marcações de amanhã e pedidos sem resposta; Farmácia: psicotrópicos e
+    validades; Laboratório: manutenção diária; Imagiologia: protecção radiológica;
+    Enfermagem: outros procedimentos, sala de observação no fim do turno,
+    esterilização. Lidos pelo parecer.
+  Testado localmente: PDF de área (1 página, 2 relatórios, logotipo), parecer em PDF
+  (2 páginas) e HTML. **Por publicar no Supabase** (bright-worker, relatorios-semana,
+  relatorios-semana.sql).

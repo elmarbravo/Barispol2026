@@ -408,8 +408,14 @@ completo de 24 a 28-09-2026 está em `historico-2026-09.md` (02-10-2026).
   versão.
   Semana para imprimir (31-10-2026, `relatorios-semana.sql`, Edge Function
   `relatorios-semana`, Elmar: «impressos todas as semanas nas segundas-feiras»):
-  segunda 07h38, PDF da semana anterior a cada chefe (`relatorios_destinos.para`) e
-  à Direcção Clínica (todas as áreas); a `bright-worker` aceita PDF só do servidor.
+  segunda 07h38, PDF compacto da semana anterior a cada chefe (`relatorios_destinos.para`;
+  sem chefe, à Direcção Clínica), que imprime uma vez, assina e remete ao Director
+  Clínico (`relatorios_semana_folhas`, `FolhasSemanais`, lembretes quarta e sexta);
+  parecer do Workspace (HTML e PDF, regras ou IA) ao Elmar e à Direcção Clínica. Nunca
+  pedir impressão diária (Elmar: «muitas despesas»). Termos: «Item» e «Registo».
+  A `bright-worker` aceita PDF só do servidor; logotipo embutido em `logo.ts`.
+  Itens de 31-10-2026 (`BSP_CAMPOS_FIM_TURNO`, `BSP_CAMPOS_AUDITORIA_31`) lidos pelo
+  parecer (`avaliarArea`): mudar ids dos dois lados.
   O número REL-<sigla>-AAAAMMDD-<id> é igual no ecrã (`bspRelatorioNumero`) e no PDF.
   Anexos do relatório (30-10-2026, `relatorios-anexos.sql`, Elmar: «parem de enviar
   no chat e mandem só no relatório»): campo tipo `anexos` (`bspCampoFicheiros`,

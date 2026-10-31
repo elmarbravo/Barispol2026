@@ -1,17 +1,26 @@
 // Barispol Workspace · relatórios da semana (31-10-2026, relatorios-semana.sql)
 //
 // Elmar, 31-10-2026: «Os relatórios todos quero que sejam impressos todas as
-// semanas, nas segundas-feiras, um lembrete com anexo para cada chefe de área e
-// director clínico». Às segundas (07h38 de Luanda, cron bsp-relatorios-semana)
-// junta os relatórios de turno da semana anterior (segunda a domingo) e manda:
-//   · a cada chefe de área (relatorios_destinos.para) o PDF da sua área;
-//   · à Direcção Clínica (DireccaoClinica@barispol.com) um PDF com todas as
-//     áreas, uma secção por área.
-// O PDF tem um relatório por página, com o número (REL-<sigla>-AAAAMMDD-<id>,
-// igual ao Workspace), quem entregou, a versão em vigor, as perguntas e
-// respostas (coluna resumo) e as linhas de assinatura e visto. Os relatórios
-// não têm nomes de utentes; os ficheiros anexados aos relatórios nunca vão
-// por e-mail (só se dizem os nomes).
+// semanas, nas segundas-feiras… a obrigatoriedade do chefe da área assinar e
+// remeter ao director clínico… e um relatório do Workspace automático a fazer a
+// avaliação de tudo o que recebeu e dar o seu parecer», e «não quero que imprimam
+// todos os dias… muitas despesas». Às segundas (07h38 de Luanda, cron
+// bsp-relatorios-semana) junta os relatórios de turno da semana anterior e:
+//   · manda a cada chefe de área (relatorios_destinos.para) o PDF compacto da
+//     sua área (relatórios em bloco, itens em duas colunas, selo do sistema em
+//     cada um e uma só declaração do chefe no fim); as áreas sem chefe vão ao
+//     Director Clínico (DireccaoClinica@), que as assina;
+//   · regista cada folha em relatorios_semana_folhas, à espera de «Assinei e
+//     remeti» (chefe) e «Recebido» (Director Clínico);
+//   · manda ao Elmar e ao Director Clínico o parecer do Workspace sobre a semana:
+//     entregas, produção, segurança do utente, recursos e atendimento por área,
+//     classificação (Conforme, Atenção, Crítico), recomendações e o estado das
+//     folhas; HTML no corpo e o mesmo em PDF. Com ANTHROPIC_API_KEY o parecer
+//     é redigido pela IA a partir dos números (sem nomes de utentes); sem ela,
+//     sai das regras.
+// Termos: «Item» e «Registo» (Elmar: «o termo certo é pergunta e resposta, não
+// será outra coisa?»). Logotipo embutido (logo.ts). Os relatórios não têm nomes
+// de utentes; os ficheiros anexados aos relatórios nunca vão por e-mail.
 // Um envio por semana e destino (relatorios_enviados, tipo «semana», dia = a
 // segunda-feira da semana). {"previa": true} devolve os e-mails sem enviar
 // (sem o PDF); {"semana": "AAAA-MM-DD"} escolhe a segunda-feira;
@@ -22,6 +31,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 import fontkit from "npm:@pdf-lib/fontkit@1.1.1";
+import { LOGO_PNG_B64 } from "./logo.ts";
 
 const cabecalhos = {
   "Access-Control-Allow-Origin": "*",
@@ -154,6 +164,7 @@ const comCors = (tratar: (req: Request) => Promise<Response>) => async (req: Req
 };
 
 
+
 const AREAS: Record<string, { nome: string; sigla: string }> = {
   enfermagem: { nome: "Enfermagem", sigla: "ENF" },
   farmacia: { nome: "Farmácia", sigla: "FAR" },
@@ -177,11 +188,16 @@ const somar = (iso: string, n: number) => {
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 };
+const base64 = (b: Uint8Array) => {
+  let s = "";
+  for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000));
+  return btoa(s);
+};
+const deBase64 = (t: string) => Uint8Array.from(atob(t), (c) => c.charCodeAt(0));
 
-/* O PDF: um relatório por página (continua na seguinte se não couber).
-   Titillium Web vem do repositório público das Google Fonts; se não chegar,
-   usa-se a Helvetica, e o texto passa a WinAnsi. */
-async function fazerPdf(rels: any[], titulo: string, nomeDe: (id: string) => string): Promise<Uint8Array> {
+/* ── Escritor de PDF: A4, cabeçalho com logotipo, texto partido em linhas,
+   quebra de página automática, rodapé numerado. ─────────────────────────── */
+async function novoPdf(titulo: string) {
   const pdf = await PDFDocument.create();
   pdf.setTitle(titulo);
   pdf.setAuthor("Clínica Barispol, Lda.");
@@ -190,10 +206,8 @@ async function fazerPdf(rels: any[], titulo: string, nomeDe: (id: string) => str
   try {
     pdf.registerFontkit(fontkit);
     const base = "https://raw.githubusercontent.com/google/fonts/main/ofl/titilliumweb/";
-    const [a, b] = await Promise.all([
-      fetch(base + "TitilliumWeb-Regular.ttf").then((r) => { if (!r.ok) throw new Error("fonte"); return r.arrayBuffer(); }),
-      fetch(base + "TitilliumWeb-Bold.ttf").then((r) => { if (!r.ok) throw new Error("fonte"); return r.arrayBuffer(); }),
-    ]);
+    const [a, b] = await Promise.all(["TitilliumWeb-Regular.ttf", "TitilliumWeb-Bold.ttf"].map((n) =>
+      fetch(base + n).then((r) => { if (!r.ok) throw new Error("fonte"); return r.arrayBuffer(); })));
     fonte = await pdf.embedFont(a, { subset: true });
     forte = await pdf.embedFont(b, { subset: true });
   } catch {
@@ -201,27 +215,22 @@ async function fazerPdf(rels: any[], titulo: string, nomeDe: (id: string) => str
     forte = await pdf.embedFont(StandardFonts.HelveticaBold);
     unicode = false;
   }
+  const logo = await pdf.embedPng(deBase64(LOGO_PNG_B64));
   const limpo = (t: unknown) => {
     let s = String(t ?? "").replace(/\r/g, "");
-    if (!unicode) s = s.replace(/[→]/g, "->").replace(/[–—]/g, "-").replace(/[^\x09\x0A\x20-\x7E -ÿ·°]/g, "");
+    if (!unicode) s = s.replace(/[→]/g, "->").replace(/[–—]/g, "-").replace(/✓/g, "").replace(/[^\x09\x0A\x20-\x7E -ÿ·°]/g, "");
+    else s = s.replace(/✓/g, "");
     return s;
   };
-  let logo: any = null;
-  try {
-    const r = await fetch("https://barispol.com/assets/logo-barispol.png");
-    if (r.ok) logo = await pdf.embedPng(await r.arrayBuffer());
-  } catch { /* sem logotipo */ }
-
-  const AZUL = rgb(0x22 / 255, 0x91 / 255, 0xCE / 255);
-  const MAR = rgb(0x29 / 255, 0x2F / 255, 0x58 / 255);
-  const TXT = rgb(0x1C / 255, 0x20 / 255, 0x33 / 255);
-  const SUA = rgb(0x4E / 255, 0x53 / 255, 0x66 / 255);
-  const LIN = rgb(0xDD / 255, 0xDB / 255, 0xD6 / 255);
-  const CLA = rgb(0xEA / 255, 0xF5 / 255, 0xFC / 255);
-  const W = 595.28, H = 841.89, M = 42;
-  const larg = W - 2 * M;
-
-  const partir = (texto: string, f: any, tam: number, max: number): string[] => {
+  const C = {
+    azul: rgb(0x22 / 255, 0x91 / 255, 0xCE / 255), azul2: rgb(0x1C / 255, 0x7D / 255, 0xB3 / 255),
+    mar: rgb(0x29 / 255, 0x2F / 255, 0x58 / 255), txt: rgb(0x1C / 255, 0x20 / 255, 0x33 / 255),
+    sua: rgb(0x4E / 255, 0x53 / 255, 0x66 / 255), lin: rgb(0xDD / 255, 0xDB / 255, 0xD6 / 255),
+    cla: rgb(0xEA / 255, 0xF5 / 255, 0xFC / 255), branco: rgb(1, 1, 1),
+    perigo: rgb(0xB4 / 255, 0x23 / 255, 0x18 / 255), aviso: rgb(0x8A / 255, 0x5A / 255, 0), ok: rgb(0x1D / 255, 0x7A / 255, 0x46 / 255),
+  };
+  const W = 595.28, H = 841.89, M = 36, larg = W - 2 * M;
+  const partir = (texto: unknown, f: any, tam: number, max: number): string[] => {
     const linhas: string[] = [];
     limpo(texto).split("\n").forEach((par) => {
       const pal = par.split(/\s+/).filter(Boolean);
@@ -231,7 +240,6 @@ async function fazerPdf(rels: any[], titulo: string, nomeDe: (id: string) => str
         const t = l ? l + " " + p : p;
         if (f.widthOfTextAtSize(t, tam) <= max) { l = t; return; }
         if (l) linhas.push(l);
-        // palavra maior do que a linha: corta-se
         let resto = p;
         while (f.widthOfTextAtSize(resto, tam) > max && resto.length > 1) {
           let k = resto.length;
@@ -245,98 +253,228 @@ async function fazerPdf(rels: any[], titulo: string, nomeDe: (id: string) => str
     });
     return linhas;
   };
-
-  let total = 0;
   const paginas: any[] = [];
-  const novaPagina = (r: any, cont: boolean) => {
+  const st: any = { pg: null, y: 0, etiqueta: "", titulo: "" };
+  const pagina = (etiqueta: string, tit: string) => {
+    st.etiqueta = etiqueta; st.titulo = tit;
     const pg = pdf.addPage([W, H]);
-    paginas.push({ pg, r });
-    let y = H - M;
-    if (logo) pg.drawImage(logo, { x: M, y: y - 40, width: 40, height: 40 });
-    pg.drawText("Centro Médico Barispol", { x: M + 50, y: y - 16, size: 13, font: forte, color: MAR });
-    pg.drawText(limpo("Clínica Barispol, Lda. · NIF 5000999687"), { x: M + 50, y: y - 31, size: 8.5, font: fonte, color: SUA });
-    const et = limpo(("Relatório de turno · " + nomeArea(r.area)).toUpperCase());
-    pg.drawText(et, { x: W - M - forte.widthOfTextAtSize(et, 7.5), y: y - 8, size: 7.5, font: forte, color: AZUL });
-    const tt = limpo(diaPt(r.dia) + (r.turno ? " · " + r.turno : "") + (cont ? " (continuação)" : ""));
-    pg.drawText(tt, { x: W - M - forte.widthOfTextAtSize(tt, 15), y: y - 25, size: 15, font: forte, color: MAR });
-    const nr = numero(r);
-    pg.drawText(nr, { x: W - M - fonte.widthOfTextAtSize(nr, 8), y: y - 37, size: 8, font: fonte, color: SUA });
-    y -= 48;
-    pg.drawRectangle({ x: M, y, width: larg, height: 1.6, color: AZUL });
-    return { pg, y: y - 12 };
+    paginas.push(pg);
+    const y = H - M;
+    pg.drawImage(logo, { x: M, y: y - 38, width: 38, height: 38 * 183 / 180 });
+    pg.drawText("Centro Médico Barispol", { x: M + 46, y: y - 15, size: 12.5, font: forte, color: C.mar });
+    pg.drawText(limpo("Clínica Barispol, Lda. · NIF 5000999687"), { x: M + 46, y: y - 29, size: 8, font: fonte, color: C.sua });
+    const et = limpo(etiqueta.toUpperCase());
+    pg.drawText(et, { x: W - M - forte.widthOfTextAtSize(et, 7.5), y: y - 8, size: 7.5, font: forte, color: C.azul });
+    const tt = limpo(tit);
+    pg.drawText(tt, { x: W - M - forte.widthOfTextAtSize(tt, 14), y: y - 25, size: 14, font: forte, color: C.mar });
+    pg.drawRectangle({ x: M, y: y - 46, width: larg, height: 1.6, color: C.azul });
+    st.pg = pg; st.y = y - 56;
   };
-
-  for (const r of rels) {
-    let { pg, y } = novaPagina(r, false);
-    // identificação
-    const versao = r.alterado_em
-      ? "Versão " + (r.versao || 2) + ", em vigor desde " + quando(r.alterado_em) + (r.alterado_autorizou ? ", autorizada por " + nomeDe(r.alterado_autorizou) : "")
-      : "Versão 1 (como foi entregue)";
-    const id = [["Entregue por", nomeDe(r.user_id) + " · " + quando(r.created_at)], ["Estado", versao]];
-    for (const [k, v] of id) {
-      const ls = partir(v, fonte, 9.5, larg - 100);
-      const h = ls.length * 12 + 8;
-      pg.drawRectangle({ x: M, y: y - h, width: 92, height: h, color: CLA });
-      pg.drawRectangle({ x: M, y: y - h, width: larg, height: h, borderColor: LIN, borderWidth: 0.6 });
-      pg.drawText(limpo(k), { x: M + 6, y: y - 13, size: 9, font: forte, color: SUA });
-      ls.forEach((l, i) => pg.drawText(l, { x: M + 100, y: y - 13 - i * 12, size: 9.5, font: fonte, color: TXT }));
-      y -= h;
+  const espaco = (h: number) => { if (st.y - h < M + 26) pagina(st.etiqueta, st.titulo); };
+  const titulo2 = (t: string, cor = C.azul) => {
+    espaco(26);
+    st.y -= 6;
+    st.pg.drawText(limpo(t.toUpperCase()), { x: M, y: st.y - 10, size: 9, font: forte, color: cor });
+    st.pg.drawRectangle({ x: M, y: st.y - 14, width: larg, height: 0.8, color: cor });
+    st.y -= 20;
+  };
+  const texto = (t: string, o: any = {}) => {
+    const tam = o.tam || 9.5, f = o.forte ? forte : fonte, x = M + (o.recuo || 0);
+    for (const l of partir(t, f, tam, larg - (o.recuo || 0))) {
+      espaco(tam + 4);
+      st.pg.drawText(l, { x, y: st.y - tam, size: tam, font: f, color: o.cor || C.txt });
+      st.y -= tam + 3.5;
     }
-    y -= 12;
-    // perguntas e respostas
-    const cabecalho = () => {
-      pg.drawRectangle({ x: M, y: y - 18, width: larg, height: 18, color: AZUL });
-      pg.drawText("Pergunta", { x: M + 6, y: y - 13, size: 9, font: forte, color: rgb(1, 1, 1) });
-      pg.drawText("Resposta", { x: M + larg * 0.42 + 6, y: y - 13, size: 9, font: forte, color: rgb(1, 1, 1) });
-      y -= 18;
+    st.y -= o.depois ?? 3;
+  };
+  /* Tabela: larguras em fracções; cabeçalho azul; cores por célula. */
+  const tabela = (cab: string[], linhas: { v: string; cor?: any; forte?: boolean }[][], fr: number[], tam = 8.5) => {
+    const ws = fr.map((f) => f * larg);
+    const desenharCab = () => {
+      espaco(16);
+      st.pg.drawRectangle({ x: M, y: st.y - 14, width: larg, height: 14, color: C.azul });
+      let x = M;
+      cab.forEach((c, i) => { st.pg.drawText(limpo(c), { x: x + 4, y: st.y - 10, size: 8, font: forte, color: C.branco }); x += ws[i]; });
+      st.y -= 14;
     };
-    cabecalho();
-    const linhas: [string, string][] = Array.isArray(r.resumo) ? r.resumo.filter((x: any) => Array.isArray(x) && x[1] != null && x[1] !== "") : [];
-    if (!linhas.length) linhas.push(["Respostas", "Sem respostas por extenso neste relatório."]);
+    if (cab.length) desenharCab();
     let par = false;
-    for (const [p, v] of linhas) {
-      const lp = partir(p, fonte, 9, larg * 0.42 - 12);
-      const lv = partir(String(v), fonte, 9.5, larg * 0.58 - 12);
-      const h = Math.max(lp.length, lv.length) * 12 + 8;
-      if (y - h < M + 70) {
-        ({ pg, y } = novaPagina(r, true));
-        cabecalho();
-      }
-      if (par) pg.drawRectangle({ x: M, y: y - h, width: larg, height: h, color: rgb(0.969, 0.98, 0.988) });
-      pg.drawLine({ start: { x: M, y: y - h }, end: { x: M + larg, y: y - h }, thickness: 0.5, color: LIN });
-      lp.forEach((l, i) => pg.drawText(l, { x: M + 6, y: y - 13 - i * 12, size: 9, font: fonte, color: SUA }));
-      lv.forEach((l, i) => pg.drawText(l, { x: M + larg * 0.42 + 6, y: y - 13 - i * 12, size: 9.5, font: fonte, color: TXT }));
-      y -= h;
+    for (const l of linhas) {
+      const parts = l.map((c, i) => partir(c.v, c.forte ? forte : fonte, tam, ws[i] - 8));
+      const h = Math.max(...parts.map((p) => p.length)) * (tam + 3) + 5;
+      if (st.y - h < M + 26) { pagina(st.etiqueta, st.titulo); if (cab.length) desenharCab(); }
+      if (par) st.pg.drawRectangle({ x: M, y: st.y - h, width: larg, height: h, color: rgb(0.969, 0.98, 0.988) });
+      st.pg.drawLine({ start: { x: M, y: st.y - h }, end: { x: M + larg, y: st.y - h }, thickness: 0.4, color: C.lin });
+      let x = M;
+      parts.forEach((p, i) => {
+        p.forEach((t, k) => st.pg.drawText(t, { x: x + 4, y: st.y - tam - 2 - k * (tam + 3), size: tam, font: l[i].forte ? forte : fonte, color: l[i].cor || C.txt }));
+        x += ws[i];
+      });
+      st.y -= h;
       par = !par;
     }
-    // assinaturas
-    if (y < M + 90) ({ pg, y } = novaPagina(r, true));
-    y -= 46;
-    const ass = (x: number, cima: string, baixo: string) => {
-      pg.drawLine({ start: { x, y }, end: { x: x + larg / 2 - 20, y }, thickness: 0.6, color: TXT });
-      const c = limpo(cima), b = limpo(baixo);
-      pg.drawText(c, { x: x + (larg / 2 - 20 - forte.widthOfTextAtSize(c, 9.5)) / 2, y: y - 12, size: 9.5, font: forte, color: TXT });
-      pg.drawText(b, { x: x + (larg / 2 - 20 - fonte.widthOfTextAtSize(b, 8.5)) / 2, y: y - 24, size: 8.5, font: fonte, color: SUA });
-    };
-    ass(M, nomeDe(r.user_id), "Quem entregou");
-    ass(M + larg / 2 + 20, " ", "Visto da Direcção Clínica / Chefe da área");
-    total++;
-  }
-  // rodapé com o número de páginas
-  paginas.forEach(({ pg, r }, i) => {
-    const esq = limpo(numero(r) + " · documento interno, sem dados de utentes");
-    const dir = limpo("Workspace Barispol · página " + (i + 1) + " de " + paginas.length);
-    pg.drawText(esq, { x: M, y: 24, size: 7.5, font: fonte, color: SUA });
-    pg.drawText(dir, { x: W - M - fonte.widthOfTextAtSize(dir, 7.5), y: 24, size: 7.5, font: fonte, color: SUA });
-  });
-  return await pdf.save();
+    st.y -= 6;
+  };
+  const caixa = (t: string, cor: any) => {
+    const ls = partir(t, fonte, 9, larg - 16);
+    const h = ls.length * 12 + 10;
+    espaco(h);
+    st.pg.drawRectangle({ x: M, y: st.y - h, width: larg, height: h, color: C.cla });
+    st.pg.drawRectangle({ x: M, y: st.y - h, width: 3, height: h, color: cor });
+    ls.forEach((l, i) => st.pg.drawText(l, { x: M + 10, y: st.y - 13 - i * 12, size: 9, font: fonte, color: C.txt }));
+    st.y -= h + 6;
+  };
+  const fechar = async (rodape: string) => {
+    paginas.forEach((pg, i) => {
+      const e = limpo(rodape), d = limpo("Workspace Barispol · página " + (i + 1) + " de " + paginas.length);
+      pg.drawText(e, { x: M, y: 18, size: 7, font: fonte, color: C.sua });
+      pg.drawText(d, { x: W - M - fonte.widthOfTextAtSize(d, 7), y: 18, size: 7, font: fonte, color: C.sua });
+    });
+    return await pdf.save();
+  };
+  return { pdf, C, M, larg, st, pagina, espaco, titulo2, texto, tabela, caixa, fechar, partir, fonte, forte, limpo };
 }
 
-const base64 = (b: Uint8Array) => {
-  let s = "";
-  for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000));
-  return btoa(s);
-};
+/* PDF compacto de uma área (a folha semanal do chefe). */
+async function pdfArea(area: string, lista: any[], periodo: string, nomeDe: (id: string) => string) {
+  const w = await novoPdf("Relatórios de turno " + nomeArea(area) + " " + periodo);
+  w.pagina("Relatórios de turno · " + nomeArea(area), periodo);
+  w.texto(lista.length + (lista.length === 1 ? " relatório" : " relatórios") + ". Cada um leva o selo do sistema (quem entregou e quando).", { cor: w.C.sua, tam: 8.5, depois: 6 });
+  for (const r of lista) {
+    const linhas: [string, string][] = (Array.isArray(r.resumo) ? r.resumo : []).filter((x: any) => Array.isArray(x) && x[1] != null && x[1] !== "" && !/^(turno|fecho)$/i.test(String(x[0])));
+    w.espaco(40);
+    // barra do relatório
+    w.st.pg.drawRectangle({ x: w.M, y: w.st.y - 15, width: w.larg, height: 15, color: w.C.cla });
+    w.st.pg.drawText(w.limpo(diaPt(r.dia) + (r.turno ? " · " + r.turno : "")), { x: w.M + 5, y: w.st.y - 11, size: 9.5, font: w.forte, color: w.C.mar });
+    const nr = numero(r);
+    w.st.pg.drawText(nr, { x: w.M + w.larg - 5 - w.fonte.widthOfTextAtSize(nr, 7.5), y: w.st.y - 10.5, size: 7.5, font: w.fonte, color: w.C.sua });
+    w.st.y -= 15;
+    const selo = "Entregue por " + nomeDe(r.user_id) + " a " + quando(r.created_at) +
+      (r.alterado_em ? " · versão " + (r.versao || 2) + ", autorizada" + (r.alterado_autorizou ? " por " + nomeDe(r.alterado_autorizou) : "") + " a " + quando(r.alterado_em) : " · versão 1");
+    w.texto(selo, { tam: 7.5, cor: w.C.azul2, depois: 1 });
+    const curtas = linhas.filter((l) => String(l[1]).length <= 60 && !/^relato/i.test(l[0]));
+    const longas = linhas.filter((l) => String(l[1]).length > 60 || /^relato/i.test(l[0]));
+    const filas: { v: string; cor?: any; forte?: boolean }[][] = [];
+    for (let i = 0; i < curtas.length; i += 2) {
+      const a = curtas[i], b = curtas[i + 1];
+      filas.push([{ v: a[0], cor: w.C.sua }, { v: String(a[1]), forte: true }, { v: b ? b[0] : "", cor: w.C.sua }, { v: b ? String(b[1]) : "", forte: true }]);
+    }
+    if (filas.length) w.tabela([], filas, [0.3, 0.2, 0.3, 0.2], 7.8);
+    for (const l of longas) w.tabela([], [[{ v: l[0], cor: w.C.sua }, { v: String(l[1]) }]], [0.3, 0.7], 7.8);
+    w.st.y -= 4;
+  }
+  // declaração do chefe
+  w.espaco(90);
+  w.st.y -= 6;
+  const y0 = w.st.y;
+  w.st.pg.drawRectangle({ x: w.M, y: y0 - 80, width: w.larg, height: 80, borderColor: w.C.mar, borderWidth: 1.2 });
+  w.st.pg.drawText("Declaração do chefe da área", { x: w.M + 8, y: y0 - 14, size: 9.5, font: w.forte, color: w.C.mar });
+  w.st.pg.drawText(w.limpo("Revi os " + lista.length + " relatórios acima e remeto-os ao Director Clínico."), { x: w.M + 8, y: y0 - 27, size: 8.5, font: w.fonte, color: w.C.txt });
+  const col = (w.larg - 40) / 3;
+  ["Chefe da área (nome e assinatura)", "Data", "Recebido pelo Director Clínico"].forEach((t, i) => {
+    const x = w.M + 10 + i * (col + 10);
+    w.st.pg.drawLine({ start: { x, y: y0 - 62 }, end: { x: x + col, y: y0 - 62 }, thickness: 0.6, color: w.C.txt });
+    w.st.pg.drawText(w.limpo(t), { x, y: y0 - 72, size: 7.5, font: w.fonte, color: w.C.sua });
+  });
+  w.st.y = y0 - 86;
+  return await w.fechar("Documento interno, sem dados de utentes · imprimir uma vez por semana");
+}
+
+/* ── Avaliação da semana (o parecer). Só números e escolhas dos registos. ── */
+const num = (v: unknown) => { const n = Number(v); return isFinite(n) ? n : 0; };
+const tem = (v: unknown, t: string) => Array.isArray(v) ? v.includes(t) : v === t;
+const algum = (v: unknown, nada: string[]) => Array.isArray(v) ? v.some((x) => !nada.includes(x)) : (v != null && v !== "" && !nada.includes(String(v)));
+type Achado = { nivel: "critico" | "atencao"; texto: string; recomendacao?: string };
+function avaliarArea(area: string, lista: any[], dias: string[]) {
+  const R = lista.map((r) => r.respostas || {});
+  const soma = (k: string) => R.reduce((s, x) => s + num(x[k]), 0);
+  const conta = (f: (x: any) => boolean) => R.filter(f).length;
+  const achados: Achado[] = [];
+  const add = (nivel: Achado["nivel"], n: number, texto: string, recomendacao?: string) => { if (n > 0) achados.push({ nivel, texto: texto.replace("{n}", String(n)), recomendacao }); };
+  const semDia = dias.filter((d) => !lista.some((r) => r.dia === d));
+  if (semDia.length >= 3) achados.push({ nivel: "critico", texto: "Sem relatório em " + semDia.length + " dos 7 dias (" + semDia.map((d) => diaPt(d).slice(0, 5)).join(", ") + ").", recomendacao: "Chefe da área: apurar porquê e garantir o relatório em todos os turnos da escala." });
+  else if (semDia.length) achados.push({ nivel: "atencao", texto: "Sem relatório em " + semDia.map((d) => diaPt(d).slice(0, 5)).join(", ") + ".", recomendacao: "Confirmar se havia turno nesses dias." });
+  // Segurança do utente (todas as áreas)
+  add("critico", soma("incidentes"), "{n} incidente(s) com dano ao utente registado(s).", "Abrir ocorrência em Qualidade e analisar a causa.");
+  add("atencao", soma("quase_erros"), "{n} quase-erro(s) detectado(s).", "Rever o circuito em reunião de área.");
+  add("critico", conta((x) => (x.frio_min !== undefined && x.frio_min !== "" && num(x.frio_min) < 2) || (x.frio_max !== undefined && x.frio_max !== "" && num(x.frio_max) > 8)), "Frigorífico fora de 2–8 °C em {n} turno(s).", "Verificar o equipamento e os produtos guardados; registar a acção tomada.");
+  add("atencao", conta((x) => tem(x.limpeza, "Com falhas (ver relato)")), "Limpeza ou recolha de resíduos com falhas em {n} turno(s).", "Serviços Gerais: rever a recolha de resíduos e cortantes.");
+  add("atencao", conta((x) => algum(x.ocorrencias, ["Nenhuma"])), "Ocorrências registadas em {n} turno(s).");
+  add("atencao", conta((x) => tem(x.equipamentos, "Algum com avaria") || tem(x.aparelhos, "Algum com avaria") || algum(x.avarias, ["Nenhuma"])), "Equipamento avariado em {n} turno(s).", "Confirmar que a avaria está em Serviços gerais.");
+  if (area === "laboratorio") {
+    const am = soma("amostras"), rej = soma("amostras_rejeitadas"), ent = soma("resultados_entregues"), atr = soma("resultados_atraso"), cr = soma("criticos"), crc = soma("criticos_comunicados");
+    add("critico", conta((x) => x.ciq && x.ciq !== "Feito, dentro dos limites"), "Controlo interno de qualidade fora dos limites ou não feito em {n} turno(s).", "Reter resultados até o controlo estar dentro dos limites (ISO 15189).");
+    add("critico", conta((x) => tem(x.lote_novo, "Lote novo usado sem verificação")), "Lote novo de reagente usado sem verificação em {n} turno(s).", "Verificar cada lote novo com controlo antes de usar.");
+    add("critico", cr - crc, "{n} valor(es) crítico(s) sem comunicação ao médico.", "Comunicar sempre os valores críticos e registar a quem.");
+    if (am && rej / am > 0.05) achados.push({ nivel: "atencao", texto: "Amostras rejeitadas: " + rej + " de " + am + " (" + Math.round(rej / am * 100) + "%, acima de 5%).", recomendacao: "Rever a técnica de colheita e a identificação dos tubos." });
+    if (ent && atr / ent > 0.1) achados.push({ nivel: "atencao", texto: "Resultados fora do prazo: " + atr + " de " + ent + " (" + Math.round(atr / ent * 100) + "%).", recomendacao: "Rever o tempo de resposta por tipo de exame." });
+    add("atencao", conta((x) => tem(x.reagentes, "Stock baixo") || tem(x.reagentes, "Em ruptura")), "Reagentes com stock baixo ou em ruptura em {n} turno(s).", "Pedir à Farmácia ou aos fornecedores antes da ruptura.");
+    add("atencao", conta((x) => x.manutencao && x.manutencao !== "Feita em todos"), "Manutenção diária dos aparelhos incompleta em {n} turno(s).");
+  }
+  if (area === "enfermagem") {
+    add("critico", conta((x) => x.carro_urgencia === "Não verificado"), "Carro de urgência não verificado em {n} turno(s).", "Verificar o carro de urgência em todos os turnos.");
+    add("atencao", conta((x) => x.carro_urgencia === "Verificado com faltas (ver observação)"), "Carro de urgência com faltas em {n} turno(s).", "Repor o material e a medicação em falta.");
+    add("critico", conta((x) => tem(x.intercorrencias, "Graves (ver observação)")), "Intercorrências graves em {n} turno(s).");
+    add("atencao", conta((x) => algum(x.material, ["Nenhum"])), "Material em falta em {n} turno(s).", "Pedido à Farmácia pelo Workspace.");
+    add("atencao", conta((x) => x.esterilizacao && x.esterilizacao !== "Dentro do prazo"), "Material esterilizado fora do prazo ou não verificado em {n} turno(s).");
+  }
+  if (area === "imagiologia") {
+    const rx = soma("raiox"), rep = soma("repetidos");
+    if (rx && rep / rx > 0.05) achados.push({ nivel: "atencao", texto: "Raio-X repetidos: " + rep + " de " + rx + " (" + Math.round(rep / rx * 100) + "%).", recomendacao: "Rever posicionamento e exposição; a repetição aumenta a dose ao utente." });
+    add("atencao", conta((x) => tem(x.consumiveis, "Stock baixo") || tem(x.consumiveis, "Em ruptura")), "Películas ou consumíveis em falta em {n} turno(s).");
+    add("critico", conta((x) => tem(x.protecao, "Com falhas (ver relato)")), "Falhas na protecção radiológica em {n} turno(s).", "Dosímetro, avental e pergunta de gravidez em todos os exames.");
+  }
+  if (area === "farmacia") {
+    add("critico", conta((x) => tem(x.psicotropicos, "Conferidos, com diferença (ver relato)")), "Diferença na contagem de psicotrópicos em {n} turno(s).", "Apurar a diferença com a Direcção Clínica no próprio dia.");
+    add("atencao", conta((x) => x.rupturas && x.rupturas !== "Nenhuma"), "Rupturas de stock em {n} turno(s).");
+    add("atencao", conta((x) => x.supridas === "Parcialmente" || x.supridas === "Nenhuma"), "Receitas internas não supridas por inteiro em {n} turno(s).");
+    add("atencao", conta((x) => tem(x.validades, "Há produtos a caducar em 30 dias (ver relato)")), "Produtos a caducar em 30 dias assinalados em {n} turno(s).", "Dar saída primeiro aos lotes mais curtos ou devolver.");
+    add("atencao", conta((x) => tem(x.inventario, "Por enviar")), "Inventário semanal por enviar em {n} turno(s).");
+  }
+  if (area === "rececao") {
+    add("atencao", conta((x) => x.fecho_caixa === "Por enviar" || x.tpa === "Por enviar"), "Fecho de caixa ou do TPA por enviar em {n} turno(s).", "A DAF confere os fechos no dia seguinte.");
+    add("atencao", conta((x) => x.mapas && x.mapas !== "Todos entregues"), "Mapas dos médicos em falta em {n} turno(s).");
+    add("atencao", conta((x) => x.marcacoes && x.marcacoes !== "Todas actualizadas"), "Estado das marcações por actualizar em {n} turno(s).");
+    add("atencao", conta((x) => algum(x.documentos, ["Nenhum"])), "Documentos por regularizar no MetaGest em {n} turno(s).");
+    add("atencao", soma("espera_30"), "{n} utente(s) esperaram mais de 30 minutos.", "Rever a distribuição da equipa nas horas de maior movimento.");
+    add("atencao", soma("reclamacoes"), "{n} reclamação(ões) registada(s).", "Responder por escrito e registar em Qualidade.");
+    add("atencao", soma("pedidos_sem_resposta"), "{n} pedido(s) de utentes sem resposta.", "Responder a todos os pedidos no próprio dia.");
+    add("atencao", conta((x) => tem(x.marc_amanha, "Algumas por confirmar")), "Marcações do dia seguinte por confirmar em {n} turno(s).");
+  }
+  const crit = achados.filter((a) => a.nivel === "critico").length, aten = achados.filter((a) => a.nivel === "atencao").length;
+  const classe = crit ? "Crítico" : aten ? "Atenção" : "Conforme";
+  const producao: [string, number][] = (({
+    rececao: [["Utentes atendidos", "utentes"], ["Novos utentes", "novos"]],
+    farmacia: [["Receitas internas", "receitas"]],
+    laboratorio: [["Pacientes", "pacientes"], ["Exames", "exames"], ["Amostras colhidas", "amostras"], ["Resultados entregues", "resultados_entregues"]],
+    imagiologia: [["Pacientes", "pacientes"], ["Raio-X", "raiox"], ["Ecografias", "ecografias"]],
+    enfermagem: [["Consultas apoiadas", "consultas"], ["Injecções IM", "im"], ["Injecções EV", "ev"], ["Observações", "observacoes"], ["Nebulizações", "nebulizacoes"], ["Curativos", "curativos"]],
+  } as Record<string, [string, string][]>)[area] || []).map(([r, k]) => [r, soma(k)] as [string, number]);
+  const satResp = soma("satisf_resp"), satOk = soma("satisf_ok");
+  if (area === "rececao" && satResp) producao.push(["Satisfação (% satisfeitos)", Math.round(satOk / satResp * 100)]);
+  return { area, n: lista.length, semDia, achados, crit, aten, classe, producao, alterados: lista.filter((r) => r.alterado_em).length };
+}
+
+async function parecerIa(dados: unknown): Promise<string | null> {
+  const chave = (Deno.env.get("ANTHROPIC_API_KEY") || "").trim();
+  if (!chave) return null;
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "x-api-key": chave, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5",
+        max_tokens: 900,
+        system: "És o assistente de gestão clínica do Centro Médico Barispol (Clínica Barispol, Lda., Luanda). Escreves em português de Portugal, sem o Acordo Ortográfico de 1990, sem gerúndio, com frases curtas e verbos concretos. Redige o parecer semanal para o Director Geral e o Director Clínico a partir dos indicadores dados. Não inventes números nem factos. Estrutura: 1) apreciação geral em 2 a 3 frases; 2) o que está bem; 3) o que exige acção esta semana, por prioridade, com quem deve agir. Sem títulos markdown; parágrafos curtos e listas com hífen.",
+        messages: [{ role: "user", content: "Indicadores da semana (JSON):\n" + JSON.stringify(dados) }],
+      }),
+    });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const t = (j.content || []).map((c: any) => c.text || "").join("").trim();
+    return t || null;
+  } catch { return null; }
+}
 
 Deno.serve(comCors(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cabecalhos });
@@ -369,17 +507,19 @@ Deno.serve(comCors(async (req) => {
   const corpo = await req.json().catch(() => ({} as any));
   const previa = corpo && corpo.previa === true;
   const forcar = corpo && corpo.forcar === true;
-  // A semana anterior: da segunda à domingo antes de hoje (Luanda).
   const hoje = new Date(Date.now() + 3600 * 1000).toISOString().slice(0, 10);
-  const dSem = new Date(hoje + "T12:00:00Z").getUTCDay(); // 0 = domingo
+  const dSem = new Date(hoje + "T12:00:00Z").getUTCDay();
   const estaSegunda = somar(hoje, -((dSem + 6) % 7));
   const de = corpo && /^\d{4}-\d{2}-\d{2}$/.test(String(corpo.semana || "")) ? String(corpo.semana) : somar(estaSegunda, -7);
   const ate = somar(de, 6);
+  const periodo = diaPt(de) + " a " + diaPt(ate);
+  const dias = Array.from({ length: 7 }, (_, i) => somar(de, i));
 
-  const [{ data: linha }, { data: rels, error: eR }, { data: destinos }] = await Promise.all([
+  const [{ data: linha }, { data: rels, error: eR }, { data: destinos }, { data: folhasAnt }] = await Promise.all([
     admin.from("shared_state").select("team").eq("id", 1).single(),
     admin.from("relatorios_area").select("*").gte("dia", de).lte("dia", ate).order("dia", { ascending: true }).order("created_at", { ascending: true }),
     admin.from("relatorios_destinos").select("area, para"),
+    admin.from("relatorios_semana_folhas").select("*").lt("semana", de).gte("semana", somar(de, -28)),
   ]);
   if (eR) return responder({ erro: "Não foi possível ler os relatórios: " + eR.message }, 500);
   const equipa: any[] = Array.isArray(linha && (linha as any).team) ? (linha as any).team : [];
@@ -387,68 +527,116 @@ Deno.serve(comCors(async (req) => {
   const todos: any[] = rels || [];
   const porArea: Record<string, any[]> = {};
   todos.forEach((r) => { (porArea[r.area] = porArea[r.area] || []).push(r); });
-  const ordem = Object.keys(AREAS).filter((a) => porArea[a]).concat(Object.keys(porArea).filter((a) => !AREAS[a]));
-
-  const periodo = diaPt(de) + " a " + diaPt(ate);
-  const dias = Array.from({ length: 7 }, (_, i) => somar(de, i));
-  const resumoHtml = (areas: string[]) => {
-    const linhas = areas.map((a) => {
-      const l = porArea[a] || [];
-      const sem = dias.filter((d) => !l.some((r) => r.dia === d));
-      return "<tr><td style=\"padding:6px 8px;border-bottom:1px solid " + LINHA + "\">" + escapar(nomeArea(a)) + "</td>" +
-        "<td style=\"padding:6px 8px;border-bottom:1px solid " + LINHA + ";text-align:right\">" + l.length + "</td>" +
-        "<td style=\"padding:6px 8px;border-bottom:1px solid " + LINHA + ";color:" + (sem.length ? "#B42318" : SUAVE) + "\">" +
-        (sem.length ? "Sem relatório: " + sem.map((d) => diaPt(d).slice(0, 5)).join(", ") : "Todos os dias") + "</td></tr>";
-    }).join("");
-    return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-family:' + FONTE + ';font-size:13.5px;color:' + TEXTO + ';margin:6px 0 14px">' +
-      '<tr><td style="background:' + CLARO + ';font-weight:700;color:' + MARINHO + ';padding:6px 8px">Área</td><td style="background:' + CLARO + ';font-weight:700;color:' + MARINHO + ';padding:6px 8px;text-align:right">Relatórios</td><td style="background:' + CLARO + ';font-weight:700;color:' + MARINHO + ';padding:6px 8px">Dias em falta</td></tr>' +
-      linhas + "</table>";
-  };
+  const ordem = Object.keys(AREAS).concat(Object.keys(porArea).filter((a) => !AREAS[a]));
+  const chefes: Record<string, string[]> = {};
+  ((destinos || []) as any[]).forEach((d) => { if (Array.isArray(d.para) && d.para.length) chefes[d.area] = d.para; });
 
   const envios: any[] = [];
-  const mandar = async (chave: string, para: string[], areas: string[]) => {
+  const enviar = async (chave: string, para: string[], assunto: string, html: string, anexo?: { nome: string; bytes: Uint8Array }) => {
     const p = Array.from(new Set(para.map((e) => String(e || "").trim()).filter((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e))));
-    if (!p.length) { envios.push({ chave, ok: false, nota: "sem destinatários" }); return; }
-    const lista = areas.flatMap((a) => porArea[a] || []);
-    const assunto = "Lembrete: imprimir os relatórios de turno da semana " + periodo + (areas.length === 1 ? " · " + nomeArea(areas[0]) : "");
-    const corpoHtml = paragrafo("Bom dia. Em anexo seguem os relatórios de turno da semana de <b>" + periodo + "</b>" +
-        (areas.length === 1 ? " da " + escapar(nomeArea(areas[0])) : ", de todas as áreas") + ", um por página, prontos para imprimir.") +
-      resumoHtml(areas) +
-      paragrafo("Imprima, assine o visto em cada página e arquive na pasta da área. Os dias em falta devem ser pedidos a quem estava de turno.") +
-      paragrafo("Os ficheiros anexados a cada relatório (fotografias, folhas) não seguem por e-mail: abra-os no Workspace.", true);
-    const html = envelope("Relatórios da semana para imprimir", corpoHtml, "relatorios", "Abrir os relatórios no Workspace",
-      "Lembrete automático das segundas-feiras. Sistema · Workspace Barispol.", "Lembrete semanal", "Workspace da equipa");
-    if (previa) { envios.push({ chave, para: p, assunto, relatorios: lista.length, html }); return; }
+    if (!p.length) { envios.push({ chave, ok: false, nota: "sem destinatários" }); return false; }
+    if (previa) { envios.push({ chave, para: p, assunto, html, anexo: anexo ? anexo.nome + " (" + anexo.bytes.length + " bytes)" : null }); return true; }
     if (!forcar) {
       const { error: jaFoi } = await admin.from("relatorios_enviados").insert({ tipo: "semana", dia: de, chave, para: p.join(", ") });
-      if (jaFoi) { envios.push({ chave, para: p, ok: true, nota: "já tinha saído" }); return; }
-    }
-    const anexos: any[] = [];
-    if (lista.length) {
-      const bytes = await fazerPdf(lista, "Relatórios de turno " + periodo, nomeDe);
-      anexos.push({
-        filename: "Relatorios de turno " + (areas.length === 1 ? nomeArea(areas[0]).normalize("NFD").replace(/[̀-ͯ]/g, "") + " " : "") + de + " a " + ate + ".pdf",
-        content: base64(bytes), content_type: "application/pdf",
-      });
+      if (jaFoi) { envios.push({ chave, para: p, ok: true, nota: "já tinha saído" }); return true; }
     }
     const r = await fetch(URL_SB.replace(/\/$/, "") + "/functions/v1/bright-worker", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + CHAVE_SERVICO },
-      body: JSON.stringify({ to: p, subject: assunto, html, ...(anexos.length ? { attachments: anexos } : {}) }),
+      body: JSON.stringify({ to: p, subject: assunto, html, ...(anexo ? { attachments: [{ filename: anexo.nome, content: base64(anexo.bytes), content_type: "application/pdf" }] } : {}) }),
     }).catch(() => null);
     const ok = !!(r && r.ok);
     const nota = r && !r.ok ? await r.text().catch(() => "") : "";
     await admin.from("relatorios_enviados").update({ ok }).eq("tipo", "semana").eq("dia", de).eq("chave", chave);
-    envios.push({ chave, para: p, relatorios: lista.length, ok, ...(nota ? { nota: nota.slice(0, 200) } : {}) });
+    envios.push({ chave, para: p, ok, ...(nota ? { nota: nota.slice(0, 200) } : {}) });
+    return ok;
   };
+  const semAcentos = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "");
 
-  // Cada chefe de área: só a sua. Áreas sem chefe ficam só para a Direcção Clínica.
-  for (const d of (destinos || []) as any[]) {
-    const para: string[] = Array.isArray(d.para) ? d.para : [];
-    if (!para.length) continue;
-    await mandar("area-" + d.area, para, [d.area]);
+  // 1. Folha de cada área: ao chefe, ou ao Director Clínico se a área não tem chefe.
+  const semChefe: string[] = [];
+  for (const area of ordem) {
+    const lista = porArea[area] || [];
+    if (!lista.length) continue;
+    const para = chefes[area] || ["DireccaoClinica@barispol.com"];
+    if (!chefes[area]) semChefe.push(area);
+    const bytes = await pdfArea(area, lista, periodo, nomeDe);
+    const corpoHtml = paragrafo("Bom dia. Em anexo segue a folha semanal da <b>" + escapar(nomeArea(area)) + "</b>, de " + periodo + ": " + lista.length + (lista.length === 1 ? " relatório" : " relatórios") + ", em formato compacto.") +
+      paragrafo("<b>O que fazer:</b> imprimir uma vez, rever, assinar a declaração no fim e entregar ao Director Clínico. Depois, no Workspace (Relatórios → Folhas semanais), carregar em «Assinei e remeti».") +
+      paragrafo("Não é preciso imprimir os relatórios todos os dias: cada relatório já tem o selo do sistema (quem entregou e quando).", true);
+    const html = envelope("Folha semanal para assinar · " + nomeArea(area), corpoHtml, "relatorios", "Abrir Relatórios no Workspace",
+      "Lembrete automático das segundas-feiras. Sistema · Workspace Barispol.", "Relatórios de turno", "Workspace da equipa");
+    const ok = await enviar("area-" + area, para, "Folha semanal para assinar: " + nomeArea(area) + ", " + periodo, html,
+      { nome: "Relatorios " + semAcentos(nomeArea(area)) + " " + de + " a " + ate + ".pdf", bytes });
+    if (!previa) await admin.from("relatorios_semana_folhas").upsert({ semana: de, area, relatorios: lista.length, ...(ok ? { enviado_em: new Date().toISOString() } : {}) }, { onConflict: "semana,area" });
   }
-  // Director Clínico: todas as áreas num só PDF.
-  await mandar("direccao-clinica", ["DireccaoClinica@barispol.com"], ordem.length ? ordem : Object.keys(AREAS));
-  return responder({ ok: true, de, ate, relatorios: todos.length, previa, envios });
+
+  // 2. Parecer do Workspace ao Elmar e ao Director Clínico.
+  const av = ordem.filter((a) => AREAS[a]).map((a) => avaliarArea(a, porArea[a] || [], dias));
+  const pendentes = ((folhasAnt || []) as any[]).filter((f) => !f.assinado_em || !f.recebido_em);
+  const globalCrit = av.reduce((s, a) => s + a.crit, 0), globalAten = av.reduce((s, a) => s + a.aten, 0);
+  const classeGeral = globalCrit ? "Crítico" : globalAten ? "Atenção" : "Conforme";
+  const dadosIa = {
+    semana: periodo, relatorios: todos.length,
+    areas: av.map((a) => ({ area: nomeArea(a.area), relatorios: a.n, dias_sem_relatorio: a.semDia.length, classificacao: a.classe, producao: Object.fromEntries(a.producao), achados: a.achados.map((x) => x.nivel + ": " + x.texto), relatorios_alterados: a.alterados })),
+    folhas_por_assinar_ou_receber: pendentes.map((f) => nomeArea(f.area) + " (semana de " + diaPt(f.semana) + ")"),
+  };
+  const textoIa = await parecerIa(dadosIa);
+  const regras = (() => {
+    const l: string[] = [];
+    l.push("Semana de " + periodo + ": " + todos.length + " relatórios de turno em " + av.filter((a) => a.n).length + " áreas. Classificação geral: " + classeGeral + " (" + globalCrit + " ponto(s) crítico(s), " + globalAten + " de atenção).");
+    const bem = av.filter((a) => a.classe === "Conforme" && a.n).map((a) => nomeArea(a.area));
+    if (bem.length) l.push("Conformes: " + bem.join(", ") + ".");
+    const crit = av.flatMap((a) => a.achados.filter((x) => x.nivel === "critico").map((x) => "- " + nomeArea(a.area) + ": " + x.texto + (x.recomendacao ? " " + x.recomendacao : "")));
+    if (crit.length) l.push("Exige acção esta semana:\n" + crit.join("\n"));
+    if (pendentes.length) l.push("Folhas semanais anteriores por assinar ou receber: " + pendentes.map((f) => nomeArea(f.area) + " (" + diaPt(f.semana) + ")").join(", ") + ".");
+    return l.join("\n\n");
+  })();
+  const parecer = textoIa || regras;
+  const corCls = (c: string) => c === "Crítico" ? "#B42318" : c === "Atenção" ? "#8A5A00" : "#1D7A46";
+  const td = "padding:6px 8px;border-bottom:1px solid " + LINHA + ";vertical-align:top;font-family:" + FONTE + ";font-size:13px;color:" + TEXTO;
+  const th = "padding:6px 8px;background:" + CLARO + ";font-family:" + FONTE + ";font-size:12px;font-weight:700;color:" + MARINHO + ";text-align:left";
+  const sec = (t: string) => '<div style="margin:22px 0 8px;padding-bottom:5px;border-bottom:2px solid ' + AZUL + ';font-family:' + FONTE + ';font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:' + AZUL + '">' + t + "</div>";
+  const htmlParecer = escapar(parecer).split(/\n{2,}/).map((p) => paragrafo(p.replace(/\n/g, "<br>"))).join("");
+  const tabelaResumo = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">' +
+    '<tr><td style="' + th + '">Área</td><td style="' + th + ';text-align:right">Relatórios</td><td style="' + th + '">Dias sem relatório</td><td style="' + th + '">Avaliação</td></tr>' +
+    av.map((a) => '<tr><td style="' + td + '">' + escapar(nomeArea(a.area)) + '</td><td style="' + td + ';text-align:right">' + a.n + '</td><td style="' + td + '">' + (a.semDia.length ? a.semDia.map((d) => diaPt(d).slice(0, 5)).join(", ") : "—") + '</td><td style="' + td + ';font-weight:700;color:' + corCls(a.classe) + '">' + a.classe + "</td></tr>").join("") + "</table>";
+  const detalhe = av.filter((a) => a.n || a.semDia.length).map((a) =>
+    '<div style="margin:14px 0 4px;font-family:' + FONTE + ';font-size:15px;font-weight:700;color:' + MARINHO + '">' + escapar(nomeArea(a.area)) + ' · <span style="color:' + corCls(a.classe) + '">' + a.classe + "</span></div>" +
+    (a.producao.length ? paragrafo(a.producao.map(([r, v]) => escapar(r) + ": <b>" + v + "</b>").join(" · ")) : "") +
+    (a.achados.length ? '<ul style="padding-left:18px;margin:4px 0 8px">' + a.achados.map((x) => '<li style="margin-bottom:4px;font-family:' + FONTE + ';font-size:13.5px;line-height:1.5;color:' + (x.nivel === "critico" ? "#B42318" : TEXTO) + '">' + escapar(x.texto) + (x.recomendacao ? ' <span style="color:' + SUAVE + '">' + escapar(x.recomendacao) + "</span>" : "") + "</li>").join("") + "</ul>" : paragrafo("Sem pontos a assinalar.")) +
+    (a.alterados ? paragrafo(a.alterados + " relatório(s) alterado(s) com autorização nesta semana.") : "")).join("");
+  const folhasHtml = pendentes.length ? sec("Folhas semanais em atraso") + '<ul style="padding-left:18px;margin:4px 0 8px">' + pendentes.map((f) => '<li style="font-family:' + FONTE + ';font-size:13.5px;color:' + TEXTO + '">' + escapar(nomeArea(f.area)) + ", semana de " + diaPt(f.semana) + ": " + (!f.assinado_em ? "por assinar pelo chefe da área" : "por receber pelo Director Clínico") + "</li>").join("") + "</ul>" : "";
+  const corpoParecer = paragrafo("Avaliação automática de todos os relatórios de turno recebidos de " + periodo + ". Classificação geral: <b style=\"color:" + corCls(classeGeral) + "\">" + classeGeral + "</b>.") +
+    sec("Parecer" + (textoIa ? " (redigido pela IA a partir dos números)" : "")) + htmlParecer +
+    sec("Resumo por área") + tabelaResumo + sec("Detalhe por área") + detalhe + folhasHtml +
+    paragrafo('<span style="color:' + SUAVE + ';font-size:12.5px">Critérios: Crítico = risco para o utente ou falha de controlo obrigatório (incidente com dano, frio fora de 2–8 °C, controlo de qualidade, valores críticos, psicotrópicos, carro de urgência, 3 ou mais dias sem relatório). Atenção = falhas de processo ou de recursos. Fontes: relatórios de turno do Workspace; sem nomes de utentes.</span>', true);
+  const htmlP = envelope("Parecer semanal dos relatórios de turno", corpoParecer, "relatorios", "Abrir Relatórios no Workspace",
+    "Parecer automático do Workspace, às segundas-feiras. Sistema · Workspace Barispol.", "Parecer do Workspace", periodo);
+  // PDF do parecer
+  const w = await novoPdf("Parecer semanal " + periodo);
+  w.pagina("Parecer do Workspace · relatórios de turno", periodo);
+  const corPdf = (c: string) => c === "Crítico" ? w.C.perigo : c === "Atenção" ? w.C.aviso : w.C.ok;
+  w.caixa("Classificação geral: " + classeGeral + ". " + todos.length + " relatórios de turno avaliados. " + globalCrit + " ponto(s) crítico(s) e " + globalAten + " de atenção.", corPdf(classeGeral));
+  w.titulo2("Parecer" + (textoIa ? " (redigido pela IA a partir dos números)" : ""));
+  parecer.split(/\n{2,}/).forEach((p) => w.texto(p, { depois: 6 }));
+  w.titulo2("Resumo por área");
+  w.tabela(["Área", "Relatórios", "Dias sem relatório", "Avaliação"], av.map((a) => [{ v: nomeArea(a.area), forte: true }, { v: String(a.n) }, { v: a.semDia.length ? a.semDia.map((d) => diaPt(d).slice(0, 5)).join(", ") : "—" }, { v: a.classe, forte: true, cor: corPdf(a.classe) }]), [0.3, 0.15, 0.35, 0.2]);
+  for (const a of av.filter((x) => x.n || x.semDia.length)) {
+    w.titulo2(nomeArea(a.area) + " · " + a.classe, corPdf(a.classe));
+    if (a.producao.length) w.texto(a.producao.map(([r, v]) => r + ": " + v).join(" · "), { tam: 9 });
+    if (a.achados.length) w.tabela(["Nível", "Registo", "Recomendação"], a.achados.map((x) => [{ v: x.nivel === "critico" ? "Crítico" : "Atenção", forte: true, cor: x.nivel === "critico" ? w.C.perigo : w.C.aviso }, { v: x.texto }, { v: x.recomendacao || "—", cor: w.C.sua }]), [0.12, 0.48, 0.4]);
+    else w.texto("Sem pontos a assinalar.", { cor: w.C.sua });
+  }
+  if (pendentes.length) {
+    w.titulo2("Folhas semanais em atraso", w.C.perigo);
+    w.tabela(["Área", "Semana", "Falta"], pendentes.map((f) => [{ v: nomeArea(f.area) }, { v: diaPt(f.semana) }, { v: !f.assinado_em ? "Assinatura do chefe da área" : "Recepção do Director Clínico" }]), [0.3, 0.2, 0.5]);
+  }
+  w.titulo2("Critérios", w.C.sua);
+  w.texto("Crítico: risco para o utente ou falha de controlo obrigatório (incidente com dano, frio fora de 2–8 °C, controlo de qualidade, valores críticos, psicotrópicos, carro de urgência, 3 ou mais dias sem relatório). Atenção: falhas de processo ou de recursos. Fonte: relatórios de turno do Workspace, sem nomes de utentes.", { tam: 8, cor: w.C.sua });
+  const bytesP = await w.fechar("Parecer automático · documento interno, sem dados de utentes");
+  await enviar("parecer", ["elmar.bravo@barispol.com", "DireccaoClinica@barispol.com"], "Parecer semanal dos relatórios de turno: " + periodo + " · " + classeGeral, htmlP,
+    { nome: "Parecer semanal " + de + " a " + ate + ".pdf", bytes: bytesP });
+
+  return responder({ ok: true, de, ate, relatorios: todos.length, classe: classeGeral, ia: !!textoIa, previa, envios });
 }));
