@@ -96,3 +96,42 @@
   }, { rootMargin: '-45% 0px -50% 0px' });
   ligacoes.forEach(function (a) { var alvo = document.getElementById(a.getAttribute('href').slice(1)); if (alvo) obs.observe(alvo); });
 })();
+
+/* Slide automático da abertura (31-10-2026, Elmar: «slide automático»): troca a
+   fotografia a cada 5 s, com pontos para escolher; pára com o rato por cima, com
+   a página escondida e quando o aparelho pede menos movimento. */
+(function () {
+  var caixa = document.querySelector('[data-slides]');
+  if (!caixa) return;
+  var fotos = [].slice.call(caixa.querySelectorAll('img'));
+  if (fotos.length < 2) return;
+  var i = 0, parado = false;
+  var menos = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var pontos = document.createElement('div');
+  pontos.className = 'slides-pontos';
+  var legenda = document.createElement('span');
+  legenda.className = 'slides-legenda';
+  legenda.setAttribute('aria-live', 'polite');
+  fotos.forEach(function (f, n) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('aria-label', 'Fotografia ' + (n + 1) + ': ' + (f.getAttribute('data-legenda') || f.alt));
+    b.addEventListener('click', function () { mostrar(n); });
+    pontos.appendChild(b);
+  });
+  caixa.appendChild(legenda);
+  caixa.appendChild(pontos);
+  function mostrar(n) {
+    i = (n + fotos.length) % fotos.length;
+    var seg = fotos[(i + 1) % fotos.length];
+    if (seg.loading === 'lazy') seg.loading = 'eager';
+    fotos.forEach(function (f, k) { f.classList.toggle('activo', k === i); });
+    [].forEach.call(pontos.children, function (b, k) { b.classList.toggle('activo', k === i); });
+    legenda.textContent = fotos[i].getAttribute('data-legenda') || '';
+  }
+  mostrar(0);
+  caixa.addEventListener('mouseenter', function () { parado = true; });
+  caixa.addEventListener('mouseleave', function () { parado = false; });
+  if (menos) return;
+  setInterval(function () { if (!parado && !document.hidden) mostrar(i + 1); }, 5000);
+})();

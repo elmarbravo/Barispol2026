@@ -465,3 +465,116 @@ section[id],.chamada[id]{scroll-margin-top:170px}
 .lab-grupo span{display:block;font-size:14px;color:var(--t2);margin-top:4px}
 .lab-grupo:hover b{text-decoration:underline;text-underline-offset:3px}
 @media(max-width:900px){.lab-grupos{grid-template-columns:1fr 1fr}}
+
+/* ── Versão leve (31-10-2026, Elmar: «o site está mal, básico… esse azul escuro
+   está muito pesado… vamos usar o outro azul do logotipo; os contornos estão muito
+   quadrados… como Facebook, como WhatsApp, mais actualizados»; «podes colocar
+   degradê, slide automático»). O azul do logotipo passa a cor principal, o marinho
+   fica só nos títulos; blocos claros com degradês suaves, cantos redondos, botões em
+   pílula e sombras leves. ───────────────────────────────────────────────────── */
+:root{
+  --azul-2:#1C7DB3;                         /* azul do logotipo, mais fundo, para texto branco */
+  --azul-suave:#EAF5FC;
+  --raio:18px; --raio-p:12px;
+  --sombra:0 1px 2px rgba(16,42,67,.06),0 6px 20px rgba(34,145,206,.08);
+  --sombra-forte:0 2px 6px rgba(16,42,67,.08),0 14px 36px rgba(34,145,206,.14);
+  --grad-topo:linear-gradient(135deg,#E6F3FB 0%,#F6FBFE 55%,#FFFFFF 100%);
+  --grad-azul:linear-gradient(135deg,#2291CE 0%,#3BA7DD 100%);
+  --grad-rodape:linear-gradient(180deg,#F2F8FC 0%,#E6F1F9 100%);
+}
+html[data-tema="escuro"]{
+  --azul-suave:#16283A;
+  --grad-topo:linear-gradient(135deg,#132536 0%,#11131C 70%);
+  --grad-azul:linear-gradient(135deg,#1C7DB3 0%,#2291CE 100%);
+  --grad-rodape:linear-gradient(180deg,#161925 0%,#121521 100%);
+  --sombra:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);
+  --sombra-forte:0 2px 6px rgba(0,0,0,.35),0 14px 36px rgba(0,0,0,.3);
+}
+/* botões em pílula, azul do logotipo */
+.botao{border-radius:999px;background:var(--grad-azul);color:#fff;padding:12px 26px;box-shadow:0 4px 14px rgba(34,145,206,.25);transition:filter .15s,box-shadow .15s}
+.botao:hover{background:var(--grad-azul);filter:brightness(1.06);box-shadow:0 6px 18px rgba(34,145,206,.32)}
+.botao-claro,.botao-claro:hover{background:#fff;color:var(--azul-2);box-shadow:var(--sombra)}
+.botao-linha,.botao-contorno{background:transparent!important;color:var(--azul-2)!important;border:1.5px solid var(--azul)!important;box-shadow:none!important}
+.tema,.abrir-menu,.carrossel-setas button{border-radius:999px}
+.marcar-topo{border-radius:999px;background:var(--grad-azul)}
+.marcar-topo:hover{background:var(--grad-azul);filter:brightness(1.06)}
+.mais a[href^="https://wa.me"]{border-radius:999px;background:var(--grad-azul)}
+.mais a[href^="https://wa.me"]:hover{background:var(--grad-azul);filter:brightness(1.06)}
+input,select,textarea{border-radius:var(--raio-p)}
+.pills span{border-radius:999px}
+
+/* cabeçalho mais leve, com sombra quando se desce */
+.topo{background:rgba(255,255,255,.92);backdrop-filter:saturate(1.4) blur(10px);-webkit-backdrop-filter:saturate(1.4) blur(10px);border-bottom:1px solid rgba(34,145,206,.12)}
+html[data-tema="escuro"] .topo{background:rgba(22,25,37,.92)}
+
+/* abertura clara com degradê, fotografias em slide com cantos redondos */
+.abertura{background:var(--grad-topo);color:var(--t1)}
+.abertura .etiqueta{color:var(--azul-2)}
+.abertura h1{color:var(--titulo)}
+.abertura p{color:var(--t2)}
+.abertura .botao-claro{background:var(--grad-azul);color:#fff}
+@media(min-width:861px){
+  .abertura .caixa{grid-template-columns:1.05fr .95fr;min-height:0;padding-top:56px;padding-bottom:64px}
+  .foto-abertura{position:static;width:100%;height:auto}
+}
+.slides{position:relative;width:100%;aspect-ratio:5/4;border-radius:28px;overflow:hidden;box-shadow:var(--sombra-forte);background:var(--azul-suave)}
+.slides img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1.1s ease}
+.slides img.activo{opacity:1}
+.slides-pontos{position:absolute;left:0;right:0;bottom:14px;display:flex;justify-content:center;gap:8px;z-index:2}
+.slides-pontos button{width:9px;height:9px;padding:0;border:0;border-radius:999px;background:rgba(255,255,255,.65);cursor:pointer;transition:width .3s,background .3s}
+.slides-pontos button.activo{width:26px;background:#fff}
+.slides-legenda{position:absolute;left:14px;bottom:36px;z-index:2;background:rgba(255,255,255,.9);color:var(--marinho);font-size:13px;font-weight:600;padding:6px 12px;border-radius:999px}
+@media(prefers-reduced-motion:reduce){.slides img{transition:none}}
+
+/* topo das páginas internas: o mesmo degradê claro */
+.pagina-topo{background:var(--grad-topo);color:var(--t1)}
+.pagina-topo h1{color:var(--titulo)}
+.pagina-topo .intro{color:var(--t2)}
+.pagina-topo .etiqueta{color:var(--azul-2)}
+.pagina-topo .pills span{color:var(--azul-2);border-color:rgba(34,145,206,.35);background:#fff}
+html[data-tema="escuro"] .pagina-topo .pills span{background:transparent}
+@media(min-width:861px){
+  .pagina-topo:not(.sem-foto) .caixa{min-height:0;padding-top:48px;padding-bottom:56px}
+  .pagina-topo:not(.sem-foto) img{position:static;width:100%;height:auto;aspect-ratio:4/3.2}
+}
+.pagina-topo img{border-radius:24px;box-shadow:var(--sombra-forte)}
+.migalhas a,.pagina-topo .migalhas{color:var(--t2)}
+
+/* atalhos e faixas: azul do logotipo em degradê */
+.atalhos{background:var(--grad-azul)}
+.chamada{background:var(--grad-azul)}
+.contacto-wa{background:var(--grad-azul);border-radius:var(--raio)}
+
+/* cartões arredondados, com sombra leve */
+.cartao{border-radius:var(--raio);overflow:hidden;border:1px solid rgba(34,145,206,.12);box-shadow:var(--sombra);transition:box-shadow .2s,transform .2s}
+.cartao:hover{box-shadow:var(--sombra-forte)}
+.cartao-cta,.exame.exame-cta{background:var(--grad-azul);border-color:transparent}
+.mosaicos .cartao{border-radius:var(--raio)}
+.mosaicos .cartao-cta{background:var(--grad-azul)}
+@media(min-width:861px){.mosaicos{gap:14px}}
+.exame,.lab-grupo,.campanha,.campanha.cor,.seguro-logo,.formbox,.dado,.passo,.faq details,details{border-radius:var(--raio)}
+.formbox{box-shadow:var(--sombra)}
+img[loading="lazy"]:not(.cartao-foto img):not(.seguro-logo img){border-radius:var(--raio)}
+.cartao-foto img{border-radius:0}
+.fundo-claro{background:var(--azul-suave)}
+.passos.numerados .passo::before{background:var(--grad-azul)}
+.factos{background:#fff}
+html[data-tema="escuro"] .factos{background:transparent}
+
+/* rodapé claro */
+footer{background:var(--grad-rodape);color:var(--t2)}
+footer h2,footer h3,footer b,footer strong{color:var(--titulo)}
+footer a{color:var(--azul-2)}
+html[data-tema="escuro"] footer a{color:#8CCBF0}
+footer .marca-rodape{color:var(--titulo)}
+footer .marca-rodape img{background:#fff;border-radius:50%;box-shadow:var(--sombra)}
+.legal{border-top-color:rgba(34,145,206,.18)}
+.legal a{color:var(--t2)}
+.chamada .botao-linha,.atalhos .botao-linha{color:#fff!important;border-color:rgba(255,255,255,.7)!important}
+/* fotografias dos serviços limpas: só um degradê em baixo, para o texto se ler */
+.mosaicos .cartao-foto::after{background:linear-gradient(180deg,rgba(16,40,64,0) 35%,rgba(16,40,64,.38) 60%,rgba(16,40,64,.82) 100%)}
+.mosaicos .cartao .seta{border-radius:999px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.8);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.mosaicos .cartao:hover .seta{background:#fff;color:var(--azul-2)}
+.migalha{color:var(--t2)}
+.migalha a{color:var(--azul-2)}
+.pagina-topo .botao-claro{background:var(--grad-azul);color:#fff;box-shadow:0 4px 14px rgba(34,145,206,.25)}

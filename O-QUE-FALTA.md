@@ -5725,3 +5725,16 @@ Elmar: «Audita o que os funcionários vêem ao aceder o workspace» → «Faz a
   `bsp_rel_ler`). Ecrã: «Versão N, em vigor desde …» e «Ver todas as versões»
   (`VersoesRelatorio`): da mais recente à entregue, o que mudou em cada uma (antes e
   depois) e «Ver esta versão completa». Testado com um relatório fictício de 3 versões.
+- 31-10-2026, Elmar: «o site está mal, básico… podes colocar degradê, slide automático…
+  esse azul escuro está muito pesado; vamos usar o outro azul do logotipo; tornar o site
+  mais leve; os contornos estão muito quadrados… como Facebook, como WhatsApp». Camada
+  «Versão leve» no fim de `assets/site.css` (todas as páginas): azul do logotipo
+  (#2291CE, e #1C7DB3 para texto branco) como cor principal, marinho só nos títulos;
+  topo de cada página e abertura com degradê claro (`--grad-topo`), atalhos, chamada,
+  cartões de destaque e botões com degradê azul (`--grad-azul`); botões em pílula,
+  cartões e fotografias com cantos de 18 a 28 px e sombra leve; cabeçalho translúcido;
+  fotografias dos serviços sem o véu escuro (só degradê em baixo); rodapé claro. Modo
+  escuro com as mesmas variáveis. Abertura da página inicial com slide automático
+  (`[data-slides]` no `index.html`, `site.js`: 6 fotografias, 5 s, pontos, legenda,
+  pára com o rato, com a página escondida e com «menos movimento»). Testado a 1280 e
+  390 px nas 9 páginas, sem passar da largura do ecrã.
